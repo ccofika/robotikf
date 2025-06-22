@@ -1,0 +1,669 @@
+/* Professional Corporate Glassmorphism Design for Technicians List */
+
+/* Main Container */
+.technicians-list {
+  min-height: 100vh;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.98) 50%,
+    rgba(243, 246, 250, 0.95) 100%
+  );
+  padding: 2rem;
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Main Card Container */
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(31, 38, 135, 0.12),
+    0 2px 8px rgba(31, 38, 135, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  padding: 2rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(59, 130, 246, 0.5), 
+    transparent
+  );
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 16px 48px rgba(31, 38, 135, 0.15),
+    0 4px 16px rgba(31, 38, 135, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Table Controls */
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.search-filter {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-tertiary);
+  z-index: 2;
+  width: 1.25rem;
+  height: 1.25rem;
+  pointer-events: none;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 3rem;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-primary);
+}
+
+.search-box input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.1),
+    0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+.search-box input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Buttons */
+.btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 
+    0 8px 24px rgba(59, 130, 246, 0.15),
+    0 2px 8px rgba(59, 130, 246, 0.1);
+  color: var(--primary-600);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, 
+    #3b82f6 0%, 
+    #2563eb 100%
+  );
+  color: white;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 
+    0 4px 12px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, 
+    #2563eb 0%, 
+    #1d4ed8 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px rgba(59, 130, 246, 0.5),
+    0 2px 8px rgba(59, 130, 246, 0.3);
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  background: rgba(229, 231, 235, 0.8);
+  color: var(--text-tertiary);
+}
+
+.btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Table Container */
+.table-container {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  margin-bottom: 1.5rem;
+}
+
+.technicians-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.technicians-table thead {
+  background: linear-gradient(135deg, 
+    rgba(248, 250, 252, 0.9) 0%,
+    rgba(241, 245, 249, 0.9) 100%
+  );
+  backdrop-filter: blur(10px);
+}
+
+.technicians-table th {
+  padding: 1.25rem 1.5rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  position: relative;
+}
+
+.technicians-table th::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 1.5rem;
+  right: 1.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    var(--primary-500), 
+    transparent
+  );
+  opacity: 0.6;
+}
+
+.technicians-table td {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  color: var(--text-secondary);
+  vertical-align: middle;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.technicians-table tbody tr {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.technicians-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.04);
+  backdrop-filter: blur(10px);
+  transform: scale(1.01);
+}
+
+.technicians-table tbody tr:hover td {
+  color: var(--text-primary);
+}
+
+/* Actions Column */
+.actions-column {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transition: left 0.4s ease;
+}
+
+.action-btn:hover::before {
+  left: 100%;
+}
+
+.equipment-btn {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary-700);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.equipment-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--primary-800);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.material-btn {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--emerald-700);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.material-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--emerald-800);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.view-btn {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--gray-700);
+  border-color: rgba(107, 114, 128, 0.2);
+}
+
+.view-btn:hover {
+  background: rgba(107, 114, 128, 0.15);
+  color: var(--gray-800);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+
+.delete-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red-700);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red-800);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Loading and Empty States */
+.loading-text {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  background: rgba(248, 250, 252, 0.5);
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px dashed rgba(226, 232, 240, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-top: 2px solid var(--primary-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.text-center {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* Technician Info in Table */
+.technician-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.technician-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.technician-id {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.date-display {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Table Footer */
+.table-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.results-info {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* Alert Messages */
+.alert {
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid;
+  animation: slideInDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.alert-danger {
+  background: rgba(254, 242, 242, 0.9);
+  color: var(--red-800);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .technicians-list {
+    padding: 1.5rem;
+  }
+  
+  .card {
+    padding: 1.5rem;
+  }
+  
+  .page-title {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .technicians-list {
+    padding: 1rem;
+  }
+  
+  .card {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  
+  .table-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-filter {
+    max-width: none;
+  }
+  
+  .actions-column {
+    flex-direction: column;
+    gap: 0.375rem;
+    align-items: stretch;
+  }
+  
+  .action-btn {
+    justify-content: center;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .technicians-table th,
+  .technicians-table td {
+    padding: 1rem 0.75rem;
+  }
+  
+  .technicians-table {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .technicians-list {
+    padding: 0.75rem;
+  }
+  
+  .page-title {
+    font-size: 1.25rem;
+  }
+  
+  .btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.75rem;
+  }
+  
+  .search-box input {
+    padding: 0.75rem 0.875rem 0.75rem 2.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .search-icon {
+    left: 0.75rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .card {
+    border-width: 2px;
+    border-color: var(--text-primary);
+  }
+  
+  .btn {
+    border-width: 2px;
+  }
+  
+  .technicians-table th,
+  .technicians-table td {
+    border-color: var(--text-primary);
+  }
+}
+
+/* Focus Styles for Accessibility */
+.btn:focus-visible,
+.search-box input:focus-visible,
+.action-btn:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+  .technicians-list {
+    background: white;
+    padding: 0;
+  }
+  
+  .card {
+    background: white;
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+  
+     .btn,
+   .action-btn {
+     display: none;
+   }
+ }

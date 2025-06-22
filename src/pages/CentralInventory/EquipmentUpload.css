@@ -1,0 +1,559 @@
+/* ===================================
+   EQUIPMENT UPLOAD.CSS - Professional Corporate Design
+   Minimalist glassmorphism with modern upload design
+   =================================== */
+
+/* Corporate Design Variables */
+:root {
+  /* Professional Color Palette */
+  --corp-primary: #2c3e50;
+  --corp-secondary: #34495e;
+  --corp-accent: #3498db;
+  --corp-success: #27ae60;
+  --corp-warning: #f39c12;
+  --corp-danger: #e74c3c;
+  --corp-info: #17a2b8;
+  
+  /* Neutral Grays */
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+  
+  /* Glass Effects */
+  --glass-white: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.1);
+  
+  /* Professional Transitions */
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Equipment Upload Container */
+.equipment-upload {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 2rem;
+  animation: fadeIn 0.6s ease-out;
+  position: relative;
+}
+
+.equipment-upload::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(52, 152, 219, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(46, 204, 113, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Page Header */
+.equipment-upload .page-header {
+  background: var(--glass-white);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.equipment-upload .page-header:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
+}
+
+.equipment-upload .page-title {
+  color: var(--corp-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+/* Card - Scoped to equipment upload only */
+.equipment-upload .card {
+  background: var(--glass-white);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition);
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.equipment-upload .card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
+}
+
+/* Upload Instructions */
+.equipment-upload .upload-instructions {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.05) 0%, rgba(46, 204, 113, 0.03) 100%);
+  border: 1px solid rgba(52, 152, 219, 0.1);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.equipment-upload .upload-instructions h2 {
+  color: var(--corp-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+}
+
+.equipment-upload .upload-instructions p {
+  color: var(--gray-600);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.equipment-upload .upload-instructions ul {
+  color: var(--gray-600);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0 0 1.5rem 1.5rem;
+  padding: 0;
+}
+
+.equipment-upload .upload-instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.equipment-upload .template-btn {
+  background: linear-gradient(135deg, #d1fae5 0%, #bbf7d0 100%);
+  color: var(--corp-success);
+  border: 1px solid #86efac;
+}
+
+.equipment-upload .template-btn:hover {
+  background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+/* Upload Form */
+.equipment-upload .upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.equipment-upload .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.equipment-upload .form-group label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--corp-primary);
+  letter-spacing: -0.01em;
+}
+
+/* File Upload Group */
+.equipment-upload .file-upload-group {
+  position: relative;
+}
+
+.equipment-upload .file-input-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.equipment-upload .file-input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.equipment-upload .file-input:disabled {
+  cursor: not-allowed;
+}
+
+.equipment-upload .file-input-label {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.05) 0%, rgba(52, 152, 219, 0.02) 100%);
+  border: 2px dashed rgba(52, 152, 219, 0.3);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.equipment-upload .file-input-label:hover {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(52, 152, 219, 0.05) 100%);
+  border-color: rgba(52, 152, 219, 0.5);
+  transform: translateY(-2px);
+}
+
+.equipment-upload .file-input:focus + .file-input-label {
+  outline: 2px solid var(--corp-accent);
+  outline-offset: 2px;
+}
+
+.equipment-upload .upload-icon {
+  font-size: 2rem;
+  color: var(--corp-accent);
+}
+
+.equipment-upload .file-input-label span {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--corp-primary);
+}
+
+.equipment-upload .file-input:disabled + .file-input-label {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+}
+
+.equipment-upload .file-input:disabled + .file-input-label:hover {
+  transform: none;
+}
+
+/* Form Buttons - Scoped to equipment upload */
+.equipment-upload .form-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+/* Buttons - Scoped to equipment upload */
+.equipment-upload .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  text-align: center;
+  justify-content: center;
+}
+
+.equipment-upload .btn-primary {
+  background: linear-gradient(135deg, var(--corp-accent) 0%, #2980b9 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.equipment-upload .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2980b9 0%, var(--corp-accent) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+.equipment-upload .btn-sm {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  background: var(--glass-white);
+  color: var(--corp-primary);
+  border: 1px solid var(--gray-300);
+}
+
+.equipment-upload .btn-sm:hover {
+  background: var(--corp-accent);
+  color: white;
+  border-color: var(--corp-accent);
+  transform: translateY(-1px);
+}
+
+.equipment-upload .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.equipment-upload .upload-btn:disabled {
+  background: linear-gradient(135deg, var(--gray-300) 0%, var(--gray-400) 100%);
+}
+
+/* Alert Messages - Scoped to equipment upload */
+.equipment-upload .alert {
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.equipment-upload .alert-danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+  color: var(--corp-danger);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.equipment-upload .alert-success {
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.1) 0%, rgba(46, 204, 113, 0.1) 100%);
+  color: var(--corp-success);
+  border-color: rgba(39, 174, 96, 0.2);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0);
+  }
+}
+
+.equipment-upload .fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Loading States */
+.equipment-upload .loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Drag and Drop Effects */
+.equipment-upload .file-input-container.drag-over .file-input-label {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.15) 0%, rgba(52, 152, 219, 0.08) 100%);
+  border-color: var(--corp-accent);
+  transform: scale(1.02);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .equipment-upload {
+    padding: 1.5rem;
+}
+
+  .equipment-upload .page-header {
+    padding: 1.5rem;
+  }
+  
+  .equipment-upload .card {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .equipment-upload {
+    padding: 1rem;
+}
+
+  .equipment-upload .page-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+    text-align: center;
+}
+
+  .equipment-upload .page-title {
+    font-size: 1.75rem;
+  }
+  
+  .equipment-upload .upload-instructions {
+    padding: 1.5rem;
+}
+
+  .equipment-upload .form-buttons {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+  .equipment-upload .btn {
+  width: 100%;
+    justify-content: center;
+}
+}
+
+@media (max-width: 768px) {
+  .equipment-upload {
+    padding: 0.75rem;
+  }
+  
+  .equipment-upload .page-header,
+  .equipment-upload .card {
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+  
+  .equipment-upload .page-title {
+    font-size: 1.5rem;
+}
+
+  .equipment-upload .upload-instructions {
+    padding: 1.25rem;
+    border-radius: 12px;
+}
+
+  .equipment-upload .upload-instructions h2 {
+    font-size: 1.25rem;
+}
+
+  .equipment-upload .file-input-label {
+    padding: 1.25rem 1.5rem;
+    min-height: 100px;
+    flex-direction: column;
+    text-align: center;
+}
+
+  .equipment-upload .upload-icon {
+    font-size: 1.75rem;
+  }
+  
+  .equipment-upload .file-input-label span {
+    font-size: 1rem;
+  }
+  
+    .equipment-upload .btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+}
+
+  .equipment-upload .btn-sm {
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .equipment-upload .card {
+    max-width: none;
+    margin: 0;
+}
+
+  .equipment-upload .upload-instructions ul {
+    margin-left: 1rem;
+  }
+  
+  .equipment-upload .file-input-label {
+    padding: 1rem;
+    min-height: 80px;
+  }
+  
+  .equipment-upload .upload-icon {
+    font-size: 1.5rem;
+  }
+  
+  .equipment-upload .file-input-label span {
+    font-size: 0.95rem;
+  }
+  
+  .equipment-upload .btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .equipment-upload {
+    background: white;
+    padding: 1rem;
+}
+
+  .equipment-upload .page-header,
+  .equipment-upload .card {
+    background: white;
+    border: 1px solid #ddd;
+    box-shadow: none;
+}
+
+  .equipment-upload .btn,
+  .equipment-upload .file-input-container {
+    display: none;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+.equipment-upload .btn:focus,
+.equipment-upload .file-input:focus + .file-input-label {
+  outline: 2px solid var(--corp-accent);
+  outline-offset: 2px;
+  }
+  
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .equipment-upload .card {
+    border: 2px solid var(--corp-primary);
+  }
+  
+  .equipment-upload .file-input-label {
+    border: 2px solid var(--corp-primary);
+  }
+  
+  .equipment-upload .btn-primary {
+    background: var(--corp-primary);
+  }
+  
+  .equipment-upload .upload-instructions {
+    border: 2px solid var(--corp-accent);
+  }
+}

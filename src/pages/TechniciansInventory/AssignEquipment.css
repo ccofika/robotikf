@@ -1,0 +1,276 @@
+.assign-equipment {
+  padding-bottom: 40px;
+  animation: fadeIn 0.8s ease-out;
+}
+
+.technician-brief {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 25px;
+  box-shadow: var(--shadow);
+  animation: slideIn 0.5s ease;
+}
+
+.technician-avatar {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  border-radius: 50%;
+  font-size: 30px;
+  margin-right: 20px;
+}
+
+.technician-info h2 {
+  margin: 0;
+  color: var(--primary-color);
+  font-size: 22px;
+}
+
+.tab-navigation {
+  display: flex;
+  margin-bottom: 25px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 15px;
+  background-color: white;
+  color: var(--primary-color);
+  border: none;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+}
+
+.tab-button.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.tab-button:not(.active):hover {
+  background-color: var(--light-color);
+}
+
+.tab-button svg {
+  font-size: 18px;
+}
+
+.section-card {
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.equipment-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.equipment-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.equipment-title h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  color: var(--primary-color);
+}
+
+.count-badge {
+  background-color: var(--light-color);
+  color: var(--primary-color);
+  padding: 5px 12px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.selection-controls {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 15px;
+}
+
+/* Selektabilni redovi */
+.selectable-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selectable-row:hover {
+  background-color: rgba(52, 152, 219, 0.05);
+}
+
+.selectable-row.selected {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Footer sa akcijama */
+.action-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--light-color);
+}
+
+.selected-count {
+  font-size: 16px;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.selected-count strong {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* Dugmad za zaduživanje/razduživanje */
+.assign-btn, .return-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  min-width: 180px;
+}
+
+.assign-btn {
+  background-color: var(--success-color);
+  color: white;
+  border: none;
+}
+
+.return-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.assign-btn:hover, .return-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.assign-btn:disabled, .return-btn:disabled {
+  background-color: var(--text-light-color);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responzivni dizajn */
+@media (max-width: 992px) {
+  .equipment-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tab-navigation {
+    flex-wrap: wrap;
+  }
+  
+  .tab-button {
+    flex: 1 0 auto;
+    font-size: 14px;
+    padding: 12px 15px;
+  }
+  
+  .technician-brief {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px 15px;
+  }
+  
+  .technician-avatar {
+    margin-right: 0;
+    margin-bottom: 15px;
+  }
+  
+  .action-footer {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .selected-count {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  
+  .action-buttons {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .assign-btn, .return-btn {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .equipment-title h3 {
+    font-size: 16px;
+  }
+  
+  .count-badge {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  
+  .technician-info h2 {
+    font-size: 20px;
+  }
+  
+  .selection-controls {
+    justify-content: space-between;
+    padding: 0 15px 15px;
+  }
+  
+  .assign-btn, .return-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-width: auto;
+  }
+}

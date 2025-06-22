@@ -1,0 +1,352 @@
+.work-orders-by-technician {
+  padding-bottom: 40px;
+  animation: fadeIn 0.8s ease-out;
+}
+
+.tabs-container {
+  margin-bottom: 30px;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-light-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.tab:hover {
+  background-color: rgba(52, 152, 219, 0.05);
+  color: var(--secondary-color);
+}
+
+.tab.active {
+  background-color: rgba(52, 152, 219, 0.1);
+  color: var(--secondary-color);
+  font-weight: 600;
+}
+
+.tab-badge {
+  background-color: var(--bg-color);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.tab.active .tab-badge {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+.filter-container {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.refresh-btn {
+  border-radius: 8px;
+  padding: 12px 15px;
+  background-color: var(--light-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  background-color: var(--border-color);
+}
+
+.technician-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.technician-card {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.technician-card:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.technician-card-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.technician-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.technician-avatar {
+  width: 50px;
+  height: 50px;
+  background-color: var(--light-color);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--secondary-color);
+  font-size: 24px;
+}
+
+.technician-details h3 {
+  margin: 0 0 5px;
+  color: var(--text-color);
+  font-size: 18px;
+}
+
+.technician-details p {
+  margin: 0;
+  color: var(--text-light-color);
+  font-size: 14px;
+}
+
+.technician-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.stat-value.completed {
+  color: #27ae60;
+}
+
+.stat-value.pending {
+  color: #f39c12;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--text-light-color);
+}
+
+.technician-workorders {
+  padding: 20px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.workorders-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.workorders-table th,
+.workorders-table td {
+  padding: 12px 15px;
+  text-align: left;
+}
+
+.workorders-table th {
+  background-color: var(--light-color);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.workorders-table td {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.workorders-table tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.verified-badge {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #27ae60;
+  color: white;
+  justify-content: center;
+  align-items: center;
+  font-size: 10px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.verify-btn {
+  background-color: rgba(46, 204, 113, 0.1);
+  color: #27ae60;
+}
+
+.verify-btn:hover {
+  background-color: rgba(46, 204, 113, 0.2);
+}
+
+.count-badge {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+  margin-left: 10px;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-light-color);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  color: var(--border-color);
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-light-color);
+}
+
+/* Responsive design */
+@media screen and (max-width: 992px) {
+  .technician-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .technician-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+  
+  .tab {
+    flex: 1 0 auto;
+    text-align: center;
+    justify-content: center;
+    padding: 10px;
+  }
+  
+  .filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .refresh-btn {
+    width: 100%;
+  }
+  
+  .workorders-table thead {
+    display: none;
+  }
+  
+  .workorders-table, 
+  .workorders-table tbody, 
+  .workorders-table tr, 
+  .workorders-table td {
+    display: block;
+    width: 100%;
+  }
+  
+  .workorders-table tr {
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .workorders-table td {
+    text-align: right;
+    padding-left: 50%;
+    position: relative;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .workorders-table td:before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: 600;
+    text-align: left;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .technician-stats {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .stat {
+    flex: 1 0 30%;
+  }
+  
+  .tab {
+    font-size: 14px;
+  }
+  
+  .tab-badge {
+    display: none;
+  }
+}

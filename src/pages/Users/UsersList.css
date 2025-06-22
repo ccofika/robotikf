@@ -1,0 +1,244 @@
+.users-list {
+  padding-bottom: 40px;
+  animation: fadeIn 0.8s ease-out;
+}
+
+.search-container {
+  margin-bottom: 20px;
+}
+
+.clear-search {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7f8c8d;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.clear-search:hover {
+  opacity: 1;
+}
+
+.users-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.user-card {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  border: 2px solid transparent;
+}
+
+.user-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.user-card.selected {
+  border-color: var(--primary-color);
+  background-color: rgba(52, 152, 219, 0.05);
+}
+
+.user-card-header {
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(to right, #3498db, #2980b9);
+  color: white;
+}
+
+.user-icon {
+  background-color: rgba(255, 255, 255, 0.2);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 18px;
+  flex-grow: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.user-card-body {
+  padding: 15px;
+  background-color: white;
+}
+
+.user-detail {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.user-detail:last-child {
+  margin-bottom: 0;
+}
+
+.user-detail-icon {
+  color: var(--secondary-color);
+  margin-top: 3px;
+}
+
+.user-detail-text {
+  color: var(--text-color);
+  word-break: break-word;
+}
+
+.user-card-footer {
+  padding: 10px 15px;
+  border-top: 1px solid #f0f0f0;
+  background-color: var(--light-color);
+}
+
+.tis-id {
+  font-size: 14px;
+  color: var(--text-light-color);
+  font-weight: 500;
+}
+
+.user-workorders-container {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: slideInUp 0.3s ease;
+}
+
+.user-workorders-header {
+  background: linear-gradient(to right, #3498db, #2980b9);
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-workorders-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.btn-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.user-workorders-body {
+  padding: 0;
+}
+
+.workorders-table-container {
+  overflow-x: auto;
+}
+
+.workorders-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.workorders-table th,
+.workorders-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.workorders-table th {
+  background-color: var(--light-color);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.workorders-table tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.btn-view {
+  padding: 5px 10px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.btn-view:hover {
+  background-color: var(--primary-dark-color);
+}
+
+.no-results {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-light-color);
+  font-size: 16px;
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+  .users-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  
+  .user-workorders-header h2 {
+    font-size: 18px;
+  }
+  
+  .workorders-table th,
+  .workorders-table td {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .user-workorders-header h2 {
+    font-size: 16px;
+  }
+}
