@@ -7,6 +7,14 @@ import axios from 'axios';
 
 const Login = () => {
   const { login } = useContext(AuthContext);
+  
+  // DODAJ OVO - Debug i API URL konfiguracija
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+  
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  console.log('Final apiUrl:', apiUrl);
+  
   const [formData, setFormData] = useState({
     name: '',
     password: ''
@@ -33,21 +41,24 @@ const Login = () => {
     
     setLoading(true);
     
-try {
-  // Poziv API endpointa za autentifikaciju
-  const response = await axios.post('http://localhost:5000/api/auth/login', {
-    name: formData.name,
-    password: formData.password
-  });
-  
-  // Ako je prijava uspešna, spremite korisnika i token
-  if (response.data && response.data.user) {
-    login(response.data.user, response.data.token);
+    try {
+      // PROMENI OVO - koristi apiUrl umesto hardcode localhost
+      console.log('Making request to:', `${apiUrl}/api/auth/login`);
+      
+      const response = await axios.post(`${apiUrl}/api/auth/login`, {
+        name: formData.name,
+        password: formData.password
+      });
+      
+      // Ako je prijava uspešna, spremite korisnika i token
+      if (response.data && response.data.user) {
+        login(response.data.user, response.data.token);
         toast.success('Uspešno ste se prijavili!');
-  } else {
-    setError('Neuspešna prijava. Proverite vaše podatke.');
-  }
+      } else {
+        setError('Neuspešna prijava. Proverite vaše podatke.');
+      }
     } catch (err) {
+      console.error('Login error:', err);
       const errorMessage = err.response?.data?.message || 'Greška pri prijavljivanju, pokušajte ponovo';
       setError(errorMessage);
       toast.error(errorMessage);
