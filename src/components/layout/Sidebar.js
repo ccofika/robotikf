@@ -169,6 +169,28 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                     <span>{(!collapsed || mobileOpen) && 'Moji radni nalozi'}</span>
                   </NavLink>
                 </li>
+                <li>
+                  <NavLink 
+                    to="/my-equipment" 
+                    className={({ isActive }) => isActive ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                    data-title="Moja oprema"
+                  >
+                    <BoxIcon size={20} /> 
+                    <span>{(!collapsed || mobileOpen) && 'Moja oprema'}</span>
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink 
+                    to="/my-materials" 
+                    className={({ isActive }) => isActive ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                    data-title="Moji materijali"
+                  >
+                    <ToolsIcon size={20} /> 
+                    <span>{(!collapsed || mobileOpen) && 'Moji materijali'}</span>
+                  </NavLink>
+                </li>
               </>
             )}
           </ul>

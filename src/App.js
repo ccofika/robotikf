@@ -35,6 +35,9 @@ import WorkOrdersByTechnician from './pages/WorkOrders/WorkOrdersByTechnician';
 // Tehnicar radni nalozi stranice
 import TechnicianWorkOrders from './pages/WorkOrders/TechnicianWorkOrders';
 import TechnicianWorkOrderDetail from './pages/WorkOrders/TechnicianWorkOrderDetail';
+// Tehnicar inventar stranice
+import TechnicianEquipment from './pages/TechniciansInventory/TechnicianEquipment';
+import TechnicianMaterials from './pages/TechniciansInventory/TechnicianMaterials';
 // Korisnička stranica
 import UsersList from './pages/Users/UsersList';
 import ExportSpecification from './pages/Reports/ExportSpecification';
@@ -183,6 +186,14 @@ const PrivateRoute = ({ children }) => {
                 } />
                 <Route path="/my-work-orders/:id" element={
                   user ? <TechnicianWorkOrderDetail /> : <Navigate to="/login" />
+                } />
+                
+                {/* Inventar rute za tehničara */}
+                <Route path="/my-equipment" element={
+                  user ? <TechnicianEquipment /> : <Navigate to="/login" />
+                } />
+                <Route path="/my-materials" element={
+                  user ? <TechnicianMaterials /> : <Navigate to="/login" />
                 } />
                 <Route path="/reports/user-equipment" element={
                   <PrivateRoute>
