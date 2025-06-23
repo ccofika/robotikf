@@ -14,7 +14,14 @@ const AddWorkOrder = () => {
     type: '',
     technicianId: '',
     details: '',
-    comment: ''
+    comment: '',
+    // Dodati novi atributi iz workorders.json
+    technology: '',
+    tisId: '',
+    userName: '',
+    userPhone: '',
+    tisJobId: '',
+    additionalJobs: ''
   });
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -153,20 +160,108 @@ const AddWorkOrder = () => {
             />
           </div>
           
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="technology">Tehnologija:</label>
+              <select
+                id="technology"
+                name="technology"
+                value={formData.technology}
+                onChange={handleChange}
+                disabled={loading}
+              >
+                <option value="">-- Izaberite tehnologiju --</option>
+                <option value="HFC">HFC</option>
+                <option value="GPON">GPON</option>
+                <option value="VDSL">VDSL</option>
+                <option value="ADSL">ADSL</option>
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="technicianId">Tehničar:</label>
+              <select
+                id="technicianId"
+                name="technicianId"
+                value={formData.technicianId}
+                onChange={handleChange}
+                disabled={loading}
+              >
+                <option value="">-- Izaberite tehničara --</option>
+                {technicians.map(tech => (
+                  <option key={tech.id} value={tech.id}>{tech.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="tisId">TIS ID korisnika:</label>
+              <input
+                type="text"
+                id="tisId"
+                name="tisId"
+                value={formData.tisId}
+                onChange={handleChange}
+                placeholder="ID korisnika u TIS sistemu"
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="tisJobId">TIS ID posla:</label>
+              <input
+                type="text"
+                id="tisJobId"
+                name="tisJobId"
+                value={formData.tisJobId}
+                onChange={handleChange}
+                placeholder="ID posla u TIS sistemu"
+                disabled={loading}
+              />
+            </div>
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="userName">Ime korisnika:</label>
+              <input
+                type="text"
+                id="userName"
+                name="userName"
+                value={formData.userName}
+                onChange={handleChange}
+                placeholder="Ime i prezime korisnika"
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="userPhone">Telefon korisnika:</label>
+              <input
+                type="text"
+                id="userPhone"
+                name="userPhone"
+                value={formData.userPhone}
+                onChange={handleChange}
+                placeholder="Broj telefona korisnika"
+                disabled={loading}
+              />
+            </div>
+          </div>
+          
           <div className="form-group">
-            <label htmlFor="technicianId">Tehničar:</label>
-            <select
-              id="technicianId"
-              name="technicianId"
-              value={formData.technicianId}
+            <label htmlFor="additionalJobs">Dodatni poslovi:</label>
+            <input
+              type="text"
+              id="additionalJobs"
+              name="additionalJobs"
+              value={formData.additionalJobs}
               onChange={handleChange}
+              placeholder="Format: ID,Opis/ID,Opis;..."
               disabled={loading}
-            >
-              <option value="">-- Izaberite tehničara --</option>
-              {technicians.map(tech => (
-                <option key={tech.id} value={tech.id}>{tech.name}</option>
-              ))}
-            </select>
+            />
           </div>
           
           <div className="form-group">
