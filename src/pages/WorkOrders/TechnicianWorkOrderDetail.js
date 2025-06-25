@@ -113,11 +113,12 @@ const TechnicianWorkOrderDetail = () => {
     try {
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       
-      // Proveriti da li radni nalog pripada ovom tehničaru
+      // Proveriti da li radni nalog pripada ovom tehničaru (prvom ili drugom)
       const technicianId = response.data.technicianId?._id || response.data.technicianId;
+      const technician2Id = response.data.technician2Id?._id || response.data.technician2Id;
       const userId = user._id?.toString() || user._id;
       
-      if (technicianId !== userId) {
+      if (technicianId !== userId && technician2Id !== userId) {
         setError('Nemate pristup ovom radnom nalogu');
         setLoading(false);
         return;
@@ -566,6 +567,9 @@ const TechnicianWorkOrderDetail = () => {
     try {
       // Ako je status odložen, dodajemo datum i vreme odlaganja
       const updatedData = { ...formData };
+      
+      // Dodajemo ID trenutnog tehničara
+      updatedData.technicianId = user._id;
       
       if (updatedData.status === 'odlozen' && updatedData.postponeDate) {
         const formattedDate = updatedData.postponeDate.toISOString().split('T')[0];

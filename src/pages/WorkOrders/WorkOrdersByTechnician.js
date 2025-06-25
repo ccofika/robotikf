@@ -114,11 +114,15 @@ const WorkOrdersByTechnician = () => {
     
     // Dodavanje radnih naloga za svakog tehničara
     workOrders.forEach(order => {
-      // Provera da li je technicianId string ili objekat
-      const techId = order.technicianId?._id || order.technicianId;
-      if (techId && techWorkOrders[techId]) {
-        techWorkOrders[techId].workOrders.push(order);
-      }
+              // Provera da li je technicianId string ili objekat
+        const techId = order.technicianId?._id || order.technicianId;
+        const tech2Id = order.technician2Id?._id || order.technician2Id;
+              if (techId && techWorkOrders[techId]) {
+          techWorkOrders[techId].workOrders.push(order);
+        }
+        if (tech2Id && techWorkOrders[tech2Id]) {
+          techWorkOrders[tech2Id].workOrders.push(order);
+        }
     });
     
     return techWorkOrders;

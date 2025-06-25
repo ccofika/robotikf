@@ -17,6 +17,7 @@ const WorkOrderDetail = () => {
     address: '',
     type: '',
     technicianId: '',
+    technician2Id: '',
     details: '',
     comment: '',
     status: ''
@@ -53,6 +54,7 @@ const WorkOrderDetail = () => {
           address: workOrderRes.data.address,
           type: workOrderRes.data.type,
           technicianId: workOrderRes.data.technicianId?._id || workOrderRes.data.technicianId || '',
+          technician2Id: workOrderRes.data.technician2Id?._id || workOrderRes.data.technician2Id || '',
           details: workOrderRes.data.details || '',
           comment: workOrderRes.data.comment || '',
           status: workOrderRes.data.status || 'nezavrsen'
@@ -103,25 +105,18 @@ const WorkOrderDetail = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validacija
-    if (!formData.municipality || !formData.address || !formData.type) {
-      setError('Opština, adresa i tip instalacije su obavezni!');
-      return;
-    }
-    
     setSaving(true);
     setError('');
     
     try {
-      const formattedData = {
+      const updatedData = {
         ...formData,
-        technicianId: formData.technicianId || null // konvertuj prazan string u null
+        technicianId: formData.technicianId || null,
+        technician2Id: formData.technician2Id || null
       };
-
-      console.log('Admin panel - sending update data:', formattedData);
-      const updatedWorkOrder = await workOrdersAPI.update(id, formattedData);
-      console.log('Admin panel - received response:', updatedWorkOrder.data);
-      setWorkOrder(updatedWorkOrder.data);
+      
+      const response = await workOrdersAPI.update(id, updatedData);
+      setWorkOrder(response.data);
       toast.success('Radni nalog je uspešno ažuriran!');
     } catch (error) {
       console.error('Greška pri ažuriranju radnog naloga:', error);
@@ -163,8 +158,8 @@ const WorkOrderDetail = () => {
     }
   };
   
-  const handleUnassign = () => {
-    setFormData(prev => ({ ...prev, technicianId: '' }));
+  const handleUnassign = (field) => {
+    setFormData(prev => ({ ...prev, [field]: '' }));
   };
 
   // Funkcija za brisanje slike
@@ -558,7 +553,7 @@ const WorkOrderDetail = () => {
           </div>
           
           <div className="form-group technician-field">
-            <label htmlFor="technicianId">Tehničar:</label>
+            <label htmlFor="technicianId">Prvi tehničar:</label>
             <div className="technician-select-group">
               <select
                 id="technicianId"
@@ -576,7 +571,37 @@ const WorkOrderDetail = () => {
                 <button 
                   type="button"
                   className="btn btn-sm btn-danger remove-btn"
-                  onClick={handleUnassign}
+                  onClick={() => handleUnassign('technicianId')}
+                  disabled={saving}
+                >
+                  <BanIcon /> Poništi
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group technician-field">
+            <label htmlFor="technician2Id">Drugi tehničar:</label>
+            <div className="technician-select-group">
+              <select
+                id="technician2Id"
+                name="technician2Id"
+                value={formData.technician2Id}
+                onChange={handleChange}
+                disabled={saving}
+              >
+                <option value="">-- Izaberite tehničara --</option>
+                {technicians
+                  .filter(tech => tech._id !== formData.technicianId)
+                  .map(tech => (
+                    <option key={tech._id} value={tech._id}>{tech.name}</option>
+                  ))}
+              </select>
+              {formData.technician2Id && (
+                <button 
+                  type="button"
+                  className="btn btn-sm btn-danger remove-btn"
+                  onClick={() => handleUnassign('technician2Id')}
                   disabled={saving}
                 >
                   <BanIcon /> Poništi

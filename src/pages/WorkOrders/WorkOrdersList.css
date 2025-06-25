@@ -503,6 +503,14 @@
   border: 1px solid rgba(107, 114, 128, 0.2);
 }
 
+.status-changed-by {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
 /* Order Actions */
 .order-actions {
   display: flex;

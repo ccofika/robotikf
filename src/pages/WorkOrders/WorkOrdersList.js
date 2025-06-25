@@ -71,7 +71,8 @@ const WorkOrdersList = () => {
       
       const statusMatch = statusFilter === '' || order.status === statusFilter;
       const technicianMatch = technicianFilter === '' || 
-                             (technicianFilter === 'unassigned' ? !order.technicianId : order.technicianId === technicianFilter);
+                             (technicianFilter === 'unassigned' ? (!order.technicianId && !order.technician2Id) : 
+                              (order.technicianId === technicianFilter || order.technician2Id === technicianFilter));
       
       return searchMatch && statusMatch && technicianMatch;
     });
@@ -82,6 +83,22 @@ const WorkOrdersList = () => {
     if (!technicianId) return 'Nedodeljen';
     const technician = technicians.find(t => t._id === technicianId);
     return technician ? technician.name : 'Nepoznat';
+  };
+
+  // Funkcija za formatiranje prikaza tehničara
+  const getTechnicianNames = (workOrder) => {
+    const tech1 = getTechnicianName(workOrder.technicianId);
+    const tech2 = getTechnicianName(workOrder.technician2Id);
+    
+    if (tech1 === 'Nedodeljen' && tech2 === 'Nedodeljen') {
+      return 'Nedodeljen';
+    }
+    
+    const names = [];
+    if (tech1 !== 'Nedodeljen') names.push(tech1);
+    if (tech2 !== 'Nedodeljen') names.push(tech2);
+    
+    return names.join(', ');
   };
   
   // Paginacija
@@ -217,8 +234,13 @@ const WorkOrdersList = () => {
                         <td>{order.address}</td>
                         <td>{order.type}</td>
                         <td>
-                          <span className={`technician-badge ${!order.technicianId ? 'unassigned' : ''}`}>
-                            {getTechnicianName(order.technicianId)}
+                          <span className={`technician-badge ${(!order.technicianId && !order.technician2Id) ? 'unassigned' : ''}`}>
+                            {getTechnicianNames(order)}
+                            {order.statusChangedBy && (
+                              <small className="status-changed-by">
+                                (Status: {getTechnicianName(order.statusChangedBy)})
+                              </small>
+                            )}
                           </span>
                         </td>
                         <td>
