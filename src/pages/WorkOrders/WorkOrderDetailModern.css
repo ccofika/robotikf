@@ -942,6 +942,35 @@
     padding: 1.5rem;
     border-radius: 1rem;
   }
+  
+  /* Mobile Admin Styles */
+  .admin-images-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .admin-delete-image-btn {
+    opacity: 0.9;
+    width: 28px;
+    height: 28px;
+    top: 6px;
+    right: 6px;
+  }
+  
+  .admin-delete-image-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .admin-materials-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .work-order-info .info-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 }
 
 @media (max-width: 576px) {
@@ -1028,6 +1057,258 @@
   );
   padding: 2rem;
   animation: fadeIn 0.6s ease-out;
+}
+
+/* Admin Images Section */
+.admin-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-gallery-image-item {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  aspect-ratio: 1;
+}
+
+.admin-gallery-image-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.admin-gallery-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-delete-image-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  background: var(--corp-danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.admin-delete-image-btn:hover {
+  background: #c0392b;
+  transform: scale(1.1);
+}
+
+.admin-delete-image-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-gallery-image-item:hover .admin-delete-image-btn {
+  opacity: 1;
+}
+
+.admin-delete-image-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Admin Materials Section */
+.admin-materials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-material-item {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.admin-material-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.admin-material-item .material-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.admin-material-item .material-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.admin-material-item .material-quantity {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--blue-700);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-material-item .material-details {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.admin-material-item .material-details p {
+  margin: 0.5rem 0;
+}
+
+/* Additional Work Order Info */
+.work-order-info .info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.work-order-info .info-item {
+  background: rgba(248, 250, 252, 0.6);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.4);
+}
+
+.work-order-info .info-item label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.work-order-info .info-item p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.verification-status.verified {
+  color: #16a085;
+  font-weight: 600;
+}
+
+.verification-status.not-verified {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+/* Image Viewer Modal */
+.image-viewer-overlay {
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.image-viewer-container {
+  position: relative;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.full-size-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.close-image-btn {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.close-image-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.close-image-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Fixed close button - uvek vidljiv u gornjem desnom uglu */
+.fixed-close-btn {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  background: rgba(231, 76, 60, 0.9) !important;
+  z-index: 2001;
+  backdrop-filter: blur(10px);
+}
+
+.fixed-close-btn:hover {
+  background: rgba(192, 57, 43, 0.9) !important;
+  transform: scale(1.1);
+}
+
+/* Empty States */
+.no-images-message,
+.no-materials-message {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-style: italic;
+  padding: 2rem;
+  background: rgba(248, 250, 252, 0.5);
+  border-radius: 8px;
+  border: 1px dashed rgba(226, 232, 240, 0.6);
 }
 
 .card {

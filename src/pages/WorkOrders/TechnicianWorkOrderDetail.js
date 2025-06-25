@@ -616,8 +616,14 @@ const TechnicianWorkOrderDetail = () => {
     formData.append('image', imageFile);
     
     try {
-      const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData);
-      toast.success('Slika je uspešno dodata!');
+      const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      toast.success('Slika je uspešno dodata na Cloudinary!');
+      console.log('Cloudinary URL:', response.data.imageUrl);
       
       // Ažuriranje liste slika
       setImages(response.data.workOrder.images || []);
@@ -627,8 +633,8 @@ const TechnicianWorkOrderDetail = () => {
       setImagePreview('');
       document.getElementById('image-upload').value = '';
     } catch (error) {
-      console.error('Greška pri upload-u slike:', error);
-      toast.error('Neuspešan upload slike. Pokušajte ponovo.');
+      console.error('Greška pri upload-u slike na Cloudinary:', error);
+      toast.error(error.response?.data?.error || 'Neuspešan upload slike. Pokušajte ponovo.');
     } finally {
       setUploadingImage(false);
     }
@@ -638,6 +644,27 @@ const TechnicianWorkOrderDetail = () => {
     setImageFile(null);
     setImagePreview('');
     document.getElementById('image-upload').value = '';
+  };
+
+  // Funkcija za brisanje slike
+  const handleImageDelete = async (imageUrl) => {
+    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu sliku?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${apiUrl}/api/workorders/${id}/images`, {
+        data: { imageUrl }
+      });
+
+      toast.success('Slika je uspešno obrisana!');
+      
+      // Ukloni sliku iz lokalne liste
+      setImages(images.filter(img => img !== imageUrl));
+    } catch (error) {
+      console.error('Greška pri brisanju slike:', error);
+      toast.error('Greška pri brisanju slike. Pokušajte ponovo.');
+    }
   };
   
   // Funkcija za poziv korisnika
@@ -1486,11 +1513,21 @@ const TechnicianWorkOrderDetail = () => {
                     {images.map((imageUrl, index) => (
                       <div key={index} className="gallery-image-item">
                         <img 
-                          src={`${apiUrl}${imageUrl}`} 
+                          src={imageUrl} 
                           alt={`Slika ${index + 1}`} 
                           className="gallery-image" 
-                          onClick={() => setShowFullImage(`${apiUrl}${imageUrl}`)}
+                          onClick={() => setShowFullImage(imageUrl)}
                         />
+                        <button
+                          className="delete-image-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleImageDelete(imageUrl);
+                          }}
+                          title="Obriši sliku"
+                        >
+                          <DeleteIcon />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1504,9 +1541,9 @@ const TechnicianWorkOrderDetail = () => {
       {/* Modal za pregled slike u punoj veličini */}
       {showFullImage && (
         <div className="modal-overlay image-viewer-overlay" onClick={() => setShowFullImage(null)}>
-          <div className="image-viewer-container">
+          <div className="image-viewer-container" onClick={(e) => e.stopPropagation()}>
             <img src={showFullImage} alt="Slika u punoj veličini" className="full-size-image" />
-            <button className="close-image-btn" onClick={() => setShowFullImage(null)}>
+            <button className="close-image-btn fixed-close-btn" onClick={() => setShowFullImage(null)}>
               <CloseIcon />
             </button>
           </div>

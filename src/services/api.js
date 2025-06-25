@@ -65,6 +65,10 @@ export const techniciansAPI = {
   returnEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/return`, data),
   assignMaterial: (id, data) => api.post(`/api/technicians/${id}/materials`, data),
   returnMaterial: (id, data) => api.post(`/api/technicians/${id}/materials/return`, data),
+  // Nove funkcije za potvrđivanje opreme
+  getPendingEquipment: (id) => api.get(`/api/technicians/${id}/equipment/pending`),
+  confirmEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/confirm`, data),
+  rejectEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/reject`, data),
 };
 
 // Work Orders API

@@ -104,3 +104,28 @@
     padding: 12px;
   }
 }
+
+/* Blokiranje interakcije kad se prikazuje komponenta za potvrđivanje opreme */
+.app.blocked-by-confirmation .main-content {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.7;
+  filter: blur(2px);
+  transition: all 0.3s ease;
+}
+
+.app.blocked-by-confirmation .content-container {
+  overflow: hidden;
+}
+
+/* Animacija za blokiranje */
+@keyframes blockAnimation {
+  from {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  to {
+    opacity: 0.7;
+    filter: blur(2px);
+  }
+}

@@ -38,16 +38,21 @@ import TechnicianWorkOrderDetail from './pages/WorkOrders/TechnicianWorkOrderDet
 // Tehnicar inventar stranice
 import TechnicianEquipment from './pages/TechniciansInventory/TechnicianEquipment';
 import TechnicianMaterials from './pages/TechniciansInventory/TechnicianMaterials';
+// Komponenta za potvrđivanje opreme
+import EquipmentConfirmation from './pages/TechniciansInventory/EquipmentConfirmation';
 // Korisnička stranica
 import UsersList from './pages/Users/UsersList';
 import ExportSpecification from './pages/Reports/ExportSpecification';
 
 import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
+// API Services
+import { techniciansAPI } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showEquipmentConfirmation, setShowEquipmentConfirmation] = useState(false);
   
   useEffect(() => {
     // Provera da li postoji korisnik u localStorage-u
@@ -62,6 +67,22 @@ function App() {
     }
     setLoading(false);
   }, []);
+
+  // Proveri da li tehničar ima opremu koja čeka potvrdu
+  useEffect(() => {
+    const checkPendingEquipment = async () => {
+      if (!user || user.role !== 'technician' || !user._id) return;
+      
+      try {
+        const response = await techniciansAPI.getPendingEquipment(user._id);
+        setShowEquipmentConfirmation(response.data.length > 0);
+      } catch (error) {
+        console.error('Greška pri proveravanju opreme koja čeka potvrdu:', error);
+      }
+    };
+
+    checkPendingEquipment();
+  }, [user]);
   
   const login = (userData, token) => {
     setUser(userData);
@@ -82,6 +103,10 @@ function App() {
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
+
+  const handleEquipmentConfirmationComplete = () => {
+    setShowEquipmentConfirmation(false);
+  };
   
 const PrivateRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -96,7 +121,7 @@ const PrivateRoute = ({ children }) => {
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
       <Router>
-        <div className="app">
+        <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
           {user && <Header toggleMobileMenu={toggleMobileMenu} />}
           <main className="main-content">
             {user && <Sidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />}
@@ -243,6 +268,11 @@ const PrivateRoute = ({ children }) => {
               </button>
             )}
           />
+          
+          {/* Komponenta za potvrđivanje opreme - prikazuje se kao overlay kad je potrebno */}
+          {showEquipmentConfirmation && user?.role === 'technician' && (
+            <EquipmentConfirmation onConfirmationComplete={handleEquipmentConfirmationComplete} />
+          )}
         </div>
       </Router>
     </AuthContext.Provider>

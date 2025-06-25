@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
+import axios from 'axios';
 import './WorkOrderDetailModern.css';
 
 const WorkOrderDetail = () => {
@@ -28,6 +29,12 @@ const WorkOrderDetail = () => {
   const [userEquipmentHistory, setUserEquipmentHistory] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [images, setImages] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [showFullImage, setShowFullImage] = useState(null);
+  const [deletingImage, setDeletingImage] = useState(false);
+  
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
     const fetchData = async () => {
@@ -51,6 +58,10 @@ const WorkOrderDetail = () => {
           status: workOrderRes.data.status || 'nezavrsen'
         });
         setTechnicians(techniciansRes.data);
+        
+        // Postavi slike i materijale
+        setImages(workOrderRes.data.images || []);
+        setMaterials(workOrderRes.data.materials || []);
 
         const fetchUserEquipment = async () => {
           if (!workOrderRes.data.tisId) return;
@@ -155,6 +166,34 @@ const WorkOrderDetail = () => {
   const handleUnassign = () => {
     setFormData(prev => ({ ...prev, technicianId: '' }));
   };
+
+  // Funkcija za brisanje slike
+  const handleImageDelete = async (imageUrl) => {
+    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu sliku?')) {
+      return;
+    }
+
+    setDeletingImage(true);
+    try {
+      await axios.delete(`${apiUrl}/api/workorders/${id}/images`, {
+        data: { imageUrl }
+      });
+
+      toast.success('Slika je uspešno obrisana!');
+      
+      // Ukloni sliku iz lokalne liste
+      setImages(images.filter(img => img !== imageUrl));
+      
+      // Refresh work order data
+      const updatedWorkOrder = await workOrdersAPI.getOne(id);
+      setImages(updatedWorkOrder.data.images || []);
+    } catch (error) {
+      console.error('Greška pri brisanju slike:', error);
+      toast.error('Greška pri brisanju slike. Pokušajte ponovo.');
+    } finally {
+      setDeletingImage(false);
+    }
+  };
   
   if (loading) {
     return <div className="loading-container">Učitavanje...</div>;
@@ -222,9 +261,75 @@ const WorkOrderDetail = () => {
           </div>
         </div>
 
+        {/* Sekcija za slike */}
+        <div className="card images-section">
+          <div className="card-header">
+            <h3><ImageIcon /> Slike radnog naloga</h3>
+          </div>
+          <div className="card-body">
+            {images.length === 0 ? (
+              <p className="no-images-message">Nema upload-ovanih slika za ovaj radni nalog</p>
+            ) : (
+              <div className="admin-images-grid">
+                {images.map((imageUrl, index) => (
+                  <div key={index} className="admin-gallery-image-item">
+                    <img 
+                      src={imageUrl} 
+                      alt={`Slika ${index + 1}`} 
+                      className="admin-gallery-image" 
+                      onClick={() => setShowFullImage(imageUrl)}
+                    />
+                    <button
+                      className="admin-delete-image-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleImageDelete(imageUrl);
+                      }}
+                      title="Obriši sliku"
+                      disabled={deletingImage}
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-<div className="equipment-section">
-  <h3>Oprema korisnika</h3>
+        {/* Sekcija za materijale */}
+        <div className="card materials-section">
+          <div className="card-header">
+            <h3><MaterialIcon /> Utrošeni materijali</h3>
+          </div>
+          <div className="card-body">
+            {materials.length === 0 ? (
+              <p className="no-materials-message">Nema utrošenih materijala za ovaj radni nalog</p>
+            ) : (
+              <div className="admin-materials-grid">
+                {materials.map((materialItem, index) => (
+                  <div key={index} className="admin-material-item">
+                    <div className="material-header">
+                      <h4 className="material-name">
+                        {materialItem.material?.type || 'Nepoznat materijal'}
+                      </h4>
+                      <span className="material-quantity">Količina: {materialItem.quantity}</span>
+                    </div>
+                    <div className="material-details">
+                      <p><strong>Tip:</strong> {materialItem.material?.type || 'N/A'}</p>
+                      {materialItem.material?._id && (
+                        <p><strong>ID:</strong> {materialItem.material._id}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="equipment-section">
+          <h3><EquipmentIcon /> Oprema korisnika</h3>
   
   {loadingEquipment ? (
     <p className="loading-text">Učitavanje opreme...</p>
@@ -318,6 +423,67 @@ const WorkOrderDetail = () => {
             </div>
           </div>
         )}
+
+        {/* Dodatne informacije o radnom nalogu */}
+        <div className="card work-order-info">
+          <div className="card-header">
+            <h3>Dodatne informacije</h3>
+          </div>
+          <div className="card-body">
+            <div className="info-grid">
+              {workOrder?.tisId && (
+                <div className="info-item">
+                  <label>TIS ID:</label>
+                  <p>{workOrder.tisId}</p>
+                </div>
+              )}
+              {workOrder?.userName && (
+                <div className="info-item">
+                  <label>Ime korisnika:</label>
+                  <p>{workOrder.userName}</p>
+                </div>
+              )}
+              {workOrder?.userPhone && (
+                <div className="info-item">
+                  <label>Telefon korisnika:</label>
+                  <p>{workOrder.userPhone}</p>
+                </div>
+              )}
+              {workOrder?.tisJobId && (
+                <div className="info-item">
+                  <label>TIS Job ID:</label>
+                  <p>{workOrder.tisJobId}</p>
+                </div>
+              )}
+              {workOrder?.technology && (
+                <div className="info-item">
+                  <label>Tehnologija:</label>
+                  <p>{workOrder.technology}</p>
+                </div>
+              )}
+              {workOrder?.additionalJobs && (
+                <div className="info-item">
+                  <label>Dodatni poslovi:</label>
+                  <p>{workOrder.additionalJobs}</p>
+                </div>
+              )}
+              <div className="info-item">
+                <label>Kreiran:</label>
+                <p>{workOrder?.createdAt ? new Date(workOrder.createdAt).toLocaleString('sr-RS') : 'N/A'}</p>
+              </div>
+              <div className="info-item">
+                <label>Poslednja izmena:</label>
+                <p>{workOrder?.updatedAt ? new Date(workOrder.updatedAt).toLocaleString('sr-RS') : 'N/A'}</p>
+              </div>
+              <div className="info-item">
+                <label>Verifikovan:</label>
+                <p className={`verification-status ${workOrder?.verified ? 'verified' : 'not-verified'}`}>
+                  {workOrder?.verified ? 'Da' : 'Ne'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
         
         <form onSubmit={handleSubmit} className="work-order-form">
           {error && <div className="alert alert-danger">{error}</div>}
@@ -457,6 +623,18 @@ const WorkOrderDetail = () => {
           </div>
         </form>
       </div>
+
+      {/* Modal za pregled slike u punoj veličini */}
+      {showFullImage && (
+        <div className="modal-overlay image-viewer-overlay" onClick={() => setShowFullImage(null)}>
+          <div className="image-viewer-container" onClick={(e) => e.stopPropagation()}>
+            <img src={showFullImage} alt="Slika u punoj veličini" className="full-size-image" />
+            <button className="close-image-btn fixed-close-btn" onClick={() => setShowFullImage(null)}>
+              <DeleteIcon />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
