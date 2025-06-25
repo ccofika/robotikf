@@ -1,9 +1,9 @@
 // Kompletna zamena za fajl: src/pages/WorkOrders/TechnicianWorkOrderDetail.js
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, AlertIcon, CloseIcon, CalendarIcon, ImageIcon, DeleteIcon, SearchIcon, PhoneIcon, MapPinIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
-import { userEquipmentAPI } from '../../services/api';
+import { userEquipmentAPI, materialsAPI, workOrdersAPI } from '../../services/api';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import axios from 'axios';
@@ -29,7 +29,6 @@ const TechnicianWorkOrderDetail = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState('');
-  const [userEquipment, setUserEquipment] = useState([]);
   const [technicianEquipment, setTechnicianEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
   const [equipmentOperation, setEquipmentOperation] = useState('add'); // 'add' ili 'remove'
@@ -39,7 +38,7 @@ const TechnicianWorkOrderDetail = () => {
   const [equipmentToRemove, setEquipmentToRemove] = useState(null);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
   const [equipmentSearchTerm, setEquipmentSearchTerm] = useState('');
-  const [filteredEquipment, setFilteredEquipment] = useState([]);
+  const [userEquipment, setUserEquipment] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showStatusActions, setShowStatusActions] = useState(false);
   const [showFullImage, setShowFullImage] = useState(null);
@@ -47,6 +46,19 @@ const TechnicianWorkOrderDetail = () => {
   const touchStartY = useRef(0);
   const touchEndY = useRef(0);
   const mainRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const searchTermRef = useRef('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [stableEquipment, setStableEquipment] = useState([]);
+  
+  // Materijali state
+  const [materials, setMaterials] = useState([]);
+  const [availableMaterials, setAvailableMaterials] = useState([]);
+  const [usedMaterials, setUsedMaterials] = useState([]);
+  const [showMaterialsModal, setShowMaterialsModal] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState('');
+  const [materialQuantity, setMaterialQuantity] = useState(1);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
@@ -95,14 +107,17 @@ const TechnicianWorkOrderDetail = () => {
   }, [refreshing, isMobile]);
   
   const fetchData = async () => {
-    if (!user?.id) return;
+    if (!user?._id) return;
     
     setLoading(true);
     try {
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       
       // Proveriti da li radni nalog pripada ovom tehničaru
-      if (response.data.technicianId !== user.id) {
+      const technicianId = response.data.technicianId?._id || response.data.technicianId;
+      const userId = user._id?.toString() || user._id;
+      
+      if (technicianId !== userId) {
         setError('Nemate pristup ovom radnom nalogu');
         setLoading(false);
         return;
@@ -117,6 +132,7 @@ const TechnicianWorkOrderDetail = () => {
       });
       
       setImages(response.data.images || []);
+      setUsedMaterials(response.data.materials || []);
 
       const fetchUserEquipment = async () => {
         try {
@@ -125,14 +141,17 @@ const TechnicianWorkOrderDetail = () => {
           setUserEquipment(userEqResponse.data);
 
           // Dohvati opremu tehničara
-          if (user?.id) {
-            const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user.id}/equipment`);
+          if (user?._id) {
+            const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
             setTechnicianEquipment(techEqResponse.data);
-            setFilteredEquipment(techEqResponse.data);
           }
+          
+          // Dohvati sve dostupne materijale
+          const materialsResponse = await materialsAPI.getAll();
+          setAvailableMaterials(materialsResponse.data);
         } catch (err) {
-          console.error('Greška pri dohvatanju opreme:', err);
-          toast.error('Greška pri učitavanju opreme');
+          console.error('Greška pri dohvatanju opreme/materijala:', err);
+          toast.error('Greška pri učitavanju opreme/materijala');
         }
       };
 
@@ -148,10 +167,15 @@ const TechnicianWorkOrderDetail = () => {
   
   useEffect(() => {
     fetchData();
-  }, [id, user?.id]);
+  }, [id, user?._id]);
 
-  const handleAddEquipment = async () => {
-    if (!selectedEquipment) {
+  const handleAddEquipment = async (equipmentId) => {
+    console.log('handleAddEquipment called with equipmentId:', equipmentId);
+    console.log('Current workOrder:', workOrder);
+    console.log('Current user:', user);
+    
+    if (!equipmentId) {
+      console.error('No equipment selected');
       toast.error('Morate odabrati opremu za dodavanje');
       return;
     }
@@ -159,28 +183,41 @@ const TechnicianWorkOrderDetail = () => {
     setLoadingEquipment(true);
     
     try {
-      const response = await userEquipmentAPI.add({
+      console.log('Sending request to add equipment with data:', {
         userId: workOrder.tisId,
-        equipmentId: selectedEquipment,
+        equipmentId: equipmentId,
         workOrderId: id,
-        technicianId: user.id
+        technicianId: user._id
       });
       
+      const response = await userEquipmentAPI.add({
+        userId: workOrder.tisId,
+        equipmentId: equipmentId,
+        workOrderId: id,
+        technicianId: user._id
+      });
+      
+      console.log('Add equipment response:', response);
       toast.success('Oprema je uspešno dodata korisniku!');
       
       // Ažuriraj prikaz opreme
+      console.log('Fetching updated user equipment...');
       const userEqResponse = await axios.get(`${apiUrl}/api/workorders/${id}/user-equipment`);
+      console.log('Updated user equipment:', userEqResponse.data);
       setUserEquipment(userEqResponse.data);
       
       // Ažuriraj opremu tehničara
-      const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user.id}/equipment`);
+      console.log('Fetching updated technician equipment...');
+      const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
+      console.log('Updated technician equipment:', techEqResponse.data);
       setTechnicianEquipment(techEqResponse.data);
-      setFilteredEquipment(techEqResponse.data);
       
       // Reset forme
       setSelectedEquipment('');
+      setShowEquipmentModal(false);
     } catch (error) {
       console.error('Greška pri dodavanju opreme:', error);
+      console.error('Error response:', error.response?.data);
       
       // Poboljšana poruka o grešci
       const errorMessage = error.response?.data?.error || 'Neuspešno dodavanje opreme. Pokušajte ponovo.';
@@ -190,24 +227,142 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
 
-  const filterEquipment = (searchTerm) => {
-    if (!technicianEquipment || technicianEquipment.length === 0) return [];
-
-    if (!searchTerm.trim()) {
-      return technicianEquipment;
+  // Pure input handler that doesn't cause re-renders
+  const handleSearchChange = useCallback((e) => {
+    const value = e.target.value;
+    // Store in ref to avoid re-renders
+    searchTermRef.current = value;
+    // Just update the input value directly
+    if (searchInputRef.current) {
+      searchInputRef.current.value = value;
     }
+  }, []);
 
-    const term = searchTerm.toLowerCase();
-    return technicianEquipment.filter(eq =>
-      eq.serialNumber.toLowerCase().includes(term) ||
-      eq.description.toLowerCase().includes(term) ||
-      eq.category.toLowerCase().includes(term)
-    );
-  };
-
+  // Update stableEquipment when technicianEquipment changes
   useEffect(() => {
-    setFilteredEquipment(filterEquipment(equipmentSearchTerm));
-  }, [equipmentSearchTerm, technicianEquipment]);
+    console.log('=== UPDATING STABLE EQUIPMENT ===');
+    console.log('TechnicianEquipment changed:', technicianEquipment);
+    console.log('TechnicianEquipment length:', technicianEquipment.length);
+    console.log('Current user ID:', user._id);
+    
+    if (technicianEquipment.length > 0) {
+      // Filter equipment that belongs to this technician and is available for installation
+      const availableEquipment = technicianEquipment.filter(
+        equipment => {
+          const belongsToTechnician = equipment.assignedTo === user._id;
+          const isAssignedToTechnician = equipment.status === 'assigned';
+          const notAssignedToUser = !equipment.assignedToUser;
+          
+          console.log(`Filtering in useEffect - ${equipment.serialNumber}:`, {
+            belongsToTechnician,
+            isAssignedToTechnician,
+            notAssignedToUser,
+            assignedTo: equipment.assignedTo,
+            status: equipment.status,
+            userIdComparison: `${equipment.assignedTo} === ${user._id}`,
+            passes: belongsToTechnician && isAssignedToTechnician && notAssignedToUser
+          });
+          
+          return belongsToTechnician && isAssignedToTechnician && notAssignedToUser;
+        }
+      );
+      
+      console.log('Setting stable equipment:', availableEquipment);
+      console.log('Stable equipment count:', availableEquipment.length);
+      setStableEquipment(availableEquipment);
+    } else {
+      console.log('No technician equipment, setting empty stable equipment');
+      setStableEquipment([]);
+    }
+  }, [technicianEquipment, user._id]);
+
+  // Separate filtering function that only runs when needed
+  const getFilteredEquipment = useCallback(() => {
+    console.log('=== FILTERING EQUIPMENT ===');
+    const searchTerm = searchTermRef.current.toLowerCase().trim();
+    console.log('Search term:', searchTerm);
+    console.log('Stable equipment before filtering:', stableEquipment);
+    console.log('Stable equipment count:', stableEquipment.length);
+    
+    // Start with equipment that's available for installation
+    const availableEquipment = stableEquipment.filter(
+      equipment => {
+        const belongsToTechnician = equipment.assignedTo === user._id;
+        const isAssignedToTechnician = equipment.status === 'assigned';
+        const notAssignedToUser = !equipment.assignedToUser;
+        
+        console.log(`Filtering in getFilteredEquipment - ${equipment.serialNumber}:`, {
+          belongsToTechnician,
+          isAssignedToTechnician,
+          notAssignedToUser,
+          assignedTo: equipment.assignedTo,
+          status: equipment.status,
+          userIdComparison: `${equipment.assignedTo} === ${user._id}`,
+          passes: belongsToTechnician && isAssignedToTechnician && notAssignedToUser
+        });
+        
+        return belongsToTechnician && isAssignedToTechnician && notAssignedToUser;
+      }
+    );
+    
+    console.log('Available equipment after first filter:', availableEquipment);
+    console.log('Available equipment count after first filter:', availableEquipment.length);
+    
+    if (!searchTerm) {
+      console.log('No search term, returning all available equipment');
+      return availableEquipment;
+    }
+    
+    const searchFiltered = availableEquipment.filter(equipment => 
+      equipment.serialNumber?.toLowerCase().includes(searchTerm) ||
+      equipment.description?.toLowerCase().includes(searchTerm) ||
+      equipment.category?.toLowerCase().includes(searchTerm)
+    );
+    
+    console.log('Search filtered equipment:', searchFiltered);
+    console.log('Search filtered count:', searchFiltered.length);
+    
+    return searchFiltered;
+  }, [stableEquipment, user._id]);
+
+  // Stable modal close function
+  const closeModal = useCallback(() => {
+    setShowEquipmentModal(false);
+    searchTermRef.current = '';
+    if (searchInputRef.current) {
+      searchInputRef.current.value = '';
+    }
+  }, []);
+
+  // Handle search button click - only filter when button is clicked
+  const performSearch = useCallback(() => {
+    setIsSearching(true);
+    // Force re-render with new filtered results
+    setTimeout(() => {
+      setIsSearching(false);
+    }, 100);
+  }, []);
+
+  // Optimized equipment selection with stable reference
+  const selectEquipment = useCallback((equipmentId) => {
+    const equipment = stableEquipment.find(eq => eq._id === equipmentId);
+    if (equipment) {
+      closeModal();
+      setTimeout(() => {
+        handleAddEquipment(equipmentId);
+      }, 50);
+    }
+  }, [stableEquipment, closeModal]);
+
+  // Clear search function with focus maintenance
+  const clearSearch = useCallback(() => {
+    searchTermRef.current = '';
+    if (searchInputRef.current) {
+      searchInputRef.current.value = '';
+      searchInputRef.current.focus();
+    }
+    performSearch();
+  }, [performSearch]);
 
   // Handle window resize for mobile detection
   useEffect(() => {
@@ -220,16 +375,78 @@ const TechnicianWorkOrderDetail = () => {
   }, []);
 
   // Dodati funkciju za otvaranje modala za izbor opreme:
-  const openEquipmentModal = () => {
-    setEquipmentSearchTerm('');
-    setFilteredEquipment(technicianEquipment);
+  const openEquipmentModal = async () => {
+    console.log('=== OPENING EQUIPMENT MODAL ===');
+    console.log('Current user:', user);
+    console.log('User ID:', user._id);
+    
+    // Refresh technician equipment data before showing modal
+    try {
+      // Fetch fresh equipment data
+      console.log('Fetching equipment for technician:', user._id);
+      const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
+      const freshEquipment = techEqResponse.data;
+      
+      console.log('Raw equipment data from API:', freshEquipment);
+      console.log('Total equipment count:', freshEquipment.length);
+      
+      // Log each equipment item details
+      freshEquipment.forEach((eq, index) => {
+        console.log(`Equipment ${index + 1}:`, {
+          id: eq._id,
+          serialNumber: eq.serialNumber,
+          description: eq.description,
+          status: eq.status,
+          location: eq.location,
+          assignedTo: eq.assignedTo,
+          assignedToUser: eq.assignedToUser
+        });
+      });
+      
+      // Filter equipment that belongs to this technician and is available for installation
+      const availableEquipment = freshEquipment.filter(
+        equipment => {
+          const belongsToTechnician = equipment.assignedTo === user._id;
+          const isAssignedToTechnician = equipment.status === 'assigned';
+          const notAssignedToUser = !equipment.assignedToUser;
+          
+          console.log(`Filtering equipment ${equipment.serialNumber}:`, {
+            belongsToTechnician,
+            isAssignedToTechnician,
+            notAssignedToUser,
+            assignedTo: equipment.assignedTo,
+            status: equipment.status,
+            userIdComparison: `${equipment.assignedTo} === ${user._id}`,
+            passes: belongsToTechnician && isAssignedToTechnician && notAssignedToUser
+          });
+          
+          return belongsToTechnician && isAssignedToTechnician && notAssignedToUser;
+        }
+      );
+      
+      console.log('Filtered available equipment:', availableEquipment);
+      console.log('Available equipment count:', availableEquipment.length);
+      
+      setTechnicianEquipment(freshEquipment);
+      setStableEquipment(availableEquipment);
+      
+      console.log('Equipment state updated');
+      console.log('Available equipment for modal:', availableEquipment.length, 'items');
+    } catch (error) {
+      console.error('Error refreshing equipment data:', error);
+      console.error('Error details:', error.response?.data);
+      toast.error('Greška pri učitavanju opreme');
+    }
+    
+    // Clear search input
+    searchTermRef.current = '';
+    if (searchInputRef.current) {
+      searchInputRef.current.value = '';
+    }
+    
+    // Show modal
+    console.log('Opening modal with equipment count:', stableEquipment.length);
     setShowEquipmentModal(true);
-  };
-
-  // Dodati funkciju za izbor opreme iz modala:
-  const selectEquipment = (equipmentId) => {
-    setSelectedEquipment(equipmentId);
-    setShowEquipmentModal(false);
   };
 
   const openRemoveEquipmentDialog = (equipment) => {
@@ -248,7 +465,7 @@ const TechnicianWorkOrderDetail = () => {
     try {
       const response = await userEquipmentAPI.remove(equipmentToRemove.id, {
         workOrderId: id,
-        technicianId: user.id,
+        technicianId: user._id,
         isWorking: isEquipmentWorking,
         removalReason: removalReason
       });
@@ -261,9 +478,8 @@ const TechnicianWorkOrderDetail = () => {
 
       // Ažuriraj opremu tehničara ako je oprema ispravna
       if (isEquipmentWorking) {
-        const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user.id}/equipment`);
+        const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
         setTechnicianEquipment(techEqResponse.data);
-        setFilteredEquipment(techEqResponse.data);
       }
 
       // Reset forme
@@ -438,6 +654,438 @@ const TechnicianWorkOrderDetail = () => {
       const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
       window.open(mapsUrl, '_blank');
     }
+  };
+  
+  // Funkcije za materijale
+  const openMaterialsModal = () => {
+    setShowMaterialsModal(true);
+  };
+  
+  const closeMaterialsModal = () => {
+    setShowMaterialsModal(false);
+    setSelectedMaterial('');
+    setMaterialQuantity(1);
+  };
+  
+  const addMaterial = async () => {
+    if (!selectedMaterial || materialQuantity <= 0) {
+      toast.error('Morate odabrati materijal i uneti validnu količinu');
+      return;
+    }
+    
+    const materialExists = usedMaterials.find(
+      (mat) => mat.material._id === selectedMaterial || mat.material === selectedMaterial
+    );
+    
+    if (materialExists) {
+      toast.error('Ovaj materijal je već dodat');
+      return;
+    }
+    
+    setLoadingMaterials(true);
+    
+    try {
+      // Dodaj materijal u lokalnu listu
+      const materialData = availableMaterials.find(mat => mat._id === selectedMaterial);
+      const newMaterial = {
+        material: materialData,
+        quantity: materialQuantity
+      };
+      
+      const updatedMaterials = [...usedMaterials, newMaterial];
+      setUsedMaterials(updatedMaterials);
+      
+      // Čuvaj u bazi
+      const materialsData = updatedMaterials.map(mat => ({
+        material: mat.material._id || mat.material,
+        quantity: mat.quantity
+      }));
+      
+      await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData });
+      
+      // Osvežavanje podataka iz baze
+      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      setUsedMaterials(response.data.materials || []);
+      
+      closeMaterialsModal();
+      toast.success('Materijal je uspešno dodat!');
+    } catch (error) {
+      console.error('Greška pri dodavanju materijala:', error);
+      toast.error(error.response?.data?.error || 'Greška pri dodavanju materijala');
+      
+      // Vraćamo na prethodnu listu u slučaju greške
+      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      setUsedMaterials(response.data.materials || []);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+  
+  const removeMaterial = async (materialId) => {
+    setLoadingMaterials(true);
+    
+    try {
+      // Ukloni materijal iz lokalne liste
+      const updatedMaterials = usedMaterials.filter(mat => 
+        (mat.material._id || mat.material) !== materialId
+      );
+      
+      // Ažuriraj lokalnu listu
+      setUsedMaterials(updatedMaterials);
+      
+      // Čuvaj u bazi
+      const materialsData = updatedMaterials.map(mat => ({
+        material: mat.material._id || mat.material,
+        quantity: mat.quantity
+      }));
+      
+      await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData });
+      
+      // Osvežavanje podataka iz baze
+      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      setUsedMaterials(response.data.materials || []);
+      
+      toast.success('Materijal je uspešno uklonjen!');
+    } catch (error) {
+      console.error('Greška pri uklanjanju materijala:', error);
+      toast.error(error.response?.data?.error || 'Greška pri uklanjanju materijala');
+      
+      // Vraćamo na prethodnu listu u slučaju greške
+      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      setUsedMaterials(response.data.materials || []);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+  
+
+  
+  // Completely rewritten Equipment Selection Modal with stable rendering
+  const EquipmentSelectionModal = useCallback(() => {
+    if (!showEquipmentModal) return null;
+    
+    console.log('=== RENDERING EQUIPMENT MODAL ===');
+    
+    // Get filtered results only when rendering, not during typing
+    const filteredResults = getFilteredEquipment();
+    const searchTerm = searchTermRef.current;
+    const hasAvailableEquipment = stableEquipment && stableEquipment.length > 0;
+    
+    console.log('Modal rendering state:', {
+      stableEquipmentLength: stableEquipment?.length || 0,
+      hasAvailableEquipment,
+      filteredResultsLength: filteredResults?.length || 0,
+      searchTerm
+    });
+    
+    console.log('Stable equipment in modal:', stableEquipment);
+    console.log('Filtered results in modal:', filteredResults);
+
+    return (
+      <div className="modal-overlay" onClick={closeModal}>
+        <div className="modal-content equipment-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title-section">
+              <h3>Izbor opreme</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={closeModal}
+                aria-label="Zatvori modal"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            
+            {hasAvailableEquipment && (
+              <div className="search-section">
+                <div className="search-input-container">
+                  <SearchIcon className="search-icon" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Pretraži opremu..."
+                    defaultValue=""
+                    onChange={handleSearchChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        performSearch();
+                      }
+                    }}
+                    className="search-input"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  {searchTermRef.current && (
+                    <button 
+                      className="clear-search-btn"
+                      onClick={clearSearch}
+                      aria-label="Obriši pretragu"
+                      type="button"
+                    >
+                      <CloseIcon />
+                    </button>
+                  )}
+                </div>
+                
+                <div className="search-actions">
+                  <button 
+                    className="search-button"
+                    onClick={performSearch}
+                    type="button"
+                  >
+                    Pretraži
+                  </button>
+                </div>
+                
+                {isSearching && (
+                  <div className="search-loading">
+                    <div className="search-spinner"></div>
+                    <span>Pretražujem...</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="modal-body">
+            {!hasAvailableEquipment ? (
+              <div className="no-equipment-available">
+                <div className="no-results-icon">
+                  <AlertIcon />
+                </div>
+                <h4>Nema dostupne opreme</h4>
+                <p>
+                  Trenutno nemate dostupnu opremu za instalaciju. 
+                  Molimo vas da prvo preuzmete opremu iz magacina.
+                </p>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={closeModal}
+                  type="button"
+                >
+                  Zatvori
+                </button>
+              </div>
+            ) : filteredResults.length > 0 ? (
+              <div className="equipment-grid">
+                {filteredResults.map((equipment) => (
+                  <div
+                    key={`equipment-${equipment._id}-${equipment.serialNumber}`}
+                    className="equipment-card"
+                    onClick={() => selectEquipment(equipment._id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectEquipment(equipment._id);
+                      }
+                    }}
+                  >
+                    <div className="equipment-card-header">
+                      <div className="equipment-category">{equipment.category}</div>
+                      <CheckIcon className="select-icon" />
+                    </div>
+                    <div className="equipment-card-body">
+                      <div className="equipment-description">{equipment.description}</div>
+                      <div className="equipment-serial">S/N: {equipment.serialNumber}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-results">
+                <div className="no-results-icon">
+                  <SearchIcon />
+                </div>
+                <h4>Nema rezultata</h4>
+                <p>
+                  {searchTerm 
+                    ? `Nema opreme koja odgovara pretrazi "${searchTerm}"`
+                    : 'Nemate dostupnu opremu u inventaru'
+                  }
+                </p>
+                {searchTerm && (
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={clearSearch}
+                    type="button"
+                  >
+                    Obriši pretragu
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {hasAvailableEquipment && (
+            <div className="modal-footer">
+              <div className="results-count">
+                {filteredResults.length} od {stableEquipment.length} stavki
+              </div>
+              <button 
+                className="btn btn-secondary" 
+                onClick={closeModal}
+                type="button"
+              >
+                Zatvori
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [showEquipmentModal, isSearching, getFilteredEquipment, closeModal, selectEquipment, clearSearch, performSearch, stableEquipment]);
+  
+  // Materials Modal Component - optimized to prevent unnecessary re-renders
+  const MaterialsModal = useCallback(() => {
+    if (!showMaterialsModal) return null;
+    
+    return (
+      <div className="modal-overlay" onClick={closeMaterialsModal}>
+        <div className="modal-content equipment-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title-section">
+              <h3>Dodaj materijal</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={closeMaterialsModal}
+                aria-label="Zatvori modal"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          </div>
+          
+          <div className="modal-body">
+            <div className="form-group">
+              <label htmlFor="material-select">Materijal:</label>
+              <select
+                id="material-select"
+                value={selectedMaterial}
+                onChange={(e) => setSelectedMaterial(e.target.value)}
+                className="form-select"
+              >
+                <option value="">-- Izaberite materijal --</option>
+                {availableMaterials.map(material => (
+                  <option key={material._id} value={material._id}>
+                    {material.type} (dostupno: {material.quantity})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="material-quantity">Količina:</label>
+              <input
+                type="number"
+                id="material-quantity"
+                min="1"
+                value={materialQuantity}
+                onChange={(e) => setMaterialQuantity(parseInt(e.target.value) || 1)}
+                className="form-input"
+              />
+            </div>
+          </div>
+          
+          <div className="modal-footer">
+            <button 
+              className="btn btn-secondary" 
+              onClick={closeMaterialsModal}
+              type="button"
+            >
+              Otkaži
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={addMaterial}
+              disabled={!selectedMaterial || materialQuantity <= 0 || loadingMaterials}
+              type="button"
+            >
+              {loadingMaterials ? 'Dodavanje...' : 'Dodaj materijal'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }, [showMaterialsModal, selectedMaterial, materialQuantity, availableMaterials, loadingMaterials]);
+  
+  // Komponenta za prikaz korišćenih materijala
+  const UsedMaterialsList = () => {
+    return (
+      <div className="materials-section">
+        <div className="card-header">
+          <h3>Korišćeni materijali</h3>
+          <button 
+            className="btn btn-sm btn-primary"
+            onClick={openMaterialsModal}
+            type="button"
+          >
+            + Dodaj materijal
+          </button>
+        </div>
+        
+        {usedMaterials.length > 0 ? (
+          <div className="technician-materials-list">
+            {usedMaterials.map((item, index) => (
+              <div key={index} className="material-item">
+                <div className="material-info">
+                  <div className="material-name">
+                    {item.material?.type || item.material}
+                  </div>
+                  <div className="material-quantity">
+                    Količina: {item.quantity}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-icon remove-btn"
+                  onClick={() => removeMaterial(item.material?._id || item.material)}
+                  disabled={loadingMaterials}
+                  type="button"
+                >
+                  <DeleteIcon />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="no-materials-message">
+            Nema dodanih materijala
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // Komponenta za prikaz instalirane opreme
+  const InstalledEquipmentList = () => {
+    return (
+      <div className="installed-equipment-section">
+        <h4>Instalirana oprema:</h4>
+        {userEquipment.length > 0 ? (
+          <div className="installed-equipment-list">
+            {userEquipment.map((equipment) => (
+              <div key={equipment._id} className="installed-equipment-item">
+                <div className="equipment-details">
+                  <div className="equipment-name">{equipment.category} - {equipment.description}</div>
+                  <div className="equipment-serial">S/N: {equipment.serialNumber}</div>
+                </div>
+                <button
+                  className="btn btn-icon remove-btn"
+                  onClick={() => openRemoveEquipmentDialog(equipment)}
+                >
+                  <DeleteIcon />
+                  <span>Ukloni</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="no-equipment-message">Nema instalirane opreme</div>
+        )}
+      </div>
+    );
   };
   
   if (loading) {
@@ -741,33 +1389,9 @@ const TechnicianWorkOrderDetail = () => {
               <h2>Oprema korisnika</h2>
             </div>
             
-            {userEquipment.length > 0 ? (
-              <div className="user-equipment-list">
-                <h3>Instalirana oprema:</h3>
-                <ul className="equipment-items">
-                  {userEquipment.map(eq => (
-                    <li key={eq.id} className="equipment-item">
-                      <div className="equipment-info">
-                        <strong>{eq.equipmentType}:</strong> {eq.equipmentDescription}
-                        <span className="serial-number">S/N: {eq.serialNumber}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-danger"
-                        onClick={() => openRemoveEquipmentDialog(eq)}
-                        disabled={loadingEquipment}
-                      >
-                        <DeleteIcon /> Ukloni
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="no-equipment-message">Korisnik trenutno nema instaliranu opremu.</p>
-            )}
+            <InstalledEquipmentList />
 
-<div className="equipment-form">
+            <div className="equipment-form">
               <h3>Dodaj novu opremu:</h3>
 
               <div className="equipment-selection">
@@ -790,7 +1414,7 @@ const TechnicianWorkOrderDetail = () => {
                 <button
                   type="button"
                   className="btn btn-primary add-equipment-btn"
-                  onClick={handleAddEquipment}
+                  onClick={() => handleAddEquipment(selectedEquipment)}
                   disabled={!selectedEquipment || loadingEquipment}
                 >
                   {loadingEquipment ? 'Dodavanje...' : 'Dodaj opremu'}
@@ -803,6 +1427,10 @@ const TechnicianWorkOrderDetail = () => {
                 </p>
               )}
             </div>
+          </div>
+          
+          <div className="card materials-card">
+            <UsedMaterialsList />
           </div>
           
           <div className="card images-card">
@@ -886,59 +1514,10 @@ const TechnicianWorkOrderDetail = () => {
       )}
       
       {/* Modal za izbor opreme */}
-      {showEquipmentModal && (
-        <div className="modal-overlay">
-          <div className="modal-content equipment-selection-modal">
-            <h3>Izbor opreme</h3>
-            
-            <div className="search-container">
-              <input
-                type="text"
-                placeholder="Pretraži opremu po serijskom broju, opisu ili tipu..."
-                value={equipmentSearchTerm}
-                onChange={(e) => setEquipmentSearchTerm(e.target.value)}
-                className="equipment-search-input"
-              />
-              <SearchIcon className="search-icon" />
-            </div>
-            
-            <div className="equipment-list">
-              {filteredEquipment.length > 0 ? (
-                filteredEquipment.map(eq => (
-                  <div 
-                    key={eq.id} 
-                    className="equipment-list-item" 
-                    onClick={() => selectEquipment(eq.id)}
-                  >
-                    <div className="equipment-list-item-info">
-                      <div className="equipment-type">{eq.category}</div>
-                      <div className="equipment-description">{eq.description}</div>
-                      <div className="equipment-serial">SN: {eq.serialNumber}</div>
-                    </div>
-                    <CheckIcon className="select-icon" />
-                  </div>
-                ))
-              ) : (
-                <div className="no-equipment-found">
-                  {equipmentSearchTerm 
-                    ? 'Nema rezultata za vašu pretragu' 
-                    : 'Nemate dostupnu opremu u inventaru'}
-                </div>
-              )}
-            </div>
-            
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-cancel"
-                onClick={() => setShowEquipmentModal(false)}
-              >
-                Zatvori
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EquipmentSelectionModal />
+      
+      {/* Modal za dodavanje materijala */}
+      <MaterialsModal />
 
       {/* Modal za uklanjanje opreme */}
       {equipmentToRemove && (

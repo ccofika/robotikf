@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
 import './WorkOrderDetailModern.css';
-import { userEquipmentAPI } from '../../services/api';
 
 const WorkOrderDetail = () => {
   const { id } = useParams();
@@ -30,15 +29,13 @@ const WorkOrderDetail = () => {
   const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const [workOrderRes, techniciansRes] = await Promise.all([
-          axios.get(`${apiUrl}/api/workorders/${id}`),
-          axios.get(`${apiUrl}/api/technicians`)
+          workOrdersAPI.getOne(id),
+          techniciansAPI.getAll()
         ]);
         
         setWorkOrder(workOrderRes.data);
@@ -105,7 +102,12 @@ const WorkOrderDetail = () => {
     setError('');
     
     try {
-      const updatedWorkOrder = await axios.put(`${apiUrl}/api/workorders/${id}`, formData);
+      const formattedData = {
+        ...formData,
+        technicianId: formData.technicianId || null // konvertuj prazan string u null
+      };
+
+      const updatedWorkOrder = await workOrdersAPI.update(id, formattedData);
       setWorkOrder(updatedWorkOrder.data);
       toast.success('Radni nalog je uspešno ažuriran!');
     } catch (error) {
@@ -119,15 +121,29 @@ const WorkOrderDetail = () => {
   
   const handleStatusChange = async (status) => {
     setSaving(true);
+    setError('');
     
     try {
-      const updatedData = { ...formData, status };
-      const updatedWorkOrder = await axios.put(`${apiUrl}/api/workorders/${id}`, updatedData);
-      setWorkOrder(updatedWorkOrder.data);
+      // Priprema podataka za slanje, konvertuj prazan string u null za technicianId
+      const updatedData = { 
+        ...formData,
+        status,
+        technicianId: formData.technicianId || null // konvertuj prazan string u null
+      };
+      
+      console.log('Sending data:', updatedData);
+      const response = await workOrdersAPI.update(id, updatedData);
+      console.log('Response:', response);
+      
+      setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status }));
-      toast.success(`Status radnog naloga je promenjen na "${status === 'zavrsen' ? 'Završen' : status === 'odlozen' ? 'Odložen' : 'Nezavršen'}"!`);
+      toast.success(`Status radnog naloga je promenjen na "${status === 'zavrsen' ? 'Završen' : 
+        status === 'odlozen' ? 'Odložen' : 
+        status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}"!`);
     } catch (error) {
-      console.error('Greška pri promeni statusa:', error);
+      console.error('Full error:', error);
+      console.error('Error response:', error.response);
+      setError(error.response?.data?.error || 'Greška pri promeni statusa. Pokušajte ponovo.');
       toast.error('Neuspešna promena statusa!');
     } finally {
       setSaving(false);
@@ -169,7 +185,8 @@ const WorkOrderDetail = () => {
         <div className="work-order-header">
           <div className={`status-indicator status-${formData.status}`}>
             {formData.status === 'zavrsen' ? 'Završen' : 
-             formData.status === 'odlozen' ? 'Odložen' : 'Nezavršen'}
+             formData.status === 'odlozen' ? 'Odložen' : 
+             formData.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
           </div>
           <div className="work-order-actions">
             <button
@@ -192,6 +209,13 @@ const WorkOrderDetail = () => {
               disabled={saving || formData.status === 'odlozen'}
             >
               <AlertIcon /> Odložen
+            </button>
+            <button
+              className={`btn btn-sm ${formData.status === 'otkazan' ? 'btn-active' : ''}`}
+              onClick={() => handleStatusChange('otkazan')}
+              disabled={saving || formData.status === 'otkazan'}
+            >
+              <BanIcon /> Otkazan
             </button>
           </div>
         </div>
@@ -377,7 +401,7 @@ const WorkOrderDetail = () => {
               >
                 <option value="">-- Izaberite tehničara --</option>
                 {technicians.map(tech => (
-                  <option key={tech.id} value={tech.id}>{tech.name}</option>
+                  <option key={tech._id} value={tech._id}>{tech.name}</option>
                 ))}
               </select>
               {formData.technicianId && (

@@ -70,7 +70,8 @@ const WorkOrdersList = () => {
                          (order.comment && order.comment.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const statusMatch = statusFilter === '' || order.status === statusFilter;
-      const technicianMatch = technicianFilter === '' || order.technicianId === technicianFilter;
+      const technicianMatch = technicianFilter === '' || 
+                             (technicianFilter === 'unassigned' ? !order.technicianId : order.technicianId === technicianFilter);
       
       return searchMatch && statusMatch && technicianMatch;
     });
@@ -79,7 +80,7 @@ const WorkOrdersList = () => {
   // Dobavljanje imena tehničara po ID-u
   const getTechnicianName = (technicianId) => {
     if (!technicianId) return 'Nedodeljen';
-    const technician = technicians.find(t => t.id === technicianId);
+    const technician = technicians.find(t => t._id === technicianId);
     return technician ? technician.name : 'Nepoznat';
   };
   
@@ -162,9 +163,9 @@ const WorkOrdersList = () => {
                 onChange={(e) => setTechnicianFilter(e.target.value)}
               >
                 <option value="">Svi tehničari</option>
-                <option value="">Nedodeljeni</option>
+                <option value="unassigned">Nedodeljeni</option>
                 {technicians.map(tech => (
-                  <option key={tech.id} value={tech.id}>
+                  <option key={tech._id} value={tech._id}>
                     {tech.name}
                   </option>
                 ))}
@@ -210,7 +211,7 @@ const WorkOrdersList = () => {
                     </tr>
                   ) : (
                     currentItems.map((order) => (
-                      <tr key={order.id} className="slide-in">
+                      <tr key={order._id} className="slide-in">
                         <td>{new Date(order.date).toLocaleDateString('sr-RS')}</td>
                         <td>{order.municipality}</td>
                         <td>{order.address}</td>
@@ -227,14 +228,14 @@ const WorkOrdersList = () => {
                         </td>
                         <td className="actions-column">
                           <Link 
-                            to={`/work-orders/${order.id}`} 
+                            to={`/work-orders/${order._id}`} 
                             className="btn btn-sm action-btn view-btn"
                           >
                             <ViewIcon /> Detalji
                           </Link>
                           <button 
                             className="btn btn-sm action-btn delete-btn"
-                            onClick={() => handleDelete(order.id, order.address)}
+                            onClick={() => handleDelete(order._id, order.address)}
                             disabled={loading}
                           >
                             <DeleteIcon />

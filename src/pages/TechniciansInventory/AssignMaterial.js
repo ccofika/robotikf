@@ -36,9 +36,9 @@ const AssignMaterial = () => {
       
       // Postavi prvi materijal kao selektovan
       if (materialsResponse.data.length > 0 && activeTab === 'assign') {
-        setSelectedMaterial(materialsResponse.data[0].id);
+        setSelectedMaterial(materialsResponse.data[0]._id);
       } else if (techResponse.data.materials?.length > 0 && activeTab === 'return') {
-        setSelectedMaterial(techResponse.data.materials[0].id);
+        setSelectedMaterial(techResponse.data.materials[0].id || techResponse.data.materials[0]._id);
       }
       
     } catch (error) {
@@ -91,7 +91,7 @@ const AssignMaterial = () => {
     }
     
     // Provera da li tehničar ima dovoljno materijala
-    const techMaterial = technicianMaterials.find(m => m.id === selectedMaterial);
+    const techMaterial = technicianMaterials.find(m => m._id === selectedMaterial || m.id === selectedMaterial);
     if (!techMaterial || techMaterial.quantity < quantity) {
       toast.error(`Tehničar nema dovoljno materijala za razduženje. Dostupno: ${techMaterial?.quantity || 0}`);
       return;
@@ -187,13 +187,13 @@ const AssignMaterial = () => {
                 <option value="">Izaberite materijal</option>
                 {activeTab === 'assign' ? (
                   availableMaterials.map(material => (
-                    <option key={material.id} value={material.id}>
+                    <option key={material._id} value={material._id}>
                       {material.type} (Dostupno: {material.quantity})
                     </option>
                   ))
                 ) : (
                   technicianMaterials.map(material => (
-                    <option key={material.id} value={material.id}>
+                    <option key={material.id || material._id} value={material.id || material._id}>
                       {material.type} (Zaduženo: {material.quantity})
                     </option>
                   ))
@@ -265,9 +265,9 @@ const AssignMaterial = () => {
             </thead>
             <tbody>
               {materials.map(material => {
-                const techAssigned = technicianMaterials.find(m => m.id === material.id)?.quantity || 0;
+                const techAssigned = technicianMaterials.find(m => m._id === material._id || m.id === material._id)?.quantity || 0;
                 return (
-                  <tr key={material.id}>
+                  <tr key={material._id}>
                     <td>{material.type}</td>
                     <td>
                       <span className={`quantity ${material.quantity <= 0 ? 'out-of-stock' : material.quantity < 5 ? 'low-stock' : 'in-stock'}`}>

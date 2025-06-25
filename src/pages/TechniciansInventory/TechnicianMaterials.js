@@ -34,19 +34,29 @@ const TechnicianMaterials = () => {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [user?.id]);
+  }, [user?._id]);
   
   const fetchMaterials = async () => {
-    if (!user?.id) return;
+    if (!user?._id) return;
+    
+    console.log('=== FETCHING MATERIALS ===');
+    console.log('User object:', user);
+    console.log('User ID:', user._id);
+    console.log('User ID type:', typeof user._id);
+    console.log('User ID length:', user._id?.length);
     
     setLoading(true);
     setError('');
     
     try {
-      const response = await techniciansAPI.getMaterials(user.id);
+      console.log('Calling techniciansAPI.getMaterials with ID:', user._id);
+      const response = await techniciansAPI.getMaterials(user._id);
+      console.log('Materials response:', response.data);
       setMaterials(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju materijala:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       setError('Greška pri učitavanju materijala. Pokušajte ponovo.');
       toast.error('Neuspešno učitavanje materijala!');
     } finally {

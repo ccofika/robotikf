@@ -38,16 +38,16 @@ const TechnicianWorkOrders = () => {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [user?.id]);
+  }, [user?._id]);
   
   const fetchWorkOrders = async () => {
-    if (!user?.id) return;
+    if (!user?._id) return;
     
     setLoading(true);
     setError('');
     
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/technician/${user.id}`);
+      const response = await axios.get(`${apiUrl}/api/workorders/technician/${user._id}`);
       setWorkOrders(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju radnih naloga:', error);
@@ -425,10 +425,10 @@ const TechnicianWorkOrders = () => {
                 ) : (
                   currentItems.map((order, index) => (
                     <div 
-                      key={order.id} 
-                      id={`order-${order.id}`}
+                      key={order._id} 
+                      id={`order-${order._id}`}
                       className={`mobile-order-card status-${order.status}`}
-                      onTouchStart={(e) => handleTouchStart(e, order.id)}
+                      onTouchStart={(e) => handleTouchStart(e, order._id)}
                       onTouchMove={handleTouchMove}
                       onTouchEnd={handleTouchEnd}
                     >
@@ -468,7 +468,7 @@ const TechnicianWorkOrders = () => {
                         
                         <div className="order-card-footer">
                           <Link 
-                            to={`/my-work-orders/${order.id}`} 
+                            to={`/my-work-orders/${order._id}`} 
                             className="btn btn-sm action-btn view-btn"
                           >
                             <ViewIcon /> Detalji
@@ -513,7 +513,7 @@ const TechnicianWorkOrders = () => {
                       </tr>
                     ) : (
                       currentItems.map((order, index) => (
-                        <tr key={order.id} className={`slide-in status-row-${order.status}`} style={{animationDelay: `${index * 0.1}s`}}>
+                        <tr key={order._id} className={`slide-in status-row-${order.status}`} style={{animationDelay: `${index * 0.1}s`}}>
                           <td>{new Date(order.date).toLocaleDateString('sr-RS')}</td>
                           <td>{order.municipality}</td>
                           <td>{order.address}</td>
@@ -527,7 +527,7 @@ const TechnicianWorkOrders = () => {
                           </td>
                           <td className="actions-column">
                             <Link 
-                              to={`/my-work-orders/${order.id}`} 
+                              to={`/my-work-orders/${order._id}`} 
                               className="btn btn-sm action-btn view-btn"
                             >
                               <ViewIcon /> Detalji

@@ -61,11 +61,11 @@ const WorkOrdersByTechnician = () => {
       toast.success('Radni nalog je uspešno verifikovan!');
       
       // Ažuriranje liste nakon verifikacije
-      setVerificationOrders(prev => prev.filter(order => order.id !== orderId));
+      setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
       
       // Osvežavamo glavnu listu radnih naloga
       const updatedWorkOrders = [...workOrders];
-      const updatedIndex = updatedWorkOrders.findIndex(order => order.id === orderId);
+      const updatedIndex = updatedWorkOrders.findIndex(order => order._id === orderId);
       
       if (updatedIndex !== -1) {
         updatedWorkOrders[updatedIndex] = {
@@ -90,9 +90,9 @@ const WorkOrdersByTechnician = () => {
         toast.success('Radni nalog je uspešno obrisan!');
         
         // Ažuriranje listi nakon brisanja
-        setWorkOrders(prev => prev.filter(order => order.id !== id));
-        setUnassignedOrders(prev => prev.filter(order => order.id !== id));
-        setVerificationOrders(prev => prev.filter(order => order.id !== id));
+        setWorkOrders(prev => prev.filter(order => order._id !== id));
+        setUnassignedOrders(prev => prev.filter(order => order._id !== id));
+        setVerificationOrders(prev => prev.filter(order => order._id !== id));
         
       } catch (error) {
         console.error('Greška pri brisanju:', error);
@@ -106,7 +106,7 @@ const WorkOrdersByTechnician = () => {
     
     // Inicijalizacija objekata za sve tehničare
     technicians.forEach(tech => {
-      techWorkOrders[tech.id] = {
+      techWorkOrders[tech._id] = {
         technicianInfo: tech,
         workOrders: []
       };
@@ -114,8 +114,10 @@ const WorkOrdersByTechnician = () => {
     
     // Dodavanje radnih naloga za svakog tehničara
     workOrders.forEach(order => {
-      if (order.technicianId && techWorkOrders[order.technicianId]) {
-        techWorkOrders[order.technicianId].workOrders.push(order);
+      // Provera da li je technicianId string ili objekat
+      const techId = order.technicianId?._id || order.technicianId;
+      if (techId && techWorkOrders[techId]) {
+        techWorkOrders[techId].workOrders.push(order);
       }
     });
     
@@ -424,7 +426,7 @@ const WorkOrdersByTechnician = () => {
                                   </thead>
                                   <tbody>
                                     {sortByDate(currentTechItems).map((order) => (
-                                      <tr key={order.id}>
+                                      <tr key={order._id}>
                                         <td>{formatDate(order.date)}</td>
                                         <td>{order.municipality}</td>
                                         <td>{order.address}</td>
@@ -442,7 +444,7 @@ const WorkOrdersByTechnician = () => {
                                         </td>
                                         <td className="actions-column">
                                           <Link 
-                                            to={`/work-orders/${order.id}`} 
+                                            to={`/work-orders/${order._id}`} 
                                             className="btn btn-sm action-btn view-btn"
                                           >
                                             <ViewIcon /> Detalji
@@ -451,7 +453,7 @@ const WorkOrdersByTechnician = () => {
                                             className="btn btn-sm action-btn delete-btn"
                                             onClick={(e) => { 
                                               e.stopPropagation(); 
-                                              handleDelete(order.id); 
+                                              handleDelete(order._id); 
                                             }}
                                           >
                                             <DeleteIcon />
@@ -511,11 +513,11 @@ const WorkOrdersByTechnician = () => {
                         </thead>
                         <tbody>
                           {sortByDate(currentUnassignedItems).map((order) => (
-                            <tr key={order.id}>
+                            <tr key={order._id}>
                               <td>{formatDate(order.date)}</td>
                               <td>{order.municipality}</td>
                               <td>{order.address}</td>
-                                                            <td>{order.userName || 'Nepoznat'}</td>
+                              <td>{order.userName || 'Nepoznat'}</td>
                               <td>{order.type}</td>
                               <td>
                                 <span className={`status-badge ${getStatusClass(order.status)}`}>
@@ -524,14 +526,14 @@ const WorkOrdersByTechnician = () => {
                               </td>
                               <td className="actions-column">
                                 <Link 
-                                  to={`/work-orders/${order.id}`} 
+                                  to={`/work-orders/${order._id}`} 
                                   className="btn btn-sm action-btn view-btn"
                                 >
                                   <ViewIcon /> Detalji
                                 </Link>
                                 <button 
                                   className="btn btn-sm action-btn delete-btn"
-                                  onClick={() => handleDelete(order.id)}
+                                  onClick={() => handleDelete(order._id)}
                                 >
                                   <DeleteIcon />
                                 </button>
@@ -585,9 +587,9 @@ const WorkOrdersByTechnician = () => {
                         </thead>
                         <tbody>
                           {sortByDate(currentVerificationItems).map((order) => {
-                            const technician = technicians.find(tech => tech.id === order.technicianId);
+                            const technician = technicians.find(tech => tech._id === order.technicianId);
                             return (
-                              <tr key={order.id}>
+                              <tr key={order._id}>
                                 <td>{formatDate(order.date)}</td>
                                 <td>{order.municipality}</td>
                                 <td>{order.address}</td>
@@ -596,14 +598,14 @@ const WorkOrdersByTechnician = () => {
                                 <td>{technician ? technician.name : 'Nepoznat'}</td>
                                 <td className="actions-column">
                                   <Link 
-                                    to={`/work-orders/${order.id}`} 
+                                    to={`/work-orders/${order._id}`} 
                                     className="btn btn-sm action-btn view-btn"
                                   >
                                     <ViewIcon /> Detalji
                                   </Link>
                                   <button 
                                     className="btn btn-sm action-btn verify-btn"
-                                    onClick={() => handleVerifyOrder(order.id)}
+                                    onClick={() => handleVerifyOrder(order._id)}
                                   >
                                     <CheckIcon /> Verifikuj
                                   </button>

@@ -42,7 +42,7 @@ const UsersList = () => {
     setIsRefreshing(true);
     await fetchUsers();
     if (selectedUser) {
-      await fetchUserWorkOrders(selectedUser.id);
+      await fetchUserWorkOrders(selectedUser._id);
     }
     setIsRefreshing(false);
     toast.success('Podaci su osveženi!');
@@ -62,12 +62,12 @@ const UsersList = () => {
   };
   
   const handleUserSelect = (user) => {
-    if (selectedUser && selectedUser.id === user.id) {
+    if (selectedUser && selectedUser._id === user._id) {
       setSelectedUser(null);
       setUserWorkOrders([]);
     } else {
       setSelectedUser(user);
-      fetchUserWorkOrders(user.id);
+      fetchUserWorkOrders(user._id);
     }
   };
   
@@ -168,8 +168,8 @@ const UsersList = () => {
         ) : (
           filteredUsers.map(user => (
             <div 
-              key={user.id} 
-              className={`user-card ${selectedUser?.id === user.id ? 'selected' : ''}`}
+              key={user._id} 
+              className={`user-card ${selectedUser?._id === user._id ? 'selected' : ''}`}
               onClick={() => handleUserSelect(user)}
             >
               <div className="user-card-header">
@@ -235,17 +235,17 @@ const UsersList = () => {
                   </thead>
                   <tbody>
                     {userWorkOrders.map(order => (
-                      <tr key={order.id}>
+                      <tr key={order._id}>
                         <td>{formatDate(order.date)}</td>
                         <td>{order.type}</td>
-                        <td>{order.technicianName || 'Nedodeljen'}</td>
+                        <td>{order.technicianId?.name || 'Nedodeljen'}</td>
                         <td>
                           <span className={`status-badge ${getStatusClass(order.status)}`}>
                             {getStatusLabel(order.status)}
                           </span>
                         </td>
                         <td>
-                          <Link to={`/work-orders/${order.id}`} className="btn btn-sm btn-view">
+                          <Link to={`/work-orders/${order._id}`} className="btn btn-sm btn-view">
                             Detalji
                           </Link>
                         </td>

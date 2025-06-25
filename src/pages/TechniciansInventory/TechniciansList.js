@@ -116,11 +116,11 @@ const TechniciansList = () => {
                   </tr>
                 ) : (
                   filteredTechnicians.map((technician) => (
-                    <tr key={technician.id} className="slide-in">
+                    <tr key={technician._id} className="slide-in">
                       <td>
                         <div className="technician-info">
                           <span className="technician-name">{technician.name}</span>
-                          <span className="technician-id">ID: {technician.id}</span>
+                          <span className="technician-id">ID: {technician._id}</span>
                         </div>
                       </td>
                       <td>
@@ -130,21 +130,21 @@ const TechniciansList = () => {
                       </td>
                       <td className="actions-column">
                         <Link 
-                          to={`/technicians/${technician.id}/assign-equipment`} 
+                          to={`/technicians/${technician._id}/assign-equipment`} 
                           className="btn action-btn equipment-btn"
                           title="Zaduži/razduži opremu"
                         >
                           <BoxIcon /> Oprema
                         </Link>
                         <Link 
-                          to={`/technicians/${technician.id}/assign-material`} 
+                          to={`/technicians/${technician._id}/assign-material`} 
                           className="btn action-btn material-btn"
                           title="Zaduži/razduži materijal"
                         >
                           <ToolsIcon /> Materijal
                         </Link>
                         <Link 
-                          to={`/technicians/${technician.id}`} 
+                          to={`/technicians/${technician._id}`} 
                           className="btn action-btn view-btn"
                           title="Detalji tehničara"
                         >
@@ -152,7 +152,7 @@ const TechniciansList = () => {
                         </Link>
                         <button 
                           className="btn action-btn delete-btn"
-                          onClick={() => handleDelete(technician.id, technician.name)}
+                          onClick={() => handleDelete(technician._id, technician.name)}
                           disabled={loading}
                           title="Obriši tehničara"
                         >

@@ -129,7 +129,7 @@ const MaterialsList = () => {
                     </tr>
                   ) : (
                     currentItems.map((material) => (
-                      <tr key={material.id} className="slide-in">
+                      <tr key={material._id} className="slide-in">
                         <td>{material.type}</td>
                         <td>
                           <span className={`badge quantity-badge ${material.quantity === 0 ? 'out-of-stock' : material.quantity < 5 ? 'low-stock' : 'in-stock'}`}>
@@ -138,14 +138,14 @@ const MaterialsList = () => {
                         </td>
                         <td className="actions-column">
                           <Link 
-                            to={`/materials/edit/${material.id}`} 
+                            to={`/materials/edit/${material._id}`} 
                             className="action-btn edit-btn"
                           >
                             <EditIcon size={16} /> Izmeni
                           </Link>
                           <button 
                             className="action-btn delete-btn"
-                            onClick={() => handleDelete(material.id, material.type)}
+                            onClick={() => handleDelete(material._id, material.type)}
                             disabled={loading}
                           >
                             <DeleteIcon size={16} /> Obriši

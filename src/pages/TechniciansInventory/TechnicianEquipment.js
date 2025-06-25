@@ -34,16 +34,16 @@ const TechnicianEquipment = () => {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [user?.id]);
+  }, [user?._id]);
   
   const fetchEquipment = async () => {
-    if (!user?.id) return;
+    if (!user?._id) return;
     
     setLoading(true);
     setError('');
     
     try {
-      const response = await techniciansAPI.getEquipment(user.id);
+      const response = await techniciansAPI.getEquipment(user._id);
       setEquipment(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju opreme:', error);

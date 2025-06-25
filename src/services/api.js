@@ -72,6 +72,7 @@ export const workOrdersAPI = {
   getAll: () => api.get('/api/workorders'),
   getOne: (id) => api.get(`/api/workorders/${id}`),
   getTechnicianWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}`),
+  getUnassigned: () => api.get('/api/workorders/unassigned'),
   createBulk: (formData) => api.post('/api/workorders/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
@@ -79,10 +80,10 @@ export const workOrdersAPI = {
   update: (id, data) => api.put(`/api/workorders/${id}`, data),
   updateByTechnician: (id, data) => api.put(`/api/workorders/${id}/technician-update`, data),
   updateUsedMaterials: (id, data) => api.post(`/api/workorders/${id}/used-materials`, data),
+  getWorkOrderMaterials: (id) => api.get(`/api/workorders/${id}/materials`),
   updateUsedEquipment: (id, data) => api.post(`/api/workorders/${id}/used-equipment`, data),
   delete: (id) => api.delete(`/api/workorders/${id}`),
   getStatistics: () => api.get('/api/workorders/statistics/summary'),
-  updateUsedEquipment: (id, data) => api.post(`/api/workorders/${id}/used-equipment`, data),
   getUserEquipment: (id) => api.get(`/api/workorders/${id}/user-equipment`),
 };
 

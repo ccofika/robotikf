@@ -71,7 +71,7 @@ const AssignEquipment = () => {
     if (location.startsWith('tehnicar-')) {
       const techId = location.split('-')[1];
       // Pronađi tehničara po ID-u
-      const tech = technicians.find(t => t.id === techId);
+      const tech = technicians.find(t => t._id === techId);
       return tech ? `Tehničar: ${tech.username || tech.name}` : `Tehničar ID: ${techId}`;
     }
     return location;
