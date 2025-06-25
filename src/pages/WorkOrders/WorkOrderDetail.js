@@ -40,12 +40,12 @@ const WorkOrderDetail = () => {
         
         setWorkOrder(workOrderRes.data);
         setFormData({
-          date: workOrderRes.data.date,
+          date: workOrderRes.data.date ? new Date(workOrderRes.data.date).toISOString().split('T')[0] : '',
           time: workOrderRes.data.time || '09:00',
           municipality: workOrderRes.data.municipality,
           address: workOrderRes.data.address,
           type: workOrderRes.data.type,
-          technicianId: workOrderRes.data.technicianId || '',
+          technicianId: workOrderRes.data.technicianId?._id || workOrderRes.data.technicianId || '',
           details: workOrderRes.data.details || '',
           comment: workOrderRes.data.comment || '',
           status: workOrderRes.data.status || 'nezavrsen'
@@ -107,7 +107,9 @@ const WorkOrderDetail = () => {
         technicianId: formData.technicianId || null // konvertuj prazan string u null
       };
 
+      console.log('Admin panel - sending update data:', formattedData);
       const updatedWorkOrder = await workOrdersAPI.update(id, formattedData);
+      console.log('Admin panel - received response:', updatedWorkOrder.data);
       setWorkOrder(updatedWorkOrder.data);
       toast.success('Radni nalog je uspešno ažuriran!');
     } catch (error) {

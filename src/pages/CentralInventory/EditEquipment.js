@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { BackIcon, SaveIcon } from '../../components/icons/SvgIcons';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { equipmentAPI } from '../../services/api';
 
 const EditEquipment = () => {
   const { id } = useParams();
@@ -20,24 +21,19 @@ const EditEquipment = () => {
   const [locations, setLocations] = useState(['magacin']);
   const [technicians, setTechnicians] = useState([]);
   
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
   // Učitavanje podataka o opremi
   useEffect(() => {
     const fetchEquipment = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/api/equipment/${id}`);
-        setEquipment(response.data);
-
-        const equipmentResponse = await axios.get(`${apiUrl}/api/equipment/${id}`);
+        const equipmentResponse = await equipmentAPI.getOne(id);
         setEquipment(equipmentResponse.data);
         
         // Dohvati tehničare
-        const techniciansResponse = await axios.get(`${apiUrl}/api/technicians`);
+        const techniciansResponse = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/technicians`);
         setTechnicians(techniciansResponse.data);
         
         // Učitaj sve kategorije
-        const allEquipmentResponse = await axios.get(`${apiUrl}/api/equipment`);
+        const allEquipmentResponse = await equipmentAPI.getAll();
         const allEquipment = allEquipmentResponse.data;
         
         // Izdvoji jedinstvene kategorije
@@ -54,7 +50,7 @@ const EditEquipment = () => {
     };
     
     fetchEquipment();
-  }, [apiUrl, id]);
+  }, [id]);
 
   const renderLocationOptions = () => {
     return (
@@ -78,7 +74,7 @@ const EditEquipment = () => {
     e.preventDefault();
     
     try {
-      await axios.put(`${apiUrl}/api/equipment/${id}`, equipment);
+      await equipmentAPI.update(id, equipment);
       toast.success('Oprema uspešno izmenjena!');
       navigate('/equipment');
     } catch (error) {

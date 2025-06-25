@@ -291,7 +291,7 @@ const EquipmentList = () => {
                           </span>
                         </td>
                         <td>
-                          <Link to={`/equipment/edit/${item.id}`} className="btn btn-sm action-btn">
+                          <Link to={`/equipment/edit/${item._id}`} className="btn btn-sm action-btn">
                             <EditIcon /> Izmeni
                           </Link>
                         </td>
