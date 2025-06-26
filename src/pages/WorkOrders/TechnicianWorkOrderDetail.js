@@ -618,6 +618,7 @@ const TechnicianWorkOrderDetail = () => {
     
     const formData = new FormData();
     formData.append('image', imageFile);
+    formData.append('technicianId', user._id);
     
     try {
       const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
@@ -658,7 +659,7 @@ const TechnicianWorkOrderDetail = () => {
 
     try {
       await axios.delete(`${apiUrl}/api/workorders/${id}/images`, {
-        data: { imageUrl }
+        data: { imageUrl, technicianId: user._id }
       });
 
       toast.success('Slika je uspešno obrisana!');
@@ -732,7 +733,7 @@ const TechnicianWorkOrderDetail = () => {
         quantity: mat.quantity
       }));
       
-      await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData });
+      await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData, technicianId: user._id });
       
       // Osvežavanje podataka iz baze
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
@@ -770,7 +771,7 @@ const TechnicianWorkOrderDetail = () => {
         quantity: mat.quantity
       }));
       
-      await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData });
+      await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData, technicianId: user._id });
       
       // Osvežavanje podataka iz baze
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);

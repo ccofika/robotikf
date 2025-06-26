@@ -43,6 +43,7 @@ import EquipmentConfirmation from './pages/TechniciansInventory/EquipmentConfirm
 // Korisnička stranica
 import UsersList from './pages/Users/UsersList';
 import ExportSpecification from './pages/Reports/ExportSpecification';
+import Logs from './pages/Logs/Logs';
 
 import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
 // API Services
@@ -204,6 +205,9 @@ const PrivateRoute = ({ children }) => {
                 } />
                 <Route path="/export" element={
                   user?.role === 'admin' ? <ExportSpecification /> : <Navigate to="/access-denied" />
+                } />
+                <Route path="/logs" element={
+                  user?.role === 'admin' ? <Logs /> : <Navigate to="/access-denied" />
                 } />
                 {/* Radni nalozi rute za tehničara */}
                 <Route path="/my-work-orders" element={

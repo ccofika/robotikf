@@ -91,6 +91,22 @@ export const workOrdersAPI = {
   getUserEquipment: (id) => api.get(`/api/workorders/${id}/user-equipment`),
 };
 
+// Logs API
+export const logsAPI = {
+  getTechnicianLogs: (params) => api.get('/api/logs/technicians', { params }),
+  getUserLogs: (params) => api.get('/api/logs/users', { params }),
+  getActions: () => api.get('/api/logs/actions'),
+  getStatistics: () => api.get('/api/logs/statistics'),
+  // Dashboard API functions
+  getDashboardKPI: (params) => api.get('/api/logs/dashboard/kpi', { params }),
+  getDashboardCharts: (params) => api.get('/api/logs/dashboard/charts', { params }),
+  getDashboardTables: (params) => api.get('/api/logs/dashboard/tables', { params }),
+  getDashboardFilters: () => api.get('/api/logs/dashboard/filters'),
+  // Map and Travel Analytics API functions
+  getMapData: (params) => api.get('/api/logs/dashboard/map-data', { params }),
+  getTravelAnalytics: (params) => api.get('/api/logs/dashboard/travel-analytics', { params }),
+};
+
 export const userEquipmentAPI = {
   getAll: () => api.get('/api/user-equipment'),
   getForUser: (userId) => api.get(`/api/user-equipment/user/${userId}`),

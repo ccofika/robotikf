@@ -114,7 +114,7 @@ const WorkOrderDetail = () => {
         technicianId: formData.technicianId || null,
         technician2Id: formData.technician2Id || null
       };
-      
+
       const response = await workOrdersAPI.update(id, updatedData);
       setWorkOrder(response.data);
       toast.success('Radni nalog je uspešno ažuriran!');

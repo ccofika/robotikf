@@ -11,7 +11,8 @@ import {
   ChevronRightIcon, 
   CloseIcon,
   UsersIcon,
-  ExcelIcon
+  ExcelIcon,
+  HistoryIcon
 } from '../icons/SvgIcons';
 import { AuthContext } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -151,6 +152,17 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                   >
                     <ExcelIcon size={20} /> 
                     <span>{(!collapsed || mobileOpen) && 'Export'}</span>
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink 
+                    to="/logs" 
+                    className={({ isActive }) => isActive ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                    data-title="Logovi"
+                  >
+                    <HistoryIcon size={20} /> 
+                    <span>{(!collapsed || mobileOpen) && 'Logovi'}</span>
                   </NavLink>
                 </li>
               </>
