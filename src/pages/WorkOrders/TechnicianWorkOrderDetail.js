@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } 
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, AlertIcon, CloseIcon, CalendarIcon, ImageIcon, DeleteIcon, SearchIcon, PhoneIcon, MapPinIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
-import { userEquipmentAPI, materialsAPI, workOrdersAPI } from '../../services/api';
+import { userEquipmentAPI, materialsAPI, workOrdersAPI, techniciansAPI } from '../../services/api';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import axios from 'axios';
@@ -147,8 +147,8 @@ const TechnicianWorkOrderDetail = () => {
             setTechnicianEquipment(techEqResponse.data);
           }
           
-          // Dohvati sve dostupne materijale
-          const materialsResponse = await materialsAPI.getAll();
+          // Dohvati materijale koje tehničar poseduje
+          const materialsResponse = await techniciansAPI.getMaterials(user._id);
           setAvailableMaterials(materialsResponse.data);
         } catch (err) {
           console.error('Greška pri dohvatanju opreme/materijala:', err);
@@ -705,12 +705,25 @@ const TechnicianWorkOrderDetail = () => {
       return;
     }
     
+    // Proveri da li tehničar ima dovoljno materijala
+    const selectedMaterialData = availableMaterials.find(mat => mat._id === selectedMaterial);
+    if (!selectedMaterialData || selectedMaterialData.quantity < materialQuantity) {
+      toast.error(`Nemate dovoljno materijala. Dostupno: ${selectedMaterialData?.quantity || 0}`);
+      return;
+    }
+    
     const materialExists = usedMaterials.find(
       (mat) => mat.material._id === selectedMaterial || mat.material === selectedMaterial
     );
     
     if (materialExists) {
-      toast.error('Ovaj materijal je već dodat');
+      // Proveri ukupnu količinu koju pokušava da koristi
+      const totalQuantity = materialExists.quantity + materialQuantity;
+      if (totalQuantity > selectedMaterialData.quantity) {
+        toast.error(`Nemate dovoljno materijala. Dostupno: ${selectedMaterialData.quantity}, već koristite: ${materialExists.quantity}`);
+        return;
+      }
+      toast.warning('Ovaj materijal je već dodat. Molimo ažurirajte postojeći unos.');
       return;
     }
     
@@ -739,6 +752,14 @@ const TechnicianWorkOrderDetail = () => {
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       setUsedMaterials(response.data.materials || []);
       
+      // Osveži listu dostupnih materijala
+      try {
+        const materialsResponse = await techniciansAPI.getMaterials(user._id);
+        setAvailableMaterials(materialsResponse.data);
+      } catch (err) {
+        console.error('Greška pri osvežavanju liste materijala:', err);
+      }
+      
       closeMaterialsModal();
       toast.success('Materijal je uspešno dodat!');
     } catch (error) {
@@ -748,6 +769,14 @@ const TechnicianWorkOrderDetail = () => {
       // Vraćamo na prethodnu listu u slučaju greške
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       setUsedMaterials(response.data.materials || []);
+      
+      // Osveži listu dostupnih materijala
+      try {
+        const materialsResponse = await techniciansAPI.getMaterials(user._id);
+        setAvailableMaterials(materialsResponse.data);
+      } catch (err) {
+        console.error('Greška pri osvežavanju liste materijala:', err);
+      }
     } finally {
       setLoadingMaterials(false);
     }
@@ -777,6 +806,14 @@ const TechnicianWorkOrderDetail = () => {
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       setUsedMaterials(response.data.materials || []);
       
+      // Osveži listu dostupnih materijala
+      try {
+        const materialsResponse = await techniciansAPI.getMaterials(user._id);
+        setAvailableMaterials(materialsResponse.data);
+      } catch (err) {
+        console.error('Greška pri osvežavanju liste materijala:', err);
+      }
+      
       toast.success('Materijal je uspešno uklonjen!');
     } catch (error) {
       console.error('Greška pri uklanjanju materijala:', error);
@@ -785,6 +822,14 @@ const TechnicianWorkOrderDetail = () => {
       // Vraćamo na prethodnu listu u slučaju greške
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       setUsedMaterials(response.data.materials || []);
+      
+      // Osveži listu dostupnih materijala
+      try {
+        const materialsResponse = await techniciansAPI.getMaterials(user._id);
+        setAvailableMaterials(materialsResponse.data);
+      } catch (err) {
+        console.error('Greška pri osvežavanju liste materijala:', err);
+      }
     } finally {
       setLoadingMaterials(false);
     }
@@ -1014,10 +1059,20 @@ const TechnicianWorkOrderDetail = () => {
                 type="number"
                 id="material-quantity"
                 min="1"
+                max={selectedMaterial ? (availableMaterials.find(mat => mat._id === selectedMaterial)?.quantity || 1) : 1}
                 value={materialQuantity}
-                onChange={(e) => setMaterialQuantity(parseInt(e.target.value) || 1)}
+                onChange={(e) => {
+                  const maxQuantity = selectedMaterial ? (availableMaterials.find(mat => mat._id === selectedMaterial)?.quantity || 1) : 1;
+                  const inputValue = parseInt(e.target.value) || 1;
+                  setMaterialQuantity(Math.min(inputValue, maxQuantity));
+                }}
                 className="form-input"
               />
+              {selectedMaterial && (
+                <small className="form-help">
+                  Maksimalno dostupno: {availableMaterials.find(mat => mat._id === selectedMaterial)?.quantity || 0}
+                </small>
+              )}
             </div>
           </div>
           
@@ -1296,126 +1351,6 @@ const TechnicianWorkOrderDetail = () => {
             </div>
           </div>
           
-          {!isMobile && (
-            <div className="card status-card">
-              <div className="card-header">
-                <h2>Status radnog naloga</h2>
-              </div>
-              <div className="status-actions">
-                <button
-                  className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('zavrsen')}
-                  disabled={saving}
-                >
-                  <CheckIcon /> Završen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('nezavrsen')}
-                  disabled={saving}
-                >
-                  <ClockIcon /> Nezavršen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('odlozen')}
-                  disabled={saving}
-                >
-                  <AlertIcon /> Odložen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('otkazan')}
-                  disabled={saving}
-                >
-                  <CloseIcon /> Otkazan
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {showPostponeForm && (
-            <div className="card postpone-card">
-              <div className="card-header">
-                <h2>Odlaganje termina</h2>
-              </div>
-              <div className="postpone-form">
-                <div className="form-group">
-                  <label htmlFor="postponeDate">Novi datum:</label>
-                  <div className="date-picker-container">
-                    <DatePicker
-                      id="postponeDate"
-                      selected={formData.postponeDate}
-                      onChange={handleDateChange}
-                      dateFormat="dd.MM.yyyy"
-                      minDate={new Date()}
-                      className="date-picker mobile-optimized"
-                      calendarClassName="mobile-calendar"
-                      wrapperClassName="date-picker-wrapper"
-                      popperClassName="date-picker-popper"
-                      withPortal={isMobile}
-                      portalId="mobile-datepicker-portal"
-                      popperPlacement={isMobile ? "bottom" : "bottom-start"}
-                      popperModifiers={isMobile ? [] : [
-                        {
-                          name: 'preventOverflow',
-                          options: {
-                            rootBoundary: 'viewport',
-                            padding: 8,
-                          },
-                        }
-                      ]}
-                      onCalendarOpen={handleDatePickerOpen}
-                      onCalendarClose={handleDatePickerClose}
-                      fixedHeight
-                    />
-                    <CalendarIcon className="date-picker-icon" />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="postponeTime">Novo vreme:</label>
-                  <input
-                    type="time"
-                    id="postponeTime"
-                    name="postponeTime"
-                    value={formData.postponeTime}
-                    onChange={handleChange}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="card comments-card">
-            <div className="card-header">
-              <h2>Komentar tehničara</h2>
-            </div>
-            <form onSubmit={handleSubmit} className="technician-comments-form">
-              <div className="form-group">
-                <textarea
-                  id="comment"
-                  name="comment"
-                  value={formData.comment}
-                  onChange={handleChange}
-                  placeholder="Unesite komentar o izvršenom poslu"
-                  disabled={saving}
-                  rows="4"
-                ></textarea>
-              </div>
-              
-              <div className="form-buttons">
-                <button 
-                  type="submit" 
-                  className="btn btn-primary save-btn"
-                  disabled={saving}
-                >
-                  <SaveIcon /> {saving ? 'Čuvanje...' : 'Sačuvaj'}
-                </button>
-              </div>
-            </form>
-          </div>
-          
           <div className="card equipment-card">
             <div className="card-header">
               <h2>Oprema korisnika</h2>
@@ -1540,6 +1475,128 @@ const TechnicianWorkOrderDetail = () => {
               </div>
             </div>
           </div>
+
+          <div className="card comments-card">
+            <div className="card-header">
+              <h2>Komentar tehničara</h2>
+            </div>
+            <div className="technician-comments-form">
+              <div className="form-group">
+                <textarea
+                  id="comment"
+                  name="comment"
+                  value={formData.comment}
+                  onChange={handleChange}
+                  placeholder="Unesite komentar o izvršenom poslu"
+                  disabled={saving}
+                  rows="4"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          
+          {!isMobile && (
+            <div className="card status-card">
+              <div className="card-header">
+                <h2>Status radnog naloga</h2>
+              </div>
+              <div className="status-actions">
+                <button
+                  className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('zavrsen')}
+                  disabled={saving}
+                >
+                  <CheckIcon /> Završen
+                </button>
+                <button
+                  className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('nezavrsen')}
+                  disabled={saving}
+                >
+                  <ClockIcon /> Nezavršen
+                </button>
+                <button
+                  className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('odlozen')}
+                  disabled={saving}
+                >
+                  <AlertIcon /> Odložen
+                </button>
+                <button
+                  className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('otkazan')}
+                  disabled={saving}
+                >
+                  <CloseIcon /> Otkazan
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {showPostponeForm && (
+            <div className="card postpone-card">
+              <div className="card-header">
+                <h2>Odlaganje termina</h2>
+              </div>
+              <div className="postpone-form">
+                <div className="form-group">
+                  <label htmlFor="postponeDate">Novi datum:</label>
+                  <div className="date-picker-container">
+                    <DatePicker
+                      id="postponeDate"
+                      selected={formData.postponeDate}
+                      onChange={handleDateChange}
+                      dateFormat="dd.MM.yyyy"
+                      minDate={new Date()}
+                      className="date-picker mobile-optimized"
+                      calendarClassName="mobile-calendar"
+                      wrapperClassName="date-picker-wrapper"
+                      popperClassName="date-picker-popper"
+                      withPortal={isMobile}
+                      portalId="mobile-datepicker-portal"
+                      popperPlacement={isMobile ? "bottom" : "bottom-start"}
+                      popperModifiers={isMobile ? [] : [
+                        {
+                          name: 'preventOverflow',
+                          options: {
+                            rootBoundary: 'viewport',
+                            padding: 8,
+                          },
+                        }
+                      ]}
+                      onCalendarOpen={handleDatePickerOpen}
+                      onCalendarClose={handleDatePickerClose}
+                      fixedHeight
+                    />
+                    <CalendarIcon className="date-picker-icon" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="postponeTime">Novo vreme:</label>
+                  <input
+                    type="time"
+                    id="postponeTime"
+                    name="postponeTime"
+                    value={formData.postponeTime}
+                    onChange={handleChange}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit} className="save-form">
+            <div className="form-buttons">
+              <button 
+                type="submit" 
+                className="btn btn-primary save-btn"
+                disabled={saving}
+              >
+                <SaveIcon /> {saving ? 'Čuvanje...' : 'Sačuvaj'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
       

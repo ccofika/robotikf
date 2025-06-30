@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, ClipboardIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import './WorkOrdersModern.css';
 
 const AddWorkOrder = () => {
@@ -28,13 +28,11 @@ const AddWorkOrder = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
   useEffect(() => {
     // Učitavanje liste tehničara
     const fetchTechnicians = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/api/technicians`);
+        const response = await techniciansAPI.getAll();
         setTechnicians(response.data);
       } catch (err) {
         console.error('Greška pri učitavanju tehničara:', err);
@@ -63,7 +61,14 @@ const AddWorkOrder = () => {
     setError('');
     
     try {
-      await axios.post(`${apiUrl}/api/workorders`, formData);
+      // Dodavanje administratorskih podataka za logovanje
+      const dataToSend = {
+        ...formData,
+        adminId: 'admin-system', // Placeholder za admin ID
+        adminName: 'Sistem Administrator'
+      };
+      
+      await workOrdersAPI.create(dataToSend);
       toast.success('Radni nalog je uspešno dodat!');
       navigate('/work-orders');
     } catch (error) {
@@ -189,7 +194,7 @@ const AddWorkOrder = () => {
               >
                 <option value="">-- Izaberite tehničara --</option>
                 {technicians.map(tech => (
-                  <option key={tech.id} value={tech.id}>{tech.name}</option>
+                  <option key={tech._id} value={tech._id}>{tech.name}</option>
                 ))}
               </select>
             </div>

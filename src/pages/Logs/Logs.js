@@ -42,6 +42,14 @@ const Logs = () => {
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
 
+  // Material validation specific state
+  const [materialValidationData, setMaterialValidationData] = useState({
+    averages: {},
+    anomalies: [],
+    loading: false
+  });
+  const [showMaterialValidation, setShowMaterialValidation] = useState(false);
+
   // Dashboard specific state
   const [dashboardData, setDashboardData] = useState({
     kpi: null,
@@ -131,6 +139,76 @@ const Logs = () => {
     }
   }, []);
 
+  // Material validation functions
+  const loadMaterialValidationData = useCallback(async () => {
+    setMaterialValidationData(prev => ({ ...prev, loading: true }));
+    try {
+      // Load material logs to calculate averages and detect anomalies
+      const response = await logsAPI.getTechnicianLogs({
+        action: 'material_added',
+        limit: 1000 // Get more records for better analysis
+      });
+      
+      const materialLogs = response.data.data.flatMap(group => 
+        group.logs.filter(log => log.materialDetails)
+      );
+      
+      // Calculate averages per material type
+      const materialUsage = {};
+      materialLogs.forEach(log => {
+        const { materialType, quantity } = log.materialDetails;
+        if (!materialUsage[materialType]) {
+          materialUsage[materialType] = [];
+        }
+        materialUsage[materialType].push(quantity);
+      });
+      
+      const averages = {};
+      Object.keys(materialUsage).forEach(type => {
+        const quantities = materialUsage[type];
+        const avg = quantities.reduce((sum, qty) => sum + qty, 0) / quantities.length;
+        const stdDev = Math.sqrt(
+          quantities.reduce((sum, qty) => sum + Math.pow(qty - avg, 2), 0) / quantities.length
+        );
+        averages[type] = {
+          average: avg,
+          standardDeviation: stdDev,
+          threshold: avg + (stdDev * 2), // 2 standard deviations above average
+          totalUsages: quantities.length
+        };
+      });
+      
+      // Detect anomalies (recent material additions that exceed threshold)
+      const recentLogs = materialLogs.filter(log => {
+        const logDate = new Date(log.timestamp);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return logDate >= thirtyDaysAgo;
+      });
+      
+      const anomalies = recentLogs.filter(log => {
+        const { materialType, quantity } = log.materialDetails;
+        const typeAverage = averages[materialType];
+        return typeAverage && quantity > typeAverage.threshold;
+      }).map(log => ({
+        ...log,
+        severity: log.materialDetails.quantity > (averages[log.materialDetails.materialType].threshold * 1.5) ? 'high' : 'medium',
+        expectedRange: `${Math.round(averages[log.materialDetails.materialType].average)} ± ${Math.round(averages[log.materialDetails.materialType].standardDeviation)}`,
+        threshold: Math.round(averages[log.materialDetails.materialType].threshold)
+      }));
+      
+      setMaterialValidationData({
+        averages,
+        anomalies: anomalies.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+        loading: false
+      });
+    } catch (error) {
+      console.error('Greška pri učitavanju podataka za validaciju materijala:', error);
+      toast.error('Greška pri učitavanju podataka za validaciju materijala');
+      setMaterialValidationData(prev => ({ ...prev, loading: false }));
+    }
+  }, []);
+
   // Dashboard functions
   const loadDashboardFilters = useCallback(async () => {
     try {
@@ -216,10 +294,11 @@ const Logs = () => {
       loadDashboardData();
     } else if (activeTab === 'technicians') {
       loadTechnicianLogs();
+      loadMaterialValidationData();
     } else {
       loadUserLogs();
     }
-  }, [activeTab, loadTechnicianLogs, loadUserLogs, loadDashboardData]);
+  }, [activeTab, loadTechnicianLogs, loadUserLogs, loadDashboardData, loadMaterialValidationData]);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -458,6 +537,9 @@ const Logs = () => {
                 toggleGroup={toggleGroup}
                 getActionIcon={getActionIcon}
                 getActionColor={getActionColor}
+                materialValidationData={materialValidationData}
+                showMaterialValidation={showMaterialValidation}
+                setShowMaterialValidation={setShowMaterialValidation}
               />
             ) : (
               <UserLogsSection 
@@ -516,7 +598,7 @@ const Logs = () => {
 };
 
 // Technician Logs Section Component
-const TechnicianLogsSection = ({ logs, expandedGroups, toggleGroup, getActionIcon, getActionColor }) => {
+const TechnicianLogsSection = ({ logs, expandedGroups, toggleGroup, getActionIcon, getActionColor, materialValidationData, showMaterialValidation, setShowMaterialValidation }) => {
   if (logs.length === 0) {
     return (
       <div className="empty-state">
@@ -561,6 +643,13 @@ const TechnicianLogsSection = ({ logs, expandedGroups, toggleGroup, getActionIco
           )}
         </div>
       ))}
+      
+      {/* Material Usage Validation Section */}
+      <MaterialValidationSection 
+        materialValidationData={materialValidationData}
+        showMaterialValidation={showMaterialValidation}
+        setShowMaterialValidation={setShowMaterialValidation}
+      />
     </div>
   );
 };
@@ -1700,7 +1789,7 @@ const BarChart = ({ data }) => {
         fontSize: '14px',
         fontWeight: '500'
       }}>
-        Nema podataka za prikazivanje produktivnosti
+        Nema podataka za prikazivanje
       </div>
     );
   }
@@ -2381,5 +2470,197 @@ const ProblematicWorkOrdersTable = ({ data }) => (
     </table>
   </div>
 );
+
+// Material Validation Section Component
+const MaterialValidationSection = ({ materialValidationData, showMaterialValidation, setShowMaterialValidation }) => {
+  const { averages, anomalies, loading } = materialValidationData;
+  
+  const navigateToWorkOrder = (workOrderId) => {
+    if (!workOrderId) {
+      toast.error('ID radnog naloga nije dostupan');
+      return;
+    }
+    // Navigate to work order detail page - adjust path based on your routing structure
+    const workOrderPath = `/work-orders/${workOrderId}`;
+    window.open(workOrderPath, '_blank');
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'high':
+        return '#e74c3c';
+      case 'medium':
+        return '#f39c12';
+      default:
+        return '#3498db';
+    }
+  };
+
+  const getSeverityLabel = (severity) => {
+    switch (severity) {
+      case 'high':
+        return 'VISOKA';
+      case 'medium':
+        return 'SREDNJA';
+      default:
+        return 'NISKA';
+    }
+  };
+
+  return (
+    <div className="material-validation-section">
+      <div className="material-validation-header">
+        <div className="section-info">
+          <MaterialIcon size={24} />
+          <div>
+            <h3>Validacija korišćenja materijala</h3>
+            <p>Praćenje neobičnih količina materijala unesenih od strane tehničara</p>
+          </div>
+        </div>
+        <button 
+          className={`toggle-validation-btn ${showMaterialValidation ? 'active' : ''}`}
+          onClick={() => setShowMaterialValidation(!showMaterialValidation)}
+        >
+          {showMaterialValidation ? 'Sakrij' : 'Prikaži'} validaciju
+        </button>
+      </div>
+
+      {showMaterialValidation && (
+        <div className="material-validation-content">
+          {loading ? (
+            <div className="validation-loading">
+              <div className="loading-spinner"></div>
+              <p>Analiziram podatke o materijalima...</p>
+            </div>
+          ) : (
+            <>
+              {/* Material Usage Averages */}
+              <div className="material-averages">
+                <h4>Prosečno korišćenje materijala</h4>
+                <div className="averages-grid">
+                  {Object.entries(averages).map(([materialType, data]) => (
+                    <div key={materialType} className="average-card">
+                      <div className="average-header">
+                        <MaterialIcon size={16} />
+                        <span className="material-type">{materialType}</span>
+                      </div>
+                      <div className="average-stats">
+                        <div className="stat">
+                          <span className="stat-label">Prosek:</span>
+                          <span className="stat-value">{data.average.toFixed(1)}</span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">Prag upozorenja:</span>
+                          <span className="stat-value">{data.threshold.toFixed(1)}</span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">Ukupno korišćenja:</span>
+                          <span className="stat-value">{data.totalUsages}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Anomaly Alerts */}
+              <div className="material-anomalies">
+                <h4>
+                  Upozorenja o neobičnom korišćenju 
+                  {anomalies.length > 0 && (
+                    <span className="anomaly-count">{anomalies.length}</span>
+                  )}
+                </h4>
+                
+                {anomalies.length === 0 ? (
+                  <div className="no-anomalies">
+                    <CheckIcon size={24} />
+                    <p>Nema neobičnih korišćenja materijala u poslednjih 30 dana</p>
+                  </div>
+                ) : (
+                  <div className="anomalies-list">
+                    {anomalies.map((anomaly) => (
+                      <div key={anomaly._id} className={`anomaly-card severity-${anomaly.severity}`}>
+                        <div className="anomaly-header">
+                          <div className="anomaly-icon">
+                            <MaterialIcon size={20} />
+                          </div>
+                          <div className="anomaly-info">
+                            <div className="anomaly-title">
+                              <span className="material-name">{anomaly.materialDetails.materialType}</span>
+                              <span 
+                                className="severity-badge"
+                                style={{ backgroundColor: getSeverityColor(anomaly.severity) }}
+                              >
+                                {getSeverityLabel(anomaly.severity)} PRIORITET
+                              </span>
+                            </div>
+                            <div className="anomaly-meta">
+                              <span className="technician-name">
+                                <HardHatIcon size={14} />
+                                {anomaly.performedByName}
+                              </span>
+                              <span className="anomaly-time">
+                                <ClockIcon size={14} />
+                                {anomaly.formattedTimestamp}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="anomaly-details">
+                          <div className="usage-comparison">
+                            <div className="usage-item">
+                              <span className="usage-label">Unešeno:</span>
+                              <span className="usage-value actual">{anomaly.materialDetails.quantity}</span>
+                            </div>
+                            <div className="usage-item">
+                              <span className="usage-label">Očekivano:</span>
+                              <span className="usage-value expected">{anomaly.expectedRange}</span>
+                            </div>
+                            <div className="usage-item">
+                              <span className="usage-label">Prag upozorenja:</span>
+                              <span className="usage-value threshold">{anomaly.threshold}</span>
+                            </div>
+                          </div>
+                          
+                          {anomaly.workOrderInfo && (
+                            <div className="work-order-info">
+                              <div className="work-order-details">
+                                <h5>Detalji radnog naloga:</h5>
+                                <p><strong>Korisnik:</strong> {anomaly.workOrderInfo.userName}</p>
+                                <p><strong>Adresa:</strong> {anomaly.workOrderInfo.address}</p>
+                                <p><strong>Opština:</strong> {anomaly.workOrderInfo.municipality}</p>
+                                {anomaly.workOrderInfo.tisId && (
+                                  <p><strong>TIS ID:</strong> {anomaly.workOrderInfo.tisId}</p>
+                                )}
+                              </div>
+                              <button 
+                                className={`view-work-order-btn ${!anomaly.workOrderInfo.workOrderId ? 'disabled' : ''}`}
+                                onClick={() => anomaly.workOrderInfo.workOrderId && navigateToWorkOrder(anomaly.workOrderInfo.workOrderId)}
+                                disabled={!anomaly.workOrderInfo.workOrderId}
+                              >
+                                {anomaly.workOrderInfo.workOrderId ? 'Prikaži radni nalog' : 'RN ID nije dostupan'}
+                              </button>
+                            </div>
+                          )}
+                          
+                          <div className="anomaly-description">
+                            <CommentIcon size={14} />
+                            <span>{anomaly.description}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default Logs; 

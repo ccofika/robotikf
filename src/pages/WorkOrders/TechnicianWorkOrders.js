@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SearchIcon, FilterIcon, ViewIcon, RefreshIcon, ClipboardIcon, BarChartIcon, PhoneIcon, MapPinIcon, CalendarIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -8,6 +8,7 @@ import './TechnicianWorkOrders.css';
 
 const TechnicianWorkOrders = () => {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [workOrders, setWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,11 +68,17 @@ const TechnicianWorkOrders = () => {
   
   // Touch gesture handlers
   const handleTouchStart = (e, orderId) => {
+    e.preventDefault();
     touchStartX.current = e.touches[0].clientX;
+    touchEndX.current = e.touches[0].clientX;
     activeOrderRef.current = orderId;
+    
+    console.log('Touch start - Order ID:', orderId); // Debug log
   };
   
   const handleTouchMove = (e) => {
+    if (!activeOrderRef.current) return;
+    
     touchEndX.current = e.touches[0].clientX;
     
     const orderCard = document.getElementById(`order-${activeOrderRef.current}`);
@@ -86,8 +93,21 @@ const TechnicianWorkOrders = () => {
   };
   
   const handleTouchEnd = () => {
-    const orderCard = document.getElementById(`order-${activeOrderRef.current}`);
-    if (!orderCard) return;
+    if (!activeOrderRef.current) {
+      console.log('Touch end - No active order ID'); // Debug log
+      return;
+    }
+    
+    const orderId = activeOrderRef.current; // Store ID before resetting
+    const orderCard = document.getElementById(`order-${orderId}`);
+    
+    console.log('Touch end - Order ID:', orderId); // Debug log
+    
+    if (!orderCard) {
+      console.log('Touch end - Order card not found for ID:', orderId); // Debug log
+      activeOrderRef.current = null;
+      return;
+    }
     
     const diff = touchEndX.current - touchStartX.current;
     
@@ -98,8 +118,9 @@ const TechnicianWorkOrders = () => {
         orderCard.classList.remove('swiped');
         orderCard.style.transform = 'translateX(0)';
         
-        // Navigate to details
-        window.location.href = `/my-work-orders/${activeOrderRef.current}`;
+        // Navigate to details using the stored ID
+        console.log('Navigating to order:', orderId); // Debug log
+        navigate(`/my-work-orders/${orderId}`);
       }, 300);
     } else {
       // Reset position with animation
@@ -110,6 +131,7 @@ const TechnicianWorkOrders = () => {
       }, 300);
     }
     
+    // Reset only after using the ID
     activeOrderRef.current = null;
   };
   
@@ -428,9 +450,18 @@ const TechnicianWorkOrders = () => {
                       key={order._id} 
                       id={`order-${order._id}`}
                       className={`mobile-order-card status-${order.status}`}
-                      onTouchStart={(e) => handleTouchStart(e, order._id)}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={handleTouchEnd}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        handleTouchStart(e, order._id);
+                      }}
+                      onTouchMove={(e) => {
+                        e.stopPropagation();
+                        handleTouchMove(e);
+                      }}
+                      onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        handleTouchEnd(e);
+                      }}
                     >
                       <div className="order-card-content">
                         <div className="order-card-header">

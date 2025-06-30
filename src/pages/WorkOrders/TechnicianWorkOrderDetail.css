@@ -99,6 +99,14 @@
   cursor: not-allowed;
 }
 
+/* Form help text */
+.form-help {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  margin-top: 0.25rem;
+  display: block;
+}
+
 .materials-loading {
   text-align: center;
   padding: 1rem;
