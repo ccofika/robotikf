@@ -154,13 +154,7 @@ const Login = () => {
         </form>
 
         <div className="login-footer">
-          <div className="demo-credentials">
-            <h4>Demo pristup:</h4>
-            <div className="credential-item">
-              <span className="credential-label">Admin:</span>
-              <span className="credential-value">admin / admin</span>
-            </div>
-          </div>
+          
           
           <div className="system-info">
             <p>&copy; 2024 TelCo Inventory System</p>
