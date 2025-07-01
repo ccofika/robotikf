@@ -47,8 +47,8 @@ const TechnicianDetail = () => {
     }
     
     try {
-      // Poziv API-ja za promenu lozinke
-      await techniciansAPI.changePassword(id, { password: newPassword });
+      // Poziv API-ja za promenu lozinke preko update endpointa
+      await techniciansAPI.update(id, { password: newPassword });
       toast.success('Lozinka je uspešno promenjena!');
       setShowPasswordModal(false);
       setNewPassword('');

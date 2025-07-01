@@ -17,7 +17,7 @@ function Login({ onLogin }) {
     e.preventDefault();
     
     // For demo purposes - hardcoded login
-    if (formData.username === 'admin' && formData.password === 'admin') {
+    if (formData.username === 'admin' && formData.password === 'Robotik2023!') {
       onLogin({
         id: '1',
         name: 'Administrator',
@@ -59,7 +59,7 @@ function Login({ onLogin }) {
         </form>
         
         <div className="login-info">
-          <p>Demo credentials: admin / admin</p>
+          
         </div>
       </div>
     </div>
