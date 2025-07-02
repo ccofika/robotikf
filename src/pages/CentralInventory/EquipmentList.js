@@ -15,6 +15,7 @@ const EquipmentList = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   
   const [technicians, setTechnicians] = useState([]);
+  const [users, setUsers] = useState([]);
 
   // Modalni prozor za dodavanje pojedinačne opreme
   const [showAddModal, setShowAddModal] = useState(false);
@@ -35,6 +36,7 @@ const EquipmentList = () => {
   useEffect(() => {
     fetchEquipment();
     fetchTechnicians();
+    fetchUsers();
   }, []);
   
   const fetchEquipment = async () => {
@@ -61,6 +63,15 @@ const EquipmentList = () => {
       console.error('Greška pri učitavanju tehničara:', error);
     }
   };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/api/users`);
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Greška pri učitavanju korisnika:', error);
+    }
+  };
   
   // Filtriranje i pretraga opreme
   const filteredEquipment = useMemo(() => {
@@ -84,7 +95,7 @@ const EquipmentList = () => {
   const uniqueLocations = useMemo(() => {
     const locations = [...new Set(equipment.map(item => item.location))];
     return ['', ...locations];
-  }, [equipment]);
+  }, [equipment, technicians, users]);
   
   // Paginacija
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -101,8 +112,14 @@ const EquipmentList = () => {
     if (location.startsWith('tehnicar-')) {
       const techId = location.split('-')[1];
       // Pronađi tehničara po ID-u
-      const technician = technicians.find(tech => tech.id === techId);
+      const technician = technicians.find(tech => tech._id === techId || tech.id === techId);
       return technician ? `Tehničar: ${technician.name}` : `Tehničar ID: ${techId}`;
+    }
+    if (location.startsWith('user-')) {
+      const userId = location.split('-')[1];
+      // Pronađi korisnika po ID-u
+      const user = users.find(user => user._id === userId || user.id === userId);
+      return user ? `Korisnik: ${user.username}` : `Korisnik ID: ${userId}`;
     }
     return location;
   };
