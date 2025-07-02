@@ -51,14 +51,17 @@ const TechnicianWorkOrderDetail = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [stableEquipment, setStableEquipment] = useState([]);
   
-  // Materijali state
+  // Materijali state - optimizovano sa ref-ovima za stable input handling
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
   const [usedMaterials, setUsedMaterials] = useState([]);
   const [showMaterialsModal, setShowMaterialsModal] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState('');
-  const [materialQuantity, setMaterialQuantity] = useState(1);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
+  
+  // Ref-ovi za stable modal state
+  const selectedMaterialRef = useRef('');
+  const materialQuantityRef = useRef(''); // Početna vrednost prazna
+  const [materialModalKey, setMaterialModalKey] = useState(0); // Za forsirano re-render
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
@@ -688,20 +691,29 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
   
-  // Funkcije za materijale
-  const openMaterialsModal = () => {
+  // Funkcije za materijale - potpuno optimizovane sa ref-ovima
+  const openMaterialsModal = useCallback(() => {
+    selectedMaterialRef.current = '';
+    materialQuantityRef.current = ''; // Postavlja na prazno
+    setMaterialModalKey(prev => prev + 1); // Force refresh modal
     setShowMaterialsModal(true);
-  };
+  }, []);
   
-  const closeMaterialsModal = () => {
+  const closeMaterialsModal = useCallback(() => {
     setShowMaterialsModal(false);
-    setSelectedMaterial('');
-    setMaterialQuantity(1);
-  };
+    selectedMaterialRef.current = '';
+    materialQuantityRef.current = ''; // Postavlja na prazno
+  }, []);
   
-  const addMaterial = async () => {
-    if (!selectedMaterial || materialQuantity <= 0) {
-      toast.error('Morate odabrati materijal i uneti validnu količinu');
+
+  
+  const addMaterial = useCallback(async () => {
+    const selectedMaterial = selectedMaterialRef.current;
+    const materialQuantity = materialQuantityRef.current;
+    
+    // Poboljšana validacija - ne dozvoli 0 ili prazan materijal
+    if (!selectedMaterial || !materialQuantity || materialQuantity === '' || materialQuantity <= 0) {
+      toast.error('Morate odabrati materijal i uneti validnu količinu (veću od 0)');
       return;
     }
     
@@ -780,9 +792,9 @@ const TechnicianWorkOrderDetail = () => {
     } finally {
       setLoadingMaterials(false);
     }
-  };
+  }, [availableMaterials, usedMaterials, id, user._id, closeMaterialsModal]);
   
-  const removeMaterial = async (materialId) => {
+  const removeMaterial = useCallback(async (materialId) => {
     setLoadingMaterials(true);
     
     try {
@@ -833,12 +845,10 @@ const TechnicianWorkOrderDetail = () => {
     } finally {
       setLoadingMaterials(false);
     }
-  };
+  }, [usedMaterials, id, user._id]);
   
-
-  
-  // Completely rewritten Equipment Selection Modal with stable rendering
-  const EquipmentSelectionModal = useCallback(() => {
+  // Equipment Selection Modal - optimizovan sa React.memo
+  const EquipmentSelectionModal = React.memo(() => {
     if (!showEquipmentModal) return null;
     
     console.log('=== RENDERING EQUIPMENT MODAL ===');
@@ -1013,11 +1023,62 @@ const TechnicianWorkOrderDetail = () => {
         </div>
       </div>
     );
-  }, [showEquipmentModal, isSearching, getFilteredEquipment, closeModal, selectEquipment, clearSearch, performSearch, stableEquipment]);
+  });
   
-  // Materials Modal Component - optimized to prevent unnecessary re-renders
-  const MaterialsModal = useCallback(() => {
+  // Materials Modal Component - sa ref-ovima za stable input handling
+  const MaterialsModal = React.memo(() => {
     if (!showMaterialsModal) return null;
+    
+    return <MaterialsModalContent key={materialModalKey} />;
+  });
+  
+  // Potpuno nezavisan modal sadržaj
+  const MaterialsModalContent = React.memo(() => {
+    const [localSelectedMaterial, setLocalSelectedMaterial] = useState(selectedMaterialRef.current);
+    const [localMaterialQuantity, setLocalMaterialQuantity] = useState(materialQuantityRef.current);
+    
+    // Update ref-ove kad se lokalni state promeni
+    React.useEffect(() => {
+      selectedMaterialRef.current = localSelectedMaterial;
+    }, [localSelectedMaterial]);
+    
+    React.useEffect(() => {
+      materialQuantityRef.current = localMaterialQuantity;
+    }, [localMaterialQuantity]);
+    
+    // Kalkuliši maksimalnu količinu
+    const selectedMaterialData = localSelectedMaterial ? availableMaterials.find(mat => mat._id === localSelectedMaterial) : null;
+    const maxQuantity = selectedMaterialData?.quantity || 1;
+    
+    const handleMaterialSelectionChange = (e) => {
+      const newValue = e.target.value;
+      setLocalSelectedMaterial(newValue);
+      setLocalMaterialQuantity(''); // Reset količine na prazno
+    };
+    
+    const handleMaterialQuantityChange = (e) => {
+      const inputValue = e.target.value;
+      
+      if (inputValue === '') {
+        setLocalMaterialQuantity('');
+        return;
+      }
+      
+      const numValue = parseInt(inputValue);
+      
+      if (isNaN(numValue) || numValue < 0) {
+        setLocalMaterialQuantity('');
+        return;
+      }
+      
+      if (localSelectedMaterial) {
+        setLocalMaterialQuantity(Math.min(numValue, maxQuantity));
+      } else {
+        setLocalMaterialQuantity(numValue);
+      }
+    };
+    
+    const isAddDisabled = !localSelectedMaterial || !localMaterialQuantity || localMaterialQuantity === '' || localMaterialQuantity <= 0 || loadingMaterials;
     
     return (
       <div className="modal-overlay" onClick={closeMaterialsModal}>
@@ -1029,6 +1090,7 @@ const TechnicianWorkOrderDetail = () => {
                 className="modal-close-btn"
                 onClick={closeMaterialsModal}
                 aria-label="Zatvori modal"
+                type="button"
               >
                 <CloseIcon />
               </button>
@@ -1040,8 +1102,8 @@ const TechnicianWorkOrderDetail = () => {
               <label htmlFor="material-select">Materijal:</label>
               <select
                 id="material-select"
-                value={selectedMaterial}
-                onChange={(e) => setSelectedMaterial(e.target.value)}
+                value={localSelectedMaterial}
+                onChange={handleMaterialSelectionChange}
                 className="form-select"
               >
                 <option value="">-- Izaberite materijal --</option>
@@ -1058,19 +1120,17 @@ const TechnicianWorkOrderDetail = () => {
               <input
                 type="number"
                 id="material-quantity"
-                min="1"
-                max={selectedMaterial ? (availableMaterials.find(mat => mat._id === selectedMaterial)?.quantity || 1) : 1}
-                value={materialQuantity}
-                onChange={(e) => {
-                  const maxQuantity = selectedMaterial ? (availableMaterials.find(mat => mat._id === selectedMaterial)?.quantity || 1) : 1;
-                  const inputValue = parseInt(e.target.value) || 1;
-                  setMaterialQuantity(Math.min(inputValue, maxQuantity));
-                }}
+                min="0"
+                max={maxQuantity}
+                value={localMaterialQuantity}
+                onChange={handleMaterialQuantityChange}
                 className="form-input"
+                placeholder="Unesite količinu"
+                autoComplete="off"
               />
-              {selectedMaterial && (
+              {localSelectedMaterial && (
                 <small className="form-help">
-                  Maksimalno dostupno: {availableMaterials.find(mat => mat._id === selectedMaterial)?.quantity || 0}
+                  Maksimalno dostupno: {maxQuantity}
                 </small>
               )}
             </div>
@@ -1087,7 +1147,7 @@ const TechnicianWorkOrderDetail = () => {
             <button 
               className="btn btn-primary" 
               onClick={addMaterial}
-              disabled={!selectedMaterial || materialQuantity <= 0 || loadingMaterials}
+              disabled={isAddDisabled}
               type="button"
             >
               {loadingMaterials ? 'Dodavanje...' : 'Dodaj materijal'}
@@ -1096,7 +1156,7 @@ const TechnicianWorkOrderDetail = () => {
         </div>
       </div>
     );
-  }, [showMaterialsModal, selectedMaterial, materialQuantity, availableMaterials, loadingMaterials]);
+  });
   
   // Komponenta za prikaz korišćenih materijala
   const UsedMaterialsList = () => {
@@ -1236,42 +1296,6 @@ const TechnicianWorkOrderDetail = () => {
           </Link>
         </div>
       </div>
-      
-      {/* Mobilni status panel */}
-      {isMobile && (
-        <div className={`mobile-status-panel ${showStatusActions ? 'show' : ''}`}>
-          <div className="status-actions">
-            <button
-              className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
-              onClick={() => handleStatusChange('zavrsen')}
-              disabled={saving}
-            >
-              <CheckIcon /> Završen
-            </button>
-            <button
-              className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
-              onClick={() => handleStatusChange('nezavrsen')}
-              disabled={saving}
-            >
-              <ClockIcon /> Nezavršen
-            </button>
-            <button
-              className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
-              onClick={() => handleStatusChange('odlozen')}
-              disabled={saving}
-            >
-              <AlertIcon /> Odložen
-            </button>
-            <button
-              className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
-              onClick={() => handleStatusChange('otkazan')}
-              disabled={saving}
-            >
-              <CloseIcon /> Otkazan
-            </button>
-          </div>
-        </div>
-      )}
       
       <div className="work-order-layout">
         <div className="work-order-main">
@@ -1494,6 +1518,42 @@ const TechnicianWorkOrderDetail = () => {
               </div>
             </div>
           </div>
+          
+          {/* Mobilni status panel - pozicija 8 */}
+          {isMobile && (
+            <div className={`mobile-status-panel ${showStatusActions ? 'show' : ''}`}>
+              <div className="status-actions">
+                <button
+                  className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('zavrsen')}
+                  disabled={saving}
+                >
+                  <CheckIcon /> Završen
+                </button>
+                <button
+                  className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('nezavrsen')}
+                  disabled={saving}
+                >
+                  <ClockIcon /> Nezavršen
+                </button>
+                <button
+                  className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('odlozen')}
+                  disabled={saving}
+                >
+                  <AlertIcon /> Odložen
+                </button>
+                <button
+                  className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('otkazan')}
+                  disabled={saving}
+                >
+                  <CloseIcon /> Otkazan
+                </button>
+              </div>
+            </div>
+          )}
           
           {!isMobile && (
             <div className="card status-card">
