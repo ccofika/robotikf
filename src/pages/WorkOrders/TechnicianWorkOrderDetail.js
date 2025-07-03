@@ -21,13 +21,14 @@ const TechnicianWorkOrderDetail = () => {
     postponeDate: null,
     postponeTime: ''
   });
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [images, setImages] = useState([]);
   const [showPostponeForm, setShowPostponeForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState([]);
   const [error, setError] = useState('');
   const [technicianEquipment, setTechnicianEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
@@ -530,35 +531,103 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
   
+  // Funkcija za izvlačenje naziva fajla iz URL-a
+  const extractFilenameFromUrl = (url) => {
+    try {
+      const urlParts = url.split('/');
+      const filename = urlParts[urlParts.length - 1];
+      // Uklanjamo timestamp ako postoji (format: timestamp-originalname)
+      const cleanFilename = filename.replace(/^\d+-/, '');
+      return cleanFilename.toLowerCase();
+    } catch (error) {
+      return '';
+    }
+  };
+
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
+    const files = Array.from(e.target.files);
     
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
     
     // Validacija tipa fajla i veličine
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxFiles = 10; // Maksimalno 10 slika odjednom
     
-    if (!validTypes.includes(file.type)) {
-      toast.error('Dozvoljeni su samo JPG i PNG formati slika');
+    if (files.length > maxFiles) {
+      toast.error(`Možete odabrati maksimalno ${maxFiles} slika odjednom`);
       return;
     }
     
-    if (file.size > maxSize) {
-      toast.error('Slika ne sme biti veća od 5MB');
-      return;
+    const validFiles = [];
+    const previews = [];
+    const invalidFiles = [];
+    
+    // Izvlačimo nazive postojećih slika
+    const existingFilenames = images.map(url => extractFilenameFromUrl(url));
+    
+    files.forEach((file, index) => {
+      // Validacija tipa fajla
+      if (!validTypes.includes(file.type)) {
+        invalidFiles.push(`${file.name} - neispravna ekstenzija`);
+        return;
+      }
+      
+      // Validacija veličine fajla
+      if (file.size > maxSize) {
+        invalidFiles.push(`${file.name} - veća od 5MB`);
+        return;
+      }
+      
+      // Provera duplikata naziva fajla
+      const filename = file.name.toLowerCase();
+      if (existingFilenames.includes(filename)) {
+        invalidFiles.push(`${file.name} - slika sa istim nazivom već postoji`);
+        return;
+      }
+      
+      // Provera duplikata među trenutno odabranim fajlovima
+      if (validFiles.some(f => f.name.toLowerCase() === filename)) {
+        invalidFiles.push(`${file.name} - duplikat u odabranim fajlovima`);
+        return;
+      }
+      
+      validFiles.push(file);
+      
+      // Kreiranje preview-a
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previews.push({
+          file: file,
+          preview: e.target.result,
+          name: file.name,
+          size: file.size
+        });
+        
+        // Kada su svi preview-i spremni, ažuriraj state
+        if (previews.length === validFiles.length) {
+          setImagePreviews(previews);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Prikaži greške za neispravne fajlove
+    if (invalidFiles.length > 0) {
+      toast.error(`Sledeći fajlovi nisu validni:\n${invalidFiles.join('\n')}`);
     }
     
-    setImageFile(file);
+    // Prikaži uspešnu poruku
+    if (validFiles.length > 0) {
+      toast.success(`Odabrano ${validFiles.length} slika za upload`);
+    }
     
-    // Prikaz preview-a slike
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target.result);
-    };
-    reader.readAsDataURL(file);
+    setImageFiles(validFiles);
+    
+    // Resetuj progress
+    setUploadProgress([]);
   };
   
   const handleSubmit = async (e) => {
@@ -612,45 +681,92 @@ const TechnicianWorkOrderDetail = () => {
   };
   
   const handleImageUpload = async () => {
-    if (!imageFile) {
-      toast.error('Molimo izaberite sliku');
+    if (imageFiles.length === 0) {
+      toast.error('Molimo izaberite slike');
       return;
     }
     
-    setUploadingImage(true);
+    setUploadingImages(true);
     
-    const formData = new FormData();
-    formData.append('image', imageFile);
-    formData.append('technicianId', user._id);
+    // Inicijalizacija progress tracking-a
+    const progressArray = imageFiles.map(() => 0);
+    setUploadProgress(progressArray);
+    
+    const successfulUploads = [];
+    const failedUploads = [];
     
     try {
-      const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      // Upload slika jedna po jedna da možemo pratiti progress
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        
+        try {
+          const formData = new FormData();
+          formData.append('image', file);
+          formData.append('technicianId', user._id);
+          
+          // Ažuriraj progress za trenutnu sliku
+          const newProgress = [...progressArray];
+          newProgress[i] = 50; // Početak upload-a
+          setUploadProgress(newProgress);
+          
+          const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+          
+          // Uspešan upload
+          successfulUploads.push(file.name);
+          
+          // Završetak upload-a
+          newProgress[i] = 100;
+          setUploadProgress(newProgress);
+          
+          console.log(`Upload uspešan za ${file.name}:`, response.data.imageUrl);
+          
+        } catch (error) {
+          console.error(`Greška pri upload-u slike ${file.name}:`, error);
+          failedUploads.push(file.name);
+          
+          // Označava neuspešan upload
+          const newProgress = [...progressArray];
+          newProgress[i] = -1; // -1 označava grešku
+          setUploadProgress(newProgress);
         }
-      });
+      }
       
-      toast.success('Slika je uspešno dodata na Cloudinary!');
-      console.log('Cloudinary URL:', response.data.imageUrl);
+      // Prikaži rezultate
+      if (successfulUploads.length > 0) {
+        toast.success(`Uspešno uploadovano ${successfulUploads.length} slika`);
+      }
       
-      // Ažuriranje liste slika
-      setImages(response.data.workOrder.images || []);
+      if (failedUploads.length > 0) {
+        toast.error(`Neuspešan upload za ${failedUploads.length} slika: ${failedUploads.join(', ')}`);
+      }
       
-      // Reset polja za sliku
-      setImageFile(null);
-      setImagePreview('');
+      // Osveži listu slika
+      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      setImages(response.data.images || []);
+      
+      // Reset polja za slike
+      setImageFiles([]);
+      setImagePreviews([]);
       document.getElementById('image-upload').value = '';
+      
     } catch (error) {
-      console.error('Greška pri upload-u slike na Cloudinary:', error);
-      toast.error(error.response?.data?.error || 'Neuspešan upload slike. Pokušajte ponovo.');
+      console.error('Opšta greška pri upload-u slika:', error);
+      toast.error('Neuspešan upload slika. Pokušajte ponovo.');
     } finally {
-      setUploadingImage(false);
+      setUploadingImages(false);
+      setUploadProgress([]);
     }
   };
   
   const resetImageUpload = () => {
-    setImageFile(null);
-    setImagePreview('');
+    setImageFiles([]);
+    setImagePreviews([]);
+    setUploadProgress([]);
     document.getElementById('image-upload').value = '';
   };
 
@@ -1436,33 +1552,77 @@ const TechnicianWorkOrderDetail = () => {
                     id="image-upload"
                     onChange={handleImageChange}
                     accept="image/jpeg,image/png"
-                    disabled={uploadingImage}
+                    multiple
+                    disabled={uploadingImages}
                     className="hidden-upload"
                   />
                   <label htmlFor="image-upload" className="upload-label">
                     <ImageIcon />
-                    <span>Fotografiši ili izaberi sliku</span>
+                    <span>Fotografiši ili izaberi slike</span>
+                    <small>Možete odabrati do 10 slika odjednom</small>
                   </label>
                 </div>
                 
-                {imagePreview && (
-                  <div className="image-preview-container">
-                    <img src={imagePreview} alt="Preview" className="image-preview" />
-                    <div className="preview-actions">
+                {imagePreviews.length > 0 && (
+                  <div className="multiple-images-preview-container">
+                    <div className="preview-header">
+                      <h4>Odabrane slike ({imagePreviews.length})</h4>
                       <button 
                         type="button" 
                         className="btn btn-sm btn-cancel"
                         onClick={resetImageUpload}
+                        disabled={uploadingImages}
                       >
-                        <CloseIcon /> Ukloni
+                        <CloseIcon /> Ukloni sve
                       </button>
+                    </div>
+                    
+                    <div className="images-preview-grid">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="image-preview-item">
+                          <img src={preview.preview} alt={`Preview ${index + 1}`} className="image-preview" />
+                          <div className="preview-info">
+                            <div className="preview-filename">{preview.name}</div>
+                            <div className="preview-filesize">{(preview.size / 1024 / 1024).toFixed(2)} MB</div>
+                          </div>
+                          
+                          {uploadingImages && uploadProgress[index] !== undefined && (
+                            <div className="upload-progress-overlay">
+                              {uploadProgress[index] === -1 ? (
+                                <div className="upload-error">
+                                  <AlertIcon />
+                                  <span>Greška</span>
+                                </div>
+                              ) : uploadProgress[index] === 100 ? (
+                                <div className="upload-success">
+                                  <CheckIcon />
+                                  <span>Uspešno</span>
+                                </div>
+                              ) : (
+                                <div className="upload-progress">
+                                  <div className="progress-bar">
+                                    <div 
+                                      className="progress-fill"
+                                      style={{ width: `${uploadProgress[index]}%` }}
+                                    ></div>
+                                  </div>
+                                  <span>{uploadProgress[index]}%</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="preview-actions">
                       <button 
                         type="button" 
-                        className="btn btn-sm btn-primary"
+                        className="btn btn-primary upload-all-btn"
                         onClick={handleImageUpload}
-                        disabled={uploadingImage}
+                        disabled={uploadingImages}
                       >
-                        <SaveIcon /> {uploadingImage ? 'Slanje...' : 'Sačuvaj sliku'}
+                        <SaveIcon /> {uploadingImages ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})` : `Sačuvaj sve slike (${imagePreviews.length})`}
                       </button>
                     </div>
                   </div>

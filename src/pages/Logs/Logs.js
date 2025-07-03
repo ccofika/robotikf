@@ -231,6 +231,10 @@ const Logs = () => {
         action: dashboardFilters.action === 'all' ? '' : dashboardFilters.action
       };
 
+      console.log('📊 === LOADING DASHBOARD DATA ===');
+      console.log('🎛️ Dashboard filters:', dashboardFilters);
+      console.log('📤 API params:', params);
+
       const [kpiResponse, chartsResponse, tablesResponse, mapResponse, travelResponse] = await Promise.all([
         logsAPI.getDashboardKPI(params),
         logsAPI.getDashboardCharts(params),
@@ -239,6 +243,11 @@ const Logs = () => {
         logsAPI.getTravelAnalytics(params)
       ]);
 
+      console.log('🗺️ Map API Response:', mapResponse);
+      console.log('🗺️ Map Data:', mapResponse.data);
+      console.log('🚗 Travel Analytics API Response:', travelResponse);
+      console.log('🚗 Travel Analytics Data:', travelResponse.data);
+
       setDashboardData({
         kpi: kpiResponse.data,
         charts: chartsResponse.data,
@@ -246,8 +255,11 @@ const Logs = () => {
         mapData: mapResponse.data,
         travelAnalytics: travelResponse.data
       });
+      
+      console.log('✅ Dashboard data loaded successfully');
+      console.log('📊 === END LOADING DASHBOARD DATA ===');
     } catch (error) {
-      console.error('Greška pri učitavanju dashboard podataka:', error);
+      console.error('❌ Greška pri učitavanju dashboard podataka:', error);
       toast.error('Greška pri učitavanju dashboard podataka');
     } finally {
       setDashboardLoading(false);
@@ -1093,7 +1105,116 @@ L.Icon.Default.mergeOptions({
 const TechnicianLocationMap = ({ mapData, filters }) => {
   const [visibleTechnicians, setVisibleTechnicians] = useState(new Set());
   const [showRoutes, setShowRoutes] = useState(true);
+  const [geocodedLocations, setGeocodedLocations] = useState(new Map());
+  const [geocodingStatus, setGeocodingStatus] = useState('idle'); // idle, loading, complete, error
   const mapRef = useRef(null);
+  
+  // Geocoding function using backend API
+  const geocodeAddress = async (address) => {
+    try {
+      console.log('🌍 Geocoding address via backend:', address);
+      
+      // Use backend geocoding endpoint instead of direct Nominatim calls
+      const response = await fetch('/api/logs/geocode-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          addresses: [address]
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('🎯 Backend geocoding response:', data);
+      
+      if (data.results && data.results.length > 0 && data.results[0].status === 'success') {
+        const result = data.results[0];
+        return {
+          lat: result.coordinates.lat,
+          lng: result.coordinates.lng,
+          success: true
+        };
+      }
+      
+      return { success: false };
+    } catch (error) {
+      console.error('Backend geocoding error:', error);
+      return { success: false };
+    }
+  };
+
+
+
+  // Geocode all locations
+  useEffect(() => {
+    const geocodeAllLocations = async () => {
+      console.log('🗺️ MapData received:', mapData);
+      
+      if (!mapData || mapData.length === 0) {
+        console.log('❌ No mapData provided');
+        return;
+      }
+      
+      setGeocodingStatus('loading');
+      const newGeocodedMap = new Map();
+      const addressesToGeocode = new Set();
+      
+      // Collect unique addresses
+      mapData.forEach((techData, index) => {
+        console.log(`👤 Technician ${index + 1}:`, techData.technician);
+        console.log(`📍 Locations count:`, techData.locations?.length || 0);
+        
+        if (techData.locations) {
+          techData.locations.forEach((location, locIndex) => {
+            console.log(`  Location ${locIndex + 1}:`, {
+              address: location.address,
+              hasCoordinates: !!(location.coordinates?.lat && location.coordinates?.lng),
+              coordinates: location.coordinates,
+              timestamp: location.timestamp,
+              action: location.action
+            });
+            
+            if (location.address && !location.coordinates) {
+              addressesToGeocode.add(location.address);
+            } else if (location.coordinates && location.coordinates.lat && location.coordinates.lng) {
+              // Use existing coordinates
+              newGeocodedMap.set(location.address || `${location.coordinates.lat},${location.coordinates.lng}`, {
+                lat: location.coordinates.lat,
+                lng: location.coordinates.lng,
+                success: true
+              });
+            }
+          });
+        }
+      });
+      
+      console.log('🔍 Unique addresses to geocode:', Array.from(addressesToGeocode));
+      
+      // Geocode addresses with delay to respect rate limiting
+      for (const address of addressesToGeocode) {
+        console.log(`🌍 Geocoding: ${address}`);
+        const result = await geocodeAddress(address);
+        console.log(`📍 Result for "${address}":`, result);
+        newGeocodedMap.set(address, result);
+        
+        // Add delay between requests to avoid overloading backend
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      setGeocodedLocations(newGeocodedMap);
+      setGeocodingStatus('complete');
+      
+      console.log('✅ Geocoding complete. Total geocoded locations:', newGeocodedMap.size);
+      console.log('🗺️ Final geocoded map:', Object.fromEntries(newGeocodedMap));
+    };
+
+    geocodeAllLocations();
+  }, [mapData]);
   
   useEffect(() => {
     // Initialize all technicians as visible
@@ -1142,14 +1263,35 @@ const TechnicianLocationMap = ({ mapData, filters }) => {
     });
   };
   
+  // Get coordinates for a location
+  const getLocationCoordinates = (location) => {
+    // First check if location has direct coordinates
+    if (location.coordinates && location.coordinates.lat && location.coordinates.lng) {
+      return [location.coordinates.lat, location.coordinates.lng];
+    }
+    
+    // Then check geocoded locations
+    const geocoded = geocodedLocations.get(location.address);
+    if (geocoded && geocoded.success) {
+      return [geocoded.lat, geocoded.lng];
+    }
+    
+    return null;
+  };
+  
   // Generate routes for visible technicians
   const generateRoutes = () => {
+    if (geocodingStatus !== 'complete') return [];
+    
     const routes = [];
     mapData
       .filter(item => visibleTechnicians.has(item.technician))
       .forEach((techData, techIndex) => {
         const color = technicianColors[techIndex % technicianColors.length];
-        const locations = techData.locations.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const locations = techData.locations
+          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+          .map(loc => ({ ...loc, coords: getLocationCoordinates(loc) }))
+          .filter(loc => loc.coords !== null);
         
         // Group locations by day
         const dayGroups = {};
@@ -1162,7 +1304,7 @@ const TechnicianLocationMap = ({ mapData, filters }) => {
         // Create routes for each day
         Object.values(dayGroups).forEach(dayLocations => {
           if (dayLocations.length > 1) {
-            const routePoints = dayLocations.map(loc => [loc.coordinates.lat, loc.coordinates.lng]);
+            const routePoints = dayLocations.map(loc => loc.coords);
             routes.push({
               positions: routePoints,
               color: color,
@@ -1179,27 +1321,58 @@ const TechnicianLocationMap = ({ mapData, filters }) => {
   // Belgrade - Borča/Krnjača area coordinates
   const beogradCenter = [44.880, 20.440];
   
+  // Get successfully geocoded locations count
+  const getGeocodedLocationsCount = () => {
+    let count = 0;
+    mapData.forEach(techData => {
+      techData.locations.forEach(location => {
+        if (getLocationCoordinates(location) !== null) {
+          count++;
+        }
+      });
+    });
+    return count;
+  };
+  
   return (
     <div className="map-component">
+      {/* Geocoding Status */}
+      {geocodingStatus === 'loading' && (
+        <div className="geocoding-status loading">
+          <div className="loading-spinner"></div>
+          <p>Pretvaranje adresa u koordinate...</p>
+        </div>
+      )}
+      
+      {geocodingStatus === 'complete' && (
+        <div className="geocoding-status complete">
+          <CheckIcon size={16} />
+          <p>Uspešno pronađeno {getGeocodedLocationsCount()} lokacija od {mapData.reduce((sum, item) => sum + item.locations.length, 0)}</p>
+        </div>
+      )}
+      
       {/* Map Controls */}
       <div className="map-controls">
         <div className="technician-toggles">
-          <h4>Prikaži tehnićare:</h4>
+          <h4>Prikaži tehničare:</h4>
           <div className="technician-chips">
-            {mapData.map((item, index) => (
-              <label key={item.technician} className="technician-chip">
-                <input
-                  type="checkbox"
-                  checked={visibleTechnicians.has(item.technician)}
-                  onChange={() => toggleTechnician(item.technician)}
-                />
-                <span 
-                  className="chip-indicator"
-                  style={{ backgroundColor: technicianColors[index % technicianColors.length] }}
-                ></span>
-                {item.technician} ({item.locations.length})
-              </label>
-            ))}
+            {mapData.map((item, index) => {
+              const validLocations = item.locations.filter(loc => getLocationCoordinates(loc) !== null).length;
+              return (
+                <label key={item.technician} className="technician-chip">
+                  <input
+                    type="checkbox"
+                    checked={visibleTechnicians.has(item.technician)}
+                    onChange={() => toggleTechnician(item.technician)}
+                  />
+                  <span 
+                    className="chip-indicator"
+                    style={{ backgroundColor: technicianColors[index % technicianColors.length] }}
+                  ></span>
+                  {item.technician} ({validLocations}/{item.locations.length})
+                </label>
+              );
+            })}
           </div>
         </div>
         
@@ -1229,29 +1402,37 @@ const TechnicianLocationMap = ({ mapData, filters }) => {
           />
           
           {/* Render markers for visible technicians */}
-          {mapData
+          {geocodingStatus === 'complete' && mapData
             .filter(item => visibleTechnicians.has(item.technician))
             .map((techData, techIndex) => {
               const color = technicianColors[techIndex % technicianColors.length];
-              return techData.locations.map((location, locIndex) => (
-                <Marker
-                  key={`${techData.technician}-${locIndex}`}
-                  position={[location.coordinates.lat, location.coordinates.lng]}
-                  icon={createCustomIcon(color, locIndex + 1)}
-                >
-                  <Popup>
-                    <div className="map-popup">
-                      <h5 style={{ color: color, margin: '0 0 8px 0' }}>
-                        {techData.technician}
-                      </h5>
-                      <p><strong>Adresa:</strong> {location.address}</p>
-                      <p><strong>Vreme:</strong> {location.formattedTime}</p>
-                      <p><strong>Akcija:</strong> {location.action}</p>
-                      <p><strong>Redni broj:</strong> {locIndex + 1}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              ));
+              return techData.locations
+                .map((location, locIndex) => {
+                  const coordinates = getLocationCoordinates(location);
+                  if (!coordinates) return null;
+                  
+                  return (
+                    <Marker
+                      key={`${techData.technician}-${locIndex}`}
+                      position={coordinates}
+                      icon={createCustomIcon(color, locIndex + 1)}
+                    >
+                      <Popup>
+                        <div className="map-popup">
+                          <h5 style={{ color: color, margin: '0 0 8px 0' }}>
+                            {techData.technician}
+                          </h5>
+                          <p><strong>Adresa:</strong> {location.address}</p>
+                          <p><strong>Vreme:</strong> {location.formattedTime}</p>
+                          <p><strong>Akcija:</strong> {location.action}</p>
+                          <p><strong>Redni broj:</strong> {locIndex + 1}</p>
+                          <p><strong>Koordinate:</strong> {coordinates[0].toFixed(4)}, {coordinates[1].toFixed(4)}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })
+                .filter(marker => marker !== null);
             })}
           
           {/* Render routes */}
@@ -1270,8 +1451,8 @@ const TechnicianLocationMap = ({ mapData, filters }) => {
       
       <div className="map-info">
         <div className="map-stats">
-          <span>Ukupno lokacija: {mapData.reduce((sum, item) => sum + (visibleTechnicians.has(item.technician) ? item.locations.length : 0), 0)}</span>
-          <span>Aktivnih tehnićara: {Array.from(visibleTechnicians).length}</span>
+          <span>Prikazano lokacija: {getGeocodedLocationsCount()}</span>
+          <span>Aktivnih tehničara: {Array.from(visibleTechnicians).length}</span>
           <span>Prikazanih ruta: {routes.length}</span>
         </div>
       </div>
@@ -1284,6 +1465,32 @@ const TravelTimeAnalytics = ({ analyticsData, filters }) => {
   const [expandedTechnicians, setExpandedTechnicians] = useState(new Set());
   const [sortBy, setSortBy] = useState('routes');
   
+  // Debug: Log the analytics data
+  useEffect(() => {
+    console.log('🚗 === TRAVEL ANALYTICS DEBUG ===');
+    console.log('📊 Raw analyticsData received:', analyticsData);
+    console.log('🔍 Type of analyticsData:', typeof analyticsData);
+    console.log('📏 Length of analyticsData:', analyticsData?.length);
+    console.log('🎛️ Filters:', filters);
+    
+    if (analyticsData && analyticsData.length > 0) {
+      console.log('👤 First technician sample:', JSON.stringify(analyticsData[0], null, 2));
+      
+      analyticsData.forEach((tech, index) => {
+        console.log(`👨‍🔧 Technician ${index + 1}: ${tech.technician}`);
+        console.log(`  📈 Routes: ${tech.totalRoutes || tech.routes?.length || 0}`);
+        console.log(`  ⏱️ Avg Travel Time: ${tech.averageTravelTime}`);
+        console.log(`  ✅ Avg Completion Time: ${tech.averageCompletionTime}`);
+        console.log(`  📋 Total Work Orders: ${tech.totalWorkOrders}`);
+        console.log(`  🎯 Total Activities: ${tech.totalActivities}`);
+        console.log(`  🗺️ Routes array:`, tech.routes);
+      });
+    } else {
+      console.log('❌ No analytics data or empty array');
+    }
+    console.log('🚗 === END TRAVEL ANALYTICS DEBUG ===');
+  }, [analyticsData, filters]);
+  
   const toggleExpanded = (techName) => {
     const newExpanded = new Set(expandedTechnicians);
     if (newExpanded.has(techName)) {
@@ -1294,36 +1501,82 @@ const TravelTimeAnalytics = ({ analyticsData, filters }) => {
     setExpandedTechnicians(newExpanded);
   };
   
-  const sortedData = [...analyticsData].sort((a, b) => {
+  // Safe data processing with fallbacks
+  const processedData = (analyticsData || []).map(item => ({
+    technician: item.technician || 'Nepoznat tehničar',
+    totalRoutes: item.totalRoutes || item.routes?.length || 0,
+    averageTravelTime: item.averageTravelTime || 'N/A',
+    averageCompletionTime: item.averageCompletionTime || 'N/A',
+    totalWorkOrders: item.totalWorkOrders || 0,
+    routes: item.routes || [],
+    // Additional fallback data
+    totalActivities: item.totalActivities || 0,
+    averageDistance: item.averageDistance || 'N/A',
+    efficiency: item.efficiency || 'N/A'
+  }));
+  
+  const sortedData = [...processedData].sort((a, b) => {
     switch (sortBy) {
       case 'routes':
         return b.totalRoutes - a.totalRoutes;
       case 'travelTime':
-        return parseInt(a.averageTravelTime) - parseInt(b.averageTravelTime);
+        const timeA = parseFloat(a.averageTravelTime) || 0;
+        const timeB = parseFloat(b.averageTravelTime) || 0;
+        return timeA - timeB;
       case 'completionTime':
-        return parseFloat(a.averageCompletionTime) - parseFloat(b.averageCompletionTime);
+        const compA = parseFloat(a.averageCompletionTime) || 0;
+        const compB = parseFloat(b.averageCompletionTime) || 0;
+        return compA - compB;
       case 'name':
         return a.technician.localeCompare(b.technician);
+      case 'activities':
+        return b.totalActivities - a.totalActivities;
       default:
         return 0;
     }
   });
   
   const getTravelTimeColor = (travelTime) => {
-    const minutes = parseInt(travelTime);
+    if (travelTime === 'N/A') return '#95a5a6'; // Gray for N/A
+    const timeStr = String(travelTime).replace(/[^\d.]/g, ''); // Extract numbers
+    const minutes = parseFloat(timeStr) || 0;
     if (minutes <= 15) return '#4ECDC4'; // Green - fast
     if (minutes <= 30) return '#FECA57'; // Yellow - normal
     return '#FF6B6B'; // Red - slow
   };
   
+  const formatTime = (timeValue) => {
+    if (!timeValue || timeValue === 'N/A') return 'N/A';
+    if (typeof timeValue === 'string' && timeValue.includes('min')) return timeValue;
+    if (typeof timeValue === 'number') return `${timeValue.toFixed(1)} min`;
+    return String(timeValue);
+  };
+  
   return (
     <div className="travel-analytics">
+      {/* Debug Information */}
+      <div className="debug-info" style={{ 
+        background: '#f8f9fa', 
+        padding: '10px', 
+        borderRadius: '4px', 
+        marginBottom: '20px',
+        fontSize: '12px',
+        color: '#6c757d'
+      }}>
+        <p><strong>Debug:</strong> Primljeno {(analyticsData || []).length} tehničara u analytics podacima</p>
+        <p><strong>Obrađeno:</strong> {processedData.length} tehničara nakon obrade</p>
+        {processedData.length > 0 && (
+          <p><strong>Primer podataka:</strong> {JSON.stringify(processedData[0], null, 2).substring(0, 200)}...</p>
+        )}
+      </div>
+      
       {/* Analytics Controls */}
       <div className="analytics-controls">
         <div className="sort-controls">
           <label>Sortiraj po:</label>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sort-select">
             <option value="routes">Broj ruta</option>
+            <option value="activities">Broj aktivnosti</option>
             <option value="travelTime">Prosečno vreme putovanja</option>
             <option value="completionTime">Prosečno vreme završetka</option>
             <option value="name">Ime (A-Z)</option>
@@ -1331,29 +1584,35 @@ const TravelTimeAnalytics = ({ analyticsData, filters }) => {
         </div>
         
         <div className="analytics-summary">
-          <p>Ukupno tehnića: {analyticsData.length} | 
-             Ukupno ruta: {analyticsData.reduce((sum, item) => sum + item.totalRoutes, 0)}</p>
+          <p>
+            Ukupno tehničara: {processedData.length} | 
+            Ukupno ruta: {processedData.reduce((sum, item) => sum + item.totalRoutes, 0)} |
+            Ukupno aktivnosti: {processedData.reduce((sum, item) => sum + item.totalActivities, 0)}
+          </p>
         </div>
       </div>
       
       {/* Technician Cards */}
       <div className="technician-analytics-grid">
         {sortedData.map((techData, index) => (
-          <div key={techData.technician} className="technician-analytics-card">
+          <div key={`${techData.technician}-${index}`} className="technician-analytics-card">
             <div className="card-header" onClick={() => toggleExpanded(techData.technician)}>
               <div className="technician-info">
                 <h4>{techData.technician}</h4>
                 <div className="technician-stats">
                   <span className="stat-badge">
                     <ClockIcon className="icon-xs" />
-                    {techData.averageTravelTime}
+                    {formatTime(techData.averageTravelTime)}
                   </span>
                   <span className="stat-badge">
                     <CheckIcon className="icon-xs" />
-                    {techData.averageCompletionTime}
+                    {formatTime(techData.averageCompletionTime)}
                   </span>
                   <span className="stat-badge">
                     {techData.totalRoutes} ruta
+                  </span>
+                  <span className="stat-badge">
+                    {techData.totalActivities} aktivnosti
                   </span>
                 </div>
               </div>
@@ -1365,30 +1624,33 @@ const TravelTimeAnalytics = ({ analyticsData, filters }) => {
             {expandedTechnicians.has(techData.technician) && (
               <div className="card-content">
                 <div className="routes-list">
-                  {techData.routes.length > 0 ? (
+                  {techData.routes && techData.routes.length > 0 ? (
                     techData.routes.map((route, routeIndex) => (
                       <div key={routeIndex} className="route-item">
                         <div className="route-path">
                           <div className="location-from">
-                            <strong>{route.from.address}</strong>
-                            <small>{route.from.time}</small>
+                            <strong>{route.from?.address || 'Nepoznata lokacija'}</strong>
+                            <small>{route.from?.time || 'N/A'}</small>
                           </div>
                           <div className="route-arrow">→</div>
                           <div className="location-to">
-                            <strong>{route.to.address}</strong>
-                            <small>{route.to.time}</small>
+                            <strong>{route.to?.address || 'Nepoznata lokacija'}</strong>
+                            <small>{route.to?.time || 'N/A'}</small>
                           </div>
                         </div>
                         <div 
                           className="travel-time-badge"
                           style={{ backgroundColor: getTravelTimeColor(route.travelTime) }}
                         >
-                          {route.travelTime}
+                          {formatTime(route.travelTime)}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="no-routes">Nema dostupnih ruta za izabrani period</p>
+                    <div className="no-routes">
+                      <p>Nema dostupnih ruta za izabrani period</p>
+                      <small>Možda tehničar radi samo na jednoj lokaciji ili nema dovoljno podataka</small>
+                    </div>
                   )}
                 </div>
                 
@@ -1396,27 +1658,66 @@ const TravelTimeAnalytics = ({ analyticsData, filters }) => {
                   <div className="summary-grid">
                     <div className="summary-item">
                       <span className="summary-label">Prosečno vreme između lokacija:</span>
-                      <span className="summary-value">{techData.averageTravelTime}</span>
+                      <span className="summary-value">{formatTime(techData.averageTravelTime)}</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Prosečno vreme završavanja naloga:</span>
-                      <span className="summary-value">{techData.averageCompletionTime}</span>
+                      <span className="summary-value">{formatTime(techData.averageCompletionTime)}</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Ukupno radnih naloga:</span>
-                      <span className="summary-value">{techData.totalWorkOrders}</span>
+                      <span className="summary-value">{techData.totalWorkOrders || 'N/A'}</span>
                     </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Ukupno aktivnosti:</span>
+                      <span className="summary-value">{techData.totalActivities}</span>
+                    </div>
+                    {techData.averageDistance && techData.averageDistance !== 'N/A' && (
+                      <div className="summary-item">
+                        <span className="summary-label">Prosečna udaljenost:</span>
+                        <span className="summary-value">{techData.averageDistance}</span>
+                      </div>
+                    )}
+                    {techData.efficiency && techData.efficiency !== 'N/A' && (
+                      <div className="summary-item">
+                        <span className="summary-label">Efikasnost:</span>
+                        <span className="summary-value">{techData.efficiency}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+                
+                {/* Raw data display for debugging */}
+                <details className="debug-details" style={{ marginTop: '10px' }}>
+                  <summary style={{ fontSize: '12px', color: '#6c757d', cursor: 'pointer' }}>
+                    Prikaži sirove podatke (debug)
+                  </summary>
+                  <pre style={{ 
+                    background: '#f8f9fa', 
+                    padding: '10px', 
+                    borderRadius: '4px', 
+                    fontSize: '11px',
+                    maxHeight: '200px',
+                    overflow: 'auto',
+                    color: '#495057'
+                  }}>
+                    {JSON.stringify(techData, null, 2)}
+                  </pre>
+                </details>
               </div>
             )}
           </div>
         ))}
       </div>
       
-      {analyticsData.length === 0 && (
+      {processedData.length === 0 && (
         <div className="no-data-message">
-          <p>Nema dostupnih podataka o putovanju za izabrani period i filtere.</p>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+            <ClockIcon size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+            <h3>Nema podataka o putovanju</h3>
+            <p>Nema dostupnih podataka o putovanju za izabrani period i filtere.</p>
+            <small>Proverite da li su tehnićari imali aktivnosti u izabranom periodu.</small>
+          </div>
         </div>
       )}
     </div>

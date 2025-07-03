@@ -2268,3 +2268,247 @@ input:focus,
     height: 24px !important;
   }
 }
+
+/* Multiple Images Preview Styles */
+.multiple-images-preview-container {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.preview-header h4 {
+  margin: 0;
+  color: var(--corp-primary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.images-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.image-preview-item {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  transition: var(--transition);
+}
+
+.image-preview-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.image-preview-item .image-preview {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-info {
+  padding: 0.75rem;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+}
+
+.preview-filename {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--corp-primary);
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-filesize {
+  font-size: 0.75rem;
+  color: var(--gray-600);
+}
+
+.upload-progress-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.upload-progress {
+  text-align: center;
+  width: 80%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--corp-primary), var(--corp-accent));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.upload-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--corp-success);
+}
+
+.upload-success svg {
+  width: 24px;
+  height: 24px;
+}
+
+.upload-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--corp-danger);
+}
+
+.upload-error svg {
+  width: 24px;
+  height: 24px;
+}
+
+.upload-all-btn {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, var(--corp-primary), var(--corp-accent));
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--touch-target);
+}
+
+.upload-all-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.upload-all-btn:active {
+  transform: translateY(0);
+}
+
+.upload-all-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.upload-label small {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--gray-600);
+  font-weight: 400;
+}
+
+/* Mobile Optimizations for Multiple Images */
+@media (max-width: 768px) {
+  .images-preview-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .image-preview-item {
+    margin-bottom: 0;
+  }
+  
+  .image-preview-item .image-preview {
+    height: 100px;
+  }
+  
+  .preview-info {
+    padding: 0.5rem;
+  }
+  
+  .preview-filename {
+    font-size: 0.8rem;
+  }
+  
+  .preview-filesize {
+    font-size: 0.7rem;
+  }
+  
+  .upload-all-btn {
+    padding: 1rem 1.5rem;
+    font-size: 0.95rem;
+  }
+  
+  .multiple-images-preview-container {
+    padding: 0.75rem;
+  }
+  
+  .preview-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .preview-header h4 {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .images-preview-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .image-preview-item .image-preview {
+    height: 80px;
+  }
+  
+  .upload-all-btn {
+    font-size: 0.9rem;
+    padding: 0.875rem 1rem;
+  }
+  
+  .multiple-images-preview-container {
+    padding: 0.5rem;
+  }
+}
