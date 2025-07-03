@@ -328,40 +328,47 @@ const WorkOrderDetail = () => {
   
   {loadingEquipment ? (
     <p className="loading-text">Učitavanje opreme...</p>
-  ) : userEquipment.length > 0 ? (
-    <div className="user-equipment-list">
-      <h4>Trenutno instalirana oprema:</h4>
-      <table className="equipment-table">
-        <thead>
-          <tr>
-            <th>Tip</th>
-            <th>Opis</th>
-            <th>Serijski broj</th>
-            <th>Datum instalacije</th>
-          </tr>
-        </thead>
-        <tbody>
-          {userEquipment.map(eq => (
-            <tr key={eq.id}>
-              <td>{eq.equipmentType}</td>
-              <td>{eq.equipmentDescription}</td>
-              <td>{eq.serialNumber}</td>
-              <td>{new Date(eq.installedAt).toLocaleDateString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      
-      <button
-        type="button"
-        className="btn btn-sm btn-info history-btn"
-        onClick={() => setShowHistoryModal(true)}
-      >
-        <HistoryIcon /> Prikaži istoriju opreme
-      </button>
-    </div>
   ) : (
-    <p>Korisnik trenutno nema instaliranu opremu.</p>
+    <>
+      {userEquipment.length > 0 ? (
+        <div className="user-equipment-list">
+          <h4>Trenutno instalirana oprema:</h4>
+          <table className="equipment-table">
+            <thead>
+              <tr>
+                <th>Tip</th>
+                <th>Opis</th>
+                <th>Serijski broj</th>
+                <th>Datum instalacije</th>
+              </tr>
+            </thead>
+            <tbody>
+              {userEquipment.map(eq => (
+                <tr key={eq.id}>
+                  <td>{eq.equipmentType}</td>
+                  <td>{eq.equipmentDescription}</td>
+                  <td>{eq.serialNumber}</td>
+                  <td>{new Date(eq.installedAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p>Korisnik trenutno nema instaliranu opremu.</p>
+      )}
+      
+      {/* Prikaži dugme za istoriju ako ima bilo kakve istorije opreme */}
+      {userEquipmentHistory.length > 0 && (
+        <button
+          type="button"
+          className="btn btn-sm btn-info history-btn"
+          onClick={() => setShowHistoryModal(true)}
+        >
+          <HistoryIcon /> Prikaži istoriju opreme
+        </button>
+      )}
+    </>
   )}
 </div>
 
@@ -371,40 +378,42 @@ const WorkOrderDetail = () => {
             <div className="modal-content equipment-history-modal">
               <h3>Istorija opreme korisnika</h3>
 
-              {userEquipmentHistory.length > 0 ? (
-                <table className="equipment-history-table">
-                  <thead>
-                    <tr>
-                      <th>Tip</th>
-                      <th>Opis</th>
-                      <th>Serijski broj</th>
-                      <th>Status</th>
-                      <th>Datum instalacije</th>
-                      <th>Datum uklanjanja</th>
-                      <th>Stanje</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userEquipmentHistory.map(eq => (
-                      <tr key={eq.id} className={eq.status === 'removed' ? 'removed-equipment' : ''}>
-                        <td>{eq.equipmentType}</td>
-                        <td>{eq.equipmentDescription}</td>
-                        <td>{eq.serialNumber}</td>
-                        <td>{eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}</td>
-                        <td>{new Date(eq.installedAt).toLocaleDateString()}</td>
-                        <td>{eq.removedAt ? new Date(eq.removedAt).toLocaleDateString() : '-'}</td>
-                        <td>
-                          {!eq.condition && '-'}
-                          {eq.condition === 'working' && 'Ispravno'}
-                          {eq.condition === 'defective' && 'Neispravno'}
-                        </td>
+              <div className="modal-body">
+                {userEquipmentHistory.length > 0 ? (
+                  <table className="equipment-history-table">
+                    <thead>
+                      <tr>
+                        <th>Tip</th>
+                        <th>Opis</th>
+                        <th>Serijski broj</th>
+                        <th>Status</th>
+                        <th>Datum instalacije</th>
+                        <th>Datum uklanjanja</th>
+                        <th>Stanje</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>Nema istorije opreme za ovog korisnika.</p>
-              )}
+                    </thead>
+                    <tbody>
+                      {userEquipmentHistory.map(eq => (
+                        <tr key={eq.id} className={eq.status === 'removed' ? 'removed-equipment' : ''}>
+                          <td data-label="Tip">{eq.equipmentType}</td>
+                          <td data-label="Opis">{eq.equipmentDescription}</td>
+                          <td data-label="Serijski broj">{eq.serialNumber}</td>
+                          <td data-label="Status">{eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}</td>
+                          <td data-label="Datum instalacije">{eq.installedAt ? new Date(eq.installedAt).toLocaleDateString() : '-'}</td>
+                          <td data-label="Datum uklanjanja">{eq.removedAt ? new Date(eq.removedAt).toLocaleDateString() : '-'}</td>
+                          <td data-label="Stanje">
+                            {!eq.condition && '-'}
+                            {eq.condition === 'working' && 'Ispravno'}
+                            {eq.condition === 'defective' && 'Neispravno'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>Nema istorije opreme za ovog korisnika.</p>
+                )}
+              </div>
 
               <div className="modal-actions">
                 <button
