@@ -909,6 +909,29 @@ textarea {
   opacity: 1;
 }
 
+.image-filename-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  color: white;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  word-break: break-word;
+  backdrop-filter: blur(5px);
+  transition: var(--transition);
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.gallery-image-item:hover .image-filename-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Postpone Section - Mobile Optimized */
 .postpone-section {
   background: linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(241, 196, 15, 0.1) 100%);

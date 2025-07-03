@@ -531,15 +531,38 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
   
-  // Funkcija za izvlačenje naziva fajla iz URL-a
-  const extractFilenameFromUrl = (url) => {
+  // Funkcija za izvlačenje originalnog naziva fajla iz image objekta ili URL-a
+  const extractOriginalFilename = (imageItem) => {
     try {
-      const urlParts = url.split('/');
-      const filename = urlParts[urlParts.length - 1];
-      // Uklanjamo timestamp ako postoji (format: timestamp-originalname)
-      const cleanFilename = filename.replace(/^\d+-/, '');
-      return cleanFilename.toLowerCase();
+      // Novi format - objekat sa originalName propertijem
+      if (typeof imageItem === 'object' && imageItem.originalName) {
+        return imageItem.originalName.toLowerCase();
+      }
+      
+      // Stari format - URL string (fallback za postojeće podatke)
+      if (typeof imageItem === 'string') {
+        // Ako je Cloudinary URL, izdvojimo poslednji deo
+        if (imageItem.includes('cloudinary.com')) {
+          const urlParts = imageItem.split('/');
+          const lastPart = urlParts[urlParts.length - 1];
+          // Uklanjamo sve do poslednje tačke za ekstenziju
+          const filename = lastPart.split('.')[0];
+          // Uklanjamo timestamp ako postoji (format: timestamp-originalname)
+          const cleanFilename = filename.replace(/^\d+-/, '');
+          return cleanFilename.toLowerCase();
+        }
+        
+        // Za obične URL-ove
+        const urlParts = imageItem.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        // Uklanjamo timestamp ako postoji (format: timestamp-originalname)
+        const cleanFilename = filename.replace(/^\d+-/, '').split('.')[0];
+        return cleanFilename.toLowerCase();
+      }
+      
+      return '';
     } catch (error) {
+      console.error('Error extracting filename:', error);
       return '';
     }
   };
@@ -565,8 +588,8 @@ const TechnicianWorkOrderDetail = () => {
     const previews = [];
     const invalidFiles = [];
     
-    // Izvlačimo nazive postojećih slika
-    const existingFilenames = images.map(url => extractFilenameFromUrl(url));
+    // Izvlačimo originalne nazive postojećih slika
+    const existingFilenames = images.map(imageItem => extractOriginalFilename(imageItem));
     
     files.forEach((file, index) => {
       // Validacija tipa fajla
@@ -583,8 +606,17 @@ const TechnicianWorkOrderDetail = () => {
       
       // Provera duplikata naziva fajla
       const filename = file.name.toLowerCase();
-      if (existingFilenames.includes(filename)) {
-        invalidFiles.push(`${file.name} - slika sa istim nazivom već postoji`);
+      const filenameWithoutExtension = filename.split('.')[0];
+      
+      // Proveravamo i pun naziv i naziv bez ekstenzije
+      const isDuplicate = existingFilenames.some(existingName => 
+        existingName === filenameWithoutExtension || 
+        existingName === filename ||
+        existingName.includes(filenameWithoutExtension)
+      );
+      
+      if (isDuplicate) {
+        invalidFiles.push(`${file.name} - slika vec postoji`);
         return;
       }
       
@@ -688,6 +720,40 @@ const TechnicianWorkOrderDetail = () => {
     
     setUploadingImages(true);
     
+    // Osveži listu slika pre upload-a da se uverim da je najnovija
+    try {
+      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const currentImages = response.data.images || [];
+      setImages(currentImages);
+      
+      // Ponovo proverava duplikate sa najnovijom listom
+      const existingFilenames = currentImages.map(imageItem => extractOriginalFilename(imageItem));
+      
+      const duplicateFiles = [];
+      imageFiles.forEach(file => {
+        const filename = file.name.toLowerCase();
+        const filenameWithoutExtension = filename.split('.')[0];
+        
+        const isDuplicate = existingFilenames.some(existingName => 
+          existingName === filenameWithoutExtension || 
+          existingName === filename ||
+          existingName.includes(filenameWithoutExtension)
+        );
+        
+        if (isDuplicate) {
+          duplicateFiles.push(file.name);
+        }
+      });
+      
+      if (duplicateFiles.length > 0) {
+        toast.error(`Sledeće slike već postoje: ${duplicateFiles.join(', ')}`);
+        setUploadingImages(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Greška pri proveri duplikata:', error);
+    }
+    
     // Inicijalizacija progress tracking-a
     const progressArray = imageFiles.map(() => 0);
     setUploadProgress(progressArray);
@@ -723,8 +789,6 @@ const TechnicianWorkOrderDetail = () => {
           newProgress[i] = 100;
           setUploadProgress(newProgress);
           
-          console.log(`Upload uspešan za ${file.name}:`, response.data.imageUrl);
-          
         } catch (error) {
           console.error(`Greška pri upload-u slike ${file.name}:`, error);
           failedUploads.push(file.name);
@@ -747,7 +811,8 @@ const TechnicianWorkOrderDetail = () => {
       
       // Osveži listu slika
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
-      setImages(response.data.images || []);
+      const updatedImages = response.data.images || [];
+      setImages(updatedImages);
       
       // Reset polja za slike
       setImageFiles([]);
@@ -783,8 +848,15 @@ const TechnicianWorkOrderDetail = () => {
 
       toast.success('Slika je uspešno obrisana!');
       
-      // Ukloni sliku iz lokalne liste
-      setImages(images.filter(img => img !== imageUrl));
+      // Ukloni sliku iz lokalne liste (radi sa novom i starom strukturom)
+      setImages(images.filter(img => {
+        // Novi format - objekat sa url propertijem
+        if (typeof img === 'object' && img.url) {
+          return img.url !== imageUrl;
+        }
+        // Stari format - direktno string URL
+        return img !== imageUrl;
+      }));
     } catch (error) {
       console.error('Greška pri brisanju slike:', error);
       toast.error('Greška pri brisanju slike. Pokušajte ponovo.');
@@ -1634,26 +1706,37 @@ const TechnicianWorkOrderDetail = () => {
                   <p className="no-images-message">Nema dodatih slika</p>
                 ) : (
                   <div className="images-grid">
-                    {images.map((imageUrl, index) => (
-                      <div key={index} className="gallery-image-item">
-                        <img 
-                          src={imageUrl} 
-                          alt={`Slika ${index + 1}`} 
-                          className="gallery-image" 
-                          onClick={() => setShowFullImage(imageUrl)}
-                        />
-                        <button
-                          className="delete-image-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleImageDelete(imageUrl);
-                          }}
-                          title="Obriši sliku"
-                        >
-                          <DeleteIcon />
-                        </button>
-                      </div>
-                    ))}
+                    {images.map((imageItem, index) => {
+                      // Podrška za stari i novi format
+                      const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
+                      const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
+                      
+                      return (
+                        <div key={index} className="gallery-image-item">
+                          <img 
+                            src={imageUrl} 
+                            alt={originalName || `Slika ${index + 1}`} 
+                            className="gallery-image" 
+                            onClick={() => setShowFullImage(imageUrl)}
+                          />
+                          {originalName && (
+                            <div className="image-filename-overlay">
+                              {originalName}
+                            </div>
+                          )}
+                          <button
+                            className="delete-image-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleImageDelete(imageUrl);
+                            }}
+                            title="Obriši sliku"
+                          >
+                            <DeleteIcon />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
