@@ -44,6 +44,7 @@ import EquipmentConfirmation from './pages/TechniciansInventory/EquipmentConfirm
 import UsersList from './pages/Users/UsersList';
 import ExportSpecification from './pages/Reports/ExportSpecification';
 import Logs from './pages/Logs/Logs';
+import DefectiveEquipment from './pages/DefectiveEquipment/DefectiveEquipment';
 
 import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
 // API Services
@@ -209,6 +210,10 @@ const PrivateRoute = ({ children }) => {
                 <Route path="/logs" element={
                   user?.role === 'admin' ? <Logs /> : <Navigate to="/access-denied" />
                 } />
+                <Route path="/defective-equipment" element={
+                  user?.role === 'admin' ? <DefectiveEquipment /> : <Navigate to="/access-denied" />
+                } />
+                
                 {/* Radni nalozi rute za tehničara */}
                 <Route path="/my-work-orders" element={
                   user ? <TechnicianWorkOrders /> : <Navigate to="/login" />

@@ -281,28 +281,28 @@ const WorkOrdersByTechnician = () => {
             className={`tab ${activeTab === 'technicians' ? 'active' : ''}`}
             onClick={() => setActiveTab('technicians')}
           >
-            <UserIcon /> Tehničari
+            <UserIcon size={16} /> Tehničari
             <span className="tab-badge">{Object.keys(technicianWorkOrders).length}</span>
           </button>
           <button 
             className={`tab ${activeTab === 'unassigned' ? 'active' : ''}`}
             onClick={() => setActiveTab('unassigned')}
           >
-            <UserSlashIcon /> Nedodeljeni
+            <UserSlashIcon size={16} /> Nedodeljeni
             <span className="tab-badge">{unassignedOrders.length}</span>
           </button>
           <button 
             className={`tab ${activeTab === 'verification' ? 'active' : ''}`}
             onClick={() => setActiveTab('verification')}
           >
-            <CheckIcon /> Za verifikaciju
+            <CheckIcon size={16} /> Za verifikaciju
             <span className="tab-badge">{verificationOrders.length}</span>
           </button>
         </div>
         
         <div className="filter-container">
           <div className="search-box">
-            <SearchIcon className="search-icon" />
+            <SearchIcon size={16} className="search-icon" />
             <input
               type="text"
               placeholder="Pretraga po adresi, tipu, korisniku..."
@@ -318,7 +318,7 @@ const WorkOrdersByTechnician = () => {
           </div>
           
           <div className="filter-box">
-            <FilterIcon className="filter-icon" />
+            <FilterIcon size={16} className="filter-icon" />
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -338,7 +338,7 @@ const WorkOrdersByTechnician = () => {
           </div>
           
           <button className="btn btn-sm refresh-btn" onClick={fetchData} disabled={loading}>
-            <RefreshIcon className={loading ? 'spin' : ''} />
+            <RefreshIcon size={16} className={loading ? 'spin' : ''} />
             Osveži
           </button>
         </div>
@@ -356,7 +356,7 @@ const WorkOrdersByTechnician = () => {
             <div className="technicians-tab">
               {Object.keys(technicianWorkOrders).length === 0 ? (
                 <div className="empty-message">
-                  <UserIcon className="empty-icon" />
+                  <UserIcon size={48} className="empty-icon" />
                   <p>Nema tehničara u sistemu</p>
                 </div>
               ) : (
@@ -381,7 +381,7 @@ const WorkOrdersByTechnician = () => {
                         <div className="technician-card-header">
                           <div className="technician-info">
                             <div className="technician-avatar">
-                              <UserIcon />
+                              <UserIcon size={20} />
                             </div>
                             <div className="technician-details">
                               <h3>{techData.technicianInfo.name}</h3>
@@ -431,27 +431,27 @@ const WorkOrdersByTechnician = () => {
                                   <tbody>
                                     {sortByDate(currentTechItems).map((order) => (
                                       <tr key={order._id}>
-                                        <td>{formatDate(order.date)}</td>
-                                        <td>{order.municipality}</td>
-                                        <td>{order.address}</td>
-                                        <td>{order.userName || 'Nepoznat'}</td>
-                                        <td>{order.type}</td>
-                                        <td>
+                                        <td data-label="Datum">{formatDate(order.date)}</td>
+                                        <td data-label="Opština">{order.municipality}</td>
+                                        <td data-label="Adresa">{order.address}</td>
+                                        <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                                        <td data-label="Tip">{order.type}</td>
+                                        <td data-label="Status">
                                           <span className={`status-badge ${getStatusClass(order.status)}`}>
                                             {getStatusLabel(order.status)}
                                           </span>
                                           {order.status === 'zavrsen' && order.verified && (
                                             <span className="verified-badge" title="Verifikovano">
-                                              <CheckIcon />
+                                              <CheckIcon size={14} />
                                             </span>
                                           )}
                                         </td>
-                                        <td className="actions-column">
+                                        <td className="actions-column" data-label="Akcije">
                                           <Link 
                                             to={`/work-orders/${order._id}`} 
                                             className="btn btn-sm action-btn view-btn"
                                           >
-                                            <ViewIcon /> Detalji
+                                            <ViewIcon size={14} /> Detalji
                                           </Link>
                                           <button 
                                             className="btn btn-sm action-btn delete-btn"
@@ -460,7 +460,7 @@ const WorkOrdersByTechnician = () => {
                                               handleDelete(order._id); 
                                             }}
                                           >
-                                            <DeleteIcon />
+                                            <DeleteIcon size={14} />
                                           </button>
                                         </td>
                                       </tr>
@@ -491,7 +491,7 @@ const WorkOrdersByTechnician = () => {
               <div className="card">
                 <div className="card-header">
                   <h2>
-                    <UserSlashIcon /> Nedodeljeni radni nalozi 
+                    <UserSlashIcon size={20} /> Nedodeljeni radni nalozi 
                     <span className="count-badge">{filteredUnassigned.length}</span>
                   </h2>
                 </div>
@@ -518,28 +518,28 @@ const WorkOrdersByTechnician = () => {
                         <tbody>
                           {sortByDate(currentUnassignedItems).map((order) => (
                             <tr key={order._id}>
-                              <td>{formatDate(order.date)}</td>
-                              <td>{order.municipality}</td>
-                              <td>{order.address}</td>
-                              <td>{order.userName || 'Nepoznat'}</td>
-                              <td>{order.type}</td>
-                              <td>
+                              <td data-label="Datum">{formatDate(order.date)}</td>
+                              <td data-label="Opština">{order.municipality}</td>
+                              <td data-label="Adresa">{order.address}</td>
+                              <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                              <td data-label="Tip">{order.type}</td>
+                              <td data-label="Status">
                                 <span className={`status-badge ${getStatusClass(order.status)}`}>
                                   {getStatusLabel(order.status)}
                                 </span>
                               </td>
-                              <td className="actions-column">
+                              <td className="actions-column" data-label="Akcije">
                                 <Link 
                                   to={`/work-orders/${order._id}`} 
                                   className="btn btn-sm action-btn view-btn"
                                 >
-                                  <ViewIcon /> Detalji
+                                  <ViewIcon size={14} /> Detalji
                                 </Link>
                                 <button 
                                   className="btn btn-sm action-btn delete-btn"
                                   onClick={() => handleDelete(order._id)}
                                 >
-                                  <DeleteIcon />
+                                  <DeleteIcon size={14} />
                                 </button>
                               </td>
                             </tr>
@@ -565,7 +565,7 @@ const WorkOrdersByTechnician = () => {
               <div className="card">
                 <div className="card-header">
                   <h2>
-                    <AlertIcon /> Radni nalozi za verifikaciju 
+                    <AlertIcon size={20} /> Radni nalozi za verifikaciju 
                     <span className="count-badge">{filteredVerification.length}</span>
                   </h2>
                 </div>
@@ -594,24 +594,24 @@ const WorkOrdersByTechnician = () => {
                             const technician = technicians.find(tech => tech._id === order.technicianId);
                             return (
                               <tr key={order._id}>
-                                <td>{formatDate(order.date)}</td>
-                                <td>{order.municipality}</td>
-                                <td>{order.address}</td>
-                                <td>{order.userName || 'Nepoznat'}</td>
-                                <td>{order.type}</td>
-                                <td>{technician ? technician.name : 'Nepoznat'}</td>
-                                <td className="actions-column">
+                                <td data-label="Datum">{formatDate(order.date)}</td>
+                                <td data-label="Opština">{order.municipality}</td>
+                                <td data-label="Adresa">{order.address}</td>
+                                <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                                <td data-label="Tip">{order.type}</td>
+                                <td data-label="Tehničar">{technician ? technician.name : 'Nepoznat'}</td>
+                                <td className="actions-column" data-label="Akcije">
                                   <Link 
                                     to={`/work-orders/${order._id}`} 
                                     className="btn btn-sm action-btn view-btn"
                                   >
-                                    <ViewIcon /> Detalji
+                                    <ViewIcon size={14} /> Detalji
                                   </Link>
                                   <button 
                                     className="btn btn-sm action-btn verify-btn"
                                     onClick={() => handleVerifyOrder(order._id)}
                                   >
-                                    <CheckIcon /> Verifikuj
+                                    <CheckIcon size={14} /> Verifikuj
                                   </button>
                                 </td>
                               </tr>

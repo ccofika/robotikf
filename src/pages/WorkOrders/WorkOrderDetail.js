@@ -259,7 +259,7 @@ const WorkOrderDetail = () => {
         {/* Sekcija za slike */}
         <div className="card images-section">
           <div className="card-header">
-            <h3><ImageIcon /> Slike radnog naloga</h3>
+            <h3><ImageIcon size={20} /> Slike radnog naloga</h3>
           </div>
           <div className="card-body">
             {images.length === 0 ? (
@@ -295,7 +295,7 @@ const WorkOrderDetail = () => {
         {/* Sekcija za materijale */}
         <div className="card materials-section">
           <div className="card-header">
-            <h3><MaterialIcon /> Utrošeni materijali</h3>
+            <h3><MaterialIcon size={20} /> Utrošeni materijali</h3>
           </div>
           <div className="card-body">
             {materials.length === 0 ? (
@@ -323,8 +323,11 @@ const WorkOrderDetail = () => {
           </div>
         </div>
 
-        <div className="equipment-section">
-          <h3><EquipmentIcon /> Oprema korisnika</h3>
+        <div className="card equipment-section">
+          <div className="card-header">
+            <h3><EquipmentIcon size={20} /> Oprema korisnika</h3>
+          </div>
+          <div className="card-body">
   
   {loadingEquipment ? (
     <p className="loading-text">Učitavanje opreme...</p>
@@ -345,10 +348,10 @@ const WorkOrderDetail = () => {
             <tbody>
               {userEquipment.map(eq => (
                 <tr key={eq.id}>
-                  <td>{eq.equipmentType}</td>
-                  <td>{eq.equipmentDescription}</td>
-                  <td>{eq.serialNumber}</td>
-                  <td>{new Date(eq.installedAt).toLocaleDateString()}</td>
+                  <td data-label="Tip">{eq.equipmentType}</td>
+                  <td data-label="Opis">{eq.equipmentDescription}</td>
+                  <td data-label="Serijski broj">{eq.serialNumber}</td>
+                  <td data-label="Datum instalacije">{new Date(eq.installedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -370,7 +373,8 @@ const WorkOrderDetail = () => {
       )}
     </>
   )}
-</div>
+          </div>
+        </div>
 
 {/* Modal za prikaz istorije opreme */}
         {showHistoryModal && (
@@ -398,13 +402,17 @@ const WorkOrderDetail = () => {
                           <td data-label="Tip">{eq.equipmentType}</td>
                           <td data-label="Opis">{eq.equipmentDescription}</td>
                           <td data-label="Serijski broj">{eq.serialNumber}</td>
-                          <td data-label="Status">{eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}</td>
+                          <td data-label="Status">
+                            <span className={`status-badge ${eq.status === 'active' ? 'status-active' : 'status-removed'}`}>
+                              {eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}
+                            </span>
+                          </td>
                           <td data-label="Datum instalacije">{eq.installedAt ? new Date(eq.installedAt).toLocaleDateString() : '-'}</td>
                           <td data-label="Datum uklanjanja">{eq.removedAt ? new Date(eq.removedAt).toLocaleDateString() : '-'}</td>
                           <td data-label="Stanje">
                             {!eq.condition && '-'}
-                            {eq.condition === 'working' && 'Ispravno'}
-                            {eq.condition === 'defective' && 'Neispravno'}
+                            {eq.condition === 'working' && <span className="condition-badge condition-working">Ispravno</span>}
+                            {eq.condition === 'defective' && <span className="condition-badge condition-defective">Neispravno</span>}
                           </td>
                         </tr>
                       ))}
@@ -500,9 +508,10 @@ const WorkOrderDetail = () => {
                 id="date"
                 name="date"
                 value={formData.date}
-                                onChange={handleChange}
+                onChange={handleChange}
                 disabled={saving}
                 required
+                className="form-control"
               />
             </div>
             
@@ -515,36 +524,41 @@ const WorkOrderDetail = () => {
                 value={formData.time}
                 onChange={handleChange}
                 disabled={saving}
+                className="form-control"
               />
             </div>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="municipality">Opština:</label>
-            <input
-              type="text"
-              id="municipality"
-              name="municipality"
-              value={formData.municipality}
-              onChange={handleChange}
-              placeholder="Unesite opštinu"
-              disabled={saving}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="address">Adresa:</label>
-            <input
-              type="text"
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Unesite adresu"
-              disabled={saving}
-              required
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="municipality">Opština:</label>
+              <input
+                type="text"
+                id="municipality"
+                name="municipality"
+                value={formData.municipality}
+                onChange={handleChange}
+                placeholder="Unesite opštinu"
+                disabled={saving}
+                required
+                className="form-control"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="address">Adresa:</label>
+              <input
+                type="text"
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Unesite adresu"
+                disabled={saving}
+                required
+                className="form-control"
+              />
+            </div>
           </div>
           
           <div className="form-group">
@@ -558,6 +572,7 @@ const WorkOrderDetail = () => {
               placeholder="Internet, IPTV, Telefon..."
               disabled={saving}
               required
+              className="form-control"
             />
           </div>
           
@@ -619,30 +634,34 @@ const WorkOrderDetail = () => {
             </div>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="details">Detalji:</label>
-            <textarea
-              id="details"
-              name="details"
-              value={formData.details}
-              onChange={handleChange}
-              placeholder="Detalji za tehničara"
-              disabled={saving}
-              rows="3"
-            ></textarea>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="comment">Komentar:</label>
-            <textarea
-              id="comment"
-              name="comment"
-              value={formData.comment}
-              onChange={handleChange}
-              placeholder="Dodatne napomene"
-              disabled={saving}
-              rows="3"
-            ></textarea>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="details">Detalji:</label>
+              <textarea
+                id="details"
+                name="details"
+                value={formData.details}
+                onChange={handleChange}
+                placeholder="Detalji za tehničara"
+                disabled={saving}
+                rows="3"
+                className="form-control"
+              ></textarea>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="comment">Komentar:</label>
+              <textarea
+                id="comment"
+                name="comment"
+                value={formData.comment}
+                onChange={handleChange}
+                placeholder="Dodatne napomene"
+                disabled={saving}
+                rows="3"
+                className="form-control"
+              ></textarea>
+            </div>
           </div>
           
           <div className="form-buttons">

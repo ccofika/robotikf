@@ -12,7 +12,8 @@ import {
   CloseIcon,
   UsersIcon,
   ExcelIcon,
-  HistoryIcon
+  HistoryIcon,
+  AlertTriangleIcon
 } from '../icons/SvgIcons';
 import { AuthContext } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -165,7 +166,19 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                     <span>{(!collapsed || mobileOpen) && 'Logovi'}</span>
                   </NavLink>
                 </li>
+                <li>
+                  <NavLink 
+                    to="/defective-equipment" 
+                    className={({ isActive }) => isActive ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                    data-title="Neispravna oprema"
+                  >
+                    <AlertTriangleIcon size={20} /> 
+                    <span>{(!collapsed || mobileOpen) && 'Neispravna oprema'}</span>
+                  </NavLink>
+                </li>
               </>
+              
             )}
             
             {user?.role === 'technician' && (
