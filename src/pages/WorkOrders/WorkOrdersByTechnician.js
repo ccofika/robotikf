@@ -1,20 +1,22 @@
-// Kreirati u direktorijumu: src/pages/WorkOrders/WorkOrdersByTechnician.js
+// Enhanced WorkOrdersByTechnician.js with All Work Orders tab and advanced filtering
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon } from '../../components/icons/SvgIcons';
+import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon, ClipboardIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import './WorkOrdersModern.css';
+import './WorkOrdersByTechnician.css';
 
 const WorkOrdersByTechnician = () => {
   const [technicians, setTechnicians] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
   const [unassignedOrders, setUnassignedOrders] = useState([]);
   const [verificationOrders, setVerificationOrders] = useState([]);
+  const [allWorkOrders, setAllWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [technicianFilter, setTechnicianFilter] = useState('');
   const [activeTab, setActiveTab] = useState('technicians');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
   const navigate = useNavigate();
@@ -22,12 +24,13 @@ const WorkOrdersByTechnician = () => {
   // Paginacija
   const [currentPageUnassigned, setCurrentPageUnassigned] = useState(1);
   const [currentPageVerification, setCurrentPageVerification] = useState(1);
+  const [currentPageAllOrders, setCurrentPageAllOrders] = useState(1);
   const [technicianCurrentPages, setTechnicianCurrentPages] = useState({});
   const itemsPerPage = 20;
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
-    useEffect(() => {
+  useEffect(() => {
     fetchData();
   }, []);
   
@@ -43,10 +46,13 @@ const WorkOrdersByTechnician = () => {
         axios.get(`${apiUrl}/api/workorders/verification`)
       ]);
       
+      const workOrdersData = workOrdersResponse.data;
+      
       setTechnicians(techniciansResponse.data);
-      setWorkOrders(workOrdersResponse.data);
+      setWorkOrders(workOrdersData);
       setUnassignedOrders(unassignedResponse.data);
       setVerificationOrders(verificationResponse.data);
+      setAllWorkOrders(workOrdersData);
     } catch (error) {
       console.error('Greška pri učitavanju podataka:', error);
       setError('Greška pri učitavanju radnih naloga. Pokušajte ponovo.');
@@ -58,14 +64,11 @@ const WorkOrdersByTechnician = () => {
   
   const handleVerifyOrder = async (orderId) => {
     try {
-      // Sending an empty object as the request body
       await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`, {});
       toast.success('Radni nalog je uspešno verifikovan!');
       
-      // Ažuriranje liste nakon verifikacije
       setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
       
-      // Osvežavamo glavnu listu radnih naloga
       const updatedWorkOrders = [...workOrders];
       const updatedIndex = updatedWorkOrders.findIndex(order => order._id === orderId);
       
@@ -77,6 +80,7 @@ const WorkOrdersByTechnician = () => {
         };
         
         setWorkOrders(updatedWorkOrders);
+        setAllWorkOrders(updatedWorkOrders);
       }
       
     } catch (error) {
@@ -91,10 +95,10 @@ const WorkOrdersByTechnician = () => {
         await axios.delete(`${apiUrl}/api/workorders/${id}`);
         toast.success('Radni nalog je uspešno obrisan!');
         
-        // Ažuriranje listi nakon brisanja
         setWorkOrders(prev => prev.filter(order => order._id !== id));
         setUnassignedOrders(prev => prev.filter(order => order._id !== id));
         setVerificationOrders(prev => prev.filter(order => order._id !== id));
+        setAllWorkOrders(prev => prev.filter(order => order._id !== id));
         
       } catch (error) {
         console.error('Greška pri brisanju:', error);
@@ -106,7 +110,6 @@ const WorkOrdersByTechnician = () => {
   const groupWorkOrdersByTechnician = () => {
     const techWorkOrders = {};
     
-    // Inicijalizacija objekata za sve tehničare
     technicians.forEach(tech => {
       techWorkOrders[tech._id] = {
         technicianInfo: tech,
@@ -114,17 +117,15 @@ const WorkOrdersByTechnician = () => {
       };
     });
     
-    // Dodavanje radnih naloga za svakog tehničara
     workOrders.forEach(order => {
-      // Provera da li je technicianId string ili objekat
       const techId = order.technicianId?._id || order.technicianId;
-        const tech2Id = order.technician2Id?._id || order.technician2Id;
+      const tech2Id = order.technician2Id?._id || order.technician2Id;
       if (techId && techWorkOrders[techId]) {
         techWorkOrders[techId].workOrders.push(order);
       }
-        if (tech2Id && techWorkOrders[tech2Id]) {
-          techWorkOrders[tech2Id].workOrders.push(order);
-        }
+      if (tech2Id && techWorkOrders[tech2Id]) {
+        techWorkOrders[tech2Id].workOrders.push(order);
+      }
     });
     
     return techWorkOrders;
@@ -132,24 +133,49 @@ const WorkOrdersByTechnician = () => {
   
   const technicianWorkOrders = groupWorkOrdersByTechnician();
   
-  // Filtriranje po statusu i pretrazi
+  // Enhanced filtering function with deep search
   const filterOrders = (orders) => {
     return orders.filter(order => {
       const matchesStatus = !statusFilter || order.status === statusFilter;
-      const matchesSearch = !searchTerm || 
-        order.municipality.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.tisId?.toString().includes(searchTerm) ||
-        order.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.userName?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesTechnician = !technicianFilter || 
+        order.technicianId?._id === technicianFilter || 
+        order.technicianId === technicianFilter ||
+        order.technician2Id?._id === technicianFilter || 
+        order.technician2Id === technicianFilter;
       
-      return matchesStatus && matchesSearch;
+      let matchesSearch = true;
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        matchesSearch = 
+          order.municipality?.toLowerCase().includes(searchLower) ||
+          order.address?.toLowerCase().includes(searchLower) ||
+          order.tisId?.toString().includes(searchTerm) ||
+          order.type?.toLowerCase().includes(searchLower) ||
+          order.userName?.toLowerCase().includes(searchLower) ||
+          order.description?.toLowerCase().includes(searchLower) ||
+          order.notes?.toLowerCase().includes(searchLower) ||
+          // Search by technician name
+          order.technicianId?.name?.toLowerCase().includes(searchLower) ||
+          order.technician2Id?.name?.toLowerCase().includes(searchLower) ||
+          // Search by equipment serial numbers (last 4 digits or full)
+          order.equipment?.some(eq => 
+            eq.serialNumber?.toLowerCase().includes(searchLower) ||
+            eq.serialNumber?.slice(-4).includes(searchTerm)
+          ) ||
+          // Search by material names
+          order.materials?.some(mat => 
+            mat.name?.toLowerCase().includes(searchLower)
+          );
+      }
+      
+      return matchesStatus && matchesTechnician && matchesSearch;
     });
   };
   
   // Filtrirani podaci sa paginacijom
-  const filteredUnassigned = useMemo(() => filterOrders(unassignedOrders), [unassignedOrders, statusFilter, searchTerm]);
-  const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, searchTerm]);
+  const filteredUnassigned = useMemo(() => filterOrders(unassignedOrders), [unassignedOrders, statusFilter, technicianFilter, searchTerm]);
+  const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, searchTerm]);
+  const filteredAllOrders = useMemo(() => filterOrders(allWorkOrders), [allWorkOrders, statusFilter, technicianFilter, searchTerm]);
   
   // Paginacija za nedodeljene naloge
   const indexOfLastUnassigned = currentPageUnassigned * itemsPerPage;
@@ -163,19 +189,29 @@ const WorkOrdersByTechnician = () => {
   const currentVerificationItems = filteredVerification.slice(indexOfFirstVerification, indexOfLastVerification);
   const totalPagesVerification = Math.ceil(filteredVerification.length / itemsPerPage);
   
+  // Paginacija za sve radne naloge
+  const indexOfLastAllOrders = currentPageAllOrders * itemsPerPage;
+  const indexOfFirstAllOrders = indexOfLastAllOrders - itemsPerPage;
+  const currentAllOrdersItems = filteredAllOrders.slice(indexOfFirstAllOrders, indexOfLastAllOrders);
+  const totalPagesAllOrders = Math.ceil(filteredAllOrders.length / itemsPerPage);
+  
   // Funkcije za paginaciju
   const paginateUnassigned = (pageNumber) => setCurrentPageUnassigned(pageNumber);
   const paginateVerification = (pageNumber) => setCurrentPageVerification(pageNumber);
-  const paginateTechnician = (techId, pageNumber) => {
+  const paginateAllOrders = (pageNumber) => setCurrentPageAllOrders(pageNumber);
+  const paginateTechnician = (techId, pageNumber, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
     setTechnicianCurrentPages(prev => ({
       ...prev,
       [techId]: pageNumber
     }));
   };
   
-  // Sortiranje po datumu
+  // Sortiranje po datumu (najnoviji na vrhu)
   const sortByDate = (orders) => {
-    return [...orders].sort((a, b) => new Date(a.date) - new Date(b.date));
+    return [...orders].sort((a, b) => new Date(b.date) - new Date(a.date));
   };
   
   const formatDate = (dateString) => {
@@ -204,23 +240,50 @@ const WorkOrdersByTechnician = () => {
     }
   };
   
+  const getTechnicianName = (order) => {
+    if (order.technicianId?.name) return order.technicianId.name;
+    if (order.technicianId) {
+      const tech = technicians.find(t => t._id === order.technicianId);
+      return tech?.name || 'Nepoznat';
+    }
+    return 'Nedodeljen';
+  };
+  
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setTechnicianFilter('');
+    setCurrentPageUnassigned(1);
+    setCurrentPageVerification(1);
+    setCurrentPageAllOrders(1);
+    setTechnicianCurrentPages({});
+  };
+  
   // Komponenta za paginaciju
   const PaginationComponent = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
     
     return (
-      <div className="pagination-container">
-        <div className="pagination">
+      <div className="workorders-pagination-container">
+        <div className="workorders-pagination">
           <button
-            onClick={() => onPageChange(1)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPageChange(1, e);
+            }}
             disabled={currentPage === 1}
+            className="workorders-pagination-btn"
           >
             &laquo;
           </button>
           
           <button
-            onClick={() => onPageChange(currentPage - 1)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPageChange(currentPage - 1, e);
+            }}
             disabled={currentPage === 1}
+            className="workorders-pagination-btn"
           >
             &lsaquo;
           </button>
@@ -236,23 +299,34 @@ const WorkOrdersByTechnician = () => {
             .map(number => (
               <button
                 key={number}
-                onClick={() => onPageChange(number)}
-                className={currentPage === number ? 'active' : ''}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPageChange(number, e);
+                }}
+                className={`workorders-pagination-btn ${currentPage === number ? 'active' : ''}`}
               >
                 {number}
               </button>
             ))}
           
           <button
-            onClick={() => onPageChange(currentPage + 1)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPageChange(currentPage + 1, e);
+            }}
             disabled={currentPage === totalPages}
+            className="workorders-pagination-btn"
           >
             &rsaquo;
           </button>
           
           <button
-            onClick={() => onPageChange(totalPages)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPageChange(totalPages, e);
+            }}
             disabled={currentPage === totalPages}
+            className="workorders-pagination-btn"
           >
             &raquo;
           </button>
@@ -263,9 +337,7 @@ const WorkOrdersByTechnician = () => {
 
   // Funkcija za navigaciju na detalje radnog naloga
   const navigateToOrderDetails = (orderId, event) => {
-    // Proveravamo da li je klik bio na dugmetu za brisanje ili verifikaciju
-    // Ako jeste, ne navigiramo na detalje
-    if (event.target.closest('.delete-btn') || event.target.closest('.verify-btn')) {
+    if (event.target.closest('.workorders-delete-btn') || event.target.closest('.workorders-verify-btn')) {
       return;
     }
     
@@ -273,112 +345,162 @@ const WorkOrdersByTechnician = () => {
   };
   
   return (
-    <div className="work-orders-by-technician fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Radni nalozi po tehničarima</h1>
-        <div className="header-actions">
-          <Link to="/work-orders/add" className="btn btn-primary">
+    <div className="workorders-by-technician-container">
+      <div className="workorders-page-header">
+        <h1 className="workorders-page-title">
+          <ToolsIcon className="workorders-title-icon" />
+          Radni nalozi po tehničarima
+        </h1>
+        <div className="workorders-header-actions">
+          <Link to="/work-orders/add" className="workorders-btn workorders-btn-primary">
+            <ClipboardIcon size={16} />
             Novi nalog
           </Link>
-          <Link to="/work-orders/upload" className="btn btn-success">
+          <Link to="/work-orders/upload" className="workorders-btn workorders-btn-success">
             Import
           </Link>
         </div>
       </div>
       
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && <div className="workorders-alert workorders-alert-danger">{error}</div>}
       
-      <div className="tabs-container">
-        <div className="tabs">
+      <div className="workorders-tabs-container">
+        <div className="workorders-tabs">
           <button 
-            className={`tab ${activeTab === 'technicians' ? 'active' : ''}`}
+            className={`workorders-tab ${activeTab === 'technicians' ? 'active' : ''}`}
             onClick={() => setActiveTab('technicians')}
           >
             <UserIcon size={16} /> Tehničari
-            <span className="tab-badge">{Object.keys(technicianWorkOrders).length}</span>
+            <span className="workorders-tab-badge">{Object.keys(technicianWorkOrders).length}</span>
           </button>
           <button 
-            className={`tab ${activeTab === 'unassigned' ? 'active' : ''}`}
+            className={`workorders-tab ${activeTab === 'unassigned' ? 'active' : ''}`}
             onClick={() => setActiveTab('unassigned')}
           >
             <UserSlashIcon size={16} /> Nedodeljeni
-            <span className="tab-badge">{unassignedOrders.length}</span>
+            <span className="workorders-tab-badge">{unassignedOrders.length}</span>
           </button>
           <button 
-            className={`tab ${activeTab === 'verification' ? 'active' : ''}`}
+            className={`workorders-tab ${activeTab === 'verification' ? 'active' : ''}`}
             onClick={() => setActiveTab('verification')}
           >
             <CheckIcon size={16} /> Za verifikaciju
-            <span className="tab-badge">{verificationOrders.length}</span>
+            <span className="workorders-tab-badge">{verificationOrders.length}</span>
+          </button>
+          <button 
+            className={`workorders-tab ${activeTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveTab('all')}
+          >
+            <ClipboardIcon size={16} /> Svi radni nalozi
+            <span className="workorders-tab-badge">{allWorkOrders.length}</span>
           </button>
         </div>
         
-        <div className="filter-container">
-          <div className="search-box">
-            <SearchIcon size={16} className="search-icon" />
+        <div className="workorders-filter-container">
+          <div className="workorders-search-box">
+            <SearchIcon size={16} className="workorders-search-icon" />
             <input
               type="text"
-              placeholder="Pretraga po adresi, tipu, korisniku..."
+              placeholder="Pretraga po adresi, korisniku, serijskom broju, tehničaru..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                // Reset pagination when search changes
                 setCurrentPageUnassigned(1);
                 setCurrentPageVerification(1);
+                setCurrentPageAllOrders(1);
                 setTechnicianCurrentPages({});
               }}
+              className="workorders-search-input"
             />
           </div>
           
-          <div className="filter-box">
-            <FilterIcon size={16} className="filter-icon" />
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                // Reset pagination when filter changes
-                setCurrentPageUnassigned(1);
-                setCurrentPageVerification(1);
-                setTechnicianCurrentPages({});
-              }}
-            >
-              <option value="">Svi statusi</option>
-              <option value="zavrsen">Završeni</option>
-              <option value="nezavrsen">Nezavršeni</option>
-              <option value="odlozen">Odloženi</option>
-              <option value="otkazan">Otkazani</option>
-            </select>
+          <div className="workorders-filter-group">
+            <div className="workorders-filter-box">
+              <FilterIcon size={16} className="workorders-filter-icon" />
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPageUnassigned(1);
+                  setCurrentPageVerification(1);
+                  setCurrentPageAllOrders(1);
+                  setTechnicianCurrentPages({});
+                }}
+                className="workorders-filter-select"
+              >
+                <option value="">Svi statusi</option>
+                <option value="zavrsen">Završeni</option>
+                <option value="nezavrsen">Nezavršeni</option>
+                <option value="odlozen">Odloženi</option>
+                <option value="otkazan">Otkazani</option>
+              </select>
+            </div>
+            
+            {(activeTab === 'all' || activeTab === 'verification') && (
+              <div className="workorders-filter-box">
+                <UserIcon size={16} className="workorders-filter-icon" />
+                <select
+                  value={technicianFilter}
+                  onChange={(e) => {
+                    setTechnicianFilter(e.target.value);
+                    setCurrentPageUnassigned(1);
+                    setCurrentPageVerification(1);
+                    setCurrentPageAllOrders(1);
+                    setTechnicianCurrentPages({});
+                  }}
+                  className="workorders-filter-select"
+                >
+                  <option value="">Svi tehničari</option>
+                  {technicians.map(tech => (
+                    <option key={tech._id} value={tech._id}>
+                      {tech.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           
-          <button className="btn btn-sm refresh-btn" onClick={fetchData} disabled={loading}>
-            <RefreshIcon size={16} className={loading ? 'spin' : ''} />
-            Osveži
-          </button>
+          <div className="workorders-action-buttons">
+            <button 
+              className="workorders-btn workorders-btn-secondary workorders-reset-btn" 
+              onClick={resetFilters}
+            >
+              <RefreshIcon size={16} />
+              Resetuj
+            </button>
+            <button 
+              className="workorders-btn workorders-btn-secondary workorders-refresh-btn" 
+              onClick={fetchData} 
+              disabled={loading}
+            >
+              <RefreshIcon size={16} className={loading ? 'workorders-spin' : ''} />
+              Osveži
+            </button>
+          </div>
         </div>
       </div>
       
       {loading ? (
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
+        <div className="workorders-loading-container">
+          <div className="workorders-loading-spinner"></div>
           <p>Učitavanje podataka...</p>
         </div>
       ) : (
-        <div className="tab-content">
+        <div className="workorders-tab-content">
           {/* Tab za tehničare */}
           {activeTab === 'technicians' && (
-            <div className="technicians-tab">
+            <div className="workorders-technicians-tab">
               {Object.keys(technicianWorkOrders).length === 0 ? (
-                <div className="empty-message">
-                  <UserIcon size={48} className="empty-icon" />
+                <div className="workorders-empty-message">
+                  <UserIcon size={48} className="workorders-empty-icon" />
                   <p>Nema tehničara u sistemu</p>
                 </div>
               ) : (
-                <div className="technician-cards">
+                <div className="workorders-technician-cards">
                   {Object.entries(technicianWorkOrders).map(([techId, techData]) => {
-                    // Filtriranje radnih naloga za tehničara
                     const filteredTechOrders = filterOrders(techData.workOrders);
                     
-                    // Paginacija za ovog tehničara
                     const currentPageTech = technicianCurrentPages[techId] || 1;
                     const indexOfLastTech = currentPageTech * itemsPerPage;
                     const indexOfFirstTech = indexOfLastTech - itemsPerPage;
@@ -388,103 +510,105 @@ const WorkOrdersByTechnician = () => {
                     return (
                       <div 
                         key={techId} 
-                        className={`technician-card ${selectedTechnicianId === techId ? 'expanded' : ''}`}
+                        className={`workorders-technician-card ${selectedTechnicianId === techId ? 'expanded' : ''}`}
                         onClick={() => setSelectedTechnicianId(prevId => prevId === techId ? '' : techId)}
                       >
-                        <div className="technician-card-header">
-                          <div className="technician-info">
-                            <div className="technician-avatar">
+                        <div className="workorders-technician-card-header">
+                          <div className="workorders-technician-info">
+                            <div className="workorders-technician-avatar">
                               <UserIcon size={20} />
                             </div>
-                            <div className="technician-details">
+                            <div className="workorders-technician-details">
                               <h3>{techData.technicianInfo.name}</h3>
                               <p>{techData.technicianInfo.phone}</p>
                             </div>
                           </div>
-                          <div className="technician-stats">
-                            <div className="stat">
-                              <span className="stat-value">{techData.workOrders.length}</span>
-                              <span className="stat-label">Ukupno</span>
+                          <div className="workorders-technician-stats">
+                            <div className="workorders-stat">
+                              <span className="workorders-stat-value">{techData.workOrders.length}</span>
+                              <span className="workorders-stat-label">Ukupno</span>
                             </div>
-                            <div className="stat">
-                              <span className="stat-value pending">
+                            <div className="workorders-stat">
+                              <span className="workorders-stat-value workorders-pending">
                                 {techData.workOrders.filter(o => o.status === 'nezavrsen').length}
                               </span>
-                              <span className="stat-label">Nezavršeni</span>
+                              <span className="workorders-stat-label">Nezavršeni</span>
                             </div>
-                            <div className="stat">
-                              <span className="stat-value completed">
+                            <div className="workorders-stat">
+                              <span className="workorders-stat-value workorders-completed">
                                 {techData.workOrders.filter(o => o.status === 'zavrsen').length}
                               </span>
-                              <span className="stat-label">Završeni</span>
+                              <span className="workorders-stat-label">Završeni</span>
                             </div>
                           </div>
                         </div>
                         
                         {selectedTechnicianId === techId && (
-                          <div className="technician-workorders">
+                          <div className="workorders-technician-workorders">
                             {filteredTechOrders.length === 0 ? (
-                              <div className="no-results">
+                              <div className="workorders-no-results">
                                 <p>Nema radnih naloga koji odgovaraju pretrazi</p>
                               </div>
                             ) : (
                               <>
-                                <table className="workorders-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Datum</th>
-                                      <th>Opština</th>
-                                      <th>Adresa</th>
-                                      <th>Korisnik</th>
-                                      <th>Tip</th>
-                                      <th>Status</th>
-                                      <th>Akcije</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {sortByDate(currentTechItems).map((order) => (
-                                      <tr 
-                                        key={order._id} 
-                                        onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                        className="clickable-row"
-                                      >
-                                        <td data-label="Datum">{formatDate(order.date)}</td>
-                                        <td data-label="Opština">{order.municipality}</td>
-                                        <td data-label="Adresa">{order.address}</td>
-                                        <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                                        <td data-label="Tip">{order.type}</td>
-                                        <td data-label="Status">
-                                          <span className={`status-badge ${getStatusClass(order.status)}`}>
-                                            {getStatusLabel(order.status)}
-                                          </span>
-                                          {order.status === 'zavrsen' && order.verified && (
-                                            <span className="verified-badge" title="Verifikovano">
-                                              <CheckIcon size={14} />
-                                            </span>
-                                          )}
-                                        </td>
-                                        <td className="actions-column" data-label="Akcije">
-                                          <Link 
-                                            to={`/work-orders/${order._id}`} 
-                                            className="btn btn-sm action-btn view-btn"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ViewIcon size={14} /> Detalji
-                                          </Link>
-                                          <button 
-                                            className="btn btn-sm action-btn delete-btn"
-                                            onClick={(e) => { 
-                                              e.stopPropagation(); 
-                                              handleDelete(order._id); 
-                                            }}
-                                          >
-                                            <DeleteIcon size={14} />
-                                          </button>
-                                        </td>
+                                <div className="workorders-admin-table-container">
+                                  <table className="workorders-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Datum</th>
+                                        <th>Opština</th>
+                                        <th>Adresa</th>
+                                        <th>Korisnik</th>
+                                        <th>Tip</th>
+                                        <th>Status</th>
+                                        <th>Akcije</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                    </thead>
+                                    <tbody>
+                                      {sortByDate(currentTechItems).map((order) => (
+                                        <tr 
+                                          key={order._id} 
+                                          onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                          className="workorders-clickable-row"
+                                        >
+                                          <td data-label="Datum">{formatDate(order.date)}</td>
+                                          <td data-label="Opština">{order.municipality}</td>
+                                          <td data-label="Adresa">{order.address}</td>
+                                          <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                                          <td data-label="Tip">{order.type}</td>
+                                          <td data-label="Status">
+                                            <span className={`workorders-status-badge ${getStatusClass(order.status)}`}>
+                                              {getStatusLabel(order.status)}
+                                            </span>
+                                            {order.status === 'zavrsen' && order.verified && (
+                                              <span className="workorders-verified-badge" title="Verifikovano">
+                                                <CheckIcon size={14} />
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="workorders-actions-column" data-label="Akcije">
+                                            <Link 
+                                              to={`/work-orders/${order._id}`} 
+                                              className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <ViewIcon size={14} /> Detalji
+                                            </Link>
+                                            <button 
+                                              className="workorders-btn workorders-btn-sm workorders-action-btn workorders-delete-btn"
+                                              onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                handleDelete(order._id); 
+                                              }}
+                                            >
+                                              <DeleteIcon size={14} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
                                 
                                 <PaginationComponent 
                                   currentPage={currentPageTech}
@@ -505,80 +629,82 @@ const WorkOrdersByTechnician = () => {
           
           {/* Tab za nedodeljene naloge */}
           {activeTab === 'unassigned' && (
-            <div className="unassigned-tab">
-              <div className="card">
-                <div className="card-header">
+            <div className="workorders-unassigned-tab">
+              <div className="workorders-card">
+                <div className="workorders-card-header">
                   <h2>
                     <UserSlashIcon size={20} /> Nedodeljeni radni nalozi 
-                    <span className="count-badge">{filteredUnassigned.length}</span>
+                    <span className="workorders-count-badge">{filteredUnassigned.length}</span>
                   </h2>
                 </div>
                 
-                <div className="card-body">
+                <div className="workorders-card-body">
                   {filteredUnassigned.length === 0 ? (
-                    <div className="empty-message">
+                    <div className="workorders-empty-message">
                       <p>Nema nedodeljenih radnih naloga</p>
                     </div>
                   ) : (
-                    <div className="table-responsive">
-                      <table className="workorders-table">
-                        <thead>
-                          <tr>
-                            <th>Datum</th>
-                            <th>Opština</th>
-                            <th>Adresa</th>
-                            <th>Korisnik</th>
-                            <th>Tip</th>
-                            <th>Status</th>
-                            <th>Akcije</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortByDate(currentUnassignedItems).map((order) => (
-                            <tr 
-                              key={order._id} 
-                              onClick={(e) => navigateToOrderDetails(order._id, e)}
-                              className="clickable-row"
-                            >
-                              <td data-label="Datum">{formatDate(order.date)}</td>
-                              <td data-label="Opština">{order.municipality}</td>
-                              <td data-label="Adresa">{order.address}</td>
-                              <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                              <td data-label="Tip">{order.type}</td>
-                              <td data-label="Status">
-                                <span className={`status-badge ${getStatusClass(order.status)}`}>
-                                  {getStatusLabel(order.status)}
-                                </span>
-                              </td>
-                              <td className="actions-column" data-label="Akcije">
-                                <Link 
-                                  to={`/work-orders/${order._id}`} 
-                                  className="btn btn-sm action-btn view-btn"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ViewIcon size={14} /> Detalji
-                                </Link>
-                                <button 
-                                  className="btn btn-sm action-btn delete-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(order._id);
-                                  }}
-                                >
-                                  <DeleteIcon size={14} />
-                                </button>
-                              </td>
+                    <>
+                      <div className="workorders-table-responsive">
+                        <table className="workorders-table">
+                          <thead>
+                            <tr>
+                              <th>Datum</th>
+                              <th>Opština</th>
+                              <th>Adresa</th>
+                              <th>Korisnik</th>
+                              <th>Tip</th>
+                              <th>Status</th>
+                              <th>Akcije</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {sortByDate(currentUnassignedItems).map((order) => (
+                              <tr 
+                                key={order._id} 
+                                onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                className="workorders-clickable-row"
+                              >
+                                <td data-label="Datum">{formatDate(order.date)}</td>
+                                <td data-label="Opština">{order.municipality}</td>
+                                <td data-label="Adresa">{order.address}</td>
+                                <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                                <td data-label="Tip">{order.type}</td>
+                                <td data-label="Status">
+                                  <span className={`workorders-status-badge ${getStatusClass(order.status)}`}>
+                                    {getStatusLabel(order.status)}
+                                  </span>
+                                </td>
+                                <td className="workorders-actions-column" data-label="Akcije">
+                                  <Link 
+                                    to={`/work-orders/${order._id}`} 
+                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <ViewIcon size={14} /> Detalji
+                                  </Link>
+                                  <button 
+                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-delete-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(order._id);
+                                    }}
+                                  >
+                                    <DeleteIcon size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                       
                       <PaginationComponent 
                         currentPage={currentPageUnassigned}
                         totalPages={totalPagesUnassigned}
                         onPageChange={paginateUnassigned}
                       />
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -587,79 +713,172 @@ const WorkOrdersByTechnician = () => {
           
           {/* Tab za verifikaciju radnih naloga */}
           {activeTab === 'verification' && (
-            <div className="verification-tab">
-              <div className="card">
-                <div className="card-header">
+            <div className="workorders-verification-tab">
+              <div className="workorders-card">
+                <div className="workorders-card-header">
                   <h2>
                     <AlertIcon size={20} /> Radni nalozi za verifikaciju 
-                    <span className="count-badge">{filteredVerification.length}</span>
+                    <span className="workorders-count-badge">{filteredVerification.length}</span>
                   </h2>
                 </div>
                 
-                <div className="card-body">
+                <div className="workorders-card-body">
                   {filteredVerification.length === 0 ? (
-                    <div className="empty-message">
+                    <div className="workorders-empty-message">
                       <p>Nema radnih naloga za verifikaciju</p>
                     </div>
                   ) : (
-                    <div className="table-responsive">
-                      <table className="workorders-table">
-                        <thead>
-                          <tr>
-                            <th>Datum</th>
-                            <th>Opština</th>
-                            <th>Adresa</th>
-                            <th>Korisnik</th>
-                            <th>Tip</th>
-                            <th>Tehničar</th>
-                            <th>Akcije</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortByDate(currentVerificationItems).map((order) => {
-                            const technician = technicians.find(tech => tech._id === order.technicianId);
-                            return (
-                              <tr 
-                                key={order._id}
-                                onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                className="clickable-row"
-                              >
-                                <td data-label="Datum">{formatDate(order.date)}</td>
-                                <td data-label="Opština">{order.municipality}</td>
-                                <td data-label="Adresa">{order.address}</td>
-                                <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                                <td data-label="Tip">{order.type}</td>
-                                <td data-label="Tehničar">{technician ? technician.name : 'Nepoznat'}</td>
-                                <td className="actions-column" data-label="Akcije">
-                                  <Link 
-                                    to={`/work-orders/${order._id}`} 
-                                    className="btn btn-sm action-btn view-btn"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <ViewIcon size={14} /> Detalji
-                                  </Link>
-                                  <button 
-                                    className="btn btn-sm action-btn verify-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleVerifyOrder(order._id);
-                                    }}
-                                  >
-                                    <CheckIcon size={14} /> Verifikuj
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                    <>
+                      <div className="workorders-table-responsive">
+                        <table className="workorders-table">
+                          <thead>
+                            <tr>
+                              <th>Datum</th>
+                              <th>Opština</th>
+                              <th>Adresa</th>
+                              <th>Korisnik</th>
+                              <th>Tip</th>
+                              <th>Tehničar</th>
+                              <th>Akcije</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortByDate(currentVerificationItems).map((order) => {
+                              const technician = technicians.find(tech => tech._id === order.technicianId);
+                              return (
+                                <tr 
+                                  key={order._id}
+                                  onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                  className="workorders-clickable-row"
+                                >
+                                  <td data-label="Datum">{formatDate(order.date)}</td>
+                                  <td data-label="Opština">{order.municipality}</td>
+                                  <td data-label="Adresa">{order.address}</td>
+                                  <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                                  <td data-label="Tip">{order.type}</td>
+                                  <td data-label="Tehničar">{technician ? technician.name : 'Nepoznat'}</td>
+                                  <td className="workorders-actions-column" data-label="Akcije">
+                                    <Link 
+                                      to={`/work-orders/${order._id}`} 
+                                      className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <ViewIcon size={14} /> Detalji
+                                    </Link>
+                                    <button 
+                                      className="workorders-btn workorders-btn-sm workorders-action-btn workorders-verify-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleVerifyOrder(order._id);
+                                      }}
+                                    >
+                                      <CheckIcon size={14} /> Verifikuj
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                       
                       <PaginationComponent 
                         currentPage={currentPageVerification}
                         totalPages={totalPagesVerification}
                         onPageChange={paginateVerification}
                       />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Tab za sve radne naloge */}
+          {activeTab === 'all' && (
+            <div className="workorders-all-tab">
+              <div className="workorders-card">
+                <div className="workorders-card-header">
+                  <h2>
+                    <ClipboardIcon size={20} /> Svi radni nalozi 
+                    <span className="workorders-count-badge">{filteredAllOrders.length}</span>
+                  </h2>
+                </div>
+                
+                <div className="workorders-card-body">
+                  {filteredAllOrders.length === 0 ? (
+                    <div className="workorders-empty-message">
+                      <p>Nema radnih naloga koji odgovaraju filterima</p>
                     </div>
+                  ) : (
+                    <>
+                      <div className="workorders-table-responsive">
+                        <table className="workorders-table">
+                          <thead>
+                            <tr>
+                              <th>Datum</th>
+                              <th>Opština</th>
+                              <th>Adresa</th>
+                              <th>Korisnik</th>
+                              <th>Tip</th>
+                              <th>Tehničar</th>
+                              <th>Status</th>
+                              <th>Akcije</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortByDate(currentAllOrdersItems).map((order) => (
+                              <tr 
+                                key={order._id}
+                                onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                className="workorders-clickable-row"
+                              >
+                                <td data-label="Datum">{formatDate(order.date)}</td>
+                                <td data-label="Opština">{order.municipality}</td>
+                                <td data-label="Adresa">{order.address}</td>
+                                <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                                <td data-label="Tip">{order.type}</td>
+                                <td data-label="Tehničar">{getTechnicianName(order)}</td>
+                                <td data-label="Status">
+                                  <span className={`workorders-status-badge ${getStatusClass(order.status)}`}>
+                                    {getStatusLabel(order.status)}
+                                  </span>
+                                  {order.status === 'zavrsen' && order.verified && (
+                                    <span className="workorders-verified-badge" title="Verifikovano">
+                                      <CheckIcon size={14} />
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="workorders-actions-column" data-label="Akcije">
+                                  <Link 
+                                    to={`/work-orders/${order._id}`} 
+                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <ViewIcon size={14} /> Detalji
+                                  </Link>
+                                  <button 
+                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-delete-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(order._id);
+                                    }}
+                                  >
+                                    <DeleteIcon size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <PaginationComponent 
+                        currentPage={currentPageAllOrders}
+                        totalPages={totalPagesAllOrders}
+                        onPageChange={paginateAllOrders}
+                      />
+                    </>
                   )}
                 </div>
               </div>
