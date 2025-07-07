@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import './UsersModern.css';
-import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon } from '../../components/icons/SvgIcons';
+import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon, EquipmentIcon, CalendarIcon } from '../../components/icons/SvgIcons';
 
 const UsersList = () => {
   const [users, setUsers] = useState([]);
@@ -14,6 +14,8 @@ const UsersList = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userWorkOrders, setUserWorkOrders] = useState([]);
   const [loadingWorkOrders, setLoadingWorkOrders] = useState(false);
+  const [userEquipment, setUserEquipment] = useState([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -43,6 +45,7 @@ const UsersList = () => {
     await fetchUsers();
     if (selectedUser) {
       await fetchUserWorkOrders(selectedUser._id);
+      await fetchUserEquipment(selectedUser._id);
     }
     setIsRefreshing(false);
     toast.success('Podaci su osveženi!');
@@ -61,13 +64,28 @@ const UsersList = () => {
     }
   };
   
+  const fetchUserEquipment = async (userId) => {
+    setLoadingEquipment(true);
+    try {
+      const response = await axios.get(`${apiUrl}/api/user-equipment/user/${userId}`);
+      setUserEquipment(response.data);
+    } catch (error) {
+      console.error('Greška pri učitavanju opreme korisnika:', error);
+      toast.error('Neuspešno učitavanje opreme korisnika!');
+    } finally {
+      setLoadingEquipment(false);
+    }
+  };
+  
   const handleUserSelect = (user) => {
     if (selectedUser && selectedUser._id === user._id) {
       setSelectedUser(null);
       setUserWorkOrders([]);
+      setUserEquipment([]);
     } else {
       setSelectedUser(user);
       fetchUserWorkOrders(user._id);
+      fetchUserEquipment(user._id);
     }
   };
   
@@ -201,60 +219,126 @@ const UsersList = () => {
       </div>
       
       {selectedUser && (
-        <div className="user-workorders-container">
-          <div className="user-workorders-header">
-            <h2>Radni nalozi korisnika: {selectedUser.name}</h2>
-            <button 
-              className="btn-close" 
-              onClick={() => { setSelectedUser(null); setUserWorkOrders([]); }}
-            >
-              <CloseIcon />
-            </button>
-          </div>
-          <div className="user-workorders-body">
-            {loadingWorkOrders ? (
-              <div className="loading-spinner-container">
-                <div className="loading-spinner"></div>
-                <p>Učitavanje radnih naloga...</p>
+        <div className="modal-overlay" onClick={() => { setSelectedUser(null); setUserWorkOrders([]); setUserEquipment([]); }}>
+          <div className="user-workorders-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="user-workorders-header">
+              <h2>Radni nalozi korisnika: {selectedUser.name}</h2>
+              <button 
+                className="btn-close" 
+                onClick={() => { setSelectedUser(null); setUserWorkOrders([]); setUserEquipment([]); }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="user-workorders-body">
+              {/* Equipment Section */}
+              <div className="user-equipment-section">
+                <h3 className="section-title">
+                  <EquipmentIcon className="icon" />
+                  Instalirana oprema
+                </h3>
+                {loadingEquipment ? (
+                  <div className="loading-spinner-container">
+                    <div className="loading-spinner"></div>
+                    <p>Učitavanje opreme...</p>
+                  </div>
+                ) : userEquipment.length === 0 ? (
+                  <div className="no-results">
+                    <p>Nema instalirane opreme kod ovog korisnika</p>
+                  </div>
+                ) : (
+                  <div className="user-equipment-table-container">
+                    <table className="workorders-table">
+                      <thead>
+                        <tr>
+                          <th>Oprema</th>
+                          <th>Serijski broj</th>
+                          <th>Status</th>
+                          <th>Datum instalacije</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userEquipment.map(equipment => (
+                          <tr key={equipment._id || equipment.id}>
+                            <td>
+                              <div className="equipment-info">
+                                <div className="equipment-category">{equipment.category || equipment.equipmentType}</div>
+                                <div className="equipment-description">{equipment.description || equipment.equipmentDescription}</div>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="serial-number">{equipment.serialNumber}</span>
+                            </td>
+                            <td>
+                              <span className="status-badge status-installed">
+                                Instalirano
+                              </span>
+                            </td>
+                            <td>
+                              <div className="date-info">
+                                <CalendarIcon className="date-icon" />
+                                {formatDate(equipment.installedAt)}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            ) : userWorkOrders.length === 0 ? (
-              <div className="no-results">
-                <p>Nema radnih naloga za ovog korisnika</p>
+              
+              {/* Work Orders Section */}
+              <div className="user-workorders-section">
+                <h3 className="section-title">
+                  <ClipboardIcon className="icon" />
+                  Radni nalozi
+                </h3>
+                {loadingWorkOrders ? (
+                  <div className="loading-spinner-container">
+                    <div className="loading-spinner"></div>
+                    <p>Učitavanje radnih naloga...</p>
+                  </div>
+                ) : userWorkOrders.length === 0 ? (
+                  <div className="no-results">
+                    <p>Nema radnih naloga za ovog korisnika</p>
+                  </div>
+                ) : (
+                  <div className="workorders-table-container">
+                    <table className="workorders-table">
+                      <thead>
+                        <tr>
+                          <th>Datum</th>
+                          <th>Tip</th>
+                          <th>Tehničar</th>
+                          <th>Status</th>
+                          <th>Akcije</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userWorkOrders.map(order => (
+                          <tr key={order._id}>
+                            <td>{formatDate(order.date)}</td>
+                            <td>{order.type}</td>
+                            <td>{order.technicianId?.name || 'Nedodeljen'}</td>
+                            <td>
+                              <span className={`status-badge ${getStatusClass(order.status)}`}>
+                                {getStatusLabel(order.status)}
+                              </span>
+                            </td>
+                            <td>
+                              <Link to={`/work-orders/${order._id}`} className="btn btn-sm btn-view">
+                                Detalji
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="workorders-table-container">
-                <table className="workorders-table">
-                  <thead>
-                    <tr>
-                      <th>Datum</th>
-                      <th>Tip</th>
-                      <th>Tehničar</th>
-                      <th>Status</th>
-                      <th>Akcije</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userWorkOrders.map(order => (
-                      <tr key={order._id}>
-                        <td>{formatDate(order.date)}</td>
-                        <td>{order.type}</td>
-                        <td>{order.technicianId?.name || 'Nedodeljen'}</td>
-                        <td>
-                          <span className={`status-badge ${getStatusClass(order.status)}`}>
-                            {getStatusLabel(order.status)}
-                          </span>
-                        </td>
-                        <td>
-                          <Link to={`/work-orders/${order._id}`} className="btn btn-sm btn-view">
-                            Detalji
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       )}

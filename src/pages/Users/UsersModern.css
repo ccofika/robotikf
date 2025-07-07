@@ -351,19 +351,42 @@
   letter-spacing: 0.05em;
 }
 
-/* Work Orders Container */
-.user-workorders-container {
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Work Orders Modal */
+.user-workorders-modal {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 1rem;
   box-shadow: 
-    0 8px 32px rgba(31, 38, 135, 0.12),
-    0 2px 8px rgba(31, 38, 135, 0.08),
+    0 16px 48px rgba(31, 38, 135, 0.15),
+    0 8px 24px rgba(31, 38, 135, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
   overflow: hidden;
-  animation: slideInUp 0.4s ease-out;
+  animation: modalSlideIn 0.4s ease-out;
+  width: 90%;
+  max-width: 1200px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-workorders-header {
@@ -412,6 +435,13 @@
   justify-content: center;
   align-items: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 10px;
+}
+
+.btn-close svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-right: 0;;
 }
 
 .btn-close:hover {
@@ -422,10 +452,44 @@
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
-/* Work Orders Table */
+/* Modal Body Sections */
+.user-equipment-section,
+.user-workorders-section {
+  margin-bottom: 2rem;
+}
+
+.user-workorders-section {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem 0;
+}
+
+.section-title .icon {
+  color: #3b82f6;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Equipment and Work Orders Tables */
+.user-equipment-table-container,
 .workorders-table-container {
   overflow-x: auto;
+  overflow-y: auto;
   background: rgba(255, 255, 255, 0.5);
+  max-height: 300px;
+}
+
+.workorders-table-container {
+  max-height: 250px;
 }
 
 .workorders-table {
@@ -502,6 +566,54 @@
   background: rgba(107, 114, 128, 0.1);
   color: #374151;
   border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.status-installed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Equipment and User Info Styles */
+.equipment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.equipment-category {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.equipment-description {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.serial-number {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #1f2937;
+  background: rgba(59, 130, 246, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+}
+
+.date-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.date-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #9ca3af;
 }
 
 /* Action Buttons */
@@ -622,6 +734,17 @@
   }
 }
 
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes slideInUp {
   from {
     opacity: 0;
@@ -700,6 +823,11 @@
     font-size: 1rem;
   }
   
+  .user-workorders-modal {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
   .workorders-table th,
   .workorders-table td {
     padding: 0.75rem 0.5rem;
@@ -743,6 +871,21 @@
     padding: 0.25rem 0.5rem;
     font-size: 0.7rem;
   }
+  
+  .user-workorders-modal {
+    width: 98%;
+    max-height: 80vh;
+  }
+  
+  .section-title {
+    font-size: 1rem;
+    padding: 0.75rem 1rem 0;
+  }
+  
+  .user-equipment-table-container,
+  .workorders-table-container {
+    max-height: 200px;
+  }
 }
 
 /* Focus Styles for Accessibility */
@@ -770,7 +913,7 @@
   .user-card,
   .search-container,
   .page-header,
-  .user-workorders-container {
+  .user-workorders-modal {
     border: 2px solid #000;
   }
   

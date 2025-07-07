@@ -136,7 +136,7 @@ const WorkOrdersList = () => {
           <ClipboardIcon />
           Pregled radnih naloga
         </h1>
-        <div className="header-actions">
+        <div className="Work-orders-header-actions">
           <Link to="/work-orders/add" className="btn btn-primary">
             <PlusIcon /> Novi nalog
           </Link>
