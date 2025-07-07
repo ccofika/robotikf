@@ -145,7 +145,10 @@ const TechnicianWorkOrders = () => {
     
     const statusMatch = statusFilter === '' || order.status === statusFilter;
     
-    return searchMatch && statusMatch;
+    // Ako nema filtera, ne prikazuj završene radne naloge
+    const defaultHideCompleted = statusFilter === '' && searchTerm === '' ? order.status !== 'zavrsen' : true;
+    
+    return searchMatch && statusMatch && defaultHideCompleted;
   });
   
   // Sortiranje po datumu
@@ -154,8 +157,8 @@ const TechnicianWorkOrders = () => {
     if (a.status === 'nezavrsen' && b.status !== 'nezavrsen') return -1;
     if (a.status !== 'nezavrsen' && b.status === 'nezavrsen') return 1;
     
-    // Zatim sortiramo po datumu
-    return new Date(a.date) - new Date(b.date);
+    // Zatim sortiramo po datumu - najnoviji na vrhu
+    return new Date(b.date) - new Date(a.date);
   });
   
   // Paginacija
@@ -295,6 +298,16 @@ const TechnicianWorkOrders = () => {
           <div className="stat-content">
             <h3>{stats.postponed}</h3>
             <p>Odloženo</p>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon canceled">
+            <span>{stats.canceled}</span>
+          </div>
+          <div className="stat-content">
+            <h3>{stats.canceled}</h3>
+            <p>Otkazano</p>
           </div>
         </div>
       </div>

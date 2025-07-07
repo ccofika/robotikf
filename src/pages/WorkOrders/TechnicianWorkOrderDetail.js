@@ -52,6 +52,9 @@ const TechnicianWorkOrderDetail = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [stableEquipment, setStableEquipment] = useState([]);
   
+  // Dodaj state za provjeru da li je radni nalog završen
+  const isWorkOrderCompleted = workOrder?.status === 'zavrsen';
+  
   // Materijali state - optimizovano sa ref-ovima za stable input handling
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
@@ -508,6 +511,139 @@ const TechnicianWorkOrderDetail = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  // Funkcija za kompresovanje slika
+  const compressImage = (file, quality = 0.7, maxWidth = 1200, maxHeight = 1200) => {
+    console.log(`🖼️ Početak kompresovanja slike: ${file.name}`);
+    console.log(`📊 Originalna veličina: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+    
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        console.log(`📐 Originalne dimenzije: ${img.width}x${img.height}`);
+        
+        // Kalkulacija novih dimenzija zadržavajući proporcije
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        console.log(`🔧 Nove dimenzije: ${Math.round(width)}x${Math.round(height)}`);
+        
+        // Postavka canvas dimenzija
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Crtanje slike na canvas sa anti-aliasing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Konvertovanje u blob sa specificiranim kvalitetom
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              console.error('❌ Greška pri kompresovanju slike:', file.name);
+              reject(new Error(`Neuspešno kompresovanje slike: ${file.name}`));
+              return;
+            }
+            
+            const compressionRatio = ((file.size - blob.size) / file.size * 100).toFixed(1);
+            console.log(`✅ Kompresovanje završeno za: ${file.name}`);
+            console.log(`📉 Nova veličina: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+            console.log(`🎯 Kompresija: ${compressionRatio}%`);
+            
+            // Kreiranje novog File objekta sa kompresovanom slikom
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      
+      img.onerror = () => {
+        console.error('❌ Greška pri učitavanju slike za kompresovanje:', file.name);
+        reject(new Error(`Neuspešno učitavanje slike: ${file.name}`));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Funkcija za kompresovanje više slika odjednom
+  const compressMultipleImages = async (files) => {
+    console.log(`🚀 Početak kompresovanja ${files.length} slika`);
+    const startTime = Date.now();
+    
+    const compressedFiles = [];
+    const failedCompressions = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      console.log(`\n📸 Kompresovanje slike ${i + 1}/${files.length}: ${file.name}`);
+      
+      try {
+        // Dinamički kvalitet na osnovu veličine fajla
+        let quality = 0.7;
+        const fileSizeMB = file.size / 1024 / 1024;
+        
+        if (fileSizeMB > 5) {
+          quality = 0.5; // Veća kompresija za veće fajlove
+        } else if (fileSizeMB > 10) {
+          quality = 0.4; // Još veća kompresija za vrlo velike fajlove
+        }
+        
+        console.log(`🎛️ Primenjeni kvalitet kompresije: ${(quality * 100)}%`);
+        
+        const compressedFile = await compressImage(file, quality);
+        compressedFiles.push(compressedFile);
+        
+      } catch (error) {
+        console.error(`❌ Neuspešno kompresovanje: ${file.name}`, error);
+        failedCompressions.push(file.name);
+        // Dodaj originalnu sliku ako kompresovanje ne uspe
+        compressedFiles.push(file);
+      }
+    }
+    
+    const endTime = Date.now();
+    const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+    
+    console.log(`\n🏁 Kompresovanje završeno za ${totalTime}s`);
+    console.log(`✅ Uspešno kompresovano: ${compressedFiles.length - failedCompressions.length}/${files.length}`);
+    
+    if (failedCompressions.length > 0) {
+      console.log(`⚠️ Neuspešno kompresovano: ${failedCompressions.join(', ')}`);
+    }
+    
+    // Kalkulacija ukupne uštede
+    const originalTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const compressedTotalSize = compressedFiles.reduce((sum, file) => sum + file.size, 0);
+    const totalSavings = ((originalTotalSize - compressedTotalSize) / originalTotalSize * 100).toFixed(1);
+    
+    console.log(`💾 Ukupna ušteda prostora: ${totalSavings}%`);
+    console.log(`📊 Originalna ukupna veličina: ${(originalTotalSize / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`📊 Kompresovana ukupna veličina: ${(compressedTotalSize / 1024 / 1024).toFixed(2)} MB`);
+    
+    return compressedFiles;
+  };
   
   const handleDateChange = (date) => {
     setFormData(prev => ({ ...prev, postponeDate: date }));
@@ -570,9 +706,20 @@ const TechnicianWorkOrderDetail = () => {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     
+    console.log('\n📸========== IZBOR SLIKA ==========📸');
+    console.log(`📋 Broj odabranih fajlova: ${files.length}`);
+    
     if (files.length === 0) {
+      console.log('⚠️ Nisu odabrani fajlovi');
       return;
     }
+    
+    // Log informacija o svakom fajlu
+    files.forEach((file, index) => {
+      console.log(`📄 Fajl ${index + 1}: ${file.name}`);
+      console.log(`📊 Veličina: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`🔍 Tip: ${file.type}`);
+    });
     
     // Validacija tipa fajla i veličine
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -648,11 +795,14 @@ const TechnicianWorkOrderDetail = () => {
     
     // Prikaži greške za neispravne fajlove
     if (invalidFiles.length > 0) {
+      console.log(`❌ Neispravni fajlovi: ${invalidFiles.join(', ')}`);
       toast.error(`Sledeći fajlovi nisu validni:\n${invalidFiles.join('\n')}`);
     }
     
     // Prikaži uspešnu poruku
     if (validFiles.length > 0) {
+      console.log(`✅ Validnih fajlova: ${validFiles.length}`);
+      console.log(`📋 Imena validnih fajlova: ${validFiles.map(f => f.name).join(', ')}`);
       toast.success(`Odabrano ${validFiles.length} slika za upload`);
     }
     
@@ -660,6 +810,8 @@ const TechnicianWorkOrderDetail = () => {
     
     // Resetuj progress
     setUploadProgress([]);
+    
+    console.log('🏁========== IZBOR SLIKA ZAVRŠEN ==========🏁\n');
   };
   
   const handleSubmit = async (e) => {
@@ -718,6 +870,9 @@ const TechnicianWorkOrderDetail = () => {
       return;
     }
     
+    console.log('\n🚀========== POČETAK UPLOAD PROCESA ==========🚀');
+    console.log(`📋 Ukupno slika za upload: ${imageFiles.length}`);
+    
     setUploadingImages(true);
     
     // Osveži listu slika pre upload-a da se uverim da je najnovija
@@ -754,27 +909,49 @@ const TechnicianWorkOrderDetail = () => {
       console.error('Greška pri proveri duplikata:', error);
     }
     
+    // KORAK 1: Kompresovanje slika
+    console.log('\n🔄========== KORAK 1: KOMPRESOVANJE SLIKA ==========🔄');
+    let compressedFiles;
+    try {
+      compressedFiles = await compressMultipleImages(imageFiles);
+      console.log('✅ Sve slike su uspešno kompresovane');
+    } catch (error) {
+      console.error('❌ Greška pri kompresovanju slika:', error);
+      toast.error('Greška pri pripremi slika za upload');
+      setUploadingImages(false);
+      return;
+    }
+    
     // Inicijalizacija progress tracking-a
-    const progressArray = imageFiles.map(() => 0);
+    const progressArray = compressedFiles.map(() => 0);
     setUploadProgress(progressArray);
     
+    // KORAK 2: Upload kompresovanih slika
+    console.log('\n📤========== KORAK 2: UPLOAD NA CLOUDINARY ==========📤');
     const successfulUploads = [];
     const failedUploads = [];
     
     try {
       // Upload slika jedna po jedna da možemo pratiti progress
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
+      for (let i = 0; i < compressedFiles.length; i++) {
+        const file = compressedFiles[i];
+        const originalFileName = imageFiles[i].name; // Zadržavam originalno ime za logove
+        
+        console.log(`\n📤 Upload slike ${i + 1}/${compressedFiles.length}: ${originalFileName}`);
+        console.log(`📊 Veličina za upload: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
         
         try {
           const formData = new FormData();
           formData.append('image', file);
           formData.append('technicianId', user._id);
           
-          // Ažuriraj progress za trenutnu sliku
+          // Ažuriraj progress za trenutnu sliku - početak upload-a
           const newProgress = [...progressArray];
-          newProgress[i] = 50; // Početak upload-a
+          newProgress[i] = 25; // Kompresija završena, početak upload-a
           setUploadProgress(newProgress);
+          
+          console.log('🌐 Slanje na server...');
+          const uploadStartTime = Date.now();
           
           const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
             headers: {
@@ -782,16 +959,21 @@ const TechnicianWorkOrderDetail = () => {
             }
           });
           
+          const uploadTime = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
+          console.log(`✅ Upload završen za ${uploadTime}s: ${originalFileName}`);
+          console.log(`🔗 URL: ${response.data?.url || 'N/A'}`);
+          
           // Uspešan upload
-          successfulUploads.push(file.name);
+          successfulUploads.push(originalFileName);
           
           // Završetak upload-a
           newProgress[i] = 100;
           setUploadProgress(newProgress);
           
         } catch (error) {
-          console.error(`Greška pri upload-u slike ${file.name}:`, error);
-          failedUploads.push(file.name);
+          console.error(`❌ Greška pri upload-u slike ${originalFileName}:`, error);
+          console.error('📋 Error details:', error.response?.data);
+          failedUploads.push(originalFileName);
           
           // Označava neuspešan upload
           const newProgress = [...progressArray];
@@ -800,27 +982,39 @@ const TechnicianWorkOrderDetail = () => {
         }
       }
       
-      // Prikaži rezultate
+      // KORAK 3: Finalizacija i izveštavanje
+      console.log('\n📊========== KORAK 3: FINALNI IZVEŠTAJ ==========📊');
+      console.log(`✅ Uspešno uploadovano: ${successfulUploads.length}/${compressedFiles.length}`);
+      console.log(`❌ Neuspešno uploadovano: ${failedUploads.length}/${compressedFiles.length}`);
+      
       if (successfulUploads.length > 0) {
+        console.log(`🎉 Uspešni upload-i: ${successfulUploads.join(', ')}`);
         toast.success(`Uspešno uploadovano ${successfulUploads.length} slika`);
       }
       
       if (failedUploads.length > 0) {
+        console.log(`💥 Neuspešni upload-i: ${failedUploads.join(', ')}`);
         toast.error(`Neuspešan upload za ${failedUploads.length} slika: ${failedUploads.join(', ')}`);
       }
       
       // Osveži listu slika
+      console.log('🔄 Osvežavanje liste slika...');
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       const updatedImages = response.data.images || [];
       setImages(updatedImages);
+      console.log(`📋 Nova lista slika: ${updatedImages.length} ukupno`);
       
       // Reset polja za slike
       setImageFiles([]);
       setImagePreviews([]);
       document.getElementById('image-upload').value = '';
+      console.log('🧹 Polja za slike su obrisana');
+      
+      console.log('🏁========== UPLOAD PROCES ZAVRŠEN ==========🏁\n');
       
     } catch (error) {
-      console.error('Opšta greška pri upload-u slika:', error);
+      console.error('💥 Opšta greška pri upload-u slika:', error);
+      console.error('📋 Error stack:', error.stack);
       toast.error('Neuspešan upload slika. Pokušajte ponovo.');
     } finally {
       setUploadingImages(false);
@@ -1356,6 +1550,7 @@ const TechnicianWorkOrderDetail = () => {
             className="btn btn-sm btn-primary"
             onClick={openMaterialsModal}
             type="button"
+            disabled={isWorkOrderCompleted}
           >
             + Dodaj materijal
           </button>
@@ -1376,7 +1571,7 @@ const TechnicianWorkOrderDetail = () => {
                 <button
                   className="btn btn-icon remove-btn"
                   onClick={() => removeMaterial(item.material?._id || item.material)}
-                  disabled={loadingMaterials}
+                  disabled={loadingMaterials || isWorkOrderCompleted}
                   type="button"
                 >
                   <DeleteIcon />
@@ -1387,6 +1582,12 @@ const TechnicianWorkOrderDetail = () => {
         ) : (
           <div className="no-materials-message">
             Nema dodanih materijala
+          </div>
+        )}
+        
+        {isWorkOrderCompleted && (
+          <div className="info-message">
+            Radni nalog je završen - uređivanje materijala nije moguće.
           </div>
         )}
       </div>
@@ -1409,6 +1610,7 @@ const TechnicianWorkOrderDetail = () => {
                 <button
                   className="btn btn-icon remove-btn"
                   onClick={() => openRemoveEquipmentDialog(equipment)}
+                  disabled={isWorkOrderCompleted}
                 >
                   <DeleteIcon />
                   <span>Ukloni</span>
@@ -1578,7 +1780,7 @@ const TechnicianWorkOrderDetail = () => {
                   type="button"
                   className="btn btn-secondary select-equipment-btn"
                   onClick={openEquipmentModal}
-                  disabled={loadingEquipment || technicianEquipment.length === 0}
+                  disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}
                 >
                   <SearchIcon /> Izaberi opremu
                 </button>
@@ -1594,7 +1796,7 @@ const TechnicianWorkOrderDetail = () => {
                   type="button"
                   className="btn btn-primary add-equipment-btn"
                   onClick={() => handleAddEquipment(selectedEquipment)}
-                  disabled={!selectedEquipment || loadingEquipment}
+                  disabled={!selectedEquipment || loadingEquipment || isWorkOrderCompleted}
                 >
                   {loadingEquipment ? 'Dodavanje...' : 'Dodaj opremu'}
                 </button>
@@ -1603,6 +1805,12 @@ const TechnicianWorkOrderDetail = () => {
               {technicianEquipment.length === 0 && (
                 <p className="warning-message">
                   Nemate dostupnu opremu u vašem inventaru.
+                </p>
+              )}
+              
+              {isWorkOrderCompleted && (
+                <p className="info-message">
+                  Radni nalog je završen - uređivanje opreme nije moguće.
                 </p>
               )}
             </div>
@@ -1625,7 +1833,7 @@ const TechnicianWorkOrderDetail = () => {
                     onChange={handleImageChange}
                     accept="image/jpeg,image/png"
                     multiple
-                    disabled={uploadingImages}
+                    disabled={uploadingImages || isWorkOrderCompleted}
                     className="hidden-upload"
                   />
                   <label htmlFor="image-upload" className="upload-label">
@@ -1731,12 +1939,19 @@ const TechnicianWorkOrderDetail = () => {
                               handleImageDelete(imageUrl);
                             }}
                             title="Obriši sliku"
+                            disabled={isWorkOrderCompleted}
                           >
                             <DeleteIcon />
                           </button>
                         </div>
                       );
                     })}
+                  </div>
+                )}
+                
+                {isWorkOrderCompleted && (
+                  <div className="info-message">
+                    Radni nalog je završen - dodavanje/brisanje slika nije moguće.
                   </div>
                 )}
               </div>
@@ -1754,13 +1969,27 @@ const TechnicianWorkOrderDetail = () => {
                   name="comment"
                   value={formData.comment}
                   onChange={handleChange}
-                  placeholder="Unesite komentar o izvršenom poslu"
-                  disabled={saving}
+                  placeholder={isWorkOrderCompleted ? "Radni nalog je završen - komentar se ne može menjati" : "Unesite komentar o izvršenom poslu"}
+                  disabled={saving || isWorkOrderCompleted}
                   rows="4"
                 ></textarea>
               </div>
             </div>
           </div>
+          
+          {isWorkOrderCompleted && (
+            <div className="card completion-info-card">
+              <div className="card-header">
+                <h2>Informacije o završetku</h2>
+              </div>
+              <div className="card-body">
+                <div className="info-message">
+                  <strong>Radni nalog je završen</strong> - sva polja su samo za čitanje.
+                  Možete pregledati sve informacije, ali ne možete ih menjati.
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Mobilni status panel - pozicija 8 */}
           {isMobile && (
@@ -1769,28 +1998,28 @@ const TechnicianWorkOrderDetail = () => {
                 <button
                   className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('zavrsen')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <CheckIcon /> Završen
                 </button>
                 <button
                   className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('nezavrsen')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <ClockIcon /> Nezavršen
                 </button>
                 <button
                   className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('odlozen')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <AlertIcon /> Odložen
                 </button>
                 <button
                   className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('otkazan')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <CloseIcon /> Otkazan
                 </button>
@@ -1807,28 +2036,28 @@ const TechnicianWorkOrderDetail = () => {
                 <button
                   className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('zavrsen')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <CheckIcon /> Završen
                 </button>
                 <button
                   className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('nezavrsen')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <ClockIcon /> Nezavršen
                 </button>
                 <button
                   className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('odlozen')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <AlertIcon /> Odložen
                 </button>
                 <button
                   className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
                   onClick={() => handleStatusChange('otkazan')}
-                  disabled={saving}
+                  disabled={saving || isWorkOrderCompleted}
                 >
                   <CloseIcon /> Otkazan
                 </button>
@@ -1882,7 +2111,7 @@ const TechnicianWorkOrderDetail = () => {
                     name="postponeTime"
                     value={formData.postponeTime}
                     onChange={handleChange}
-                    disabled={saving}
+                    disabled={saving || isWorkOrderCompleted}
                   />
                 </div>
               </div>
@@ -1894,9 +2123,9 @@ const TechnicianWorkOrderDetail = () => {
               <button 
                 type="submit" 
                 className="btn btn-primary save-btn"
-                disabled={saving}
+                disabled={saving || isWorkOrderCompleted}
               >
-                <SaveIcon /> {saving ? 'Čuvanje...' : 'Sačuvaj'}
+                <SaveIcon /> {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
               </button>
             </div>
           </form>
