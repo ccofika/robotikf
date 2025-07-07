@@ -25,15 +25,43 @@ const DefectiveEquipment = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [stats, setStats] = useState(null);
   
-  // Paginacija
+  // User equipment section states
+  const [userEquipment, setUserEquipment] = useState([]);
+  const [userEquipmentLoading, setUserEquipmentLoading] = useState(false);
+  const [userEquipmentError, setUserEquipmentError] = useState('');
+  const [userEquipmentSearchTerm, setUserEquipmentSearchTerm] = useState('');
+  const [userFilter, setUserFilter] = useState('');
+  const [users, setUsers] = useState([]);
+  const [usersMap, setUsersMap] = useState({});
+  
+  // Paginacija za defektivnu opremu
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  
+  // Paginacija za korisničku opremu
+  const [userEquipmentCurrentPage, setUserEquipmentCurrentPage] = useState(1);
+  const userEquipmentItemsPerPage = 15;
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
     fetchDefectiveEquipment();
+    fetchUsers();
   }, []);
+
+  // When users are loaded, create a map for faster lookups
+  useEffect(() => {
+    if (users.length > 0) {
+      const map = {};
+      users.forEach(user => {
+        map[user._id] = user;
+      });
+      setUsersMap(map);
+      
+      // Fetch user equipment after users are loaded
+      fetchUserEquipment();
+    }
+  }, [users]);
   
   const fetchDefectiveEquipment = async () => {
     setLoading(true);
@@ -59,6 +87,128 @@ const DefectiveEquipment = () => {
     }
   };
   
+  // Fetch all users
+  const fetchUsers = async () => {
+    try {
+      console.log('🔄 Fetching users...');
+      const response = await axios.get(`${apiUrl}/api/users`);
+      console.log('✅ Users loaded:', response.data.length);
+      setUsers(response.data);
+    } catch (error) {
+      console.error('❌ Error fetching users:', error);
+      toast.error('Neuspešno učitavanje korisnika!');
+    }
+  };
+  
+  // Fetch equipment for a specific user
+  const fetchUserEquipment = async (userId = '') => {
+    setUserEquipmentLoading(true);
+    setUserEquipmentError('');
+    
+    try {
+      console.log('🔄 Fetching user equipment...');
+      console.log('User ID:', userId);
+      let response;
+      
+      if (userId) {
+        response = await axios.get(`${apiUrl}/api/user-equipment/user/${userId}`);
+      } else {
+        response = await axios.get(`${apiUrl}/api/user-equipment`);
+      }
+      
+      console.log('✅ User equipment loaded:', response.data.length);
+      console.log('Equipment data sample:', response.data.length > 0 ? response.data[0] : 'No data');
+      setUserEquipment(response.data);
+    } catch (error) {
+      console.error('❌ Error fetching user equipment:', error);
+      setUserEquipmentError('Greška pri učitavanju korisničke opreme. Pokušajte ponovo.');
+      toast.error('Neuspešno učitavanje korisničke opreme!');
+    } finally {
+      setUserEquipmentLoading(false);
+    }
+  };
+  
+  // Handle user filter change
+  const handleUserFilterChange = (e) => {
+    const selectedUserId = e.target.value;
+    console.log('Selected user ID:', selectedUserId);
+    setUserFilter(selectedUserId);
+    
+    if (selectedUserId) {
+      // Ako je izabran korisnik, pronaći njegov tisId
+      const selectedUser = users.find(user => user._id === selectedUserId);
+      if (selectedUser) {
+        console.log('Selected user:', selectedUser.name, 'with tisId:', selectedUser.tisId);
+        fetchUserEquipment(selectedUserId); // Prosleđujemo MongoDB ID
+      } else {
+        console.log('User not found with ID:', selectedUserId);
+        fetchUserEquipment(selectedUserId);
+      }
+    } else {
+      fetchUserEquipment();
+    }
+  };
+  
+  // Handle search by serial number for user equipment
+  const handleUserEquipmentSearch = async () => {
+    if (!userEquipmentSearchTerm) {
+      if (userFilter) {
+        fetchUserEquipment(userFilter);
+      } else {
+        fetchUserEquipment();
+      }
+      return;
+    }
+    
+    setUserEquipmentLoading(true);
+    setUserEquipmentError('');
+    
+    try {
+      // First try to find equipment by serial number
+      console.log('🔍 Searching for equipment with serial number:', userEquipmentSearchTerm);
+      const response = await axios.get(`${apiUrl}/api/equipment/serial/${userEquipmentSearchTerm}`);
+      console.log('Equipment search result:', response.data);
+      
+      if (response.data && response.data.location && response.data.location.startsWith('user-')) {
+        // Extract TIS ID from location (format: "user-TISID")
+        const userTisId = response.data.location.substring(5);
+        console.log('Found equipment installed at user with TIS ID:', userTisId);
+        
+        // Find user by TIS ID
+        const user = users.find(u => u.tisId === userTisId);
+        if (user) {
+          console.log('Found user:', user.name, 'with ID:', user._id);
+          // If found, set the user filter and fetch all equipment for that user
+          setUserFilter(user._id);
+          fetchUserEquipment(user._id);
+        } else {
+          console.log('User not found with TIS ID:', userTisId);
+          // Try to fetch equipment directly with TIS ID
+          setUserFilter(userTisId);
+          fetchUserEquipment(userTisId);
+        }
+      } else {
+        // If not found or not installed at a user, show message
+        console.log('Equipment not found or not installed at a user');
+        setUserEquipment([]);
+        setUserEquipmentError('Oprema sa unetim serijskim brojem nije pronađena kod korisnika.');
+        setUserEquipmentLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ Error searching equipment by serial number:', error);
+      setUserEquipmentError('Greška pri pretraživanju opreme. Pokušajte ponovo.');
+      setUserEquipmentLoading(false);
+    }
+  };
+  
+  // Reset user equipment filters
+  const handleUserEquipmentReset = () => {
+    setUserEquipmentSearchTerm('');
+    setUserFilter('');
+    fetchUserEquipment();
+    setUserEquipmentCurrentPage(1);
+  };
+  
   // Filtriranje i pretraga opreme
   const filteredEquipment = useMemo(() => {
     return equipment.filter(item => {
@@ -79,16 +229,35 @@ const DefectiveEquipment = () => {
     });
   }, [equipment, searchTerm, categoryFilter, dateFilter]);
   
+  // Filtriranje korisničke opreme
+  const filteredUserEquipment = useMemo(() => {
+    return userEquipment.filter(item => {
+      const searchMatch = userEquipmentSearchTerm === '' || 
+                         item.serialNumber.toLowerCase().includes(userEquipmentSearchTerm.toLowerCase()) ||
+                         (item.description && item.description.toLowerCase().includes(userEquipmentSearchTerm.toLowerCase())) ||
+                         (item.equipmentDescription && item.equipmentDescription.toLowerCase().includes(userEquipmentSearchTerm.toLowerCase()));
+      
+      return searchMatch;
+    });
+  }, [userEquipment, userEquipmentSearchTerm]);
+  
   // Dobijanje jedinstvenih vrednosti za filtere
   const categories = useMemo(() => {
     return [...new Set(equipment.map(item => item.category))].sort();
   }, [equipment]);
   
-  // Paginacija
+  // Paginacija za defektivnu opremu
   const totalPages = Math.ceil(filteredEquipment.length / itemsPerPage);
   const currentEquipment = filteredEquipment.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
+  );
+  
+  // Paginacija za korisničku opremu
+  const userEquipmentTotalPages = Math.ceil(filteredUserEquipment.length / userEquipmentItemsPerPage);
+  const currentUserEquipment = filteredUserEquipment.slice(
+    (userEquipmentCurrentPage - 1) * userEquipmentItemsPerPage,
+    userEquipmentCurrentPage * userEquipmentItemsPerPage
   );
   
   const formatDate = (dateString) => {
@@ -119,6 +288,48 @@ const DefectiveEquipment = () => {
     setCategoryFilter('');
     setDateFilter('');
     setCurrentPage(1);
+  };
+
+  // Find user name by ID using the users map for better performance
+  const getUserNameById = (userId) => {
+    if (!userId) return 'Nepoznato';
+    return usersMap[userId]?.name || 'Nepoznato';
+  };
+
+  // Extract user TIS ID from location field (format: "user-TISID")
+  const extractUserTisIdFromLocation = (location) => {
+    if (!location || typeof location !== 'string') return null;
+    if (location.startsWith('user-')) {
+      return location.substring(5);
+    }
+    return null;
+  };
+  
+  // Find user by TIS ID
+  const getUserByTisId = (tisId) => {
+    if (!tisId) return null;
+    return users.find(user => user.tisId === tisId);
+  };
+  
+  // Get user name for display
+  const getUserNameForDisplay = (item) => {
+    // If item already has userName from API, use it
+    if (item.userName) return item.userName;
+    
+    // If item has userId, try to get name from usersMap
+    if (item.userId) {
+      const userName = getUserNameById(item.userId);
+      if (userName !== 'Nepoznato') return userName;
+    }
+    
+    // Try to find user by TIS ID from item or from location
+    const tisId = item.userTisId || extractUserTisIdFromLocation(item.location);
+    if (tisId) {
+      const user = getUserByTisId(tisId);
+      if (user) return user.name;
+    }
+    
+    return 'Nepoznato';
   };
 
   return (
@@ -367,6 +578,195 @@ const DefectiveEquipment = () => {
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="pagination-btn"
+                  >
+                    Sledeća
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* User Equipment Section */}
+      <div className="section-divider">
+        <h2 className="section-title">
+          <UserIcon size={24} />
+          Oprema instalirana kod korisnika
+        </h2>
+        <p className="section-subtitle">
+          Pregled sve opreme instalirane kod korisnika sa detaljima
+        </p>
+      </div>
+
+      {/* User Equipment Controls */}
+      <div className="controls-section">
+        <div className="search-section">
+          <div className="search-input-container">
+            <SearchIcon size={20} />
+            <input
+              type="text"
+              placeholder="Pretraži po serijskom broju opreme..."
+              value={userEquipmentSearchTerm}
+              onChange={(e) => setUserEquipmentSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <button onClick={handleUserEquipmentSearch} className="search-btn">
+              <SearchIcon size={16} />
+              Pretraži
+            </button>
+          </div>
+        </div>
+
+        <div className="filters-section">
+          <div className="filter-group">
+            <label>
+              <UserIcon size={16} />
+              Korisnik:
+            </label>
+            <select
+              value={userFilter}
+              onChange={handleUserFilterChange}
+              className="filter-select"
+            >
+              <option value="">Svi korisnici</option>
+              {users.map(user => (
+                <option key={user._id} value={user._id}>
+                  {user.name} - {user.tisId}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="action-buttons">
+            <button onClick={handleUserEquipmentReset} className="reset-btn">
+              <RefreshIcon size={16} />
+              Resetuj
+            </button>
+            
+            <button onClick={() => userFilter ? fetchUserEquipment(userFilter) : fetchUserEquipment()} className="refresh-btn">
+              <RefreshIcon size={16} />
+              Osveži
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* User Equipment Content */}
+      <div className="content-section">
+        {userEquipmentLoading ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <p>Učitava korisničku opremu...</p>
+          </div>
+        ) : userEquipmentError ? (
+          <div className="error-state">
+            <AlertTriangleIcon size={48} />
+            <h3>Greška</h3>
+            <p>{userEquipmentError}</p>
+            <button onClick={() => userFilter ? fetchUserEquipment(userFilter) : fetchUserEquipment()} className="retry-btn">
+              Pokušaj ponovo
+            </button>
+          </div>
+        ) : filteredUserEquipment.length === 0 ? (
+          <div className="empty-state">
+            <EquipmentIcon size={64} />
+            <h3>Nema korisničke opreme</h3>
+            <p>
+              {userEquipment.length === 0 
+                ? 'Trenutno nema opreme instalirane kod korisnika.'
+                : 'Nema opreme koja odgovara trenutnim filterima.'
+              }
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* User Equipment Table */}
+            <div className="table-container">
+              <table className="defective-table">
+                <thead>
+                  <tr>
+                    <th>Oprema</th>
+                    <th>Serijski broj</th>
+                    <th>Status</th>
+                    <th>Korisnik</th>
+                    <th>Lokacija</th>
+                    <th>Datum instalacije</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentUserEquipment.map((item) => (
+                    <tr key={item._id || item.id}>
+                      <td>
+                        <div className="equipment-info">
+                          <div className="equipment-category">{item.category || item.equipmentType}</div>
+                          <div className="equipment-description">{item.description || item.equipmentDescription}</div>
+                        </div>
+                      </td>
+                      
+                      <td>
+                        <span className="serial-number">{item.serialNumber}</span>
+                      </td>
+                      
+                      <td>
+                        {getStatusBadge(item.status)}
+                      </td>
+                      
+                      <td>
+                        <div className="user-info">
+                          <UserIcon size={14} />
+                          <span>
+                            {getUserNameForDisplay(item)}
+                            {item.userTisId && <span className="user-tisid"> (TIS: {item.userTisId})</span>}
+                          </span>
+                        </div>
+                      </td>
+                      
+                      <td>
+                        <div className="location-info">
+                          <MapPinIcon size={14} />
+                          {item.location}
+                        </div>
+                      </td>
+                      
+                      <td>
+                        <div className="date-info">
+                          <CalendarIcon size={14} />
+                          {formatDate(item.installedAt)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* User Equipment Pagination */}
+            {userEquipmentTotalPages > 1 && (
+              <div className="pagination-container">
+                <div className="pagination-info">
+                  <span>
+                    Prikazuje se {((userEquipmentCurrentPage - 1) * userEquipmentItemsPerPage) + 1}-{Math.min(userEquipmentCurrentPage * userEquipmentItemsPerPage, filteredUserEquipment.length)} od {filteredUserEquipment.length} stavki
+                  </span>
+                </div>
+                
+                <div className="pagination-controls">
+                  <button
+                    disabled={userEquipmentCurrentPage === 1}
+                    onClick={() => setUserEquipmentCurrentPage(prev => prev - 1)}
+                    className="pagination-btn"
+                  >
+                    Prethodna
+                  </button>
+                  
+                  <span className="page-info">
+                    Strana {userEquipmentCurrentPage} od {userEquipmentTotalPages}
+                  </span>
+                  
+                  <button
+                    disabled={userEquipmentCurrentPage === userEquipmentTotalPages}
+                    onClick={() => setUserEquipmentCurrentPage(prev => prev + 1)}
                     className="pagination-btn"
                   >
                     Sledeća

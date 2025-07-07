@@ -58,7 +58,8 @@ const WorkOrdersByTechnician = () => {
   
   const handleVerifyOrder = async (orderId) => {
     try {
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`);
+      // Sending an empty object as the request body
+      await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`, {});
       toast.success('Radni nalog je uspešno verifikovan!');
       
       // Ažuriranje liste nakon verifikacije

@@ -45,7 +45,12 @@ const EquipmentList = () => {
     
     try {
       const response = await equipmentAPI.getDisplay();
-      setEquipment(response.data);
+      // Filtriramo opremu da prikaže samo onu iz magacina i kod tehničara
+      const filteredData = response.data.filter(item => 
+        item.location === 'magacin' || 
+        (item.location && item.location.startsWith('tehnicar-'))
+      );
+      setEquipment(filteredData);
     } catch (error) {
       console.error('Greška pri učitavanju opreme:', error);
       setError('Greška pri učitavanju opreme. Pokušajte ponovo.');
@@ -93,9 +98,14 @@ const EquipmentList = () => {
   }, [equipment]);
   
   const uniqueLocations = useMemo(() => {
-    const locations = [...new Set(equipment.map(item => item.location))];
+    // Filtriramo lokacije da prikažemo samo magacin i tehničare
+    const locations = [...new Set(equipment.map(item => item.location))]
+      .filter(location => 
+        location === 'magacin' || 
+        (location && location.startsWith('tehnicar-'))
+      );
     return ['', ...locations];
-  }, [equipment, technicians, users]);
+  }, [equipment]);
   
   // Paginacija
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -114,12 +124,6 @@ const EquipmentList = () => {
       // Pronađi tehničara po ID-u
       const technician = technicians.find(tech => tech._id === techId || tech.id === techId);
       return technician ? `Tehničar: ${technician.name}` : `Tehničar ID: ${techId}`;
-    }
-    if (location.startsWith('user-')) {
-      const userId = location.split('-')[1];
-      // Pronađi korisnika po ID-u
-      const user = users.find(user => user._id === userId || user.id === userId);
-      return user ? `Korisnik: ${user.username}` : `Korisnik ID: ${userId}`;
     }
     return location;
   };
