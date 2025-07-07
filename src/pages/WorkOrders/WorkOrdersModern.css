@@ -1,5 +1,17 @@
 /* Professional Corporate Glassmorphism Design for Work Orders */
 
+/* Clickable Rows */
+.clickable-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-row:hover {
+  background: rgba(59, 130, 246, 0.07) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(31, 38, 135, 0.1);
+}
+
 /* Main Containers */
 .work-orders-list,
 .add-work-order,

@@ -27,7 +27,7 @@ const ExportSpecification = () => {
   const fetchStats = async () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/export/preview?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+      const response = await fetch(`${apiUrl}/api/export/evidence-preview?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -60,7 +60,7 @@ const ExportSpecification = () => {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const endpoint = '/api/export/evidencija';
+      const endpoint = '/api/export/evidencija-new';
 
       const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
@@ -116,7 +116,7 @@ const ExportSpecification = () => {
           Export Evidencije
         </h1>
         <p className="page-subtitle">
-          Kreirajte Excel evidenciju radnih naloga za izabrani vremenski period
+          Kreirajte Excel evidenciju radnih naloga sa detaljnim podacima o instaliranim i uklonjenim uređajima
         </p>
         <button 
           onClick={handleRefresh}
@@ -232,7 +232,7 @@ const ExportSpecification = () => {
         <div className="export-card">
           <div className="card-header">
             <h2>Evidencija radnih naloga</h2>
-            <p>Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom</p>
+            <p>Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom iz WorkOrderEvidence baze</p>
           </div>
 
           <div className="sheet-info">
@@ -242,7 +242,7 @@ const ExportSpecification = () => {
               </div>
               <div className="sheet-details">
                 <h4>Tabelarni pregled</h4>
-                <p>Kompletna evidencija sa svim detaljima: datum, status, korisnik, adresa, tehničari, instalirana oprema (ONT/HFC, Hybrid, STB/CAM, Kartice, Mini node)</p>
+                <p>Kompletna evidencija sa svim detaljima: datum, status, korisnik, adresa, tehničari, instalirana i uklonjena oprema sa serijskim brojevima (ONT/HFC, Hybrid, STB/CAM, Kartice, Mini node)</p>
                 <div className="equipment-categories">
                   <span className="category-tag">ONT/HFC</span>
                   <span className="category-tag">Hybrid</span>
@@ -250,6 +250,8 @@ const ExportSpecification = () => {
                   <span className="category-tag">Kartice</span>
                   <span className="category-tag">Mini node</span>
                   <span className="category-tag">Demontaža</span>
+                  <span className="category-tag">Serijski brojevi</span>
+                  <span className="category-tag">N/R Status</span>
                 </div>
               </div>
             </div>
@@ -269,7 +271,7 @@ const ExportSpecification = () => {
               ) : (
                 <>
                   <DownloadIcon />
-                  Preuzmi Excel evidenciju
+                  Preuzmi Excel evidenciju (WorkOrderEvidence)
                 </>
               )}
             </button>

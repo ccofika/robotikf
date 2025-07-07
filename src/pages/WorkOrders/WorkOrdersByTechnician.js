@@ -1,6 +1,6 @@
 // Kreirati u direktorijumu: src/pages/WorkOrders/WorkOrdersByTechnician.js
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon } from '../../components/icons/SvgIcons';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -17,6 +17,7 @@ const WorkOrdersByTechnician = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('technicians');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
+  const navigate = useNavigate();
   
   // Paginacija
   const [currentPageUnassigned, setCurrentPageUnassigned] = useState(1);
@@ -258,6 +259,17 @@ const WorkOrdersByTechnician = () => {
       </div>
     );
   };
+
+  // Funkcija za navigaciju na detalje radnog naloga
+  const navigateToOrderDetails = (orderId, event) => {
+    // Proveravamo da li je klik bio na dugmetu za brisanje ili verifikaciju
+    // Ako jeste, ne navigiramo na detalje
+    if (event.target.closest('.delete-btn') || event.target.closest('.verify-btn')) {
+      return;
+    }
+    
+    navigate(`/work-orders/${orderId}`);
+  };
   
   return (
     <div className="work-orders-by-technician fade-in">
@@ -430,7 +442,11 @@ const WorkOrdersByTechnician = () => {
                                   </thead>
                                   <tbody>
                                     {sortByDate(currentTechItems).map((order) => (
-                                      <tr key={order._id}>
+                                      <tr 
+                                        key={order._id} 
+                                        onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                        className="clickable-row"
+                                      >
                                         <td data-label="Datum">{formatDate(order.date)}</td>
                                         <td data-label="Opština">{order.municipality}</td>
                                         <td data-label="Adresa">{order.address}</td>
@@ -450,6 +466,7 @@ const WorkOrdersByTechnician = () => {
                                           <Link 
                                             to={`/work-orders/${order._id}`} 
                                             className="btn btn-sm action-btn view-btn"
+                                            onClick={(e) => e.stopPropagation()}
                                           >
                                             <ViewIcon size={14} /> Detalji
                                           </Link>
@@ -517,7 +534,11 @@ const WorkOrdersByTechnician = () => {
                         </thead>
                         <tbody>
                           {sortByDate(currentUnassignedItems).map((order) => (
-                            <tr key={order._id}>
+                            <tr 
+                              key={order._id} 
+                              onClick={(e) => navigateToOrderDetails(order._id, e)}
+                              className="clickable-row"
+                            >
                               <td data-label="Datum">{formatDate(order.date)}</td>
                               <td data-label="Opština">{order.municipality}</td>
                               <td data-label="Adresa">{order.address}</td>
@@ -532,12 +553,16 @@ const WorkOrdersByTechnician = () => {
                                 <Link 
                                   to={`/work-orders/${order._id}`} 
                                   className="btn btn-sm action-btn view-btn"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <ViewIcon size={14} /> Detalji
                                 </Link>
                                 <button 
                                   className="btn btn-sm action-btn delete-btn"
-                                  onClick={() => handleDelete(order._id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(order._id);
+                                  }}
                                 >
                                   <DeleteIcon size={14} />
                                 </button>
@@ -593,7 +618,11 @@ const WorkOrdersByTechnician = () => {
                           {sortByDate(currentVerificationItems).map((order) => {
                             const technician = technicians.find(tech => tech._id === order.technicianId);
                             return (
-                              <tr key={order._id}>
+                              <tr 
+                                key={order._id}
+                                onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                className="clickable-row"
+                              >
                                 <td data-label="Datum">{formatDate(order.date)}</td>
                                 <td data-label="Opština">{order.municipality}</td>
                                 <td data-label="Adresa">{order.address}</td>
@@ -604,12 +633,16 @@ const WorkOrdersByTechnician = () => {
                                   <Link 
                                     to={`/work-orders/${order._id}`} 
                                     className="btn btn-sm action-btn view-btn"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     <ViewIcon size={14} /> Detalji
                                   </Link>
                                   <button 
                                     className="btn btn-sm action-btn verify-btn"
-                                    onClick={() => handleVerifyOrder(order._id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleVerifyOrder(order._id);
+                                    }}
                                   >
                                     <CheckIcon size={14} /> Verifikuj
                                   </button>
