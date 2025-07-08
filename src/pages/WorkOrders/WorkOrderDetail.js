@@ -266,27 +266,38 @@ const WorkOrderDetail = () => {
               <p className="no-images-message">Nema upload-ovanih slika za ovaj radni nalog</p>
             ) : (
               <div className="admin-images-grid">
-                {images.map((imageUrl, index) => (
-                  <div key={index} className="admin-gallery-image-item">
-                    <img 
-                      src={imageUrl} 
-                      alt={`Slika ${index + 1}`} 
-                      className="admin-gallery-image" 
-                      onClick={() => setShowFullImage(imageUrl)}
-                    />
-                    <button
-                      className="admin-delete-image-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleImageDelete(imageUrl);
-                      }}
-                      title="Obriši sliku"
-                      disabled={deletingImage}
-                    >
-                      <DeleteIcon />
-                    </button>
-                  </div>
-                ))}
+                {images.map((imageItem, index) => {
+                  // Podrška za stari i novi format
+                  const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
+                  const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
+                  
+                  return (
+                    <div key={index} className="admin-gallery-image-item">
+                      <img 
+                        src={imageUrl} 
+                        alt={originalName || `Slika ${index + 1}`} 
+                        className="admin-gallery-image" 
+                        onClick={() => setShowFullImage(imageUrl)}
+                      />
+                      {originalName && (
+                        <div className="image-filename-overlay">
+                          {originalName}
+                        </div>
+                      )}
+                      <button
+                        className="admin-delete-image-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleImageDelete(imageUrl);
+                        }}
+                        title="Obriši sliku"
+                        disabled={deletingImage}
+                      >
+                        <DeleteIcon />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
