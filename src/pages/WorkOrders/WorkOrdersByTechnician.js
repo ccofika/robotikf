@@ -540,6 +540,18 @@ const WorkOrdersByTechnician = () => {
                               </span>
                               <span className="workorders-stat-label">Završeni</span>
                             </div>
+                            <div className="workorders-stat">
+                              <span className="workorders-stat-value workorders-postponed">
+                                {techData.workOrders.filter(o => o.status === 'odlozen').length}
+                              </span>
+                              <span className="workorders-stat-label">Odloženi</span>
+                            </div>
+                            <div className="workorders-stat">
+                              <span className="workorders-stat-value workorders-canceled">
+                                {techData.workOrders.filter(o => o.status === 'otkazan').length}
+                              </span>
+                              <span className="workorders-stat-label">Otkazani</span>
+                            </div>
                           </div>
                         </div>
                         

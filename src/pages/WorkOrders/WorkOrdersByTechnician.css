@@ -626,6 +626,14 @@
   color: var(--workorders-secondary);
 }
 
+.workorders-stat-value.workorders-postponed {
+  color: #F59E0B;
+}
+
+.workorders-stat-value.workorders-canceled {
+  color: #EF4444;
+}
+
 .workorders-stat-label {
   font-size: 0.75rem;
   color: var(--workorders-gray-500);

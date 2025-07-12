@@ -508,6 +508,68 @@ const WorkOrderDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Sekcija za istoriju odlaganja */}
+        {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (
+          <div className="card postpone-history-section">
+            <div className="card-header">
+              <h3><HistoryIcon size={20} /> Istorija odlaganja</h3>
+            </div>
+            <div className="card-body">
+              <div className="postpone-history-list">
+                {workOrder.postponeHistory.map((postponement, index) => (
+                  <div key={index} className="postpone-history-item">
+                    <div className="postpone-history-header">
+                      <span className="postpone-date">
+                        {new Date(postponement.postponedAt).toLocaleString('sr-RS')}
+                      </span>
+                      <span className="postpone-badge">Odlaganje #{index + 1}</span>
+                    </div>
+                    <div className="postpone-details">
+                      <div className="postpone-detail-row">
+                        <strong>Sa:</strong> {new Date(postponement.fromDate).toLocaleDateString('sr-RS')} u {postponement.fromTime}
+                      </div>
+                      <div className="postpone-detail-row">
+                        <strong>Na:</strong> {new Date(postponement.toDate).toLocaleDateString('sr-RS')} u {postponement.toTime}
+                      </div>
+                      <div className="postpone-detail-row">
+                        <strong>Razlog:</strong> {postponement.comment}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sekcija za istoriju otkazivanja */}
+        {workOrder?.cancelHistory && workOrder.cancelHistory.length > 0 && (
+          <div className="card cancel-history-section">
+            <div className="card-header">
+              <h3><BanIcon size={20} /> Istorija otkazivanja</h3>
+            </div>
+            <div className="card-body">
+              <div className="cancel-history-list">
+                {workOrder.cancelHistory.map((cancellation, index) => (
+                  <div key={index} className="cancel-history-item">
+                    <div className="cancel-history-header">
+                      <span className="cancel-date">
+                        {new Date(cancellation.canceledAt).toLocaleString('sr-RS')}
+                      </span>
+                      <span className="cancel-badge">Otkazivanje #{index + 1}</span>
+                    </div>
+                    <div className="cancel-details">
+                      <div className="cancel-detail-row">
+                        <strong>Razlog:</strong> {cancellation.comment}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="work-order-form">
           {error && <div className="alert alert-danger">{error}</div>}

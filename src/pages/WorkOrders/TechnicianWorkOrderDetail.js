@@ -19,12 +19,15 @@ const TechnicianWorkOrderDetail = () => {
     comment: '',
     status: '',
     postponeDate: null,
-    postponeTime: ''
+    postponeTime: '',
+    postponeComment: '',
+    cancelComment: ''
   });
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [images, setImages] = useState([]);
   const [showPostponeForm, setShowPostponeForm] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -863,10 +866,16 @@ const TechnicianWorkOrderDetail = () => {
       // Dodajemo ID trenutnog tehničara
       updatedData.technicianId = user._id;
       
-      // Ako je status odložen, MORA da imamo datum i vreme
+      // Ako je status odložen, MORA da imamo datum, vreme i komentar
       if (updatedData.status === 'odlozen') {
         if (!updatedData.postponeDate || !updatedData.postponeTime) {
           toast.error('Morate odabrati datum i vreme odlaganja');
+          setSaving(false);
+          return;
+        }
+        
+        if (!updatedData.postponeComment || updatedData.postponeComment.trim() === '') {
+          toast.error('Morate uneti razlog odlaganja radnog naloga');
           setSaving(false);
           return;
         }
@@ -880,19 +889,34 @@ const TechnicianWorkOrderDetail = () => {
         });
       }
       
+      // Ako je status otkazan, MORA da imamo komentar
+      if (updatedData.status === 'otkazan') {
+        if (!updatedData.cancelComment || updatedData.cancelComment.trim() === '') {
+          toast.error('Morate uneti razlog otkazivanja radnog naloga');
+          setSaving(false);
+          return;
+        }
+      }
+      
       const response = await axios.put(`${apiUrl}/api/workorders/${id}/technician-update`, updatedData);
       setWorkOrder(response.data);
       
       if (updatedData.status === 'odlozen') {
         toast.success('Radni nalog je uspešno odložen!');
         setShowPostponeForm(false); // Hide form after successful postponement
+      } else if (updatedData.status === 'otkazan') {
+        toast.success('Radni nalog je uspešno otkazan!');
+        setShowCancelForm(false); // Hide form after successful cancellation
       } else {
         toast.success('Radni nalog je uspešno ažuriran!');
       }
       
-      // Reset postpone forme ako nije potrebna
+      // Reset forme ako nisu potrebne
       if (updatedData.status !== 'odlozen') {
         setShowPostponeForm(false);
+      }
+      if (updatedData.status !== 'otkazan') {
+        setShowCancelForm(false);
       }
     } catch (error) {
       console.error('Greška pri ažuriranju radnog naloga:', error);
@@ -907,6 +931,7 @@ const TechnicianWorkOrderDetail = () => {
     // For postponed status, we need to submit the form with postponement data
     if (status === 'odlozen') {
       setShowPostponeForm(true);
+      setShowCancelForm(false);
       setFormData(prev => ({ ...prev, status }));
       
       // Zatvaramo status akcije na mobilnim uređajima
@@ -916,9 +941,23 @@ const TechnicianWorkOrderDetail = () => {
       return; // Don't submit yet, let user choose date/time
     }
     
+    // For canceled status, we need to submit the form with cancellation comment
+    if (status === 'otkazan') {
+      setShowCancelForm(true);
+      setShowPostponeForm(false);
+      setFormData(prev => ({ ...prev, status }));
+      
+      // Zatvaramo status akcije na mobilnim uređajima
+      if (isMobile) {
+        setShowStatusActions(false);
+      }
+      return; // Don't submit yet, let user enter cancellation reason
+    }
+    
     // For other statuses, submit immediately
     setFormData(prev => ({ ...prev, status }));
     setShowPostponeForm(false);
+    setShowCancelForm(false);
     
     // Submit the status change
     setSaving(true);
@@ -955,6 +994,8 @@ const TechnicianWorkOrderDetail = () => {
   useEffect(() => {
     if (formData.status === 'odlozen') {
       setShowPostponeForm(true);
+    } else if (formData.status === 'otkazan') {
+      setShowCancelForm(true);
     }
   }, [formData.status]);
   
@@ -2217,6 +2258,63 @@ const TechnicianWorkOrderDetail = () => {
                     value={formData.postponeTime}
                     onChange={handleChange}
                     disabled={saving || isWorkOrderCompleted}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="postponeComment">Razlog odlaganja: <span style={{color: 'red'}}>*</span></label>
+                  <textarea
+                    id="postponeComment"
+                    name="postponeComment"
+                    value={formData.postponeComment}
+                    onChange={handleChange}
+                    placeholder="Obavezno objasnite razlog odlaganja radnog naloga..."
+                    required
+                    rows="3"
+                    disabled={saving || isWorkOrderCompleted}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontSize: '14px',
+                      resize: 'vertical',
+                      minHeight: '80px'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showCancelForm && (
+            <div className="card cancel-card">
+              <div className="card-header">
+                <h2>Otkazivanje radnog naloga</h2>
+              </div>
+              <div className="info-message" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px' }}>
+                <strong>Napomena:</strong> Molimo objasnite razlog otkazivanja radnog naloga.
+              </div>
+              <div className="cancel-form">
+                <div className="form-group">
+                  <label htmlFor="cancelComment">Razlog otkazivanja: <span style={{color: 'red'}}>*</span></label>
+                  <textarea
+                    id="cancelComment"
+                    name="cancelComment"
+                    value={formData.cancelComment}
+                    onChange={handleChange}
+                    placeholder="Obavezno objasnite razlog otkazivanja radnog naloga..."
+                    required
+                    rows="4"
+                    disabled={saving || isWorkOrderCompleted}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontSize: '14px',
+                      resize: 'vertical',
+                      minHeight: '100px'
+                    }}
                   />
                 </div>
               </div>

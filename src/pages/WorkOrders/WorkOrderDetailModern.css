@@ -1941,4 +1941,206 @@
 
 .equipment-history-table::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.8);
+}
+
+/* Postponement History Section */
+.postpone-history-section {
+  margin-bottom: 2rem;
+}
+
+.postpone-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.postpone-history-item {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 
+    0 4px 16px rgba(31, 38, 135, 0.08),
+    0 2px 4px rgba(31, 38, 135, 0.04);
+  transition: all 0.3s ease;
+}
+
+.postpone-history-item:hover {
+  box-shadow: 
+    0 8px 24px rgba(31, 38, 135, 0.12),
+    0 4px 8px rgba(31, 38, 135, 0.08);
+  transform: translateY(-2px);
+}
+
+.postpone-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.postpone-date {
+  font-size: 0.9rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.postpone-badge {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.postpone-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.postpone-detail-row {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 0.25rem 0;
+}
+
+.postpone-detail-row strong {
+  color: #374151;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.postpone-detail-row:last-child {
+  background: rgba(249, 250, 251, 0.8);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border-left: 4px solid #F59E0B;
+}
+
+.postpone-detail-row:last-child strong {
+  color: #D97706;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .postpone-history-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .postpone-badge {
+    align-self: flex-start;
+  }
+  
+  .postpone-detail-row {
+    font-size: 0.9rem;
+  }
+}
+
+/* Cancellation History Section */
+.cancel-history-section {
+  margin-bottom: 2rem;
+}
+
+.cancel-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cancel-history-item {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 
+    0 4px 16px rgba(31, 38, 135, 0.08),
+    0 2px 4px rgba(31, 38, 135, 0.04);
+  transition: all 0.3s ease;
+  border-left: 4px solid #EF4444;
+}
+
+.cancel-history-item:hover {
+  box-shadow: 
+    0 8px 24px rgba(31, 38, 135, 0.12),
+    0 4px 8px rgba(31, 38, 135, 0.08);
+  transform: translateY(-2px);
+}
+
+.cancel-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cancel-date {
+  font-size: 0.9rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.cancel-badge {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.cancel-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cancel-detail-row {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  background: rgba(254, 242, 242, 0.8);
+  border-radius: 0.5rem;
+  border-left: 4px solid #EF4444;
+}
+
+.cancel-detail-row strong {
+  color: #DC2626;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+/* Responsive Design for Cancel History */
+@media (max-width: 768px) {
+  .cancel-history-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .cancel-badge {
+    align-self: flex-start;
+  }
+  
+  .cancel-detail-row {
+    font-size: 0.9rem;
+  }
 } 
