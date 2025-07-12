@@ -132,11 +132,12 @@ const WorkOrderDetail = () => {
     setError('');
     
     try {
-      // Priprema podataka za slanje, konvertuj prazan string u null za technicianId
+      // Priprema podataka za slanje, konvertuj prazan string u null za oba technicianId polja
       const updatedData = { 
         ...formData,
         status,
-        technicianId: formData.technicianId || null // konvertuj prazan string u null
+        technicianId: formData.technicianId || null, // konvertuj prazan string u null
+        technician2Id: formData.technician2Id || null // konvertuj prazan string u null
       };
       
       console.log('Sending data:', updatedData);

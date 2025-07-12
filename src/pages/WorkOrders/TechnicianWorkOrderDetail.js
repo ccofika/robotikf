@@ -681,25 +681,25 @@ const TechnicianWorkOrderDetail = () => {
   };
   
   const handleDateChange = (date) => {
+    // Validacija: maksimalno 2 dana unapred
+    const currentTime = new Date();
+    const maxAllowedDate = new Date(currentTime.getTime() + (48 * 60 * 60 * 1000));
+    
+    if (date > maxAllowedDate) {
+      toast.error('Radni nalog ne može biti odložen za više od 48 sati. Otkažite radni nalog.');
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, postponeDate: date }));
   };
 
+  // DatePicker handlers only needed for desktop now
   const handleDatePickerOpen = () => {
-    if (isMobile) {
-      const portal = document.getElementById('mobile-datepicker-portal');
-      if (portal) {
-        portal.classList.add('active');
-      }
-    }
+    // No special handling needed for desktop
   };
 
   const handleDatePickerClose = () => {
-    if (isMobile) {
-      const portal = document.getElementById('mobile-datepicker-portal');
-      if (portal) {
-        portal.classList.remove('active');
-      }
-    }
+    // No special handling needed for desktop
   };
   
   // Funkcija za izvlačenje originalnog naziva fajla iz image objekta ili URL-a
@@ -857,20 +857,38 @@ const TechnicianWorkOrderDetail = () => {
     setError('');
     
     try {
-      // Ako je status odložen, dodajemo datum i vreme odlaganja
+      // Pripremi podatke za slanje
       const updatedData = { ...formData };
       
       // Dodajemo ID trenutnog tehničara
       updatedData.technicianId = user._id;
       
-      if (updatedData.status === 'odlozen' && updatedData.postponeDate) {
+      // Ako je status odložen, MORA da imamo datum i vreme
+      if (updatedData.status === 'odlozen') {
+        if (!updatedData.postponeDate || !updatedData.postponeTime) {
+          toast.error('Morate odabrati datum i vreme odlaganja');
+          setSaving(false);
+          return;
+        }
+        
         const formattedDate = updatedData.postponeDate.toISOString().split('T')[0];
         updatedData.postponeDate = formattedDate;
+        
+        console.log('Sending postponement data:', {
+          postponeDate: formattedDate,
+          postponeTime: updatedData.postponeTime
+        });
       }
       
       const response = await axios.put(`${apiUrl}/api/workorders/${id}/technician-update`, updatedData);
       setWorkOrder(response.data);
-      toast.success('Radni nalog je uspešno ažuriran!');
+      
+      if (updatedData.status === 'odlozen') {
+        toast.success('Radni nalog je uspešno odložen!');
+        setShowPostponeForm(false); // Hide form after successful postponement
+      } else {
+        toast.success('Radni nalog je uspešno ažuriran!');
+      }
       
       // Reset postpone forme ako nije potrebna
       if (updatedData.status !== 'odlozen') {
@@ -885,13 +903,46 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
   
-  const handleStatusChange = (status) => {
-    setFormData(prev => ({ ...prev, status }));
-    
+  const handleStatusChange = async (status) => {
+    // For postponed status, we need to submit the form with postponement data
     if (status === 'odlozen') {
       setShowPostponeForm(true);
-    } else {
-      setShowPostponeForm(false);
+      setFormData(prev => ({ ...prev, status }));
+      
+      // Zatvaramo status akcije na mobilnim uređajima
+      if (isMobile) {
+        setShowStatusActions(false);
+      }
+      return; // Don't submit yet, let user choose date/time
+    }
+    
+    // For other statuses, submit immediately
+    setFormData(prev => ({ ...prev, status }));
+    setShowPostponeForm(false);
+    
+    // Submit the status change
+    setSaving(true);
+    setError('');
+    
+    try {
+      const updatedData = { 
+        ...formData,
+        status,
+        technicianId: user._id
+      };
+      
+      const response = await axios.put(`${apiUrl}/api/workorders/${id}/technician-update`, updatedData);
+      setWorkOrder(response.data);
+      toast.success(`Status radnog naloga je promenjen na "${
+        status === 'zavrsen' ? 'Završen' : 
+        status === 'otkazan' ? 'Otkazan' : 'Nezavršen'
+      }"!`);
+    } catch (error) {
+      console.error('Greška pri promeni statusa:', error);
+      setError(error.response?.data?.error || 'Greška pri promeni statusa. Pokušajte ponovo.');
+      toast.error('Neuspešna promena statusa!');
+    } finally {
+      setSaving(false);
     }
     
     // Zatvaramo status akcije na mobilnim uređajima
@@ -899,6 +950,13 @@ const TechnicianWorkOrderDetail = () => {
       setShowStatusActions(false);
     }
   };
+
+  // Show postpone form if status is already 'odlozen' when component loads
+  useEffect(() => {
+    if (formData.status === 'odlozen') {
+      setShowPostponeForm(true);
+    }
+  }, [formData.status]);
   
   const handleImageUpload = async () => {
     if (imageFiles.length === 0) {
@@ -2113,36 +2171,40 @@ const TechnicianWorkOrderDetail = () => {
               <div className="card-header">
                 <h2>Odlaganje termina</h2>
               </div>
+              <div className="info-message" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px' }}>
+                <strong>Napomena:</strong> Radni nalog može biti odložen maksimalno 48 sati. Za duže odlaganje molimo otkažite radni nalog.
+              </div>
               <div className="postpone-form">
                 <div className="form-group">
                   <label htmlFor="postponeDate">Novi datum:</label>
                   <div className="date-picker-container">
-                    <DatePicker
-                      id="postponeDate"
-                      selected={formData.postponeDate}
-                      onChange={handleDateChange}
-                      dateFormat="dd.MM.yyyy"
-                      minDate={new Date()}
-                      className="date-picker mobile-optimized"
-                      calendarClassName="mobile-calendar"
-                      wrapperClassName="date-picker-wrapper"
-                      popperClassName="date-picker-popper"
-                      withPortal={isMobile}
-                      portalId="mobile-datepicker-portal"
-                      popperPlacement={isMobile ? "bottom" : "bottom-start"}
-                      popperModifiers={isMobile ? [] : [
-                        {
-                          name: 'preventOverflow',
-                          options: {
-                            rootBoundary: 'viewport',
-                            padding: 8,
-                          },
-                        }
-                      ]}
-                      onCalendarOpen={handleDatePickerOpen}
-                      onCalendarClose={handleDatePickerClose}
-                      fixedHeight
-                    />
+                    {isMobile ? (
+                      <input
+                        type="date"
+                        id="postponeDate"
+                        value={formData.postponeDate ? formData.postponeDate.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const selectedDate = new Date(e.target.value);
+                          handleDateChange(selectedDate);
+                        }}
+                        min={new Date().toISOString().split('T')[0]}
+                        max={new Date(Date.now() + (48 * 60 * 60 * 1000)).toISOString().split('T')[0]}
+                        disabled={saving || isWorkOrderCompleted}
+                        className="form-control date-input-mobile"
+                      />
+                    ) : (
+                      <DatePicker
+                        id="postponeDate"
+                        selected={formData.postponeDate}
+                        onChange={handleDateChange}
+                        dateFormat="dd.MM.yyyy"
+                        minDate={new Date()}
+                        maxDate={new Date(Date.now() + (48 * 60 * 60 * 1000))}
+                        className="date-picker"
+                        disabled={saving || isWorkOrderCompleted}
+                        fixedHeight
+                      />
+                    )}
                     <CalendarIcon className="date-picker-icon" />
                   </div>
                 </div>
@@ -2258,8 +2320,8 @@ const TechnicianWorkOrderDetail = () => {
         </div>
       )}
       
-      {/* Portal za DatePicker na mobilnim uređajima */}
-      <div id="mobile-datepicker-portal"></div>
+      {/* Portal za DatePicker na desktop uređajima */}
+      {!isMobile && <div id="mobile-datepicker-portal"></div>}
     </div>
   );
 };

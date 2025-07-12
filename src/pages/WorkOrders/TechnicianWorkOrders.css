@@ -490,6 +490,10 @@
   border-left-color: var(--gray-400);
 }
 
+.mobile-order-card.status-nov {
+  border-left-color: #8e44ad;
+}
+
 .mobile-order-card.swiped {
   transform: translateX(-100px);
 }
@@ -769,6 +773,14 @@
   background: linear-gradient(135deg, rgba(149, 165, 166, 0.1) 0%, rgba(127, 140, 141, 0.1) 100%);
   color: var(--gray-600);
   border: 1px solid rgba(149, 165, 166, 0.2);
+}
+
+.status-badge.status-nov {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(155, 89, 182, 0.1) 100%);
+  color: #8e44ad;
+  border: 1px solid rgba(155, 89, 182, 0.2);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.15);
 }
 
 /* Action Buttons */
@@ -1055,6 +1067,10 @@
 
 .status-row-otkazan {
   border-left: 3px solid var(--gray-500);
+}
+
+.status-row-nov {
+  border-left: 3px solid #8e44ad;
 }
 
 /* Desktop Responsive Overrides */

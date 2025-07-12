@@ -28,6 +28,81 @@ const TechnicianWorkOrders = () => {
   const itemsPerPage = isMobile ? 8 : 10;
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  // Function to check if work order date/time hasn't passed yet
+  const isWorkOrderNew = (order) => {
+    if (order.status !== 'nezavrsen') return false;
+    
+    try {
+      const now = new Date();
+      
+      // Handle different date formats
+      let orderDate;
+      if (order.date instanceof Date) {
+        orderDate = order.date;
+      } else if (typeof order.date === 'string') {
+        // If it's already in YYYY-MM-DD format or ISO string
+        orderDate = new Date(order.date);
+      } else {
+        console.warn('Invalid date format for order:', order);
+        return false;
+      }
+      
+      // Create datetime with time
+      const orderTime = order.time || '09:00';
+      const [hours, minutes] = orderTime.split(':');
+      const orderDateTime = new Date(orderDate);
+      orderDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      // Debug logging (can be removed later)
+      const isNew = orderDateTime > now;
+      console.log('Checking order:', {
+        id: order._id,
+        status: order.status,
+        date: order.date,
+        time: order.time,
+        orderDateTime: orderDateTime.toISOString(),
+        orderDateTimeLocal: orderDateTime.toLocaleString('sr-RS'),
+        now: now.toISOString(),
+        nowLocal: now.toLocaleString('sr-RS'),
+        isNew: isNew,
+        timeDiffMinutes: Math.round((orderDateTime - now) / (1000 * 60))
+      });
+      
+      return orderDateTime > now;
+    } catch (error) {
+      console.error('Error checking if order is new:', error, order);
+      return false;
+    }
+  };
+
+  // Function to get display status and CSS class
+  const getDisplayStatus = (order) => {
+    if (order.status === 'zavrsen') return { text: 'Završen', cssClass: 'zavrsen' };
+    if (order.status === 'odlozen') return { text: 'Odložen', cssClass: 'odlozen' };
+    if (order.status === 'otkazan') return { text: 'Otkazan', cssClass: 'otkazan' };
+    
+    // For 'nezavrsen' status, check if it's new (date/time hasn't passed)
+    if (order.status === 'nezavrsen') {
+      const isNew = isWorkOrderNew(order);
+      
+      // Debug logging
+      console.log('Display status for order:', {
+        id: order._id,
+        status: order.status,
+        isNew: isNew,
+        willShow: isNew ? 'Nov' : 'Nezavršen'
+      });
+      
+      if (isNew) {
+        return { text: 'Nov', cssClass: 'nov' };
+      } else {
+        return { text: 'Nezavršen', cssClass: 'nezavrsen' };
+      }
+    }
+    
+    return { text: 'Nezavršen', cssClass: 'nezavrsen' };
+  };
   
   useEffect(() => {
     fetchWorkOrders();
@@ -151,14 +226,20 @@ const TechnicianWorkOrders = () => {
     return searchMatch && statusMatch && defaultHideCompleted;
   });
   
-  // Sortiranje po datumu
+  // Sortiranje po datumu i vremenu
   const sortedWorkOrders = [...filteredWorkOrders].sort((a, b) => {
-    // Prvo stavljamo nezavršene
-    if (a.status === 'nezavrsen' && b.status !== 'nezavrsen') return -1;
-    if (a.status !== 'nezavrsen' && b.status === 'nezavrsen') return 1;
+    // Prvo stavljamo nezavršene (uključujući "nove")
+    const aIsIncomplete = a.status === 'nezavrsen';
+    const bIsIncomplete = b.status === 'nezavrsen';
     
-    // Zatim sortiramo po datumu - najnoviji na vrhu
-    return new Date(b.date) - new Date(a.date);
+    if (aIsIncomplete && !bIsIncomplete) return -1;
+    if (!aIsIncomplete && bIsIncomplete) return 1;
+    
+    // Zatim sortiramo po datumu i vremenu - najnoviji na vrhu
+    const aDateTime = new Date(`${a.date}T${a.time || '09:00'}:00`);
+    const bDateTime = new Date(`${b.date}T${b.time || '09:00'}:00`);
+    
+    return bDateTime - aDateTime;
   });
   
   // Paginacija
@@ -184,10 +265,28 @@ const TechnicianWorkOrders = () => {
     const postponed = workOrders.filter(o => o.status === 'odlozen').length;
     const canceled = workOrders.filter(o => o.status === 'otkazan').length;
     
+    // Calculate "new" orders for testing
+    const newOrders = workOrders.filter(o => o.status === 'nezavrsen' && isWorkOrderNew(o)).length;
+    const actualPending = pending - newOrders;
+    
+    console.log('Stats calculation:', {
+      total,
+      pending,
+      newOrders,
+      actualPending,
+      workOrdersWithNezavrsen: workOrders.filter(o => o.status === 'nezavrsen').map(o => ({
+        id: o._id,
+        date: o.date,
+        time: o.time,
+        isNew: isWorkOrderNew(o)
+      }))
+    });
+    
     return {
       total,
       completed,
-      pending,
+      pending: actualPending,
+      newOrders, // Add this for debugging
       postponed,
       canceled,
       completionRate: total > 0 ? Math.round((completed / total) * 100) : 0
@@ -308,6 +407,17 @@ const TechnicianWorkOrders = () => {
           <div className="stat-content">
             <h3>{stats.canceled}</h3>
             <p>Otkazano</p>
+          </div>
+        </div>
+        
+        {/* DEBUG: Temporary card to show "new" orders count */}
+        <div className="stat-card" style={{}}>
+          <div className="stat-icon" style={{backgroundColor: '#8e44ad', color: 'white'}}>
+            <span>{stats.newOrders || 0}</span>
+          </div>
+          <div className="stat-content">
+            <h3>{stats.newOrders || 0}</h3>
+            <p>Novi</p>
           </div>
         </div>
       </div>
@@ -458,11 +568,13 @@ const TechnicianWorkOrders = () => {
                     </div>
                   </div>
                 ) : (
-                  currentItems.map((order, index) => (
+                  currentItems.map((order, index) => {
+                    const displayStatus = getDisplayStatus(order);
+                    return (
                     <div 
                       key={order._id} 
                       id={`order-${order._id}`}
-                      className={`mobile-order-card status-${order.status}`}
+                      className={`mobile-order-card status-${displayStatus.cssClass}`}
                       onTouchStart={(e) => {
                         e.stopPropagation();
                         handleTouchStart(e, order._id);
@@ -478,10 +590,8 @@ const TechnicianWorkOrders = () => {
                     >
                       <div className="order-card-content">
                         <div className="order-card-header">
-                          <span className={`status-badge status-${order.status}`}>
-                            {order.status === 'zavrsen' ? 'Završen' : 
-                             order.status === 'odlozen' ? 'Odložen' : 
-                             order.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
+                          <span className={`status-badge status-${displayStatus.cssClass}`}>
+                            {displayStatus.text}
                           </span>
                           <div className="order-date">
                             <CalendarIcon />
@@ -523,7 +633,8 @@ const TechnicianWorkOrders = () => {
                         </div>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             ) : (
@@ -533,6 +644,7 @@ const TechnicianWorkOrders = () => {
                   <thead>
                     <tr>
                       <th>Datum</th>
+                      <th>Vreme</th>
                       <th>Opština</th>
                       <th>Adresa</th>
                       <th>Tip</th>
@@ -543,7 +655,7 @@ const TechnicianWorkOrders = () => {
                   <tbody>
                     {currentItems.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="empty-state">
+                        <td colSpan="7" className="empty-state">
                           <div className="empty-message">
                             <ClipboardIcon className="empty-icon" />
                             <p>
@@ -556,17 +668,18 @@ const TechnicianWorkOrders = () => {
                         </td>
                       </tr>
                     ) : (
-                      currentItems.map((order, index) => (
-                        <tr key={order._id} className={`slide-in status-row-${order.status}`} style={{animationDelay: `${index * 0.1}s`}}>
+                      currentItems.map((order, index) => {
+                        const displayStatus = getDisplayStatus(order);
+                        return (
+                        <tr key={order._id} className={`slide-in status-row-${displayStatus.cssClass}`} style={{animationDelay: `${index * 0.1}s`}}>
                           <td>{new Date(order.date).toLocaleDateString('sr-RS')}</td>
+                          <td>{order.time || '09:00'}</td>
                           <td>{order.municipality}</td>
                           <td>{order.address}</td>
                           <td>{order.type}</td>
                           <td>
-                            <span className={`status-badge status-${order.status}`}>
-                              {order.status === 'zavrsen' ? 'Završen' : 
-                               order.status === 'odlozen' ? 'Odložen' :
-                               order.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
+                            <span className={`status-badge status-${displayStatus.cssClass}`}>
+                              {displayStatus.text}
                             </span>
                           </td>
                           <td className="actions-column">
@@ -578,7 +691,8 @@ const TechnicianWorkOrders = () => {
                             </Link>
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

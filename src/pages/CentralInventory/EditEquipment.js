@@ -68,14 +68,41 @@ const EditEquipment = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEquipment(prev => ({ ...prev, [name]: value }));
+    
+    // Upozorenje kada se status menja na "defective"
+    if (name === 'status' && value === 'defective') {
+      toast.warning('⚠️ Oprema će biti automatski premeštena u listu neispravne opreme!', {
+        autoClose: 5000
+      });
+    }
   };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
-      await equipmentAPI.update(id, equipment);
+      // Pripremi podatke za slanje
+      const updateData = { ...equipment };
+      
+      // Ako je status promenjen na "defective", automatski postavi potrebne vrednosti
+      if (equipment.status === 'defective') {
+        updateData.location = 'defective';
+        updateData.removedAt = new Date().toISOString();
+        updateData.assignedTo = null;
+        updateData.assignedToUser = null;
+        
+        console.log('🔧 Equipment marked as defective - automatic transition applied');
+        console.log('📅 Removed at:', updateData.removedAt);
+      }
+      
+      await equipmentAPI.update(id, updateData);
       toast.success('Oprema uspešno izmenjena!');
+      
+      // Ako je oprema označena kao neispravna, obavesti korisnika
+      if (equipment.status === 'defective') {
+        toast.info('Oprema je automatski premeštena u defektivnu opremu i dostupna je u listi neispravne opreme.');
+      }
+      
       navigate('/equipment');
     } catch (error) {
       console.error('Greška pri izmeni opreme:', error);
@@ -178,6 +205,16 @@ const EditEquipment = () => {
                 <option value="assigned">Zaduženo</option>
                 <option value="defective">Neispravno</option>
               </select>
+              {equipment.status === 'defective' && (
+                <div className="info-message defective-warning">
+                  <strong>⚠️ Napomena:</strong> Kada označite opremu kao neispravnu, ona će automatski biti:
+                  <ul>
+                    <li>Premeštena u lokaciju "defective"</li>
+                    <li>Uklonjena iz dodele tehničaru/korisniku</li>
+                    <li>Dostupna u listi neispravne opreme</li>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
           
