@@ -601,13 +601,15 @@ const TechnicianWorkOrderDetail = () => {
       
       try {
         // Dinamički kvalitet na osnovu veličine fajla
-        let quality = 0.7;
+        let quality = 0.8;
         const fileSizeMB = file.size / 1024 / 1024;
         
-        if (fileSizeMB > 5) {
-          quality = 0.5; // Veća kompresija za veće fajlove
-        } else if (fileSizeMB > 10) {
-          quality = 0.4; // Još veća kompresija za vrlo velike fajlove
+        if (fileSizeMB > 10) {
+          quality = 0.6; // Veća kompresija za veće fajlove (10-20MB)
+        } else if (fileSizeMB > 20) {
+          quality = 0.4; // Još veća kompresija za vrlo velike fajlove (20-30MB)
+        } else if (fileSizeMB > 25) {
+          quality = 0.3; // Maksimalna kompresija za ekstremno velike fajlove (25-30MB)
         }
         
         console.log(`🎛️ Primenjeni kvalitet kompresije: ${(quality * 100)}%`);
@@ -643,6 +645,39 @@ const TechnicianWorkOrderDetail = () => {
     console.log(`📊 Kompresovana ukupna veličina: ${(compressedTotalSize / 1024 / 1024).toFixed(2)} MB`);
     
     return compressedFiles;
+  };
+
+  // Funkcija za kompresiju slika odmah nakon izbora
+  const compressSelectedImages = async (validFiles, previews) => {
+    console.log('\n🔄========== POČETAK KOMPRESIJE NAKON IZBORA ==========🔄');
+    setUploadingImages(true); // Koristimo ovaj flag za indikator kompresije
+    
+    try {
+      const compressedFiles = await compressMultipleImages(validFiles);
+      
+      // Ažuriraj previews sa kompresovanim fajlovima
+      const updatedPreviews = previews.map((preview, index) => ({
+        ...preview,
+        file: compressedFiles[index],
+        size: compressedFiles[index].size
+      }));
+      
+      setImageFiles(compressedFiles);
+      setImagePreviews(updatedPreviews);
+      
+      console.log('✅ Kompresija završena - slike su spremne za upload');
+      toast.success(`Slike su kompresovane i spremne za upload!`);
+      
+    } catch (error) {
+      console.error('❌ Greška pri kompresovanju:', error);
+      toast.error('Greška pri kompresovanju slika');
+      // Koristi originalne fajlove ako kompresija ne uspe
+      setImageFiles(validFiles);
+    } finally {
+      setUploadingImages(false);
+    }
+    
+    console.log('🏁========== KOMPRESIJA NAKON IZBORA ZAVRŠENA ==========🏁\n');
   };
   
   const handleDateChange = (date) => {
@@ -723,7 +758,7 @@ const TechnicianWorkOrderDetail = () => {
     
     // Validacija tipa fajla i veličine
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 30 * 1024 * 1024; // 30MB
     const maxFiles = 10; // Maksimalno 10 slika odjednom
     
     if (files.length > maxFiles) {
@@ -747,7 +782,7 @@ const TechnicianWorkOrderDetail = () => {
       
       // Validacija veličine fajla
       if (file.size > maxSize) {
-        invalidFiles.push(`${file.name} - veća od 5MB`);
+        invalidFiles.push(`${file.name} - veća od 30MB`);
         return;
       }
       
@@ -803,10 +838,11 @@ const TechnicianWorkOrderDetail = () => {
     if (validFiles.length > 0) {
       console.log(`✅ Validnih fajlova: ${validFiles.length}`);
       console.log(`📋 Imena validnih fajlova: ${validFiles.map(f => f.name).join(', ')}`);
-      toast.success(`Odabrano ${validFiles.length} slika za upload`);
+      toast.success(`Odabrano ${validFiles.length} slika - kompresovanje u toku...`);
+      
+      // Započni kompresiju odmah nakon izbora
+      compressSelectedImages(validFiles, previews);
     }
-    
-    setImageFiles(validFiles);
     
     // Resetuj progress
     setUploadProgress([]);
@@ -909,18 +945,10 @@ const TechnicianWorkOrderDetail = () => {
       console.error('Greška pri proveri duplikata:', error);
     }
     
-    // KORAK 1: Kompresovanje slika
-    console.log('\n🔄========== KORAK 1: KOMPRESOVANJE SLIKA ==========🔄');
-    let compressedFiles;
-    try {
-      compressedFiles = await compressMultipleImages(imageFiles);
-      console.log('✅ Sve slike su uspešno kompresovane');
-    } catch (error) {
-      console.error('❌ Greška pri kompresovanju slika:', error);
-      toast.error('Greška pri pripremi slika za upload');
-      setUploadingImages(false);
-      return;
-    }
+    // KORAK 1: Slike su već kompresovane pri izboru
+    console.log('\n📤========== KORAK 1: PRIPREMA ZA UPLOAD ==========📤');
+    const compressedFiles = imageFiles; // Već kompresovane slike
+    console.log('✅ Koriste se već kompresovane slike');
     
     // Inicijalizacija progress tracking-a
     const progressArray = compressedFiles.map(() => 0);
@@ -1839,23 +1867,38 @@ const TechnicianWorkOrderDetail = () => {
                   <label htmlFor="image-upload" className="upload-label">
                     <ImageIcon />
                     <span>Fotografiši ili izaberi slike</span>
-                    <small>Možete odabrati do 10 slika odjednom</small>
+                    <small>Možete odabrati do 10 slika odjednom (max 30MB po slici)</small>
                   </label>
                 </div>
                 
-                {imagePreviews.length > 0 && (
+                {(imagePreviews.length > 0 || uploadingImages) && (
                   <div className="multiple-images-preview-container">
                     <div className="preview-header">
-                      <h4>Odabrane slike ({imagePreviews.length})</h4>
-                      <button 
-                        type="button" 
-                        className="btn btn-sm btn-cancel"
-                        onClick={resetImageUpload}
-                        disabled={uploadingImages}
-                      >
-                        <CloseIcon /> Ukloni sve
-                      </button>
+                      <h4>
+                        {uploadingImages && imagePreviews.length === 0 
+                          ? "Kompresovanje slika u toku..."
+                          : `Odabrane slike (${imagePreviews.length})`
+                        }
+                      </h4>
+                      {!uploadingImages && (
+                        <button 
+                          type="button" 
+                          className="btn btn-sm btn-cancel"
+                          onClick={resetImageUpload}
+                          disabled={uploadingImages}
+                        >
+                          <CloseIcon /> Ukloni sve
+                        </button>
+                      )}
                     </div>
+                    
+                    {uploadingImages && imagePreviews.length === 0 && (
+                      <div className="compression-loading">
+                        <div className="loading-spinner"></div>
+                        <p>Kompresovanje slika u toku...</p>
+                        <small>Molimo sačekajte dok se slike pripravljaju za upload</small>
+                      </div>
+                    )}
                     
                     <div className="images-preview-grid">
                       {imagePreviews.map((preview, index) => (
