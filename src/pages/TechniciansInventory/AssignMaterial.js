@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BackIcon, ToolsIcon, PlusIcon, MinusIcon, UserIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { BackIcon, ToolsIcon, PlusIcon, MinusIcon, UserIcon, BoxIcon } from '../../components/icons/SvgIcons';
+import { toast } from '../../utils/toast';
 import { techniciansAPI, materialsAPI } from '../../services/api';
-import './AssignMaterial.css';
+import { Button } from '../../components/ui/button-1';
+import { cn } from '../../utils/cn';
 
 const AssignMaterial = () => {
   const [technician, setTechnician] = useState(null);
@@ -122,67 +123,110 @@ const AssignMaterial = () => {
   };
   
   if (loading && !technician) {
-    return <div className="loading-container">Učitavanje...</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-lg font-medium text-slate-600">Učitavanje...</div>
+      </div>
+    );
   }
   
   // Filtriranje materijala zavisno od aktivnog taba
   const availableMaterials = materials.filter(m => m.quantity > 0);
   
   return (
-    <div className="assign-material fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Zaduženje/Razduženje materijala</h1>
-        <Link to={`/technicians/${id}`} className="btn btn-sm">
-          <BackIcon /> Nazad na detalje
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      {/* Header */}
+      <div className="p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <ToolsIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Zaduženje/Razduženje materijala</h1>
+              <p className="text-slate-600 mt-1">Upravljanje materijalima tehničara</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button type="secondary" size="medium" prefix={<BackIcon size={16} />} asChild>
+              <Link to={`/technicians/${id}`}>
+                Nazad na detalje
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
       
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
       
       {technician && (
-        <div className="technician-brief">
-          <div className="technician-avatar">
-            <UserIcon />
-          </div>
-          <div className="technician-info">
-            <h2>{technician.name}</h2>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-green-50 rounded-xl">
+              <UserIcon size={24} className="text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{technician.name}</h2>
+              <p className="text-slate-600">Tehničar</p>
+            </div>
           </div>
         </div>
       )}
       
-      <div className="tab-navigation">
-        <button 
-          className={`tab-button ${activeTab === 'assign' ? 'active' : ''}`} 
-          onClick={() => handleTabChange('assign')}
-        >
-          <PlusIcon /> Zaduži materijal
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'return' ? 'active' : ''}`} 
-          onClick={() => handleTabChange('return')}
-          disabled={technicianMaterials.length === 0}
-        >
-          <MinusIcon /> Razduži materijal
-        </button>
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
+          <button 
+            onClick={() => handleTabChange('assign')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'assign' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
+          >
+            <PlusIcon size={16} />
+            <span>Zaduži materijal</span>
+          </button>
+          <button 
+            onClick={() => handleTabChange('return')}
+            disabled={technicianMaterials.length === 0}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed",
+              activeTab === 'return' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
+          >
+            <MinusIcon size={16} />
+            <span>Razduži materijal</span>
+          </button>
+        </div>
       </div>
       
-      <div className="card">
-        <h3 className="form-title">
-          {activeTab === 'assign' ? 
-            <><ToolsIcon /> Zaduženje materijala</> : 
-            <><ToolsIcon /> Razduženje materijala</>
-          }
-        </h3>
+      {/* Main Assignment Card */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center space-x-3">
+            <ToolsIcon size={20} className="text-blue-600" />
+            <h3 className="text-lg font-semibold text-slate-900">
+              {activeTab === 'assign' ? 'Zaduženje materijala' : 'Razduženje materijala'}
+            </h3>
+          </div>
+        </div>
         
-        <div className="assign-material-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="material">Materijal:</label>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label htmlFor="material" className="text-sm font-medium text-slate-700">Materijal:</label>
               <select
                 id="material"
                 value={selectedMaterial}
                 onChange={(e) => setSelectedMaterial(e.target.value)}
                 disabled={loading || (activeTab === 'assign' && availableMaterials.length === 0) || (activeTab === 'return' && technicianMaterials.length === 0)}
+                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
               >
                 <option value="">Izaberite materijal</option>
                 {activeTab === 'assign' ? (
@@ -201,8 +245,8 @@ const AssignMaterial = () => {
               </select>
             </div>
             
-            <div className="form-group">
-              <label htmlFor="quantity">Količina:</label>
+            <div className="space-y-2">
+              <label htmlFor="quantity" className="text-sm font-medium text-slate-700">Količina:</label>
               <input
                 type="number"
                 id="quantity"
@@ -210,37 +254,46 @@ const AssignMaterial = () => {
                 value={quantity}
                 onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                 disabled={loading || !selectedMaterial}
+                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
               />
             </div>
           </div>
           
-          <div className="form-actions">
+          <div className="mt-6 flex justify-end">
             {activeTab === 'assign' ? (
               <>
                 {availableMaterials.length === 0 ? (
-                  <p className="no-materials-message">Nema dostupnih materijala u magacinu</p>
+                  <div className="text-slate-500 text-center py-4">
+                    Nema dostupnih materijala u magacinu
+                  </div>
                 ) : (
-                                    <button 
-                    className="btn btn-primary"
+                  <Button 
+                    type="primary" 
+                    size="medium"
+                    prefix={<PlusIcon size={16} />}
                     onClick={handleAssignMaterial}
                     disabled={loading || !selectedMaterial || quantity <= 0}
                   >
-                    <PlusIcon /> Zaduži materijal
-                  </button>
+                    Zaduži materijal
+                  </Button>
                 )}
               </>
             ) : (
               <>
                 {technicianMaterials.length === 0 ? (
-                  <p className="no-materials-message">Tehničar nema zadužen nijedan materijal</p>
+                  <div className="text-slate-500 text-center py-4">
+                    Tehničar nema zadužen nijedan materijal
+                  </div>
                 ) : (
-                  <button 
-                    className="btn btn-primary"
+                  <Button 
+                    type="primary" 
+                    size="medium"
+                    prefix={<MinusIcon size={16} />}
                     onClick={handleReturnMaterial}
                     disabled={loading || !selectedMaterial || quantity <= 0}
                   >
-                    <MinusIcon /> Razduži materijal
-                  </button>
+                    Razduži materijal
+                  </Button>
                 )}
               </>
             )}
@@ -248,38 +301,54 @@ const AssignMaterial = () => {
         </div>
       </div>
       
-      <div className="card material-summary">
-        <h3 className="section-title">
-          <ToolsIcon /> Pregled stanja materijala
-        </h3>
+      {/* Materials Overview Table */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center space-x-3">
+            <BoxIcon size={20} className="text-green-600" />
+            <h3 className="text-lg font-semibold text-slate-900">Pregled stanja materijala</h3>
+          </div>
+        </div>
         
-        <div className="table-container">
-          <table className="materials-table">
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th>Vrsta</th>
-                <th>U magacinu</th>
-                <th>Zaduženo</th>
-                <th>Ukupno</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Vrsta</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">U magacinu</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Zaduženo</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukupno</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-200">
               {materials.map(material => {
                 const techAssigned = technicianMaterials.find(m => m._id === material._id || m.id === material._id)?.quantity || 0;
                 return (
-                  <tr key={material._id}>
-                    <td>{material.type}</td>
-                    <td>
-                      <span className={`quantity ${material.quantity <= 0 ? 'out-of-stock' : material.quantity < 5 ? 'low-stock' : 'in-stock'}`}>
+                  <tr key={material._id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{material.type}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                        material.quantity <= 0 
+                          ? "bg-red-100 text-red-800" 
+                          : material.quantity < 5 
+                            ? "bg-yellow-100 text-yellow-800" 
+                            : "bg-green-100 text-green-800"
+                      )}>
                         {material.quantity}
                       </span>
                     </td>
-                    <td>
-                      <span className={`quantity ${techAssigned > 0 ? 'assigned' : ''}`}>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                        techAssigned > 0 
+                          ? "bg-blue-100 text-blue-800" 
+                          : "bg-gray-100 text-gray-800"
+                      )}>
                         {techAssigned}
                       </span>
                     </td>
-                    <td>{material.quantity + techAssigned}</td>
+                    <td className="px-6 py-4 text-sm text-slate-700">{material.quantity + techAssigned}</td>
                   </tr>
                 );
               })}

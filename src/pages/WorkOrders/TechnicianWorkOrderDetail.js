@@ -1,13 +1,18 @@
 // Kompletna zamena za fajl: src/pages/WorkOrders/TechnicianWorkOrderDetail.js
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, AlertIcon, CloseIcon, CalendarIcon, ImageIcon, DeleteIcon, SearchIcon, PhoneIcon, MapPinIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { BackIcon, SaveIcon, CheckIcon, ClockIcon, AlertIcon, CloseIcon, CalendarIcon, ImageIcon, DeleteIcon, SearchIcon, PhoneIcon, MapPinIcon, BoxIcon } from '../../components/icons/SvgIcons';
+import { Button } from '../../components/ui/button-1';
+import { toast } from '../../utils/toast';
 import { userEquipmentAPI, materialsAPI, workOrdersAPI, techniciansAPI } from '../../services/api';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
+import EquipmentSelectionModal from './components/EquipmentSelectionModal';
+import MaterialsModal from './components/MaterialsModal';
+import UsedMaterialsList from './components/UsedMaterialsList';
+import InstalledEquipmentList from './components/InstalledEquipmentList';
 import './TechnicianWorkOrderDetail.css';
 
 const TechnicianWorkOrderDetail = () => {
@@ -1356,401 +1361,11 @@ const TechnicianWorkOrderDetail = () => {
     }
   }, [usedMaterials, id, user._id]);
   
-  // Equipment Selection Modal - optimizovan sa React.memo
-  const EquipmentSelectionModal = React.memo(() => {
-    if (!showEquipmentModal) return null;
-    
-    console.log('=== RENDERING EQUIPMENT MODAL ===');
-    
-    // Get filtered results only when rendering, not during typing
-    const filteredResults = getFilteredEquipment();
-    const searchTerm = searchTermRef.current;
-    const hasAvailableEquipment = stableEquipment && stableEquipment.length > 0;
-    
-    console.log('Modal rendering state:', {
-      stableEquipmentLength: stableEquipment?.length || 0,
-      hasAvailableEquipment,
-      filteredResultsLength: filteredResults?.length || 0,
-      searchTerm
-    });
-    
-    console.log('Stable equipment in modal:', stableEquipment);
-    console.log('Filtered results in modal:', filteredResults);
-
-    return (
-      <div className="modal-overlay" onClick={closeModal}>
-        <div className="modal-content equipment-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <div className="modal-title-section">
-              <h3>Izbor opreme</h3>
-              <button 
-                className="modal-close-btn"
-                onClick={closeModal}
-                aria-label="Zatvori modal"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            
-            {hasAvailableEquipment && (
-              <div className="search-section">
-                <div className="search-input-container">
-                  <SearchIcon className="search-icon" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Pretraži opremu..."
-                    defaultValue=""
-                    onChange={handleSearchChange}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        performSearch();
-                      }
-                    }}
-                    className="search-input"
-                    autoComplete="off"
-                    autoFocus
-                  />
-                  {searchTermRef.current && (
-                    <button 
-                      className="clear-search-btn"
-                      onClick={clearSearch}
-                      aria-label="Obriši pretragu"
-                      type="button"
-                    >
-                      <CloseIcon />
-                    </button>
-                  )}
-                </div>
-                
-                <div className="search-actions">
-                  <button 
-                    className="search-button"
-                    onClick={performSearch}
-                    type="button"
-                  >
-                    Pretraži
-                  </button>
-                </div>
-                
-                {isSearching && (
-                  <div className="search-loading">
-                    <div className="search-spinner"></div>
-                    <span>Pretražujem...</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          <div className="modal-body">
-            {!hasAvailableEquipment ? (
-              <div className="no-equipment-available">
-                <div className="no-results-icon">
-                  <AlertIcon />
-                </div>
-                <h4>Nema dostupne opreme</h4>
-                <p>
-                  Trenutno nemate dostupnu opremu za instalaciju. 
-                  Molimo vas da prvo preuzmete opremu iz magacina.
-                </p>
-                <button 
-                  className="btn btn-secondary"
-                  onClick={closeModal}
-                  type="button"
-                >
-                  Zatvori
-                </button>
-              </div>
-            ) : filteredResults.length > 0 ? (
-              <div className="equipment-grid">
-                {filteredResults.map((equipment) => (
-                  <div
-                    key={`equipment-${equipment._id}-${equipment.serialNumber}`}
-                    className="equipment-card"
-                    onClick={() => selectEquipment(equipment._id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        selectEquipment(equipment._id);
-                      }
-                    }}
-                  >
-                    <div className="equipment-card-header">
-                      <div className="equipment-category">{equipment.category}</div>
-                      <CheckIcon className="select-icon" />
-                    </div>
-                    <div className="equipment-card-body">
-                      <div className="equipment-description">{equipment.description}</div>
-                      <div className="equipment-serial">S/N: {equipment.serialNumber}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="no-results">
-                <div className="no-results-icon">
-                  <SearchIcon />
-                </div>
-                <h4>Nema rezultata</h4>
-                <p>
-                  {searchTerm 
-                    ? `Nema opreme koja odgovara pretrazi "${searchTerm}"`
-                    : 'Nemate dostupnu opremu u inventaru'
-                  }
-                </p>
-                {searchTerm && (
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={clearSearch}
-                    type="button"
-                  >
-                    Obriši pretragu
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {hasAvailableEquipment && (
-            <div className="modal-footer">
-              <div className="results-count">
-                {filteredResults.length} od {stableEquipment.length} stavki
-              </div>
-              <button 
-                className="btn btn-secondary" 
-                onClick={closeModal}
-                type="button"
-              >
-                Zatvori
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  });
-  
-  // Materials Modal Component - sa ref-ovima za stable input handling
-  const MaterialsModal = React.memo(() => {
-    if (!showMaterialsModal) return null;
-    
-    return <MaterialsModalContent key={materialModalKey} />;
-  });
-  
-  // Potpuno nezavisan modal sadržaj
-  const MaterialsModalContent = React.memo(() => {
-    const [localSelectedMaterial, setLocalSelectedMaterial] = useState(selectedMaterialRef.current);
-    const [localMaterialQuantity, setLocalMaterialQuantity] = useState(materialQuantityRef.current);
-    
-    // Update ref-ove kad se lokalni state promeni
-    React.useEffect(() => {
-      selectedMaterialRef.current = localSelectedMaterial;
-    }, [localSelectedMaterial]);
-    
-    React.useEffect(() => {
-      materialQuantityRef.current = localMaterialQuantity;
-    }, [localMaterialQuantity]);
-    
-    // Kalkuliši maksimalnu količinu
-    const selectedMaterialData = localSelectedMaterial ? availableMaterials.find(mat => mat._id === localSelectedMaterial) : null;
-    const maxQuantity = selectedMaterialData?.quantity || 1;
-    
-    const handleMaterialSelectionChange = (e) => {
-      const newValue = e.target.value;
-      setLocalSelectedMaterial(newValue);
-      setLocalMaterialQuantity(''); // Reset količine na prazno
-    };
-    
-    const handleMaterialQuantityChange = (e) => {
-      const inputValue = e.target.value;
-      
-      if (inputValue === '') {
-        setLocalMaterialQuantity('');
-        return;
-      }
-      
-      const numValue = parseInt(inputValue);
-      
-      if (isNaN(numValue) || numValue < 0) {
-        setLocalMaterialQuantity('');
-        return;
-      }
-      
-      if (localSelectedMaterial) {
-        setLocalMaterialQuantity(Math.min(numValue, maxQuantity));
-      } else {
-        setLocalMaterialQuantity(numValue);
-      }
-    };
-    
-    const isAddDisabled = !localSelectedMaterial || !localMaterialQuantity || localMaterialQuantity === '' || localMaterialQuantity <= 0 || loadingMaterials;
-    
-    return (
-      <div className="modal-overlay" onClick={closeMaterialsModal}>
-        <div className="modal-content equipment-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <div className="modal-title-section">
-              <h3>Dodaj materijal</h3>
-              <button 
-                className="modal-close-btn"
-                onClick={closeMaterialsModal}
-                aria-label="Zatvori modal"
-                type="button"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-          </div>
-          
-          <div className="modal-body">
-            <div className="form-group">
-              <label htmlFor="material-select">Materijal:</label>
-              <select
-                id="material-select"
-                value={localSelectedMaterial}
-                onChange={handleMaterialSelectionChange}
-                className="form-select"
-              >
-                <option value="">-- Izaberite materijal --</option>
-                {availableMaterials.map(material => (
-                  <option key={material._id} value={material._id}>
-                    {material.type} (dostupno: {material.quantity})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="material-quantity">Količina:</label>
-              <input
-                type="number"
-                id="material-quantity"
-                min="0"
-                max={maxQuantity}
-                value={localMaterialQuantity}
-                onChange={handleMaterialQuantityChange}
-                className="form-input"
-                placeholder="Unesite količinu"
-                autoComplete="off"
-              />
-              {localSelectedMaterial && (
-                <small className="form-help">
-                  Maksimalno dostupno: {maxQuantity}
-                </small>
-              )}
-            </div>
-          </div>
-          
-          <div className="modal-footer">
-            <button 
-              className="btn btn-secondary" 
-              onClick={closeMaterialsModal}
-              type="button"
-            >
-              Otkaži
-            </button>
-            <button 
-              className="btn btn-primary" 
-              onClick={addMaterial}
-              disabled={isAddDisabled}
-              type="button"
-            >
-              {loadingMaterials ? 'Dodavanje...' : 'Dodaj materijal'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  });
-  
-  // Komponenta za prikaz korišćenih materijala
-  const UsedMaterialsList = () => {
-    return (
-      <div className="materials-section">
-        <div className="card-header">
-          <h3>Korišćeni materijali</h3>
-          <button 
-            className="btn btn-sm btn-primary"
-            onClick={openMaterialsModal}
-            type="button"
-            disabled={isWorkOrderCompleted}
-          >
-            + Dodaj materijal
-          </button>
-        </div>
-        
-        {usedMaterials.length > 0 ? (
-          <div className="technician-materials-list">
-            {usedMaterials.map((item, index) => (
-              <div key={index} className="material-item">
-                <div className="material-info">
-                  <div className="material-name">
-                    {item.material?.type || item.material}
-                  </div>
-                  <div className="material-quantity">
-                    Količina: {item.quantity}
-                  </div>
-                </div>
-                <button
-                  className="btn btn-icon remove-btn"
-                  onClick={() => removeMaterial(item.material?._id || item.material)}
-                  disabled={loadingMaterials || isWorkOrderCompleted}
-                  type="button"
-                >
-                  <DeleteIcon />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="no-materials-message">
-            Nema dodanih materijala
-          </div>
-        )}
-        
-        {isWorkOrderCompleted && (
-          <div className="info-message">
-            Radni nalog je završen - uređivanje materijala nije moguće.
-          </div>
-        )}
-      </div>
-    );
-  };
-  
-  // Komponenta za prikaz instalirane opreme
-  const InstalledEquipmentList = () => {
-    return (
-      <div className="installed-equipment-section">
-        <h4>Instalirana oprema:</h4>
-        {userEquipment.length > 0 ? (
-          <div className="installed-equipment-list">
-            {userEquipment.map((equipment) => (
-              <div key={equipment._id} className="installed-equipment-item">
-                <div className="equipment-details">
-                  <div className="equipment-name">{equipment.category} - {equipment.description}</div>
-                  <div className="equipment-serial">S/N: {equipment.serialNumber}</div>
-                </div>
-                <button
-                  className="btn btn-icon remove-btn"
-                  onClick={() => openRemoveEquipmentDialog(equipment)}
-                  disabled={isWorkOrderCompleted}
-                >
-                  <DeleteIcon />
-                  <span>Ukloni</span>
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="no-equipment-message">Nema instalirane opreme</div>
-        )}
-      </div>
-    );
-  };
+  // Komponente su izdvojene u zasebne fajlove:
+  // - EquipmentSelectionModal -> ./components/EquipmentSelectionModal.js
+  // - MaterialsModal -> ./components/MaterialsModal.js
+  // - UsedMaterialsList -> ./components/UsedMaterialsList.js  
+  // - InstalledEquipmentList -> ./components/InstalledEquipmentList.js
   
   if (loading) {
     return (
@@ -1778,11 +1393,15 @@ const TechnicianWorkOrderDetail = () => {
   }
   
   return (
-    <div className="technician-work-order-detail fade-in" ref={mainRef}>
-      {/* Pull-to-refresh indikator */}
-      <div className={`pull-refresh-indicator ${refreshing ? 'active' : ''}`}>
-        <div className={`refresh-icon ${refreshing ? 'spin' : ''}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-3 sm:p-6" ref={mainRef}>
+      {/* Pull to refresh indicator */}
+      <div className={`flex items-center justify-center space-x-2 py-2 text-slate-500 text-sm transition-opacity duration-300 ${
+        refreshing ? 'opacity-100' : 'opacity-60'
+      }`}>
+        <div className={`p-2 bg-slate-200 rounded-full transition-transform duration-500 ${
+          refreshing ? 'rotate-180' : ''
+        }`}>
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
             <path d="M3 3v5h5"></path>
             <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
@@ -1792,263 +1411,364 @@ const TechnicianWorkOrderDetail = () => {
         <span>Povucite za osvežavanje</span>
       </div>
 
-      <div className="page-header">
-        <div className="header-content">
-          <h1 className="page-title">Radni nalog</h1>
-          <div className={`status-indicator status-${formData.status}`}>
-            {formData.status === 'zavrsen' ? 'Završen' : 
-             formData.status === 'odlozen' ? 'Odložen' :
-             formData.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
+      {/* Modern Header */}
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 sm:p-3 bg-blue-50 rounded-xl">
+              <BoxIcon size={20} className="text-blue-600 sm:w-6 sm:h-6" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Radni nalog</h1>
+              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                formData.status === 'zavrsen' ? 'bg-green-50 text-green-700 border border-green-200' :
+                formData.status === 'odlozen' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                formData.status === 'otkazan' ? 'bg-red-50 text-red-700 border border-red-200' :
+                'bg-gray-50 text-gray-700 border border-gray-200'
+              }`}>
+                {formData.status === 'zavrsen' ? 'Završen' : 
+                 formData.status === 'odlozen' ? 'Odložen' :
+                 formData.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="header-actions">
-          <button 
-            className={`status-toggle-btn ${showStatusActions ? 'active' : ''}`}
-            onClick={() => setShowStatusActions(!showStatusActions)}
-          >
-            Status
-          </button>
-          <Link to="/my-work-orders" className="btn btn-sm btn-back">
-            <BackIcon />
-          </Link>
+          <div className="flex items-center space-x-2">
+            <Button
+              type={showStatusActions ? "primary" : "secondary"}
+              size="small"
+              onClick={() => setShowStatusActions(!showStatusActions)}
+            >
+              Status
+            </Button>
+            <Link to="/my-work-orders">
+              <Button type="secondary" size="small" prefix={<BackIcon size={16} />}>
+                <span className="hidden sm:inline">Nazad</span>
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
       
-      <div className="work-order-layout">
-        <div className="work-order-main">
-          <div className="card user-info-card">
-            <div className="card-header">
-              <h2>Informacije o korisniku</h2>
-            </div>
-            <div className="user-contact-actions">
+      {/* Main Content */}
+      <div className="space-y-4 sm:space-y-6">
+        {/* User Info Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Informacije o korisniku</h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            {/* Contact Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
               {workOrder?.userPhone && (
-                <button className="contact-action-btn call-btn" onClick={callUser}>
-                  <PhoneIcon /> Pozovi
-                </button>
+                <Button
+                  type="primary"
+                  size="medium"
+                  onClick={callUser}
+                  prefix={<PhoneIcon size={16} />}
+                  className="flex-1"
+                >
+                  Pozovi
+                </Button>
               )}
-              <button className="contact-action-btn map-btn" onClick={openInMaps}>
-                <MapPinIcon /> Mapa
-              </button>
+              <Button
+                type="secondary"
+                size="medium"
+                onClick={openInMaps}
+                prefix={<MapPinIcon size={16} />}
+                className="flex-1"
+              >
+                Mapa
+              </Button>
             </div>
-            <div className="details-grid">
-              <div className="detail-item">
-                <label>Korisnik:</label>
-                <p>{workOrder?.userName || 'Nije dostupno'}</p>
+            
+            {/* User Details Grid */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Korisnik:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.userName || 'Nije dostupno'}</span>
               </div>
-              <div className="detail-item">
-                <label>Telefon:</label>
-                <p>{workOrder?.userPhone || 'Nije dostupno'}</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Telefon:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.userPhone || 'Nije dostupno'}</span>
               </div>
-              <div className="detail-item">
-                <label>TIS ID:</label>
-                <p>{workOrder?.tisId || 'Nije dostupno'}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="card location-card">
-            <div className="card-header">
-              <h2>Lokacija</h2>
-            </div>
-            <div className="details-grid">
-              <div className="detail-item">
-                <label>Opština:</label>
-                <p>{workOrder?.municipality}</p>
-              </div>
-              <div className="detail-item">
-                <label>Adresa:</label>
-                <p>{workOrder?.address}</p>
-              </div>
-              <div className="detail-item">
-                <label>Datum:</label>
-                <p>{new Date(workOrder?.date).toLocaleDateString('sr-RS')}</p>
-              </div>
-              <div className="detail-item">
-                <label>Vreme:</label>
-                <p>{workOrder?.time || '09:00'}</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">TIS ID:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.tisId || 'Nije dostupno'}</span>
               </div>
             </div>
           </div>
+        </div>
           
-          <div className="card installation-card">
-            <div className="card-header">
-              <h2>Detalji instalacije</h2>
-            </div>
-            <div className="details-grid">
-              <div className="detail-item">
-                <label>Tip instalacije:</label>
-                <p>{workOrder?.type}</p>
+        {/* Location Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Lokacija</h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Opština:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.municipality}</span>
               </div>
-              <div className="detail-item">
-                <label>Tehnologija:</label>
-                <p>{workOrder?.technology || 'Nije definisana'}</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Adresa:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.address}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Datum:</span>
+                <span className="text-sm text-slate-900 font-medium">{new Date(workOrder?.date).toLocaleDateString('sr-RS')}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Vreme:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.time || '09:00'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+          
+        {/* Installation Details Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Detalji instalacije</h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Tip instalacije:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.type}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
+                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Tehnologija:</span>
+                <span className="text-sm text-slate-900 font-medium">{workOrder?.technology || 'Nije definisana'}</span>
               </div>
               {workOrder?.details && (
-                <div className="detail-item full-width">
-                  <label>Detalji:</label>
-                  <p className="details-text">{workOrder?.details}</p>
+                <div className="py-3">
+                  <span className="text-sm font-medium text-slate-600 block mb-2">Detalji:</span>
+                  <p className="text-sm text-slate-900 leading-relaxed bg-slate-50 p-3 rounded-lg border">{workOrder?.details}</p>
                 </div>
               )}
             </div>
           </div>
+        </div>
           
-          <div className="card equipment-card">
-            <div className="card-header">
-              <h2>Oprema korisnika</h2>
-            </div>
+        {/* Equipment Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Oprema korisnika</h2>
+          </div>
+          <div className="p-4 sm:p-6">
             
-            <InstalledEquipmentList />
+            <InstalledEquipmentList 
+              userEquipment={userEquipment}
+              openRemoveEquipmentDialog={openRemoveEquipmentDialog}
+              isWorkOrderCompleted={isWorkOrderCompleted}
+            />
 
-            <div className="equipment-form">
-              <h3>Dodaj novu opremu:</h3>
+            <div className="mt-6 space-y-4">
+              <h3 className="text-base font-semibold text-slate-900">Dodaj novu opremu:</h3>
 
-              <div className="equipment-selection">
-                <button
-                  type="button"
-                  className="btn btn-secondary select-equipment-btn"
+              <div className="space-y-4">
+                <Button
+                  type="secondary"
+                  size="medium"
                   onClick={openEquipmentModal}
                   disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}
+                  prefix={<SearchIcon size={16} />}
+                  className="w-full sm:w-auto"
                 >
-                  <SearchIcon /> Izaberi opremu
-                </button>
+                  Izaberi opremu
+                </Button>
                 
                 {selectedEquipment && (
-                  <div className="selected-equipment-info">
-                    {technicianEquipment.find(eq => eq.id === selectedEquipment)?.description} - 
-                    S/N: {technicianEquipment.find(eq => eq.id === selectedEquipment)?.serialNumber}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <span className="text-sm text-blue-900 font-medium">
+                      {technicianEquipment.find(eq => eq.id === selectedEquipment)?.description} - 
+                      S/N: {technicianEquipment.find(eq => eq.id === selectedEquipment)?.serialNumber}
+                    </span>
                   </div>
                 )}
                 
-                <button
-                  type="button"
-                  className="btn btn-primary add-equipment-btn"
+                <Button
+                  type="primary"
+                  size="medium"
                   onClick={() => handleAddEquipment(selectedEquipment)}
                   disabled={!selectedEquipment || loadingEquipment || isWorkOrderCompleted}
+                  loading={loadingEquipment}
+                  className="w-full sm:w-auto"
                 >
                   {loadingEquipment ? 'Dodavanje...' : 'Dodaj opremu'}
-                </button>
+                </Button>
               </div>
 
               {technicianEquipment.length === 0 && (
-                <p className="warning-message">
-                  Nemate dostupnu opremu u vašem inventaru.
-                </p>
+                <div className="flex items-center space-x-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <AlertIcon size={16} className="text-yellow-600" />
+                  <span className="text-sm text-yellow-800">Nemate dostupnu opremu u vašem inventaru.</span>
+                </div>
               )}
               
               {isWorkOrderCompleted && (
-                <p className="info-message">
-                  Radni nalog je završen - uređivanje opreme nije moguće.
-                </p>
+                <div className="flex items-center space-x-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <span className="text-sm text-gray-700">Radni nalog je završen - uređivanje opreme nije moguće.</span>
+                </div>
               )}
             </div>
           </div>
+        </div>
           
-          <div className="card materials-card">
-            <UsedMaterialsList />
+        {/* Materials Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <UsedMaterialsList 
+            usedMaterials={usedMaterials}
+            openMaterialsModal={openMaterialsModal}
+            removeMaterial={removeMaterial}
+            loadingMaterials={loadingMaterials}
+            isWorkOrderCompleted={isWorkOrderCompleted}
+          />
+        </div>
+          
+        {/* Images Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900 flex items-center gap-2">
+              <ImageIcon size={20} /> Slike
+            </h2>
           </div>
-          
-          <div className="card images-card">
-            <div className="card-header">
-              <h2><ImageIcon /> Slike</h2>
-            </div>
-            <div className="card-body">
-              <div className="image-upload-section">
-                <div className="image-upload-container">
-                  <input
-                    type="file"
-                    id="image-upload"
-                    onChange={handleImageChange}
-                    accept="image/jpeg,image/png"
-                    multiple
-                    disabled={uploadingImages || isWorkOrderCompleted}
-                    className="hidden-upload"
-                  />
-                  <label htmlFor="image-upload" className="upload-label">
-                    <ImageIcon />
-                    <span>Fotografiši ili izaberi slike</span>
-                    <small>Možete odabrati do 10 slika odjednom (max 30MB po slici)</small>
-                  </label>
-                </div>
-                
-                {(imagePreviews.length > 0 || uploadingImages) && (
-                  <div className="multiple-images-preview-container">
-                    <div className="preview-header">
-                      <h4>
-                        {uploadingImages && imagePreviews.length === 0 
-                          ? "Kompresovanje slika u toku..."
-                          : `Odabrane slike (${imagePreviews.length})`
-                        }
-                      </h4>
-                      {!uploadingImages && (
-                        <button 
-                          type="button" 
-                          className="btn btn-sm btn-cancel"
-                          onClick={resetImageUpload}
-                          disabled={uploadingImages}
-                        >
-                          <CloseIcon /> Ukloni sve
-                        </button>
-                      )}
-                    </div>
-                    
-                    {uploadingImages && imagePreviews.length === 0 && (
-                      <div className="compression-loading">
-                        <div className="loading-spinner"></div>
-                        <p>Kompresovanje slika u toku...</p>
-                        <small>Molimo sačekajte dok se slike pripravljaju za upload</small>
-                      </div>
-                    )}
-                    
-                    <div className="images-preview-grid">
-                      {imagePreviews.map((preview, index) => (
-                        <div key={index} className="image-preview-item">
-                          <img src={preview.preview} alt={`Preview ${index + 1}`} className="image-preview" />
-                          <div className="preview-info">
-                            <div className="preview-filename">{preview.name}</div>
-                            <div className="preview-filesize">{(preview.size / 1024 / 1024).toFixed(2)} MB</div>
-                          </div>
-                          
-                          {uploadingImages && uploadProgress[index] !== undefined && (
-                            <div className="upload-progress-overlay">
-                              {uploadProgress[index] === -1 ? (
-                                <div className="upload-error">
-                                  <AlertIcon />
-                                  <span>Greška</span>
-                                </div>
-                              ) : uploadProgress[index] === 100 ? (
-                                <div className="upload-success">
-                                  <CheckIcon />
-                                  <span>Uspešno</span>
-                                </div>
-                              ) : (
-                                <div className="upload-progress">
-                                  <div className="progress-bar">
-                                    <div 
-                                      className="progress-fill"
-                                      style={{ width: `${uploadProgress[index]}%` }}
-                                    ></div>
-                                  </div>
-                                  <span>{uploadProgress[index]}%</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="preview-actions">
-                      <button 
-                        type="button" 
-                        className="btn btn-primary upload-all-btn"
-                        onClick={handleImageUpload}
-                        disabled={uploadingImages}
-                      >
-                        <SaveIcon /> {uploadingImages ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})` : `Sačuvaj sve slike (${imagePreviews.length})`}
-                      </button>
-                    </div>
+          <div className="p-4 sm:p-6">
+            <div className="space-y-6">
+              {/* Upload Area */}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="image-upload"
+                  onChange={handleImageChange}
+                  accept="image/jpeg,image/png"
+                  multiple
+                  disabled={uploadingImages || isWorkOrderCompleted}
+                  className="sr-only"
+                />
+                <label 
+                  htmlFor="image-upload" 
+                  className={`relative w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all overflow-hidden flex flex-col items-center justify-center space-y-3 p-4 ${
+                    uploadingImages || isWorkOrderCompleted
+                      ? 'border-slate-300 bg-slate-50 cursor-not-allowed'
+                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-blue-300'
+                  }`}
+                >
+                  <ImageIcon size={24} className="text-slate-400" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-slate-600">
+                      {uploadingImages ? 'Upload u toku...' : 'Fotografiši ili izaberi slike'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Možete odabrati do 10 slika odjednom (max 30MB po slici)
+                    </p>
                   </div>
-                )}
+                </label>
+              </div>
+                
+              {/* Image Previews */}
+              {(imagePreviews.length > 0 || uploadingImages) && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-semibold text-slate-900">
+                      {uploadingImages && imagePreviews.length === 0 
+                        ? "Kompresovanje slika u toku..."
+                        : `Odabrane slike (${imagePreviews.length})`
+                      }
+                    </h4>
+                    {!uploadingImages && (
+                      <Button 
+                        type="secondary" 
+                        size="small"
+                        onClick={resetImageUpload}
+                        disabled={uploadingImages}
+                        prefix={<CloseIcon size={14} />}
+                      >
+                        Ukloni sve
+                      </Button>
+                    )}
+                  </div>
+                    
+                  {/* Compression Loading */}
+                  {uploadingImages && imagePreviews.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                      <p className="text-sm font-medium text-slate-900 mb-1">Kompresovanje slika u toku...</p>
+                      <p className="text-xs text-slate-500">Molimo sačekajte dok se slike pripravljaju za upload</p>
+                    </div>
+                  )}
+                  
+                  {/* Image Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
+                        <div className="aspect-square">
+                          <img 
+                            src={preview.preview} 
+                            alt={`Preview ${index + 1}`} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        
+                        {/* Image Info */}
+                        <div className="p-2 bg-white">
+                          <div className="text-xs font-medium text-slate-900 truncate" title={preview.name}>
+                            {preview.name}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {(preview.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                        
+                        {/* Upload Progress Overlay */}
+                        {uploadingImages && uploadProgress[index] !== undefined && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            {uploadProgress[index] === -1 ? (
+                              <div className="flex flex-col items-center text-red-400">
+                                <AlertIcon size={20} />
+                                <span className="text-xs mt-1">Greška</span>
+                              </div>
+                            ) : uploadProgress[index] === 100 ? (
+                              <div className="flex flex-col items-center text-green-400">
+                                <CheckIcon size={20} />
+                                <span className="text-xs mt-1">Uspešno</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center text-white">
+                                <div className="w-12 h-2 bg-gray-300 rounded-full overflow-hidden mb-2">
+                                  <div 
+                                    className="h-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${uploadProgress[index]}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs">{uploadProgress[index]}%</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Upload Button */}
+                  <div className="flex justify-center">
+                    <Button 
+                      type="primary"
+                      size="medium"
+                      onClick={handleImageUpload}
+                      disabled={uploadingImages}
+                      loading={uploadingImages}
+                      prefix={<SaveIcon size={16} />}
+                    >
+                      {uploadingImages 
+                        ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})` 
+                        : `Sačuvaj sve slike (${imagePreviews.length})`
+                      }
+                    </Button>
+                  </div>
+                </div>
+              )}
               </div>
               
               <div className="images-gallery">
@@ -2100,24 +1820,24 @@ const TechnicianWorkOrderDetail = () => {
             </div>
           </div>
 
-          <div className="card comments-card">
-            <div className="card-header">
-              <h2>Komentar tehničara</h2>
-            </div>
-            <div className="technician-comments-form">
-              <div className="form-group">
-                <textarea
-                  id="comment"
-                  name="comment"
-                  value={formData.comment}
-                  onChange={handleChange}
-                  placeholder={isWorkOrderCompleted ? "Radni nalog je završen - komentar se ne može menjati" : "Unesite komentar o izvršenom poslu"}
-                  disabled={saving || isWorkOrderCompleted}
-                  rows="4"
-                ></textarea>
-              </div>
-            </div>
+        {/* Comments Card */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Komentar tehničara</h2>
           </div>
+          <div className="p-4 sm:p-6">
+            <textarea
+              id="comment"
+              name="comment"
+              value={formData.comment}
+              onChange={handleChange}
+              placeholder={isWorkOrderCompleted ? "Radni nalog je završen - komentar se ne može menjati" : "Unesite komentar o izvršenom poslu"}
+              disabled={saving || isWorkOrderCompleted}
+              rows="4"
+              className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none disabled:bg-slate-50 disabled:text-slate-500"
+            ></textarea>
+          </div>
+        </div>
           
           {isWorkOrderCompleted && (
             <div className="card completion-info-card">
@@ -2133,76 +1853,103 @@ const TechnicianWorkOrderDetail = () => {
             </div>
           )}
           
-          {/* Mobilni status panel - pozicija 8 */}
+          {/* Mobile Status Panel */}
           {isMobile && (
-            <div className={`mobile-status-panel ${showStatusActions ? 'show' : ''}`}>
-              <div className="status-actions">
-                <button
-                  className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
+            <div className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg transition-all duration-300 z-40 ${
+              showStatusActions ? 'translate-y-0' : 'translate-y-full'
+            }`}>
+              <div className="p-4 grid grid-cols-2 gap-3">
+                <Button
+                  type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('zavrsen')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<CheckIcon size={16} />}
+                  className="flex-1"
                 >
-                  <CheckIcon /> Završen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
+                  Završen
+                </Button>
+                <Button
+                  type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('nezavrsen')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<ClockIcon size={16} />}
+                  className="flex-1"
                 >
-                  <ClockIcon /> Nezavršen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
+                  Nezavršen
+                </Button>
+                <Button
+                  type={formData.status === 'odlozen' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('odlozen')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<AlertIcon size={16} />}
+                  className="flex-1"
                 >
-                  <AlertIcon /> Odložen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
+                  Odložen
+                </Button>
+                <Button
+                  type={formData.status === 'otkazan' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('otkazan')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<CloseIcon size={16} />}
+                  className="flex-1"
                 >
-                  <CloseIcon /> Otkazan
-                </button>
+                  Otkazan
+                </Button>
               </div>
             </div>
           )}
           
+          {/* Desktop Status Card */}
           {!isMobile && (
-            <div className="card status-card">
-              <div className="card-header">
-                <h2>Status radnog naloga</h2>
+            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+              <div className="p-4 sm:p-6 border-b border-slate-200">
+                <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Status radnog naloga</h2>
               </div>
-              <div className="status-actions">
-                <button
-                  className={`status-btn ${formData.status === 'zavrsen' ? 'active' : ''}`}
+              <div className="p-4 sm:p-6 grid grid-cols-2 gap-3">
+                <Button
+                  type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('zavrsen')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<CheckIcon size={16} />}
+                  className="flex-1"
                 >
-                  <CheckIcon /> Završen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'nezavrsen' ? 'active' : ''}`}
+                  Završen
+                </Button>
+                <Button
+                  type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('nezavrsen')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<ClockIcon size={16} />}
+                  className="flex-1"
                 >
-                  <ClockIcon /> Nezavršen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'odlozen' ? 'active' : ''}`}
+                  Nezavršen
+                </Button>
+                <Button
+                  type={formData.status === 'odlozen' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('odlozen')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<AlertIcon size={16} />}
+                  className="flex-1"
                 >
-                  <AlertIcon /> Odložen
-                </button>
-                <button
-                  className={`status-btn ${formData.status === 'otkazan' ? 'active' : ''}`}
+                  Odložen
+                </Button>
+                <Button
+                  type={formData.status === 'otkazan' ? 'primary' : 'secondary'}
+                  size="medium"
                   onClick={() => handleStatusChange('otkazan')}
                   disabled={saving || isWorkOrderCompleted}
+                  prefix={<CloseIcon size={16} />}
+                  className="flex-1"
                 >
-                  <CloseIcon /> Otkazan
-                </button>
+                  Otkazan
+                </Button>
               </div>
             </div>
           )}
@@ -2323,18 +2070,21 @@ const TechnicianWorkOrderDetail = () => {
           
           <form onSubmit={handleSubmit} className="save-form">
             <div className="form-buttons">
-              <button 
-                type="submit" 
-                className="btn btn-primary save-btn"
+              <Button 
+                type="primary"
+                size="large"
                 disabled={saving || isWorkOrderCompleted}
+                loading={saving}
+                prefix={<SaveIcon size={16} />}
+                className="w-full sm:w-auto"
+                htmlType="submit"
               >
-                <SaveIcon /> {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
-              </button>
+                {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
+              </Button>
             </div>
           </form>
         </div>
-      </div>
-      
+        
       {/* Modal za pregled slike u punoj veličini */}
       {showFullImage && (
         <div className="modal-overlay image-viewer-overlay" onClick={() => setShowFullImage(null)}>
@@ -2348,10 +2098,31 @@ const TechnicianWorkOrderDetail = () => {
       )}
       
       {/* Modal za izbor opreme */}
-      <EquipmentSelectionModal />
+      <EquipmentSelectionModal 
+        showEquipmentModal={showEquipmentModal}
+        closeModal={closeModal}
+        stableEquipment={stableEquipment}
+        getFilteredEquipment={getFilteredEquipment}
+        searchTermRef={searchTermRef}
+        searchInputRef={searchInputRef}
+        handleSearchChange={handleSearchChange}
+        performSearch={performSearch}
+        clearSearch={clearSearch}
+        isSearching={isSearching}
+        selectEquipment={selectEquipment}
+      />
       
       {/* Modal za dodavanje materijala */}
-      <MaterialsModal />
+      <MaterialsModal 
+        showMaterialsModal={showMaterialsModal}
+        materialModalKey={materialModalKey}
+        selectedMaterialRef={selectedMaterialRef}
+        materialQuantityRef={materialQuantityRef}
+        availableMaterials={availableMaterials}
+        closeMaterialsModal={closeMaterialsModal}
+        addMaterial={addMaterial}
+        loadingMaterials={loadingMaterials}
+      />
 
       {/* Modal za uklanjanje opreme */}
       {equipmentToRemove && (

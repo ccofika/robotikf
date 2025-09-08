@@ -1,13 +1,11 @@
 // Kompletna zamena za fajl: src/App.js
 import React, { useState, useEffect, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast, ToastProvider } from './components/ui/toast';
 import './styles/main.css'; // <-- DODAJ OVU LINIJU
 import './App.css';
 // Layouts
-import Header from './components/layout/Header';
-import Sidebar from './components/layout/Sidebar';
+import { ShadcnSidebar } from './components/layout/ShadcnSidebar';
 // Context
 import { AuthContext } from './context/AuthContext';
 
@@ -47,13 +45,13 @@ import Logs from './pages/Logs/Logs';
 import DefectiveEquipment from './pages/DefectiveEquipment/DefectiveEquipment';
 
 import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
+import VehicleFleet from './pages/VehicleFleet/VehicleFleet';
 // API Services
 import { techniciansAPI } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showEquipmentConfirmation, setShowEquipmentConfirmation] = useState(false);
   
   useEffect(() => {
@@ -101,10 +99,6 @@ function App() {
     // Preusmjeri na login stranicu nakon logout-a
     window.location.href = '/login';
   };
-  
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
 
   const handleEquipmentConfirmationComplete = () => {
     setShowEquipmentConfirmation(false);
@@ -122,13 +116,13 @@ const PrivateRoute = ({ children }) => {
   
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
-      <Router>
-        <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
-          {user && <Header toggleMobileMenu={toggleMobileMenu} />}
-          <main className="main-content">
-            {user && <Sidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />}
-            <div className="content-container">
-              <Routes>
+      <ToastProvider>
+        <Router>
+          <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
+            {user && <ShadcnSidebar />}
+            <main className={`${user ? 'md:ml-16' : ''} transition-all duration-300 ease-in-out`}>
+              <div className={`${user ? 'pt-16 md:pt-6' : ''} p-6 min-h-screen`}>
+                <Routes>
                 {/* Javne rute */}
                 <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
                 
@@ -210,6 +204,9 @@ const PrivateRoute = ({ children }) => {
                 <Route path="/logs" element={
                   user?.role === 'admin' ? <Logs /> : <Navigate to="/access-denied" />
                 } />
+                <Route path="/vehicles" element={
+                  user?.role === 'admin' ? <VehicleFleet /> : <Navigate to="/access-denied" />
+                } />
                 <Route path="/defective-equipment" element={
                   user?.role === 'admin' ? <DefectiveEquipment /> : <Navigate to="/access-denied" />
                 } />
@@ -239,51 +236,17 @@ const PrivateRoute = ({ children }) => {
                 <Route path="*" element={
                   <Navigate to={user ? (user.role === 'admin' ? '/' : '/my-work-orders') : '/login'} />
                 } />
-              </Routes>
-            </div>
-          </main>
-          {/* Prilagođene postavke za ToastContainer - za poboljšanje izgleda notifikacija */}
-          <ToastContainer 
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={true}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            style={{ fontSize: '14px' }}
-            toastStyle={{ 
-              borderRadius: '8px', 
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-              padding: '12px 16px' 
-            }}
-            closeButton={({ closeToast }) => (
-              <button
-                onClick={closeToast}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#7f8c8d',
-                  fontSize: '16px',
-                  opacity: '0.7',
-                  cursor: 'pointer',
-                  padding: '0 5px',
-                  marginLeft: '10px'
-                }}
-              >
-                ✖
-              </button>
+                </Routes>
+              </div>
+            </main>
+            
+            {/* Komponenta za potvrđivanje opreme - prikazuje se kao overlay kad je potrebno */}
+            {showEquipmentConfirmation && user?.role === 'technician' && (
+              <EquipmentConfirmation onConfirmationComplete={handleEquipmentConfirmationComplete} />
             )}
-          />
-          
-          {/* Komponenta za potvrđivanje opreme - prikazuje se kao overlay kad je potrebno */}
-          {showEquipmentConfirmation && user?.role === 'technician' && (
-            <EquipmentConfirmation onConfirmationComplete={handleEquipmentConfirmationComplete} />
-          )}
-        </div>
-      </Router>
+          </div>
+        </Router>
+      </ToastProvider>
     </AuthContext.Provider>
   );
 }

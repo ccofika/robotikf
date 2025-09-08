@@ -1,12 +1,11 @@
 // C:\Users\stefa\OneDrive\Desktop\transfer\frontend\src\pages\Reports\ExportSpecification.js
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import DatePicker from 'react-datepicker';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { DownloadIcon, CalendarIcon, ExcelIcon, SpinnerIcon, TableIcon, UsersIcon, SettingsIcon, ClipboardIcon, RefreshIcon } from '../../components/icons/SvgIcons';
 import 'react-datepicker/dist/react-datepicker.css';
-import './ExportSpecificationModern.css';
 
 const ExportSpecification = () => {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -109,179 +108,208 @@ const ExportSpecification = () => {
   };
 
   return (
-    <div className="export-container fade-in">
-      <div className="page-header">
-        <h1 className="page-title">
-          <TableIcon className="title-icon" />
-          Export Evidencije
-        </h1>
-        <p className="page-subtitle">
-          Kreirajte Excel evidenciju radnih naloga sa detaljnim podacima o instaliranim i uklonjenim uređajima
-        </p>
-        <button 
-          onClick={handleRefresh}
-          className="refresh-btn"
-          disabled={isRefreshing}
-          title="Osvežiti statistike"
-        >
-          <RefreshIcon className={`icon ${isRefreshing ? 'spinning' : ''}`} />
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <TableIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Export Evidencije</h1>
+              <p className="text-slate-600 mt-1">
+                Kreirajte Excel evidenciju radnih naloga sa detaljnim podacima o instaliranim i uklonjenim uređajima
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={handleRefresh}
+              className="flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg hover:bg-white transition-all shadow-sm"
+              disabled={isRefreshing}
+              title="Osvežiti statistike"
+            >
+              <RefreshIcon size={16} className={`${isRefreshing ? 'animate-spin' : ''} text-slate-600`} />
+              <span className="text-sm font-medium text-slate-700">Osveži</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="export-specification">
-        <div className="export-card">
-          <div className="card-header">
-            <h2>
-              <CalendarIcon />
-              Vremenski period
-            </h2>
-            <p>Odaberite period za koji želite da eksportujete evidenciju</p>
-          </div>
-
-          <div className="date-selection">
-            <div className="date-input-group">
-              <label htmlFor="startDate">Početni datum:</label>
-              <DatePicker
-                id="startDate"
-                selected={startDate}
-                onChange={(date) => setStartDate(date)}
-                selectsStart
-                startDate={startDate}
-                endDate={endDate}
-                dateFormat="dd.MM.yyyy"
-                className="date-picker"
-                placeholderText="Odaberite početni datum"
-              />
-            </div>
-
-            <div className="date-separator">do</div>
-
-            <div className="date-input-group">
-              <label htmlFor="endDate">Krajnji datum:</label>
-              <DatePicker
-                id="endDate"
-                selected={endDate}
-                onChange={(date) => setEndDate(date)}
-                selectsEnd
-                startDate={startDate}
-                endDate={endDate}
-                minDate={startDate}
-                dateFormat="dd.MM.yyyy"
-                className="date-picker"
-                placeholderText="Odaberite krajnji datum"
-              />
+      <div className="space-y-6">
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-slate-200">
+            <div className="flex items-center space-x-3">
+              <CalendarIcon size={20} className="text-slate-600" />
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Vremenski period</h2>
+                <p className="text-slate-600 text-sm">Odaberite period za koji želite da eksportujete evidenciju</p>
+              </div>
             </div>
           </div>
 
-          {formatPeriod() && (
-            <div className="selected-period">
-              <strong>Izabrani period: {formatPeriod()}</strong>
-            </div>
-          )}
-        </div>
+          <div className="p-6">
+            <div className="flex items-center justify-center space-x-6">
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="startDate" className="text-sm font-medium text-slate-700">Početni datum:</label>
+                <DatePicker
+                  id="startDate"
+                  selected={startDate}
+                  onChange={(date) => setStartDate(date)}
+                  selectsStart
+                  startDate={startDate}
+                  endDate={endDate}
+                  dateFormat="dd.MM.yyyy"
+                  className="h-9 w-40 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  placeholderText="Odaberite početni datum"
+                />
+              </div>
 
-        <div className="export-card">
-          <div className="card-header">
-            <h2>Pregled podataka</h2>
-            <p>Broj zapisa koji će biti uključen u evidenciju</p>
-          </div>
+              <div className="flex items-center pt-6">
+                <span className="text-slate-500 font-medium">do</span>
+              </div>
 
-          <div className="stats-preview">
-            <div className="stat-item">
-              <div className="stat-icon workorders">
-                <ClipboardIcon />
-              </div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.workOrders}</div>
-                <div className="stat-label">Radni nalozi</div>
-              </div>
-            </div>
-
-            <div className="stat-item">
-              <div className="stat-icon technicians">
-                <UsersIcon />
-              </div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.technicians}</div>
-                <div className="stat-label">Aktivni tehničari</div>
-              </div>
-            </div>
-
-            <div className="stat-item">
-              <div className="stat-icon materials">
-                <SettingsIcon />
-              </div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.materials}</div>
-                <div className="stat-label">Utrošeni materijali</div>
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="endDate" className="text-sm font-medium text-slate-700">Krajnji datum:</label>
+                <DatePicker
+                  id="endDate"
+                  selected={endDate}
+                  onChange={(date) => setEndDate(date)}
+                  selectsEnd
+                  startDate={startDate}
+                  endDate={endDate}
+                  minDate={startDate}
+                  dateFormat="dd.MM.yyyy"
+                  className="h-9 w-40 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  placeholderText="Odaberite krajnji datum"
+                />
               </div>
             </div>
 
-            <div className="stat-item">
-              <div className="stat-icon equipment">
-                <ExcelIcon />
+            {formatPeriod() && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-900">Izabrani period: {formatPeriod()}</p>
               </div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.equipment}</div>
-                <div className="stat-label">Instalirana oprema</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
-        <div className="export-card">
-          <div className="card-header">
-            <h2>Evidencija radnih naloga</h2>
-            <p>Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom iz WorkOrderEvidence baze</p>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">Pregled podataka</h2>
+            <p className="text-slate-600 text-sm mt-1">Broj zapisa koji će biti uključen u evidenciju</p>
           </div>
 
-          <div className="sheet-info">
-            <div className="sheet-item">
-              <div className="sheet-number">
-                <TableIcon />
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <ClipboardIcon size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Radni nalozi</p>
+                    <h3 className="text-lg font-bold text-slate-900">{stats.workOrders}</h3>
+                  </div>
+                </div>
               </div>
-              <div className="sheet-details">
-                <h4>Tabelarni pregled</h4>
-                <p>Kompletna evidencija sa svim detaljima: datum, status, korisnik, adresa, tehničari, instalirana i uklonjena oprema sa serijskim brojevima (ONT/HFC, Hybrid, STB/CAM, Kartice, Mini node)</p>
-                <div className="equipment-categories">
-                  <span className="category-tag">ONT/HFC</span>
-                  <span className="category-tag">Hybrid</span>
-                  <span className="category-tag">STB/CAM</span>
-                  <span className="category-tag">Kartice</span>
-                  <span className="category-tag">Mini node</span>
-                  <span className="category-tag">Demontaža</span>
-                  <span className="category-tag">Serijski brojevi</span>
-                  <span className="category-tag">N/R Status</span>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-50 rounded-lg">
+                    <UsersIcon size={20} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Aktivni tehničari</p>
+                    <h3 className="text-lg font-bold text-slate-900">{stats.technicians}</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-yellow-50 rounded-lg">
+                    <SettingsIcon size={20} className="text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Utrošeni materijali</p>
+                    <h3 className="text-lg font-bold text-slate-900">{stats.materials}</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <ExcelIcon size={20} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Instalirana oprema</p>
+                    <h3 className="text-lg font-bold text-slate-900">{stats.equipment}</h3>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="export-actions">
-            <button 
-              onClick={handleExport} 
-              disabled={loading || !startDate || !endDate}
-              className="export-btn"
-            >
-              {loading ? (
-                <>
-                  <SpinnerIcon className="spinner" />
-                  Kreiranje Excel evidencije...
-                </>
-              ) : (
-                <>
-                  <DownloadIcon />
-                  Preuzmi Excel evidenciju (WorkOrderEvidence)
-                </>
-              )}
-            </button>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">Evidencija radnih naloga</h2>
+            <p className="text-slate-600 text-sm mt-1">Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom iz WorkOrderEvidence baze</p>
           </div>
 
-          {stats.workOrders === 0 && (
-            <div className="no-data-warning">
-              <p>⚠️ Nema radnih naloga u izabranom periodu</p>
+          <div className="p-6">
+            <div className="flex items-start space-x-4 mb-6">
+              <div className="p-3 bg-slate-50 rounded-xl">
+                <TableIcon size={24} className="text-slate-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-base font-semibold text-slate-900 mb-2">Tabelarni pregled</h4>
+                <p className="text-slate-600 text-sm mb-4">Kompletna evidencija sa svim detaljima: datum, status, korisnik, adresa, tehničari, instalirana i uklonjena oprema sa serijskim brojevima (ONT/HFC, Hybrid, STB/CAM, Kartice, Mini node)</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">ONT/HFC</span>
+                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Hybrid</span>
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">STB/CAM</span>
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">Kartice</span>
+                  <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs font-medium rounded-full">Mini node</span>
+                  <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">Demontaža</span>
+                  <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">Serijski brojevi</span>
+                  <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">N/R Status</span>
+                </div>
+              </div>
             </div>
-          )}
+
+            <div className="flex flex-col items-center space-y-4">
+              <button 
+                onClick={handleExport} 
+                disabled={loading || !startDate || !endDate}
+                className={`flex items-center space-x-3 px-6 py-3 rounded-lg font-medium transition-all ${
+                  loading || !startDate || !endDate 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <SpinnerIcon size={18} className="animate-spin" />
+                    <span>Kreiranje Excel evidencije...</span>
+                  </>
+                ) : (
+                  <>
+                    <DownloadIcon size={18} />
+                    <span>Preuzmi Excel evidenciju (WorkOrderEvidence)</span>
+                  </>
+                )}
+              </button>
+
+              {stats.workOrders === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
+                  <p className="text-sm font-medium">⚠️ Nema radnih naloga u izabranom periodu</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

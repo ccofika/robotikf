@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { BackIcon, DownloadIcon, FilterIcon, SearchIcon, CloseIcon, RefreshIcon, TableIcon } from '../../components/icons/SvgIcons';
 import axios from 'axios';
 import { saveAs } from 'file-saver';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import './ExportSpecificationModern.css';
 import './UserEquipmentReport.css';
 

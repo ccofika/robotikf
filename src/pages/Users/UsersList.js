@@ -1,12 +1,15 @@
-// Kreirati u direktorijumu: src/pages/Users/UsersList.js
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { toast } from '../../utils/toast';
 import axios from 'axios';
-import './UsersModern.css';
-import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon, EquipmentIcon, CalendarIcon } from '../../components/icons/SvgIcons';
+import { cn } from '../../utils/cn';
+import { Button } from '../../components/ui/button-1';
+import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon, EquipmentIcon, CalendarIcon, FilterIcon, EyeIcon, SettingsIcon, CheckIcon } from '../../components/icons/SvgIcons';
 
 const UsersList = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,11 +21,67 @@ const UsersList = () => {
   const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Improved filters
+  const [statusFilter, setStatusFilter] = useState('');
+  const [hasWorkOrdersFilter, setHasWorkOrdersFilter] = useState('');
+  const [hasEquipmentFilter, setHasEquipmentFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  
+  // Column visibility
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  const [visibleColumns, setVisibleColumns] = useState({
+    user: true,
+    contact: true,
+    location: true,
+    tisId: true,
+    workOrders: true,
+    equipment: true,
+    actions: true
+  });
+  
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
     fetchUsers();
+    
+    // Restore modal state from navigation if coming back from work order detail
+    if (location.state?.selectedUserId && location.state?.fromWorkOrderDetail) {
+      const userId = location.state.selectedUserId;
+      setTimeout(() => {
+        const user = users.find(u => u._id === userId);
+        if (user) {
+          handleUserSelect(user);
+        }
+      }, 500);
+    }
   }, []);
+  
+  // Restore modal when users are loaded
+  useEffect(() => {
+    if (location.state?.selectedUserId && location.state?.fromWorkOrderDetail && users.length > 0) {
+      const userId = location.state.selectedUserId;
+      const user = users.find(u => u._id === userId);
+      if (user && !selectedUser) {
+        handleUserSelect(user);
+      }
+    }
+  }, [users, location.state, selectedUser]);
+  
+  // Close column menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColumnDropdown && !event.target.closest('.relative')) {
+        setShowColumnDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColumnDropdown]);
   
   const fetchUsers = async () => {
     setLoading(true);
@@ -82,6 +141,8 @@ const UsersList = () => {
       setSelectedUser(null);
       setUserWorkOrders([]);
       setUserEquipment([]);
+      // Clear navigation state
+      navigate(location.pathname, { replace: true });
     } else {
       setSelectedUser(user);
       fetchUserWorkOrders(user._id);
@@ -94,18 +155,68 @@ const UsersList = () => {
     setSearchTerm(value);
   };
   
-  // Filtriranje korisnika
+  
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setHasWorkOrdersFilter('');
+    setHasEquipmentFilter('');
+    setDateRangeFilter('');
+  };
+  
+  // Advanced filtering
   const filteredUsers = users.filter(user => {
-    if (!searchTerm) return true;
-    
-    const searchTermLower = searchTerm.toLowerCase();
-    return (
-      user.name.toLowerCase().includes(searchTermLower) ||
-      user.address.toLowerCase().includes(searchTermLower) ||
-      user.phone.toLowerCase().includes(searchTermLower) ||
-      user.tisId.toString().includes(searchTerm)
+    const matchesSearch = !searchTerm || (
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.tisId.toString().includes(searchTerm) ||
+      // Search by equipment serial numbers
+      (user.installedEquipment && user.installedEquipment.some(eq => 
+        eq.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eq.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eq.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      ))
     );
+    
+    const matchesWorkOrders = !hasWorkOrdersFilter || (
+      hasWorkOrdersFilter === 'has' ? user.workOrders?.length > 0 : user.workOrders?.length === 0
+    );
+    
+    const matchesEquipment = !hasEquipmentFilter || (
+      hasEquipmentFilter === 'has' ? user.equipmentCount > 0 : user.equipmentCount === 0
+    );
+    
+    // Date filter would require additional date field in user model
+    const matchesDate = !dateRangeFilter || true; // Placeholder
+    
+    return matchesSearch && matchesWorkOrders && matchesEquipment && matchesDate;
   });
+
+  // Pagination calculation
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Helper function to check if user was found by equipment search
+  const isFoundByEquipment = (user) => {
+    if (!searchTerm || !user.installedEquipment) return false;
+    return user.installedEquipment.some(eq => 
+      eq.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eq.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eq.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+  
+  // Calculate stats
+  const stats = {
+    total: users.length,
+    withWorkOrders: users.filter(user => user.workOrders?.length > 0).length,
+    withEquipment: users.filter(user => user.equipmentCount > 0).length
+  };
   
   // Formatiranje datuma
   const formatDate = (dateString) => {
@@ -134,150 +245,516 @@ const UsersList = () => {
       default: return '';
     }
   };
+
+  const getLastWorkOrderStatus = (user) => {
+    if (!user.workOrders || user.workOrders.length === 0) {
+      return null;
+    }
+    
+    // Sort by date and get the most recent work order
+    const sortedOrders = [...user.workOrders].sort((a, b) => new Date(b.date) - new Date(a.date));
+    return sortedOrders[0]?.status;
+  };
+
+  const getRowBackgroundClass = (user) => {
+    const lastStatus = getLastWorkOrderStatus(user);
+    if (!lastStatus) return 'bg-white';
+    
+    switch (lastStatus) {
+      case 'zavrsen': return 'bg-green-50 hover:bg-green-100';
+      case 'nezavrsen': return 'bg-red-50 hover:bg-red-100';
+      case 'odlozen': return 'bg-yellow-50 hover:bg-yellow-100';
+      case 'otkazan': return 'bg-gray-50 hover:bg-gray-100';
+      default: return 'bg-white';
+    }
+  };
+
   
   return (
-    <div className="users-container fade-in">
-      <div className="page-header">
-        <h1 className="page-title">
-          <UserIcon className="icon" />
-          Korisnici
-        </h1>
-        <button 
-          onClick={handleRefresh}
-          className="refresh-btn"
-          disabled={isRefreshing}
-          title="Osvežiti listu"
-        >
-          <RefreshIcon className={`icon ${isRefreshing ? 'spinning' : ''}`} />
-        </button>
-      </div>
-      
-      <div className="search-container">
-        <div className="search-box">
-          <SearchIcon className="search-icon" />
-          <input
-            type="text"
-            placeholder="Pretraga po imenu, adresi, telefonu ili TIS ID-u..."
-            value={searchTerm}
-            onChange={handleSearch}
-          />
-          {searchTerm && (
-            <CloseIcon 
-              className="clear-search" 
-              onClick={() => setSearchTerm('')}
-              title="Obriši pretragu"
-            />
-          )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      {/* Header */}
+      <div className="p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <UserIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Korisnici</h1>
+              <p className="text-slate-600 mt-1">Upravljanje korisnicima sistema</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button 
+              type="secondary" 
+              size="medium" 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              prefix={<RefreshIcon size={16} className={isRefreshing ? 'animate-spin' : ''} />}
+            >
+              Osveži
+            </Button>
+          </div>
         </div>
       </div>
-      
-      {error && <div className="alert alert-danger">{error}</div>}
-      
-      <div className="users-grid">
-        {loading ? (
-          <div className="loading-spinner-container">
-            <div className="loading-spinner"></div>
-            <p>Učitavanje korisnika...</p>
-          </div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="no-results">
-            <p>Nema pronađenih korisnika</p>
-          </div>
-        ) : (
-          filteredUsers.map(user => (
-            <div 
-              key={user._id} 
-              className={`user-card ${selectedUser?._id === user._id ? 'selected' : ''}`}
-              onClick={() => handleUserSelect(user)}
-            >
-              <div className="user-card-header">
-                <div className="user-icon">
-                  <UserIcon />
-                </div>
-                <div className="user-name">{user.name}</div>
+
+      {/* Stats Cards */}
+      <div className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <UserIcon size={20} className="text-blue-600" />
               </div>
-              <div className="user-card-body">
-                <div className="user-detail">
-                  <MapPinIcon className="user-detail-icon" />
-                  <span className="user-detail-text">{user.address}</span>
-                </div>
-                <div className="user-detail">
-                  <PhoneIcon className="user-detail-icon" />
-                  <span className="user-detail-text">{user.phone || 'Nije dostupan'}</span>
-                </div>
-                <div className="user-detail">
-                  <ClipboardIcon className="user-detail-icon" />
-                  <span className="user-detail-text">Radni nalozi: {user.workOrders?.length || 0}</span>
-                </div>
-              </div>
-              <div className="user-card-footer">
-                <div className="tis-id">TIS ID: {user.tisId}</div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Ukupno korisnika</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.total}</h3>
               </div>
             </div>
-          ))
+          </div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <ClipboardIcon size={20} className="text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Sa radnim nalozima</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.withWorkOrders}</h3>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <EquipmentIcon size={20} className="text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Sa opremom</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.withEquipment}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Card */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        {/* Table Controls */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center space-x-4 flex-1">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Pretraga po imenu, adresi, telefonu, TIS ID-u ili serijskom broju opreme..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="h-9 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <CloseIcon size={16} />
+                  </button>
+                )}
+              </div>
+              
+              {/* Has Work Orders Filter */}
+              <div className="relative">
+                <select
+                  value={hasWorkOrdersFilter}
+                  onChange={(e) => setHasWorkOrdersFilter(e.target.value)}
+                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
+                >
+                  <option value="">Svi korisnici</option>
+                  <option value="has">Sa radnim nalozima</option>
+                  <option value="no">Bez radnih naloga</option>
+                </select>
+                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              </div>
+              
+              {/* Has Equipment Filter */}
+              <div className="relative">
+                <select
+                  value={hasEquipmentFilter}
+                  onChange={(e) => setHasEquipmentFilter(e.target.value)}
+                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
+                >
+                  <option value="">Sva oprema</option>
+                  <option value="has">Sa opremom</option>
+                  <option value="no">Bez opreme</option>
+                </select>
+                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              </div>
+            </div>
+            
+            {/* Action buttons */}
+            <div className="flex items-center space-x-3">
+              {/* Clear Filters */}
+              {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter) && (
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={clearAllFilters}
+                >
+                  Obriši filtere
+                </Button>
+              )}
+              
+              {/* Column Visibility */}
+              <div className="relative">
+                <Button
+                  type="tertiary"
+                  size="medium"
+                  prefix={<EyeIcon size={16} />}
+                  onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                >
+                  Kolone
+                </Button>
+                
+                {showColumnDropdown && (
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-md shadow-md z-50">
+                    <div className="p-1">
+                      <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Prikaži kolone</div>
+                      {Object.entries({
+                        user: 'Korisnik',
+                        contact: 'Kontakt',
+                        location: 'Lokacija',
+                        tisId: 'TIS ID',
+                        workOrders: 'Radni nalozi',
+                        equipment: 'Oprema',
+                        actions: 'Akcije'
+                      }).map(([key, label]) => (
+                        <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns[key]}
+                            onChange={(e) => setVisibleColumns(prev => ({...prev, [key]: e.target.checked}))}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mx-6 mt-6 rounded-lg">
+            {error}
+          </div>
+        )}
+        
+        {/* Table */}
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="ml-3 text-slate-600">Učitavanje korisnika...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-12">
+              <UserIcon size={48} className="text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500 text-lg">Nema pronađenih korisnika</p>
+              {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter) && (
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={clearAllFilters}
+                  className="mt-3"
+                >
+                  Obriši filtere
+                </Button>
+              )}
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {visibleColumns.user && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Korisnik
+                    </th>
+                  )}
+                  {visibleColumns.contact && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Kontakt
+                    </th>
+                  )}
+                  {visibleColumns.location && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Lokacija
+                    </th>
+                  )}
+                  {visibleColumns.tisId && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      TIS ID
+                    </th>
+                  )}
+                  {visibleColumns.workOrders && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Radni nalozi
+                    </th>
+                  )}
+                  {visibleColumns.equipment && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Oprema
+                    </th>
+                  )}
+                  {visibleColumns.actions && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Akcije
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {currentItems.map(user => (
+                  <tr 
+                    key={user._id} 
+                    onClick={() => handleUserSelect(user)}
+                    className={`${getRowBackgroundClass(user)} transition-colors cursor-pointer`}
+                  >
+                    {visibleColumns.user && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-50 rounded-lg">
+                            <UserIcon size={16} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <div className="text-sm font-medium text-slate-900">{user.name}</div>
+                              {isFoundByEquipment(user) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                  <EquipmentIcon size={12} className="mr-1" />
+                                  Oprema
+                                </span>
+                              )}
+                            </div>
+                            {user.role && <div className="text-xs text-slate-500">{user.role}</div>}
+                          </div>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.contact && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <PhoneIcon size={14} className="text-slate-400" />
+                          <span className="text-sm text-slate-900">{user.phone || 'Nije dostupan'}</span>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.location && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <MapPinIcon size={14} className="text-slate-400" />
+                          <span className="text-sm text-slate-900">{user.address}</span>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.tisId && (
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {user.tisId}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.workOrders && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <ClipboardIcon size={14} className="text-slate-400" />
+                          <span className="text-sm font-medium text-slate-900">{user.workOrders?.length || 0}</span>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.equipment && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <EquipmentIcon size={14} className="text-slate-400" />
+                          <span className="text-sm font-medium text-slate-900">{user.equipmentCount || 0}</span>
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.actions && (
+                      <td className="px-6 py-4">
+                        <Button
+                          type="tertiary"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUserSelect(user);
+                          }}
+                          prefix={<EyeIcon size={14} />}
+                        >
+                          Detalji
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        {/* Pagination */}
+        {filteredUsers.length > itemsPerPage && (
+          <div className="px-6 py-4 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-600">
+                Prikazano {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredUsers.length)} od {filteredUsers.length} rezultata
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={() => paginate(1)}
+                  disabled={currentPage === 1}
+                >
+                  &laquo;
+                </Button>
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  &lsaquo;
+                </Button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(number => {
+                    return (
+                      number === 1 ||
+                      number === totalPages ||
+                      Math.abs(number - currentPage) <= 1
+                    );
+                  })
+                  .map(number => (
+                    <Button
+                      key={number}
+                      type={currentPage === number ? "primary" : "tertiary"}
+                      size="small"
+                      onClick={() => paginate(number)}
+                    >
+                      {number}
+                    </Button>
+                  ))}
+                  
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  &rsaquo;
+                </Button>
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={() => paginate(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  &raquo;
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
-      
+
+      {/* Modal */}
       {selectedUser && (
-        <div className="modal-overlay" onClick={() => { setSelectedUser(null); setUserWorkOrders([]); setUserEquipment([]); }}>
-          <div className="user-workorders-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="user-workorders-header">
-              <h2>Radni nalozi korisnika: {selectedUser.name}</h2>
-              <button 
-                className="btn-close" 
-                onClick={() => { setSelectedUser(null); setUserWorkOrders([]); setUserEquipment([]); }}
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => { setSelectedUser(null); setUserWorkOrders([]); setUserEquipment([]); navigate(location.pathname, { replace: true }); }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <UserIcon size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Detalji korisnika: {selectedUser.name}</h2>
+                  <p className="text-slate-600">TIS ID: {selectedUser.tisId}</p>
+                </div>
+              </div>
+              <Button
+                type="tertiary"
+                size="medium"
+                onClick={() => { 
+                  setSelectedUser(null); 
+                  setUserWorkOrders([]); 
+                  setUserEquipment([]); 
+                  navigate(location.pathname, { replace: true });
+                }}
+                svgOnly
               >
-                <CloseIcon />
-              </button>
+                <CloseIcon size={20} />
+              </Button>
             </div>
-            <div className="user-workorders-body">
+            
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               {/* Equipment Section */}
-              <div className="user-equipment-section">
-                <h3 className="section-title">
-                  <EquipmentIcon className="icon" />
-                  Instalirana oprema
-                </h3>
+              <div className="mb-8">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <EquipmentIcon size={20} className="text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">Instalirana oprema</h3>
+                </div>
+                
                 {loadingEquipment ? (
-                  <div className="loading-spinner-container">
-                    <div className="loading-spinner"></div>
-                    <p>Učitavanje opreme...</p>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                    <p className="ml-3 text-slate-600">Učitavanje opreme...</p>
                   </div>
                 ) : userEquipment.length === 0 ? (
-                  <div className="no-results">
-                    <p>Nema instalirane opreme kod ovog korisnika</p>
+                  <div className="text-center py-8">
+                    <EquipmentIcon size={48} className="text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500">Nema instalirane opreme kod ovog korisnika</p>
                   </div>
                 ) : (
-                  <div className="user-equipment-table-container">
-                    <table className="workorders-table">
-                      <thead>
+                  <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
+                    <table className="w-full">
+                      <thead className="bg-slate-100">
                         <tr>
-                          <th>Oprema</th>
-                          <th>Serijski broj</th>
-                          <th>Status</th>
-                          <th>Datum instalacije</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Oprema</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Serijski broj</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum instalacije</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-slate-200">
                         {userEquipment.map(equipment => (
-                          <tr key={equipment._id || equipment.id}>
-                            <td>
-                              <div className="equipment-info">
-                                <div className="equipment-category">{equipment.category || equipment.equipmentType}</div>
-                                <div className="equipment-description">{equipment.description || equipment.equipmentDescription}</div>
+                          <tr key={equipment._id || equipment.id} className="hover:bg-white transition-colors">
+                            <td className="px-4 py-3">
+                              <div>
+                                <div className="text-sm font-medium text-slate-900">{equipment.category || equipment.equipmentType}</div>
+                                <div className="text-xs text-slate-500">{equipment.description || equipment.equipmentDescription}</div>
                               </div>
                             </td>
-                            <td>
-                              <span className="serial-number">{equipment.serialNumber}</span>
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-mono text-slate-900">{equipment.serialNumber}</span>
                             </td>
-                            <td>
-                              <span className="status-badge status-installed">
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 Instalirano
                               </span>
                             </td>
-                            <td>
-                              <div className="date-info">
-                                <CalendarIcon className="date-icon" />
-                                {formatDate(equipment.installedAt)}
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-2">
+                                <CalendarIcon size={14} className="text-slate-400" />
+                                <span className="text-sm text-slate-900">{formatDate(equipment.installedAt)}</span>
                               </div>
                             </td>
                           </tr>
@@ -289,45 +766,72 @@ const UsersList = () => {
               </div>
               
               {/* Work Orders Section */}
-              <div className="user-workorders-section">
-                <h3 className="section-title">
-                  <ClipboardIcon className="icon" />
-                  Radni nalozi
-                </h3>
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2 bg-green-50 rounded-lg">
+                    <ClipboardIcon size={20} className="text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">Radni nalozi</h3>
+                </div>
+                
                 {loadingWorkOrders ? (
-                  <div className="loading-spinner-container">
-                    <div className="loading-spinner"></div>
-                    <p>Učitavanje radnih naloga...</p>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                    <p className="ml-3 text-slate-600">Učitavanje radnih naloga...</p>
                   </div>
                 ) : userWorkOrders.length === 0 ? (
-                  <div className="no-results">
-                    <p>Nema radnih naloga za ovog korisnika</p>
+                  <div className="text-center py-8">
+                    <ClipboardIcon size={48} className="text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500">Nema radnih naloga za ovog korisnika</p>
                   </div>
                 ) : (
-                  <div className="workorders-table-container">
-                    <table className="workorders-table">
-                      <thead>
+                  <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
+                    <table className="w-full">
+                      <thead className="bg-slate-100">
                         <tr>
-                          <th>Datum</th>
-                          <th>Tip</th>
-                          <th>Tehničar</th>
-                          <th>Status</th>
-                          <th>Akcije</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-slate-200">
                         {userWorkOrders.map(order => (
-                          <tr key={order._id}>
-                            <td>{formatDate(order.date)}</td>
-                            <td>{order.type}</td>
-                            <td>{order.technicianId?.name || 'Nedodeljen'}</td>
-                            <td>
-                              <span className={`status-badge ${getStatusClass(order.status)}`}>
+                          <tr key={order._id} className="hover:bg-white transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-2">
+                                <CalendarIcon size={14} className="text-slate-400" />
+                                <span className="text-sm text-slate-900">{formatDate(order.date)}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-medium text-slate-900">{order.type}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-slate-900">{order.technicianId?.name || 'Nedodeljen'}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={cn(
+                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                                order.status === 'zavrsen' && "bg-green-100 text-green-800",
+                                order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
+                                order.status === 'odlozen' && "bg-orange-100 text-orange-800",
+                                order.status === 'otkazan' && "bg-red-100 text-red-800"
+                              )}>
                                 {getStatusLabel(order.status)}
                               </span>
                             </td>
-                            <td>
-                              <Link to={`/work-orders/${order._id}`} className="btn btn-sm btn-view">
+                            <td className="px-4 py-3">
+                              <Link
+                                to={`/work-orders/${order._id}`}
+                                state={{ 
+                                  fromUsersList: true, 
+                                  selectedUserId: selectedUser._id,
+                                  previousPath: location.pathname 
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
                                 Detalji
                               </Link>
                             </td>
@@ -342,6 +846,7 @@ const UsersList = () => {
           </div>
         </div>
       )}
+      
     </div>
   );
 };

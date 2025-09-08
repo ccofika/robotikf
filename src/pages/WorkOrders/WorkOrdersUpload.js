@@ -1,10 +1,10 @@
-// Kompletna zamena za fajl u: src/pages/WorkOrders/WorkOrdersUpload.js
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BackIcon, UploadIcon, ExcelIcon, DownloadIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
-import axios from 'axios';
-import './WorkOrdersModern.css'; 
+import { Button } from '../../components/ui/button-1';
+import { toast } from '../../utils/toast';
+import { cn } from '../../utils/cn';
+import axios from 'axios'; 
 
 const WorkOrdersUpload = () => {
   const [file, setFile] = useState(null);
@@ -101,93 +101,254 @@ const WorkOrdersUpload = () => {
   };
   
   return (
-    <div className="work-orders-upload fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Dodavanje radnih naloga putem Excel fajla</h1>
-        <Link to="/work-orders" className="btn btn-sm">
-          <BackIcon /> Povratak na listu
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      {/* Header */}
+      <div className="p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <UploadIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Import radnih naloga</h1>
+              <p className="text-slate-600 mt-1">Dodavanje radnih naloga putem Excel fajla</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Link to="/work-orders">
+              <Button type="secondary" size="medium" prefix={<BackIcon size={16} />}>
+                Povratak na listu
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
       
-      <div className="card">
-        <div className="upload-instructions">
-          <h2>Uputstvo za upload</h2>
-          <p>
+      {/* Instructions Card */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <ExcelIcon size={20} className="text-amber-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900">Uputstvo za upload</h2>
+          </div>
+        </div>
+        <div className="p-6">
+          <p className="text-slate-600 mb-4">
             Excel fajl mora sadržati sledeće kolone:
           </p>
-          <ul>
-            <li><strong>Tehnicar</strong> - ime tehničara kome je dodeljen nalog</li>
-            <li><strong>Područje</strong> - područje/opština gde se izvodi intervencija</li>
-            <li><strong>Početak instalacije</strong> - format: dd/mm/yyyy hh:mm</li>
-            <li><strong>Tehnologija</strong> - HFC, GPON, itd.</li>
-            <li><strong>TIS ID korisnika</strong> - jedinstveni ID korisnika</li>
-            <li><strong>Adresa korisnika</strong> - puna adresa</li>
-            <li><strong>Ime korisnika</strong> - ime i prezime korisnika</li>
-            <li><strong>Kontakt telefon</strong> - broj telefona korisnika</li>
-            <li><strong>TIS Posao ID</strong> - ID konkretnog zahteva</li>
-            <li><strong>Paket</strong> - naziv paketa/usluge</li>
-                        <li><strong>Dodatni poslovi</strong> - dodatni poslovi vezani za radni nalog (opciono)</li>
-            <li><strong>Tip zahteva</strong> - nov korisnik, zamena uređaja, itd.</li>
-          </ul>
-          <button onClick={downloadTemplate} className="btn btn-sm template-btn">
-            <DownloadIcon /> Preuzmi šablon
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="upload-form">
-          {error && <div className="alert alert-danger">{error}</div>}
-          {successMessage && <div className="alert alert-success">{successMessage}</div>}
-          
-          <div className="form-group file-upload-group">
-            <label htmlFor="workorders-file">Odaberi Excel fajl:</label>
-            <div className="file-input-container">
-              <input
-                type="file"
-                id="workorders-file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                disabled={loading}
-                className="file-input"
-              />
-              <div className="file-input-label">
-                <UploadIcon className="upload-icon" />
-                <span>{file ? file.name : 'Odaberi fajl...'}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+            <div className="space-y-2">
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Tehnicar 1</span>
+                  <p className="text-sm text-slate-600">ime prvog tehničara kome je dodeljen nalog</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Tehnicar 2</span>
+                  <p className="text-sm text-slate-600">ime drugog tehničara (opciono)</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Područje</span>
+                  <p className="text-sm text-slate-600">područje/opština gde se izvodi intervencija</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Početak instalacije</span>
+                  <p className="text-sm text-slate-600">format: dd/mm/yyyy hh:mm</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Tehnologija</span>
+                  <p className="text-sm text-slate-600">HFC, GPON, itd.</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">TIS ID korisnika</span>
+                  <p className="text-sm text-slate-600">jedinstveni ID korisnika</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Adresa korisnika</span>
+                  <p className="text-sm text-slate-600">puna adresa</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Ime korisnika</span>
+                  <p className="text-sm text-slate-600">ime i prezime korisnika</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Kontakt telefon 1</span>
+                  <p className="text-sm text-slate-600">broj telefona korisnika</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">TIS Posao ID</span>
+                  <p className="text-sm text-slate-600">ID konkretnog zahteva</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Paket</span>
+                  <p className="text-sm text-slate-600">naziv paketa/usluge</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Dodatni poslovi</span>
+                  <p className="text-sm text-slate-600">dodatni poslovi vezani za radni nalog (opciono)</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Tip zahteva</span>
+                  <p className="text-sm text-slate-600">nov korisnik, zamena uređaja, itd.</p>
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="form-buttons">
-            <button 
-              type="submit" 
-              className="btn btn-primary upload-btn"
-              disabled={!file || loading}
-            >
-              {loading ? 'Upload u toku...' : 'Upload radnih naloga'}
-            </button>
-          </div>
-        </form>
-        
-        {parseResults && (
-          <div className="parse-results">
-            <h3>Rezultat obrade:</h3>
-            <ul>
-              <li>Dodato radnih naloga: <strong>{parseResults.workOrdersAdded}</strong></li>
-              <li>Dodato novih korisnika: <strong>{parseResults.usersAdded}</strong></li>
-              <li>Ažurirano postojećih korisnika: <strong>{parseResults.usersUpdated}</strong></li>
-            </ul>
-            
-            {parseResults.errors.length > 0 && (
-              <div className="error-list">
-                <h4>Greške prilikom obrade:</h4>
-                <ul>
-                  {parseResults.errors.map((err, index) => (
-                    <li key={index}>{err}</li>
-                  ))}
-                </ul>
+          <Button 
+            type="secondary" 
+            size="medium" 
+            prefix={<DownloadIcon size={16} />}
+            onClick={downloadTemplate}
+          >
+            Preuzmi šablon
+          </Button>
+        </div>
+      </div>
+      
+      {/* Upload Form Card */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
               </div>
             )}
-          </div>
-        )}
+            
+            {successMessage && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                {successMessage}
+              </div>
+            )}
+            
+            {/* File Upload */}
+            <div className="space-y-2">
+              <label htmlFor="workorders-file" className="block text-sm font-medium text-slate-700">Odaberi Excel fajl</label>
+              <div className="relative">
+                <input
+                  type="file"
+                  id="workorders-file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  disabled={loading}
+                  className="sr-only"
+                />
+                <label 
+                  htmlFor="workorders-file"
+                  className="relative w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all overflow-hidden border-slate-300 bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+                >
+                  <div className="flex flex-col items-center space-y-3 p-4">
+                    <UploadIcon size={32} className="text-slate-400" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-600">
+                        {file ? file.name : 'Kliknite da odaberete Excel fajl'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">ili prevucite fajl ovde</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            {/* Upload Button */}
+            <div className="flex items-center justify-center pt-4">
+              <Button 
+                type="primary" 
+                size="medium"
+                prefix={<UploadIcon size={16} />}
+                disabled={!file || loading}
+                onClick={handleSubmit}
+              >
+                {loading ? 'Upload u toku...' : 'Upload radnih naloga'}
+              </Button>
+            </div>
+          </form>
+          
+          {/* Parse Results */}
+          {parseResults && (
+            <div className="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Rezultat obrade</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="bg-white p-4 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600">Dodato radnih naloga</span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.workOrdersAdded}</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600">Dodato novih korisnika</span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.usersAdded}</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600">Ažurirano korisnika</span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.usersUpdated}</p>
+                </div>
+              </div>
+              
+              {parseResults.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-red-800 mb-2">Greške prilikom obrade:</h4>
+                  <ul className="space-y-1">
+                    {parseResults.errors.map((err, index) => (
+                      <li key={index} className="text-sm text-red-700 flex items-start space-x-2">
+                        <div className="w-1 h-1 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <span>{err}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

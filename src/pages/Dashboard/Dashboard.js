@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { BoxIcon, ToolsIcon, UsersIcon, ClipboardIcon, CheckCircleIcon, ClockIcon, TrendingUpIcon, BarChartIcon } from '../../components/icons/SvgIcons';
+import { Link, useNavigate } from 'react-router-dom';
+import { BoxIcon, ToolsIcon, UsersIcon, ClipboardIcon, CheckCircleIcon, ClockIcon, TrendingUpIcon, BarChartIcon, PlusIcon } from '../../components/icons/SvgIcons';
+import { Button } from '../../components/ui/button-1';
 import axios from 'axios';
-import './Dashboard.css';
+import { cn } from '../../utils/cn';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     equipment: 0,
@@ -53,13 +55,26 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
   
+  // Function to navigate to work orders with status filter
+  const navigateToWorkOrders = (status) => {
+    if (status === 'zavrsen') {
+      navigate('/work-orders?tab=all&status=zavrsen');
+    } else if (status === 'nezavrsen') {
+      navigate('/work-orders?tab=all&status=nezavrsen');
+    } else if (status === 'odlozen') {
+      navigate('/work-orders?tab=all&status=odlozen');
+    } else {
+      navigate('/work-orders?tab=all');
+    }
+  };
+  
   if (loading) {
     return (
-      <div className="dashboard">
-        <div className="loading-container">
-          <div className="loading-content">
-            <div className="loading-spinner"></div>
-            <p>Učitavanje dashboard podataka...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-slate-600 font-medium">Učitavanje dashboard podataka...</p>
           </div>
         </div>
       </div>
@@ -67,153 +82,220 @@ const Dashboard = () => {
   }
   
   return (
-    <div className="dashboard">
-      <div className="page-header">
-        <div className="header-content">
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Pregled sistemskih informacija i ključnih metrika</p>
-        </div>
-      </div>
-      
-      <div className="stats-grid">
-        <div className="stat-card" tabIndex="0">
-          <div className="stat-icon equipment-icon">
-            <BoxIcon />
+    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-3">
+      {/* Header Section */}
+      <div className="mb-3">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-blue-50 rounded-xl">
+            <BarChartIcon size={24} className="text-blue-600" />
           </div>
-          <div className="stat-content">
-            <h3>Oprema</h3>
-            <p className="stat-value">{stats.equipment.toLocaleString()}</p>
-            <Link to="/equipment" className="stat-link">
-              Prikaži sve
-            </Link>
-          </div>
-        </div>
-        
-        <div className="stat-card" tabIndex="0">
-          <div className="stat-icon materials-icon">
-            <ToolsIcon />
-          </div>
-          <div className="stat-content">
-            <h3>Materijali</h3>
-            <p className="stat-value">{stats.materials.toLocaleString()}</p>
-            <Link to="/materials" className="stat-link">
-              Prikaži sve
-            </Link>
-          </div>
-        </div>
-        
-        <div className="stat-card" tabIndex="0">
-          <div className="stat-icon technicians-icon">
-            <UsersIcon />
-          </div>
-          <div className="stat-content">
-            <h3>Tehničari</h3>
-            <p className="stat-value">{stats.technicians.toLocaleString()}</p>
-            <Link to="/technicians" className="stat-link">
-              Prikaži sve
-            </Link>
-          </div>
-        </div>
-        
-        <div className="stat-card" tabIndex="0">
-          <div className="stat-icon workorders-icon">
-            <ClipboardIcon />
-          </div>
-          <div className="stat-content">
-            <h3>Radni nalozi</h3>
-            <p className="stat-value">{stats.workOrders.total.toLocaleString()}</p>
-            <Link to="/work-orders" className="stat-link">
-              Prikaži sve
-            </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+            <p className="text-slate-600 mt-1">Pregled sistemskih informacija i ključnih metrika</p>
           </div>
         </div>
       </div>
       
-      <div className="dashboard-sections">
-        <div className="dashboard-section">
-          <h2 className="section-title">Status radnih naloga</h2>
-          <div className="work-order-stats">
-            <div className="work-order-stat">
-              <div className="wo-icon completed">
-                <CheckCircleIcon />
+      {/* Main Stats Cards */}
+      <div className="mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <BoxIcon size={20} className="text-blue-600" />
               </div>
-              <div className="wo-stat-content">
-                <h4>Završeni</h4>
-                <p>{stats.workOrders.completed.toLocaleString()}</p>
-              </div>
-              <div className="stat-percentage">
-                {stats.workOrders.total > 0 && 
-                  <span className="percentage-value">
-                    {Math.round((stats.workOrders.completed / stats.workOrders.total) * 100)}%
-                  </span>
-                }
+              <div className="flex-1">
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Oprema</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.equipment.toLocaleString()}</h3>
+                <Link to="/equipment" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                  Prikaži sve →
+                </Link>
               </div>
             </div>
-            
-            <div className="work-order-stat">
-              <div className="wo-icon pending">
-                <ClockIcon />
-              </div>
-              <div className="wo-stat-content">
-                <h4>U toku</h4>
-                <p>{stats.workOrders.pending.toLocaleString()}</p>
-              </div>
-              <div className="stat-percentage">
-                {stats.workOrders.total > 0 && 
-                  <span className="percentage-value">
-                    {Math.round((stats.workOrders.pending / stats.workOrders.total) * 100)}%
-                  </span>
-                }
-              </div>
-            </div>
-            
-            <div className="work-order-stat">
-              <div className="wo-icon postponed">
-                <ClockIcon />
-              </div>
-              <div className="wo-stat-content">
-                <h4>Odloženi</h4>
-                <p>{stats.workOrders.postponed.toLocaleString()}</p>
-              </div>
-              <div className="stat-percentage">
-                {stats.workOrders.total > 0 && 
-                  <span className="percentage-value">
-                    {Math.round((stats.workOrders.postponed / stats.workOrders.total) * 100)}%
-                  </span>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="dashboard-section">
-          <h2 className="section-title">Brze akcije</h2>
-          <div className="quick-links">
-            <Link to="/work-orders/add" className="quick-link">
-              <ClipboardIcon />
-              <span>Novi radni nalog</span>
-            </Link>
-            
-            <Link to="/equipment/upload" className="quick-link">
-              <BoxIcon />
-              <span>Dodaj opremu</span>
-            </Link>
-            
-            <Link to="/materials/add" className="quick-link">
-              <ToolsIcon />
-              <span>Dodaj materijal</span>
-            </Link>
-            
-            <Link to="/technicians/add" className="quick-link">
-              <UsersIcon />
-              <span>Dodaj tehničara</span>
-            </Link>
           </div>
           
-          <div className="section-footer">
-            <Link to="/reports" className="view-all-link">
-              <BarChartIcon />
-              <span>Pogledaj sve izveštaje</span>
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <ToolsIcon size={20} className="text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Materijali</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.materials.toLocaleString()}</h3>
+                <Link to="/materials" className="text-xs text-green-600 hover:text-green-700 font-medium">
+                  Prikaži sve →
+                </Link>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <UsersIcon size={20} className="text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Tehničari</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.technicians.toLocaleString()}</h3>
+                <Link to="/technicians" className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+                  Prikaži sve →
+                </Link>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-orange-50 rounded-lg">
+                <ClipboardIcon size={20} className="text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Radni nalozi</p>
+                <h3 className="text-lg font-bold text-slate-900">{stats.workOrders.total.toLocaleString()}</h3>
+                <Link to="/work-orders" className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                  Prikaži sve →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Work Orders Status Section */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-3">
+        <div className="p-3 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">Status radnih naloga</h2>
+        </div>
+        <div className="p-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div 
+              onClick={() => navigateToWorkOrders('zavrsen')} 
+              className="bg-white/60 rounded-lg p-4 border border-green-200 hover:shadow-md hover:border-green-300 transition-all duration-300 cursor-pointer hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircleIcon size={20} className="text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-900">Završeni</h4>
+                    <p className="text-lg font-bold text-green-600">{stats.workOrders.completed.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {stats.workOrders.total > 0 && (
+                    <span className="text-sm font-semibold text-green-600">
+                      {Math.round((stats.workOrders.completed / stats.workOrders.total) * 100)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              onClick={() => navigateToWorkOrders('nezavrsen')} 
+              className="bg-white/60 rounded-lg p-4 border border-blue-200 hover:shadow-md hover:border-blue-300 transition-all duration-300 cursor-pointer hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <ClockIcon size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-900">U toku</h4>
+                    <p className="text-lg font-bold text-blue-600">{stats.workOrders.pending.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {stats.workOrders.total > 0 && (
+                    <span className="text-sm font-semibold text-blue-600">
+                      {Math.round((stats.workOrders.pending / stats.workOrders.total) * 100)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              onClick={() => navigateToWorkOrders('odlozen')} 
+              className="bg-white/60 rounded-lg p-4 border border-yellow-200 hover:shadow-md hover:border-yellow-300 transition-all duration-300 cursor-pointer hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <ClockIcon size={20} className="text-yellow-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-900">Odloženi</h4>
+                    <p className="text-lg font-bold text-yellow-600">{stats.workOrders.postponed.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {stats.workOrders.total > 0 && (
+                    <span className="text-sm font-semibold text-yellow-600">
+                      {Math.round((stats.workOrders.postponed / stats.workOrders.total) * 100)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+        
+      {/* Quick Actions Section */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        <div className="p-3 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">Brze akcije</h2>
+        </div>
+        <div className="p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link 
+              to="/work-orders/add" 
+              className="group bg-white/60 rounded-lg p-3 border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex flex-col items-center space-y-2 text-center">
+                <div className="p-2 bg-orange-50 group-hover:bg-orange-100 rounded-lg transition-colors">
+                  <PlusIcon size={20} className="text-orange-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-900 group-hover:text-orange-700">Novi radni nalog</span>
+              </div>
+            </Link>
+            
+            <Link 
+              to="/equipment/upload" 
+              className="group bg-white/60 rounded-lg p-3 border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex flex-col items-center space-y-2 text-center">
+                <div className="p-2 bg-blue-50 group-hover:bg-blue-100 rounded-lg transition-colors">
+                  <BoxIcon size={20} className="text-blue-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-900 group-hover:text-blue-700">Dodaj opremu</span>
+              </div>
+            </Link>
+            
+            <Link 
+              to="/materials/add" 
+              className="group bg-white/60 rounded-lg p-3 border border-slate-200 hover:border-green-300 hover:shadow-md transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex flex-col items-center space-y-2 text-center">
+                <div className="p-2 bg-green-50 group-hover:bg-green-100 rounded-lg transition-colors">
+                  <ToolsIcon size={20} className="text-green-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-900 group-hover:text-green-700">Dodaj materijal</span>
+              </div>
+            </Link>
+            
+            <Link 
+              to="/technicians/add" 
+              className="group bg-white/60 rounded-lg p-3 border border-slate-200 hover:border-purple-300 hover:shadow-md transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex flex-col items-center space-y-2 text-center">
+                <div className="p-2 bg-purple-50 group-hover:bg-purple-100 rounded-lg transition-colors">
+                  <UsersIcon size={20} className="text-purple-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-900 group-hover:text-purple-700">Dodaj tehničara</span>
+              </div>
             </Link>
           </div>
         </div>

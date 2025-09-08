@@ -1,12 +1,13 @@
-// Enhanced WorkOrdersByTechnician.js with All Work Orders tab and advanced filtering
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon, ClipboardIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon, ClipboardIcon, PlusIcon, UserCheckIcon, XIcon } from '../../components/icons/SvgIcons';
+import { Button } from '../../components/ui/button-1';
+import { toast } from '../../utils/toast';
+import { cn } from '../../utils/cn';
 import axios from 'axios';
-import './WorkOrdersByTechnician.css';
 
 const WorkOrdersByTechnician = () => {
+  const [searchParams] = useSearchParams();
   const [technicians, setTechnicians] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
   const [unassignedOrders, setUnassignedOrders] = useState([]);
@@ -15,10 +16,12 @@ const WorkOrdersByTechnician = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [technicianFilter, setTechnicianFilter] = useState('');
-  const [activeTab, setActiveTab] = useState('technicians');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'technicians');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
+  const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
+  const [orderStatuses, setOrderStatuses] = useState({}); // Store customer status for each order
   const navigate = useNavigate();
   
   // Paginacija
@@ -47,12 +50,16 @@ const WorkOrdersByTechnician = () => {
       ]);
       
       const workOrdersData = workOrdersResponse.data;
+      const verificationData = verificationResponse.data;
       
       setTechnicians(techniciansResponse.data);
       setWorkOrders(workOrdersData);
       setUnassignedOrders(unassignedResponse.data);
-      setVerificationOrders(verificationResponse.data);
+      setVerificationOrders(verificationData);
       setAllWorkOrders(workOrdersData);
+      
+      // Initialize empty order statuses - will be loaded on demand
+      setOrderStatuses({});
     } catch (error) {
       console.error('Greška pri učitavanju podataka:', error);
       setError('Greška pri učitavanju radnih naloga. Pokušajte ponovo.');
@@ -62,8 +69,40 @@ const WorkOrdersByTechnician = () => {
     }
   };
   
+  const loadCustomerStatus = async (orderId) => {
+    try {
+      const response = await axios.get(`${apiUrl}/api/workorders/${orderId}/evidence`);
+      const status = response.data.customerStatus || 'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)';
+      setOrderStatuses(prev => ({
+        ...prev,
+        [orderId]: status
+      }));
+      return status;
+    } catch (error) {
+      console.error(`Failed to load status for order ${orderId}:`, error);
+      const status = 'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)';
+      setOrderStatuses(prev => ({
+        ...prev,
+        [orderId]: status
+      }));
+      return status;
+    }
+  };
+  
   const handleVerifyOrder = async (orderId) => {
     try {
+      // First load the current customer status if not already loaded
+      let currentStatus = orderStatuses[orderId];
+      if (!currentStatus) {
+        currentStatus = await loadCustomerStatus(orderId);
+      }
+      
+      // Check if customer status is set and not the old default value
+      if (!currentStatus || currentStatus === 'Nov korisnik') {
+        toast.error('Potrebno je prvo postaviti status korisnika pre verifikacije!');
+        return;
+      }
+
       await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`, {});
       toast.success('Radni nalog je uspešno verifikovan!');
       
@@ -230,16 +269,6 @@ const WorkOrdersByTechnician = () => {
     }
   };
   
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'zavrsen': return 'status-completed';
-      case 'nezavrsen': return 'status-pending';
-      case 'odlozen': return 'status-postponed';
-      case 'otkazan': return 'status-canceled';
-      default: return '';
-    }
-  };
-  
   const getTechnicianName = (order) => {
     if (order.technicianId?.name) return order.technicianId.name;
     if (order.technicianId) {
@@ -259,245 +288,358 @@ const WorkOrdersByTechnician = () => {
     setTechnicianCurrentPages({});
   };
   
+  const openCustomerStatusModal = async (orderId) => {
+    // Load customer status when modal opens if not already loaded
+    if (!orderStatuses[orderId]) {
+      await loadCustomerStatus(orderId);
+    }
+    setCustomerStatusModal({ isOpen: true, orderId });
+  };
+  
+  const closeCustomerStatusModal = () => {
+    setCustomerStatusModal({ isOpen: false, orderId: null });
+  };
+  
+  const handleCustomerStatusChange = async (orderId, newStatus) => {
+    try {
+      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+        customerStatus: newStatus
+      });
+      
+      setOrderStatuses(prev => ({
+        ...prev,
+        [orderId]: newStatus
+      }));
+      
+      toast.success('Status korisnika je uspešno ažuriran!');
+      closeCustomerStatusModal();
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      toast.error('Greška pri ažuriranju statusa korisnika!');
+    }
+  };
+  
+  const getCustomerStatusColor = (status) => {
+    if (status?.includes('HFC KDS')) return 'bg-blue-100 text-blue-800';
+    if (status?.includes('GPON')) return 'bg-green-100 text-green-800';
+    if (status?.includes('montažnim radovima')) return 'bg-yellow-100 text-yellow-800';
+    if (status?.includes('bez montažnih radova')) return 'bg-purple-100 text-purple-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+  
   // Komponenta za paginaciju
   const PaginationComponent = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
     
     return (
-      <div className="workorders-pagination-container">
-        <div className="workorders-pagination">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPageChange(1, e);
-            }}
-            disabled={currentPage === 1}
-            className="workorders-pagination-btn"
-          >
-            &laquo;
-          </button>
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPageChange(currentPage - 1, e);
-            }}
-            disabled={currentPage === 1}
-            className="workorders-pagination-btn"
-          >
-            &lsaquo;
-          </button>
-          
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(number => {
-              return (
-                number === 1 ||
-                number === totalPages ||
-                Math.abs(number - currentPage) <= 1
-              );
-            })
-            .map(number => (
-              <button
-                key={number}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPageChange(number, e);
-                }}
-                className={`workorders-pagination-btn ${currentPage === number ? 'active' : ''}`}
-              >
-                {number}
-              </button>
-            ))}
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPageChange(currentPage + 1, e);
-            }}
-            disabled={currentPage === totalPages}
-            className="workorders-pagination-btn"
-          >
-            &rsaquo;
-          </button>
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPageChange(totalPages, e);
-            }}
-            disabled={currentPage === totalPages}
-            className="workorders-pagination-btn"
-          >
-            &raquo;
-          </button>
-        </div>
+      <div className="flex justify-center items-center space-x-2 mt-6">
+        <Button
+          type="secondary"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(1, e);
+          }}
+          disabled={currentPage === 1}
+        >
+          &laquo;
+        </Button>
+        
+        <Button
+          type="secondary"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(currentPage - 1, e);
+          }}
+          disabled={currentPage === 1}
+        >
+          &lsaquo;
+        </Button>
+        
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(number => {
+            return (
+              number === 1 ||
+              number === totalPages ||
+              Math.abs(number - currentPage) <= 1
+            );
+          })
+          .map(number => (
+            <Button
+              key={number}
+              type={currentPage === number ? "primary" : "secondary"}
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPageChange(number, e);
+              }}
+            >
+              {number}
+            </Button>
+          ))}
+        
+        <Button
+          type="secondary"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(currentPage + 1, e);
+          }}
+          disabled={currentPage === totalPages}
+        >
+          &rsaquo;
+        </Button>
+        
+        <Button
+          type="secondary"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(totalPages, e);
+          }}
+          disabled={currentPage === totalPages}
+        >
+          &raquo;
+        </Button>
       </div>
     );
   };
 
   // Funkcija za navigaciju na detalje radnog naloga
   const navigateToOrderDetails = (orderId, event) => {
-    if (event.target.closest('.workorders-delete-btn') || event.target.closest('.workorders-verify-btn')) {
+    if (event.target.closest('.delete-btn') || event.target.closest('.verify-btn')) {
       return;
     }
     
     navigate(`/work-orders/${orderId}`);
   };
+
+  // Funkcija za handleovanje klika na statistike tehničara
+  const handleStatClick = (techId, status, event) => {
+    event.stopPropagation();
+    
+    // Postaviti status filter
+    setStatusFilter(status);
+    
+    // Otvoriti expandovanu karticu ako nije već otvorena
+    if (selectedTechnicianId !== techId) {
+      setSelectedTechnicianId(techId);
+    }
+    
+    // Reset paginacije za ovog tehničara
+    setTechnicianCurrentPages(prev => ({
+      ...prev,
+      [techId]: 1
+    }));
+  };
   
   return (
-    <div className="workorders-by-technician-container">
-      <div className="workorders-page-header">
-        <h1 className="workorders-page-title">
-          <ToolsIcon className="workorders-title-icon" />
-          Radni nalozi po tehničarima
-        </h1>
-        <div className="workorders-header-actions">
-          <Link to="/work-orders/add" className="workorders-btn workorders-btn-primary">
-            <ClipboardIcon size={16} />
-            Novi nalog
-          </Link>
-          <Link to="/work-orders/upload" className="workorders-btn workorders-btn-success">
-            Import
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      {/* Header Section */}
+      <div className="p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <ToolsIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Radni nalozi po tehničarima</h1>
+              <p className="text-slate-600 mt-1">Upravljanje i praćenje radnih naloga po tehničarima</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button type="primary" size="medium" prefix={<PlusIcon size={16} />} asChild>
+              <Link to="/work-orders/add">
+                Novi nalog
+              </Link>
+            </Button>
+            <Button type="secondary" size="medium" asChild>
+              <Link to="/work-orders/upload">
+                Import
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
       
-      {error && <div className="workorders-alert workorders-alert-danger">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
       
-      <div className="workorders-tabs-container">
-        <div className="workorders-tabs">
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
           <button 
-            className={`workorders-tab ${activeTab === 'technicians' ? 'active' : ''}`}
             onClick={() => setActiveTab('technicians')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'technicians' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
           >
-            <UserIcon size={16} /> Tehničari
-            <span className="workorders-tab-badge">{Object.keys(technicianWorkOrders).length}</span>
+            <UserIcon size={16} />
+            <span>Tehničari</span>
+            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
+              {Object.keys(technicianWorkOrders).length}
+            </span>
           </button>
           <button 
-            className={`workorders-tab ${activeTab === 'unassigned' ? 'active' : ''}`}
             onClick={() => setActiveTab('unassigned')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'unassigned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
           >
-            <UserSlashIcon size={16} /> Nedodeljeni
-            <span className="workorders-tab-badge">{unassignedOrders.length}</span>
+            <UserSlashIcon size={16} />
+            <span>Nedodeljeni</span>
+            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
+              {unassignedOrders.length}
+            </span>
           </button>
           <button 
-            className={`workorders-tab ${activeTab === 'verification' ? 'active' : ''}`}
             onClick={() => setActiveTab('verification')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'verification' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
           >
-            <CheckIcon size={16} /> Za verifikaciju
-            <span className="workorders-tab-badge">{verificationOrders.length}</span>
+            <CheckIcon size={16} />
+            <span>Za verifikaciju</span>
+            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
+              {verificationOrders.length}
+            </span>
           </button>
           <button 
-            className={`workorders-tab ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveTab('all')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
           >
-            <ClipboardIcon size={16} /> Svi radni nalozi
-            <span className="workorders-tab-badge">{allWorkOrders.length}</span>
+            <ClipboardIcon size={16} />
+            <span>Svi radni nalozi</span>
+            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
+              {allWorkOrders.length}
+            </span>
           </button>
         </div>
-        
-        <div className="workorders-filter-container">
-          <div className="workorders-search-box">
-            <SearchIcon size={16} className="workorders-search-icon" />
-            <input
-              type="text"
-              placeholder="Pretraga po adresi, korisniku, serijskom broju, tehničaru..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPageUnassigned(1);
-                setCurrentPageVerification(1);
-                setCurrentPageAllOrders(1);
-                setTechnicianCurrentPages({});
-              }}
-              className="workorders-search-input"
-            />
-          </div>
-          
-          <div className="workorders-filter-group">
-            <div className="workorders-filter-box">
-              <FilterIcon size={16} className="workorders-filter-icon" />
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPageUnassigned(1);
-                  setCurrentPageVerification(1);
-                  setCurrentPageAllOrders(1);
-                  setTechnicianCurrentPages({});
-                }}
-                className="workorders-filter-select"
-              >
-                <option value="">Svi statusi</option>
-                <option value="zavrsen">Završeni</option>
-                <option value="nezavrsen">Nezavršeni</option>
-                <option value="odlozen">Odloženi</option>
-                <option value="otkazan">Otkazani</option>
-              </select>
-            </div>
-            
-            {(activeTab === 'all' || activeTab === 'verification') && (
-              <div className="workorders-filter-box">
-                <UserIcon size={16} className="workorders-filter-icon" />
-                <select
-                  value={technicianFilter}
+      </div>
+      
+      {/* Search and Filters */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-4 flex-1">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Pretraga po adresi, korisniku, serijskom broju, tehničaru..."
+                  value={searchTerm}
                   onChange={(e) => {
-                    setTechnicianFilter(e.target.value);
+                    setSearchTerm(e.target.value);
                     setCurrentPageUnassigned(1);
                     setCurrentPageVerification(1);
                     setCurrentPageAllOrders(1);
                     setTechnicianCurrentPages({});
                   }}
-                  className="workorders-filter-select"
-                >
-                  <option value="">Svi tehničari</option>
-                  {technicians.map(tech => (
-                    <option key={tech._id} value={tech._id}>
-                      {tech.name}
-                    </option>
-                  ))}
-                </select>
+                  className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
+                />
               </div>
-            )}
-          </div>
-          
-          <div className="workorders-action-buttons">
-            <button 
-              className="workorders-btn workorders-btn-secondary workorders-reset-btn" 
-              onClick={resetFilters}
-            >
-              <RefreshIcon size={16} />
-              Resetuj
-            </button>
-            <button 
-              className="workorders-btn workorders-btn-secondary workorders-refresh-btn" 
-              onClick={fetchData} 
-              disabled={loading}
-            >
-              <RefreshIcon size={16} className={loading ? 'workorders-spin' : ''} />
-              Osveži
-            </button>
+              
+              {/* Status Filter */}
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPageUnassigned(1);
+                    setCurrentPageVerification(1);
+                    setCurrentPageAllOrders(1);
+                    setTechnicianCurrentPages({});
+                  }}
+                  className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
+                >
+                  <option value="">Svi statusi</option>
+                  <option value="zavrsen">Završeni</option>
+                  <option value="nezavrsen">Nezavršeni</option>
+                  <option value="odlozen">Odloženi</option>
+                  <option value="otkazan">Otkazani</option>
+                </select>
+                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              </div>
+              
+              {/* Technician Filter */}
+              {(activeTab === 'all' || activeTab === 'verification') && (
+                <div className="relative">
+                  <select
+                    value={technicianFilter}
+                    onChange={(e) => {
+                      setTechnicianFilter(e.target.value);
+                      setCurrentPageUnassigned(1);
+                      setCurrentPageVerification(1);
+                      setCurrentPageAllOrders(1);
+                      setTechnicianCurrentPages({});
+                    }}
+                    className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
+                  >
+                    <option value="">Svi tehničari</option>
+                    {technicians.map(tech => (
+                      <option key={tech._id} value={tech._id}>
+                        {tech.name}
+                      </option>
+                    ))}
+                  </select>
+                  <UserIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                </div>
+              )}
+            </div>
+            
+            {/* Action buttons */}
+            <div className="flex items-center space-x-3">
+              <Button type="tertiary" size="small" prefix={<RefreshIcon size={16} />} onClick={resetFilters}>
+                Resetuj
+              </Button>
+              <Button 
+                type="secondary" 
+                size="small" 
+                prefix={<RefreshIcon size={16} className={loading ? 'animate-spin' : ''} />} 
+                onClick={fetchData} 
+                disabled={loading}
+              >
+                Osveži
+              </Button>
+            </div>
           </div>
         </div>
       </div>
       
       {loading ? (
-        <div className="workorders-loading-container">
-          <div className="workorders-loading-spinner"></div>
-          <p>Učitavanje podataka...</p>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-slate-600">Učitavanje podataka...</p>
+          </div>
         </div>
       ) : (
-        <div className="workorders-tab-content">
+        <div className="space-y-6">
           {/* Tab za tehničare */}
           {activeTab === 'technicians' && (
-            <div className="workorders-technicians-tab">
+            <div>
               {Object.keys(technicianWorkOrders).length === 0 ? (
-                <div className="workorders-empty-message">
-                  <UserIcon size={48} className="workorders-empty-icon" />
-                  <p>Nema tehničara u sistemu</p>
+                <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12 text-center">
+                  <UserIcon size={48} className="text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-600">Nema tehničara u sistemu</p>
                 </div>
               ) : (
-                <div className="workorders-technician-cards">
+                <div className="space-y-4">
                   {Object.entries(technicianWorkOrders).map(([techId, techData]) => {
                     const filteredTechOrders = filterOrders(techData.workOrders);
                     
@@ -510,111 +652,145 @@ const WorkOrdersByTechnician = () => {
                     return (
                       <div 
                         key={techId} 
-                        className={`workorders-technician-card ${selectedTechnicianId === techId ? 'expanded' : ''}`}
-                        onClick={() => setSelectedTechnicianId(prevId => prevId === techId ? '' : techId)}
+                        className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl"
                       >
-                        <div className="workorders-technician-card-header">
-                          <div className="workorders-technician-info">
-                            <div className="workorders-technician-avatar">
-                              <UserIcon size={20} />
+                        <div 
+                          className="p-6 cursor-pointer hover:bg-slate-50 transition-colors"
+                          onClick={() => setSelectedTechnicianId(prevId => prevId === techId ? '' : techId)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="p-3 bg-blue-50 rounded-xl">
+                                <UserIcon size={20} className="text-blue-600" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-slate-900">{techData.technicianInfo.name}</h3>
+                                <p className="text-slate-600">{techData.technicianInfo.phone}</p>
+                              </div>
                             </div>
-                            <div className="workorders-technician-details">
-                              <h3>{techData.technicianInfo.name}</h3>
-                              <p>{techData.technicianInfo.phone}</p>
-                            </div>
-                          </div>
-                          <div className="workorders-technician-stats">
-                            <div className="workorders-stat">
-                              <span className="workorders-stat-value">{techData.workOrders.length}</span>
-                              <span className="workorders-stat-label">Ukupno</span>
-                            </div>
-                            <div className="workorders-stat">
-                              <span className="workorders-stat-value workorders-pending">
-                                {techData.workOrders.filter(o => o.status === 'nezavrsen').length}
-                              </span>
-                              <span className="workorders-stat-label">Nezavršeni</span>
-                            </div>
-                            <div className="workorders-stat">
-                              <span className="workorders-stat-value workorders-completed">
-                                {techData.workOrders.filter(o => o.status === 'zavrsen').length}
-                              </span>
-                              <span className="workorders-stat-label">Završeni</span>
-                            </div>
-                            <div className="workorders-stat">
-                              <span className="workorders-stat-value workorders-postponed">
-                                {techData.workOrders.filter(o => o.status === 'odlozen').length}
-                              </span>
-                              <span className="workorders-stat-label">Odloženi</span>
-                            </div>
-                            <div className="workorders-stat">
-                              <span className="workorders-stat-value workorders-canceled">
-                                {techData.workOrders.filter(o => o.status === 'otkazan').length}
-                              </span>
-                              <span className="workorders-stat-label">Otkazani</span>
+                            <div className="flex items-center space-x-6">
+                              <div 
+                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                                onClick={(e) => handleStatClick(techId, '', e)}
+                                title="Klikni da prikažeš sve naloge"
+                              >
+                                <div className="text-xl font-bold text-slate-900">{techData.workOrders.length}</div>
+                                <div className="text-xs text-slate-600">Ukupno</div>
+                              </div>
+                              <div 
+                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-yellow-50 transition-colors"
+                                onClick={(e) => handleStatClick(techId, 'nezavrsen', e)}
+                                title="Klikni da prikažeš nezavršene naloge"
+                              >
+                                <div className="text-xl font-bold text-yellow-600">
+                                  {techData.workOrders.filter(o => o.status === 'nezavrsen').length}
+                                </div>
+                                <div className="text-xs text-slate-600">Nezavršeni</div>
+                              </div>
+                              <div 
+                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-green-50 transition-colors"
+                                onClick={(e) => handleStatClick(techId, 'zavrsen', e)}
+                                title="Klikni da prikažeš završene naloge"
+                              >
+                                <div className="text-xl font-bold text-green-600">
+                                  {techData.workOrders.filter(o => o.status === 'zavrsen').length}
+                                </div>
+                                <div className="text-xs text-slate-600">Završeni</div>
+                              </div>
+                              <div 
+                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-orange-50 transition-colors"
+                                onClick={(e) => handleStatClick(techId, 'odlozen', e)}
+                                title="Klikni da prikažeš odložene naloge"
+                              >
+                                <div className="text-xl font-bold text-orange-600">
+                                  {techData.workOrders.filter(o => o.status === 'odlozen').length}
+                                </div>
+                                <div className="text-xs text-slate-600">Odloženi</div>
+                              </div>
+                              <div 
+                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                onClick={(e) => handleStatClick(techId, 'otkazan', e)}
+                                title="Klikni da prikažeš otkazane naloge"
+                              >
+                                <div className="text-xl font-bold text-red-600">
+                                  {techData.workOrders.filter(o => o.status === 'otkazan').length}
+                                </div>
+                                <div className="text-xs text-slate-600">Otkazani</div>
+                              </div>
                             </div>
                           </div>
                         </div>
                         
                         {selectedTechnicianId === techId && (
-                          <div className="workorders-technician-workorders">
+                          <div className="border-t border-slate-200 p-6">
                             {filteredTechOrders.length === 0 ? (
-                              <div className="workorders-no-results">
-                                <p>Nema radnih naloga koji odgovaraju pretrazi</p>
+                              <div className="text-center py-8">
+                                <p className="text-slate-600">Nema radnih naloga koji odgovaraju pretrazi</p>
                               </div>
                             ) : (
                               <>
-                                <div className="workorders-admin-table-container">
-                                  <table className="workorders-table">
-                                    <thead>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full">
+                                    <thead className="bg-slate-50 border-b border-slate-200">
                                       <tr>
-                                        <th>Datum</th>
-                                        <th>Opština</th>
-                                        <th>Adresa</th>
-                                        <th>Korisnik</th>
-                                        <th>Tip</th>
-                                        <th>Status</th>
-                                        <th>Akcije</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
                                       </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-slate-200">
                                       {sortByDate(currentTechItems).map((order) => (
                                         <tr 
                                           key={order._id} 
                                           onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                          className="workorders-clickable-row"
+                                          className="hover:bg-slate-50 transition-colors cursor-pointer"
                                         >
-                                          <td data-label="Datum">{formatDate(order.date)}</td>
-                                          <td data-label="Opština">{order.municipality}</td>
-                                          <td data-label="Adresa">{order.address}</td>
-                                          <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                                          <td data-label="Tip">{order.type}</td>
-                                          <td data-label="Status">
-                                            <span className={`workorders-status-badge ${getStatusClass(order.status)}`}>
+                                          <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
+                                          <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
+                                          <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
+                                          <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
+                                          <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
+                                          <td className="px-6 py-4 text-sm">
+                                            <span className={cn(
+                                              "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
+                                              order.status === 'zavrsen' && "bg-green-100 text-green-800",
+                                              order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
+                                              order.status === 'odlozen' && "bg-orange-100 text-orange-800",
+                                              order.status === 'otkazan' && "bg-red-100 text-red-800"
+                                            )}>
                                               {getStatusLabel(order.status)}
                                             </span>
                                             {order.status === 'zavrsen' && order.verified && (
-                                              <span className="workorders-verified-badge" title="Verifikovano">
+                                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800" title="Verifikovano">
                                                 <CheckIcon size={14} />
                                               </span>
                                             )}
                                           </td>
-                                          <td className="workorders-actions-column" data-label="Akcije">
-                                            <Link 
-                                              to={`/work-orders/${order._id}`} 
-                                              className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <ViewIcon size={14} /> Detalji
-                                            </Link>
-                                            <button 
-                                              className="workorders-btn workorders-btn-sm workorders-action-btn workorders-delete-btn"
-                                              onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                handleDelete(order._id); 
-                                              }}
-                                            >
-                                              <DeleteIcon size={14} />
-                                            </button>
+                                          <td className="px-6 py-4 text-sm">
+                                            <div className="flex items-center space-x-2">
+                                              <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
+                                                <Link 
+                                                  to={`/work-orders/${order._id}`} 
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  Detalji
+                                                </Link>
+                                              </Button>
+                                              <Button 
+                                                type="error" 
+                                                size="tiny" 
+                                                prefix={<DeleteIcon size={14} />}
+                                                onClick={(e) => { 
+                                                  e.stopPropagation(); 
+                                                  handleDelete(order._id); 
+                                                }}
+                                                className="delete-btn"
+                                              />
+                                            </div>
                                           </td>
                                         </tr>
                                       ))}
@@ -641,261 +817,391 @@ const WorkOrdersByTechnician = () => {
           
           {/* Tab za nedodeljene naloge */}
           {activeTab === 'unassigned' && (
-            <div className="workorders-unassigned-tab">
-              <div className="workorders-card">
-                <div className="workorders-card-header">
-                  <h2>
-                    <UserSlashIcon size={20} /> Nedodeljeni radni nalozi 
-                    <span className="workorders-count-badge">{filteredUnassigned.length}</span>
-                  </h2>
+            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-orange-50 rounded-lg">
+                    <UserSlashIcon size={20} className="text-orange-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Nedodeljeni radni nalozi</h2>
+                    <p className="text-sm text-slate-600">{filteredUnassigned.length} naloga</p>
+                  </div>
                 </div>
-                
-                <div className="workorders-card-body">
-                  {filteredUnassigned.length === 0 ? (
-                    <div className="workorders-empty-message">
-                      <p>Nema nedodeljenih radnih naloga</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="workorders-table-responsive">
-                        <table className="workorders-table">
-                          <thead>
-                            <tr>
-                              <th>Datum</th>
-                              <th>Opština</th>
-                              <th>Adresa</th>
-                              <th>Korisnik</th>
-                              <th>Tip</th>
-                              <th>Status</th>
-                              <th>Akcije</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sortByDate(currentUnassignedItems).map((order) => (
-                              <tr 
-                                key={order._id} 
-                                onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                className="workorders-clickable-row"
-                              >
-                                <td data-label="Datum">{formatDate(order.date)}</td>
-                                <td data-label="Opština">{order.municipality}</td>
-                                <td data-label="Adresa">{order.address}</td>
-                                <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                                <td data-label="Tip">{order.type}</td>
-                                <td data-label="Status">
-                                  <span className={`workorders-status-badge ${getStatusClass(order.status)}`}>
-                                    {getStatusLabel(order.status)}
-                                  </span>
-                                </td>
-                                <td className="workorders-actions-column" data-label="Akcije">
-                                  <Link 
-                                    to={`/work-orders/${order._id}`} 
-                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <ViewIcon size={14} /> Detalji
-                                  </Link>
-                                  <button 
-                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-delete-btn"
+              </div>
+              
+              <div className="p-6">
+                {filteredUnassigned.length === 0 ? (
+                  <div className="text-center py-12">
+                    <UserSlashIcon size={48} className="text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">Nema nedodeljenih radnih naloga</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {sortByDate(currentUnassignedItems).map((order) => (
+                            <tr 
+                              key={order._id} 
+                              onClick={(e) => navigateToOrderDetails(order._id, e)}
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                              <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
+                              <td className="px-6 py-4 text-sm">
+                                <span className={cn(
+                                  "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
+                                  order.status === 'zavrsen' && "bg-green-100 text-green-800",
+                                  order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
+                                  order.status === 'odlozen' && "bg-orange-100 text-orange-800",
+                                  order.status === 'otkazan' && "bg-red-100 text-red-800"
+                                )}>
+                                  {getStatusLabel(order.status)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                <div className="flex items-center space-x-2">
+                                  <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
+                                    <Link 
+                                      to={`/work-orders/${order._id}`} 
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Detalji
+                                    </Link>
+                                  </Button>
+                                  <Button 
+                                    type="error" 
+                                    size="tiny" 
+                                    prefix={<DeleteIcon size={14} />}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDelete(order._id);
                                     }}
-                                  >
-                                    <DeleteIcon size={14} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <PaginationComponent 
-                        currentPage={currentPageUnassigned}
-                        totalPages={totalPagesUnassigned}
-                        onPageChange={paginateUnassigned}
-                      />
-                    </>
-                  )}
-                </div>
+                                    className="delete-btn"
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    <PaginationComponent 
+                      currentPage={currentPageUnassigned}
+                      totalPages={totalPagesUnassigned}
+                      onPageChange={paginateUnassigned}
+                    />
+                  </>
+                )}
               </div>
             </div>
           )}
           
           {/* Tab za verifikaciju radnih naloga */}
           {activeTab === 'verification' && (
-            <div className="workorders-verification-tab">
-              <div className="workorders-card">
-                <div className="workorders-card-header">
-                  <h2>
-                    <AlertIcon size={20} /> Radni nalozi za verifikaciju 
-                    <span className="workorders-count-badge">{filteredVerification.length}</span>
-                  </h2>
+            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-yellow-50 rounded-lg">
+                    <AlertIcon size={20} className="text-yellow-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Radni nalozi za verifikaciju</h2>
+                    <p className="text-sm text-slate-600">{filteredVerification.length} naloga</p>
+                  </div>
                 </div>
-                
-                <div className="workorders-card-body">
-                  {filteredVerification.length === 0 ? (
-                    <div className="workorders-empty-message">
-                      <p>Nema radnih naloga za verifikaciju</p>
+              </div>
+              
+              <div className="p-6">
+                {filteredVerification.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertIcon size={48} className="text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">Nema radnih naloga za verifikaciju</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {sortByDate(currentVerificationItems).map((order) => {
+                            const technician = technicians.find(tech => tech._id === order.technicianId);
+                            return (
+                              <tr 
+                                key={order._id}
+                                onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                className="hover:bg-slate-50 transition-colors cursor-pointer"
+                              >
+                                <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
+                                <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
+                                <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
+                                <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
+                                <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
+                                <td className="px-6 py-4 text-sm text-slate-600">{technician ? technician.name : 'Nepoznat'}</td>
+                                <td className="px-6 py-4 text-sm">
+                                  <div className="flex flex-col space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                      <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
+                                        <Link 
+                                          to={`/work-orders/${order._id}`} 
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          Detalji
+                                        </Link>
+                                      </Button>
+                                      <Button 
+                                        type="secondary" 
+                                        size="tiny" 
+                                        prefix={<UserCheckIcon size={14} />}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openCustomerStatusModal(order._id);
+                                        }}
+                                      >
+                                        Status
+                                      </Button>
+                                      <Button 
+                                        type="primary"
+                                        size="tiny" 
+                                        prefix={<CheckIcon size={14} />}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleVerifyOrder(order._id);
+                                        }}
+                                        className="verify-btn"
+                                      >
+                                        Verifikuj
+                                      </Button>
+                                    </div>
+                                    {orderStatuses[order._id] && (
+                                      <div className="text-xs">
+                                        <span className={cn(
+                                          "inline-flex px-2 py-1 rounded-full text-xs font-medium",
+                                          getCustomerStatusColor(orderStatuses[order._id])
+                                        )}>
+                                          {orderStatuses[order._id]}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {!orderStatuses[order._id] && (
+                                      <div className="text-xs">
+                                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                          Kliknite "Status" da postavite
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  ) : (
-                    <>
-                      <div className="workorders-table-responsive">
-                        <table className="workorders-table">
-                          <thead>
-                            <tr>
-                              <th>Datum</th>
-                              <th>Opština</th>
-                              <th>Adresa</th>
-                              <th>Korisnik</th>
-                              <th>Tip</th>
-                              <th>Tehničar</th>
-                              <th>Akcije</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sortByDate(currentVerificationItems).map((order) => {
-                              const technician = technicians.find(tech => tech._id === order.technicianId);
-                              return (
-                                <tr 
-                                  key={order._id}
-                                  onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                  className="workorders-clickable-row"
-                                >
-                                  <td data-label="Datum">{formatDate(order.date)}</td>
-                                  <td data-label="Opština">{order.municipality}</td>
-                                  <td data-label="Adresa">{order.address}</td>
-                                  <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                                  <td data-label="Tip">{order.type}</td>
-                                  <td data-label="Tehničar">{technician ? technician.name : 'Nepoznat'}</td>
-                                  <td className="workorders-actions-column" data-label="Akcije">
-                                    <Link 
-                                      to={`/work-orders/${order._id}`} 
-                                      className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <ViewIcon size={14} /> Detalji
-                                    </Link>
-                                    <button 
-                                      className="workorders-btn workorders-btn-sm workorders-action-btn workorders-verify-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleVerifyOrder(order._id);
-                                      }}
-                                    >
-                                      <CheckIcon size={14} /> Verifikuj
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <PaginationComponent 
-                        currentPage={currentPageVerification}
-                        totalPages={totalPagesVerification}
-                        onPageChange={paginateVerification}
-                      />
-                    </>
-                  )}
-                </div>
+                    
+                    <PaginationComponent 
+                      currentPage={currentPageVerification}
+                      totalPages={totalPagesVerification}
+                      onPageChange={paginateVerification}
+                    />
+                  </>
+                )}
               </div>
             </div>
           )}
           
           {/* Tab za sve radne naloge */}
           {activeTab === 'all' && (
-            <div className="workorders-all-tab">
-              <div className="workorders-card">
-                <div className="workorders-card-header">
-                  <h2>
-                    <ClipboardIcon size={20} /> Svi radni nalozi 
-                    <span className="workorders-count-badge">{filteredAllOrders.length}</span>
-                  </h2>
+            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <ClipboardIcon size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Svi radni nalozi</h2>
+                    <p className="text-sm text-slate-600">{filteredAllOrders.length} naloga</p>
+                  </div>
                 </div>
-                
-                <div className="workorders-card-body">
-                  {filteredAllOrders.length === 0 ? (
-                    <div className="workorders-empty-message">
-                      <p>Nema radnih naloga koji odgovaraju filterima</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="workorders-table-responsive">
-                        <table className="workorders-table">
-                          <thead>
-                            <tr>
-                              <th>Datum</th>
-                              <th>Opština</th>
-                              <th>Adresa</th>
-                              <th>Korisnik</th>
-                              <th>Tip</th>
-                              <th>Tehničar</th>
-                              <th>Status</th>
-                              <th>Akcije</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sortByDate(currentAllOrdersItems).map((order) => (
-                              <tr 
-                                key={order._id}
-                                onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                className="workorders-clickable-row"
-                              >
-                                <td data-label="Datum">{formatDate(order.date)}</td>
-                                <td data-label="Opština">{order.municipality}</td>
-                                <td data-label="Adresa">{order.address}</td>
-                                <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                                <td data-label="Tip">{order.type}</td>
-                                <td data-label="Tehničar">{getTechnicianName(order)}</td>
-                                <td data-label="Status">
-                                  <span className={`workorders-status-badge ${getStatusClass(order.status)}`}>
-                                    {getStatusLabel(order.status)}
+              </div>
+              
+              <div className="p-6">
+                {filteredAllOrders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ClipboardIcon size={48} className="text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">Nema radnih naloga koji odgovaraju filterima</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {sortByDate(currentAllOrdersItems).map((order) => (
+                            <tr 
+                              key={order._id}
+                              onClick={(e) => navigateToOrderDetails(order._id, e)}
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                              <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{getTechnicianName(order)}</td>
+                              <td className="px-6 py-4 text-sm">
+                                <span className={cn(
+                                  "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
+                                  order.status === 'zavrsen' && "bg-green-100 text-green-800",
+                                  order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
+                                  order.status === 'odlozen' && "bg-orange-100 text-orange-800",
+                                  order.status === 'otkazan' && "bg-red-100 text-red-800"
+                                )}>
+                                  {getStatusLabel(order.status)}
+                                </span>
+                                {order.status === 'zavrsen' && order.verified && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800" title="Verifikovano">
+                                    <CheckIcon size={14} />
                                   </span>
-                                  {order.status === 'zavrsen' && order.verified && (
-                                    <span className="workorders-verified-badge" title="Verifikovano">
-                                      <CheckIcon size={14} />
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="workorders-actions-column" data-label="Akcije">
-                                  <Link 
-                                    to={`/work-orders/${order._id}`} 
-                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-view-btn"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <ViewIcon size={14} /> Detalji
-                                  </Link>
-                                  <button 
-                                    className="workorders-btn workorders-btn-sm workorders-action-btn workorders-delete-btn"
+                                )}
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                <div className="flex items-center space-x-2">
+                                  <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
+                                    <Link 
+                                      to={`/work-orders/${order._id}`} 
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Detalji
+                                    </Link>
+                                  </Button>
+                                  <Button 
+                                    type="error" 
+                                    size="tiny" 
+                                    prefix={<DeleteIcon size={14} />}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDelete(order._id);
                                     }}
-                                  >
-                                    <DeleteIcon size={14} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <PaginationComponent 
-                        currentPage={currentPageAllOrders}
-                        totalPages={totalPagesAllOrders}
-                        onPageChange={paginateAllOrders}
-                      />
-                    </>
-                  )}
-                </div>
+                                    className="delete-btn"
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    <PaginationComponent 
+                      currentPage={currentPageAllOrders}
+                      totalPages={totalPagesAllOrders}
+                      onPageChange={paginateAllOrders}
+                    />
+                  </>
+                )}
               </div>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Customer Status Modal */}
+      {customerStatusModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Status korisnika</h3>
+                <button
+                  onClick={closeCustomerStatusModal}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <XIcon size={20} className="text-slate-400" />
+                </button>
+              </div>
+              <p className="text-sm text-slate-600 mt-2">
+                Izaberite status korisnika za ovaj radni nalog
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-3">
+              {[
+                'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)',
+                'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme)',
+                'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
+                'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima',
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova'
+              ].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
+                  className={cn(
+                    "w-full p-4 text-left rounded-lg border-2 transition-all hover:shadow-md",
+                    orderStatuses[customerStatusModal.orderId] === status 
+                      ? "border-blue-500 bg-blue-50" 
+                      : "border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-slate-900 text-sm">{status}</span>
+                    {orderStatuses[customerStatusModal.orderId] === status && (
+                      <CheckIcon size={18} className="text-blue-600 flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            <div className="p-6 border-t border-slate-200 flex space-x-3">
+              <Button
+                type="secondary"
+                size="medium"
+                onClick={closeCustomerStatusModal}
+                className="flex-1"
+              >
+                Otkaži
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

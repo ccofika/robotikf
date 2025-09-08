@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { BackIcon, SaveIcon } from '../../components/icons/SvgIcons';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { equipmentAPI } from '../../services/api';
 
 const EditEquipment = () => {
@@ -26,11 +26,33 @@ const EditEquipment = () => {
     const fetchEquipment = async () => {
       try {
         const equipmentResponse = await equipmentAPI.getOne(id);
-        setEquipment(equipmentResponse.data);
+        const equipmentData = equipmentResponse.data;
         
         // Dohvati tehničare
         const techniciansResponse = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/technicians`);
-        setTechnicians(techniciansResponse.data);
+        const techniciansData = techniciansResponse.data;
+        setTechnicians(techniciansData);
+        
+        // Pripremi lokaciju za prikaz
+        let displayLocation = equipmentData.location;
+        
+        // Ako je oprema kod tehničara preko assignedTo polja, postavi lokaciju na tehnicar-{id}
+        if (equipmentData.assignedTo && (!equipmentData.location || equipmentData.location === 'tehnicar')) {
+          displayLocation = `tehnicar-${equipmentData.assignedTo}`;
+        }
+        // Ako lokacija već sadrži tehnicar- ali nije validna, postavi na magacin
+        else if (equipmentData.location && equipmentData.location.startsWith('tehnicar-')) {
+          const technicianId = equipmentData.location.replace('tehnicar-', '');
+          const technicianExists = techniciansData.find(tech => tech._id === technicianId);
+          if (!technicianExists) {
+            displayLocation = 'magacin';
+          }
+        }
+        
+        setEquipment({
+          ...equipmentData,
+          location: displayLocation
+        });
         
         // Učitaj sve kategorije
         const allEquipmentResponse = await equipmentAPI.getAll();
@@ -57,7 +79,7 @@ const EditEquipment = () => {
       <>
         <option value="magacin">Magacin</option>
         {technicians.map(tech => (
-          <option key={tech.id} value={`tehnicar-${tech.id}`}>
+          <option key={tech._id} value={`tehnicar-${tech._id}`}>
             Tehničar: {tech.name}
           </option>
         ))}
@@ -83,6 +105,25 @@ const EditEquipment = () => {
     try {
       // Pripremi podatke za slanje
       const updateData = { ...equipment };
+      
+      // Logika za upravljanje lokacijom i assignedTo poljem
+      if (equipment.location && equipment.location.startsWith('tehnicar-')) {
+        const technicianId = equipment.location.replace('tehnicar-', '');
+        // Validiraj da tehničar postoji
+        const technicianExists = technicians.find(tech => tech._id === technicianId);
+        if (technicianExists) {
+          updateData.assignedTo = technicianId;
+          updateData.status = 'assigned';
+        } else {
+          throw new Error('Izabrani tehničar ne postoji');
+        }
+      } else if (equipment.location === 'magacin') {
+        updateData.assignedTo = null;
+        updateData.assignedToUser = null;
+        if (equipment.status === 'assigned') {
+          updateData.status = 'available';
+        }
+      }
       
       // Ako je status promenjen na "defective", automatski postavi potrebne vrednosti
       if (equipment.status === 'defective') {

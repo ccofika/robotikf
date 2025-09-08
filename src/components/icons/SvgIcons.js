@@ -37,6 +37,13 @@ export const ViewIcon = ({ size = 16, color = 'currentColor', className = '' }) 
   </svg>
 );
 
+export const EyeIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
 export const BackIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -358,12 +365,36 @@ export const CommentIcon = ({ size = 16, color = 'currentColor', className = '' 
   </svg>
 );
 
+export const UserCheckIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="8.5" cy="7" r="4"/>
+    <polyline points="17,11 19,13 23,9"/>
+  </svg>
+);
+
+export const XIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+export const CarIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.56-.9L18 10.5V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v4.5L2.56 11.95a1 1 0 0 0-.56.9V16h3"/>
+    <circle cx="6.5" cy="16.5" r="2.5"/>
+    <circle cx="17.5" cy="16.5" r="2.5"/>
+  </svg>
+);
+
 export default {
   PlusIcon,
   SearchIcon,
   EditIcon,
   DeleteIcon,
   ViewIcon,
+  EyeIcon,
   BackIcon,
   SaveIcon,
   UploadIcon,
@@ -404,5 +435,8 @@ export default {
   RefreshIcon,
   MaterialIcon,
   EquipmentIcon,
-  CommentIcon
+  CommentIcon,
+  UserCheckIcon,
+  XIcon,
+  CarIcon
 }; 

@@ -12,9 +12,11 @@ import {
   EquipmentIcon,
   ChartIcon
 } from '../../components/icons/SvgIcons';
+import { Button } from '../../components/ui/button-1';
 import axios from 'axios';
-import { toast } from 'react-toastify';
-import './DefectiveEquipment.css';
+import { toast } from '../../utils/toast';
+import { cn } from '../../utils/cn';
+// import './DefectiveEquipment.css';
 
 const DefectiveEquipment = () => {
   const [equipment, setEquipment] = useState([]);
@@ -273,14 +275,36 @@ const DefectiveEquipment = () => {
   
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'defective': { label: 'Neispravno', className: 'status-defective' },
-      'available': { label: 'Dostupno', className: 'status-available' },
-      'assigned': { label: 'Dodeljeno', className: 'status-assigned' },
-      'installed': { label: 'Instalirano', className: 'status-installed' }
+      'defective': { 
+        label: 'Neispravno', 
+        className: 'bg-red-50 text-red-700 border border-red-200' 
+      },
+      'available': { 
+        label: 'Dostupno', 
+        className: 'bg-green-50 text-green-700 border border-green-200' 
+      },
+      'assigned': { 
+        label: 'Dodeljeno', 
+        className: 'bg-blue-50 text-blue-700 border border-blue-200' 
+      },
+      'installed': { 
+        label: 'Instalirano', 
+        className: 'bg-purple-50 text-purple-700 border border-purple-200' 
+      }
     };
     
-    const config = statusConfig[status] || { label: status, className: 'status-unknown' };
-    return <span className={`status-badge ${config.className}`}>{config.label}</span>;
+    const config = statusConfig[status] || { 
+      label: status, 
+      className: 'bg-gray-50 text-gray-700 border border-gray-200' 
+    };
+    return (
+      <span className={cn(
+        "inline-flex items-center justify-center px-2 py-1 rounded-md text-xs font-medium",
+        config.className
+      )}>
+        {config.label}
+      </span>
+    );
   };
   
   const handleReset = () => {
@@ -333,255 +357,313 @@ const DefectiveEquipment = () => {
   };
 
   return (
-    <div className="defective-equipment-page">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       {/* Header */}
-      <div className="page-header">
-        <div className="header-left">
-          <div className="page-title-section">
-            <h1 className="defective-page-title">
-              <AlertTriangleIcon size={28} />
-              Neispravna oprema
-            </h1>
-            <p className="page-subtitle">
+      <div className="p-6 mb-6">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-orange-50 rounded-xl">
+            <AlertTriangleIcon size={24} className="text-orange-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Neispravna oprema</h1>
+            <p className="text-slate-600 mt-1">
               Pregled sve opreme označene kao neispravna sa detaljima o uklanjanju
             </p>
           </div>
         </div>
-        
-        <div className="header-stats">
-          {stats && (
-            <>
-              <div className="stat-card">
-                <div className="defective-stat-icon">
-                  <AlertTriangleIcon size={20} />
-                </div>
-                <div className="stat-info">
-                  <span className="stat-number">{stats.total}</span>
-                  <span className="stat-label">Ukupno neispravnih</span>
-                </div>
-              </div>
-              
-              <div className="stat-card">
-                <div className="defective-stat-icon success">
-                  <ChartIcon size={20} />
-                </div>
-                <div className="stat-info">
-                  <span className="stat-number">{Object.keys(stats.byCategory).length}</span>
-                  <span className="stat-label">Kategorija</span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
-      {/* Controls */}
-      <div className="controls-section">
-        <div className="search-section">
-          <div className="search-input-container">
-            <SearchIcon size={20} />
-            <input
-              type="text"
-              placeholder="Pretraži po serijskom broju, opisu, tehničaru ili TIS ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
+      {/* Stats Cards */}
+      {stats && (
+        <div className="mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-orange-50 rounded-lg">
+                  <AlertTriangleIcon size={20} className="text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Ukupno neispravnih</p>
+                  <h3 className="text-lg font-bold text-slate-900">{stats.total}</h3>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <ChartIcon size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Kategorija</p>
+                  <h3 className="text-lg font-bold text-slate-900">{Object.keys(stats.byCategory).length}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <EquipmentIcon size={20} className="text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Filtrirana oprema</p>
+                  <h3 className="text-lg font-bold text-slate-900">{filteredEquipment.length}</h3>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="filters-section">
-          <div className="filter-group">
-            <label>
-              <FilterIcon size={16} />
-              Kategorija:
-            </label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Sve kategorije</option>
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Controls */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center space-x-4 flex-1 min-w-0">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Pretraži po serijskom broju, opisu, tehničaru..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-9 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all hover:bg-slate-50"
+                />
+              </div>
+              
+              {/* Category Filter */}
+              <div className="relative">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
+                >
+                  <option value="">Sve kategorije</option>
+                  {categories.map(category => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              </div>
 
-          <div className="filter-group">
-            <label>
-              <CalendarIcon size={16} />
-              Datum uklanjanja:
-            </label>
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="filter-date"
-            />
-          </div>
-
-          <div className="action-buttons">
-            <button onClick={handleReset} className="reset-btn">
-              <RefreshIcon size={16} />
-              Resetuj
-            </button>
+              {/* Date Filter */}
+              <div className="relative">
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all hover:bg-slate-50"
+                />
+                <CalendarIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              </div>
+            </div>
             
-            <button onClick={fetchDefectiveEquipment} className="refresh-btn">
-              <RefreshIcon size={16} />
-              Osveži
-            </button>
+            {/* Action buttons */}
+            <div className="flex items-center space-x-3">
+              <Button 
+                type="secondary" 
+                size="medium" 
+                prefix={<RefreshIcon size={16} />}
+                onClick={handleReset}
+              >
+                Resetuj
+              </Button>
+              <Button 
+                type="primary" 
+                size="medium" 
+                prefix={<RefreshIcon size={16} />}
+                onClick={fetchDefectiveEquipment}
+              >
+                Osveži
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="content-section">
+      <div>
         {loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>
-            <p>Učitava neispravnu opremu...</p>
+          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
+            <div className="flex flex-col items-center text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mb-4"></div>
+              <p className="text-slate-600 font-medium">Učitava neispravnu opremu...</p>
+            </div>
           </div>
         ) : error ? (
-          <div className="error-state">
-            <AlertTriangleIcon size={48} />
-            <h3>Greška</h3>
-            <p>{error}</p>
-            <button onClick={fetchDefectiveEquipment} className="retry-btn">
-              Pokušaj ponovo
-            </button>
+          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
+            <div className="flex flex-col items-center text-center">
+              <div className="p-3 bg-red-50 rounded-xl mb-4">
+                <AlertTriangleIcon size={48} className="text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Greška</h3>
+              <p className="text-slate-600 mb-6">{error}</p>
+              <Button 
+                type="primary" 
+                size="medium" 
+                onClick={fetchDefectiveEquipment}
+              >
+                Pokušaj ponovo
+              </Button>
+            </div>
           </div>
         ) : filteredEquipment.length === 0 ? (
-          <div className="empty-state">
-            <EquipmentIcon size={64} />
-            <h3>Nema neispravne opreme</h3>
-            <p>
-              {equipment.length === 0 
-                ? 'Trenutno nema opreme označene kao neispravna.'
-                : 'Nema opreme koja odgovara trenutnim filterima.'
-              }
-            </p>
+          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
+            <div className="flex flex-col items-center text-center">
+              <div className="p-3 bg-slate-50 rounded-xl mb-4">
+                <EquipmentIcon size={64} className="text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Nema neispravne opreme</h3>
+              <p className="text-slate-600">
+                {equipment.length === 0 
+                  ? 'Trenutno nema opreme označene kao neispravna.'
+                  : 'Nema opreme koja odgovara trenutnim filterima.'
+                }
+              </p>
+            </div>
           </div>
         ) : (
           <>
             {/* Table */}
-            <div className="table-container">
-              <table className="defective-table">
-                <thead>
-                  <tr>
-                    <th>Oprema</th>
-                    <th>Serijski broj</th>
-                    <th>Status</th>
-                    <th>Lokacija</th>
-                    <th>Uklonio tehničar</th>
-                    <th>Work Order</th>
-                    <th>Datum uklanjanja</th>
-                    <th>Razlog</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentEquipment.map((item) => (
-                    <tr key={item._id}>
-                      <td>
-                        <div className="equipment-info">
-                          <div className="equipment-category">{item.category}</div>
-                          <div className="equipment-description">{item.description}</div>
-                        </div>
-                      </td>
-                      
-                      <td>
-                        <span className="serial-number">{item.serialNumber}</span>
-                      </td>
-                      
-                      <td>
-                        {getStatusBadge(item.status)}
-                      </td>
-                      
-                      <td>
-                        <div className="location-info">
-                          <MapPinIcon size={14} />
-                          {item.location}
-                        </div>
-                      </td>
-                      
-                      <td>
-                        {item.removalInfo ? (
-                          <div className="technician-info">
-                            <UserIcon size={14} />
-                            <span>{item.removalInfo.removedByName}</span>
-                          </div>
-                        ) : (
-                          <span className="no-info">N/A</span>
-                        )}
-                      </td>
-                      
-                      <td>
-                        {item.removalInfo?.workOrder ? (
-                          <div className="workorder-info">
-                            <ClipboardIcon size={14} />
-                            <div>
-                              <div className="tis-id">TIS: {item.removalInfo.workOrder.tisId}</div>
-                              <div className="user-name">{item.removalInfo.workOrder.userName}</div>
-                              <div className="address">{item.removalInfo.workOrder.address}</div>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="no-info">N/A</span>
-                        )}
-                      </td>
-                      
-                      <td>
-                        <div className="date-info">
-                          <CalendarIcon size={14} />
-                          {formatDate(item.removalInfo?.removalDate || item.removedAt)}
-                        </div>
-                      </td>
-                      
-                      <td>
-                        <div className="reason-info">
-                          {item.removalInfo?.reason || 'Neispravno'}
-                          {item.removalInfo?.isWorking === false && (
-                            <span className="not-working-badge">Ne radi</span>
-                          )}
-                        </div>
-                      </td>
+            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Oprema
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Serijski broj
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Lokacija
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Uklonio tehničar
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Work Order
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Datum uklanjanja
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Razlog
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {currentEquipment.map((item) => (
+                      <tr key={item._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-slate-900">{item.category}</div>
+                            <div className="text-sm text-slate-500">{item.description}</div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-medium text-slate-900">{item.serialNumber}</span>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          {getStatusBadge(item.status)}
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center text-sm text-slate-700">
+                            <MapPinIcon size={14} className="mr-1 text-slate-400" />
+                            {item.location}
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          {item.removalInfo ? (
+                            <div className="flex items-center text-sm text-slate-700">
+                              <UserIcon size={14} className="mr-1 text-slate-400" />
+                              <span>{item.removalInfo.removedByName}</span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">N/A</span>
+                          )}
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          {item.removalInfo?.workOrder ? (
+                            <div className="flex items-start text-sm">
+                              <ClipboardIcon size={14} className="mr-1 mt-0.5 text-slate-400 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-slate-900">TIS: {item.removalInfo.workOrder.tisId}</div>
+                                <div className="text-slate-600">{item.removalInfo.workOrder.userName}</div>
+                                <div className="text-slate-500 text-xs">{item.removalInfo.workOrder.address}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">N/A</span>
+                          )}
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center text-sm text-slate-700">
+                            <CalendarIcon size={14} className="mr-1 text-slate-400" />
+                            {formatDate(item.removalInfo?.removalDate || item.removedAt)}
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-slate-700">
+                            {item.removalInfo?.reason || 'Neispravno'}
+                            {item.removalInfo?.isWorking === false && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800">
+                                Ne radi
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="pagination-container">
-                <div className="pagination-info">
-                  <span>
-                    Prikazuje se {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredEquipment.length)} od {filteredEquipment.length} stavki
-                  </span>
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-slate-600">
+                  Prikazuje se <span className="font-medium text-slate-900">{((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredEquipment.length)}</span> od <span className="font-medium text-slate-900">{filteredEquipment.length}</span> stavki
                 </div>
                 
-                <div className="pagination-controls">
-                  <button
+                <div className="flex items-center space-x-2">
+                  <Button
+                    type="secondary"
+                    size="small"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(prev => prev - 1)}
-                    className="pagination-btn"
                   >
                     Prethodna
-                  </button>
+                  </Button>
                   
-                  <span className="page-info">
-                    Strana {currentPage} od {totalPages}
+                  <span className="px-3 py-1 text-sm font-medium text-slate-700">
+                    {currentPage} od {totalPages}
                   </span>
                   
-                  <button
+                  <Button
+                    type="secondary"
+                    size="small"
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(prev => prev + 1)}
-                    className="pagination-btn"
                   >
                     Sledeća
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -589,7 +671,8 @@ const DefectiveEquipment = () => {
         )}
       </div>
 
-      {/* User Equipment Section */}
+      {/* USER EQUIPMENT SECTION - COMMENTED OUT AS REQUESTED */}
+      {/*
       <div className="section-divider">
         <h2 className="section-title">
           <UserIcon size={24} />
@@ -600,7 +683,6 @@ const DefectiveEquipment = () => {
         </p>
       </div>
 
-      {/* User Equipment Controls */}
       <div className="controls-section">
         <div className="search-section">
           <div className="search-input-container">
@@ -653,7 +735,6 @@ const DefectiveEquipment = () => {
         </div>
       </div>
 
-      {/* User Equipment Content */}
       <div className="content-section">
         {userEquipmentLoading ? (
           <div className="loading-state">
@@ -682,7 +763,6 @@ const DefectiveEquipment = () => {
           </div>
         ) : (
           <>
-            {/* User Equipment Table */}
             <div className="table-container">
               <table className="defective-table">
                 <thead>
@@ -742,7 +822,6 @@ const DefectiveEquipment = () => {
               </table>
             </div>
 
-            {/* User Equipment Pagination */}
             {userEquipmentTotalPages > 1 && (
               <div className="pagination-container">
                 <div className="pagination-info">
@@ -777,6 +856,7 @@ const DefectiveEquipment = () => {
           </>
         )}
       </div>
+      */}
     </div>
   );
 };

@@ -105,6 +105,10 @@ export const logsAPI = {
   // Map and Travel Analytics API functions
   getMapData: (params) => api.get('/api/logs/dashboard/map-data', { params }),
   getTravelAnalytics: (params) => api.get('/api/logs/dashboard/travel-analytics', { params }),
+  // Admin dismiss functionality
+  dismissWorkOrder: (workOrderId) => api.post('/api/logs/dashboard/dismiss-work-order', { workOrderId }),
+  getDismissedWorkOrders: () => api.get('/api/logs/dashboard/dismissed-work-orders'),
+  readdWorkOrder: (workOrderId) => api.delete(`/api/logs/dashboard/dismiss-work-order/${workOrderId}`),
 };
 
 export const userEquipmentAPI = {
@@ -130,6 +134,22 @@ export const exportAPI = {
   exportTemplate: () => api.get('/api/export/template', {
     responseType: 'blob'
   }),
+};
+
+// Vehicles API
+export const vehiclesAPI = {
+  getAll: () => api.get('/api/vehicles'),
+  getAllWithStatus: () => api.get('/api/vehicles/with-status'),
+  getExpiringRegistrations: (days) => api.get(`/api/vehicles/expiring-registrations/${days || 30}`),
+  getOne: (id) => api.get(`/api/vehicles/${id}`),
+  getServices: (id) => api.get(`/api/vehicles/${id}/services`),
+  create: (data) => api.post('/api/vehicles', data),
+  update: (id, data) => api.put(`/api/vehicles/${id}`, data),
+  delete: (id) => api.delete(`/api/vehicles/${id}`),
+  addService: (id, data) => api.post(`/api/vehicles/${id}/services`, data),
+  updateService: (id, serviceId, data) => api.put(`/api/vehicles/${id}/services/${serviceId}`, data),
+  deleteService: (id, serviceId) => api.delete(`/api/vehicles/${id}/services/${serviceId}`),
+  getStats: () => api.get('/api/vehicles/stats/overview'),
 };
 
 // Interceptor za obradu grešaka

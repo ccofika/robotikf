@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { CheckIcon, CrossIcon, AlertTriangleIcon, BoxIcon, ClockIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { AuthContext } from '../../context/AuthContext';
 import { techniciansAPI } from '../../services/api';
 import './EquipmentConfirmation.css';

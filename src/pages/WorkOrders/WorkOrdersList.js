@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PlusIcon, UploadIcon, SearchIcon, FilterIcon, ViewIcon, DeleteIcon, ClipboardIcon, RefreshIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import './WorkOrdersModern.css';
 
 const WorkOrdersList = () => {
+  const [searchParams] = useSearchParams();
   const [workOrders, setWorkOrders] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [technicianFilter, setTechnicianFilter] = useState('');
   
   // Paginacija

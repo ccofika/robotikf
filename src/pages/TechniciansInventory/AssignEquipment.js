@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BackIcon, BoxIcon, PlusIcon, MinusIcon, UserIcon, SearchIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { techniciansAPI, equipmentAPI } from '../../services/api';
-import './AssignEquipment.css';
+import { Button } from '../../components/ui/button-1';
+import { cn } from '../../utils/cn';
 
 const AssignEquipment = () => {
   const [technician, setTechnician] = useState(null);
@@ -177,65 +178,106 @@ const AssignEquipment = () => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   
   if (loading && !technician) {
-    return <div className="loading-container">Učitavanje...</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-lg font-medium text-slate-600">Učitavanje...</div>
+      </div>
+    );
   }
   
   return (
-    <div className="assign-equipment fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Zaduženje/Razduženje opreme</h1>
-        <Link to={`/technicians/${id}`} className="btn btn-sm">
-          <BackIcon /> Nazad na detalje
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      {/* Header */}
+      <div className="p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <BoxIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Zaduženje/Razduženje opreme</h1>
+              <p className="text-slate-600 mt-1">Upravljanje opremom tehničara</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button type="secondary" size="medium" prefix={<BackIcon size={16} />} asChild>
+              <Link to={`/technicians/${id}`}>
+                Nazad na detalje
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
       
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
       
       {technician && (
-        <div className="technician-brief">
-          <div className="technician-avatar">
-            <UserIcon />
-          </div>
-          <div className="technician-info">
-            <h2>{technician.name}</h2>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-green-50 rounded-xl">
+              <UserIcon size={24} className="text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{technician.name}</h2>
+              <p className="text-slate-600">Tehničar</p>
+            </div>
           </div>
         </div>
       )}
       
-      <div className="tab-navigation">
-                <button 
-          className={`tab-button ${activeTab === 'assign' ? 'active' : ''}`} 
-          onClick={() => setActiveTab('assign')}
-        >
-          <PlusIcon /> Zaduži opremu
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'return' ? 'active' : ''}`} 
-          onClick={() => setActiveTab('return')}
-        >
-          <MinusIcon /> Razduži opremu
-        </button>
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
+          <button 
+            onClick={() => setActiveTab('assign')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'assign' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
+          >
+            <PlusIcon size={16} />
+            <span>Zaduži opremu</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('return')}
+            className={cn(
+              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+              "hover:bg-white hover:text-slate-900",
+              activeTab === 'return' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+            )}
+          >
+            <MinusIcon size={16} />
+            <span>Razduži opremu</span>
+          </button>
+        </div>
       </div>
       
-      <div className="card section-card">
-        <div className="equipment-controls">
-          <div className="equipment-title">
-            <h3>
-              {activeTab === 'assign' ? 
-                <><BoxIcon /> Oprema dostupna za zaduženje</> : 
-                <><BoxIcon /> Oprema za razduženje</>
-              }
-            </h3>
-            <div className="count-badge">
-              {activeTab === 'assign' ? filteredAvailableEquipment.length : filteredAssignedEquipment.length}
+      {/* Main Equipment Table */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <BoxIcon size={20} className="text-blue-600" />
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {activeTab === 'assign' ? 'Oprema dostupna za zaduženje' : 'Oprema za razduženje'}
+                </h3>
+              </div>
+              <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
+                {activeTab === 'assign' ? filteredAvailableEquipment.length : filteredAssignedEquipment.length}
+              </span>
             </div>
-          </div>
 
-          <div className="search-filter">
-            <div className="search-box">
-              <SearchIcon className="search-icon" />
+            <div className="relative flex-1 max-w-md">
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
               <input
                 type="text"
+                className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
                 placeholder="Pretraži opremu..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -244,47 +286,65 @@ const AssignEquipment = () => {
           </div>
         </div>
         
-        <div className="selection-controls">
-          <button className="btn btn-sm" onClick={selectAll}>Označi sve</button>
-          <button className="btn btn-sm" onClick={deselectAll}>Poništi</button>
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center space-x-3">
+            <Button type="secondary" size="small" onClick={selectAll}>
+              Označi sve
+            </Button>
+            <Button type="secondary" size="small" onClick={deselectAll}>
+              Poništi
+            </Button>
+            <div className="text-sm text-slate-600 ml-auto">
+              Odabrano: <span className="font-semibold">{selectedEquipment.length}</span>
+            </div>
+          </div>
         </div>
         
-        <div className="table-container">
-          <table className="equipment-table">
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th style={{ width: '50px' }}>Odaberi</th>
-                <th>Opis</th>
-                <th>Serijski broj</th>
-                <th>Lokacija</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider" style={{ width: '80px' }}>Odaberi</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Serijski broj</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Lokacija</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-200">
               {activeTab === 'assign' ? (
                 filteredAvailableEquipment.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="text-center">
+                    <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
                       {searchTerm ? 'Nema rezultata za pretragu' : 'Nema dostupne opreme u magacinu'}
                     </td>
                   </tr>
                 ) : (
                   currentAvailableItems.map((item) => (
                     <tr key={item.id || item.serialNumber}
-                      className={`selectable-row ${selectedEquipment.includes(item.serialNumber) ? 'selected' : ''}`}
+                      className={cn(
+                        "hover:bg-slate-50 transition-colors cursor-pointer",
+                        selectedEquipment.includes(item.serialNumber) ? "bg-blue-50" : ""
+                      )}
                       onClick={() => toggleSelectEquipment(item.serialNumber)}
                     >
-                      <td>
+                      <td className="px-6 py-4">
                         <input
                           type="checkbox"
                           checked={selectedEquipment.includes(item.serialNumber)}
                           onChange={() => { }}
                           onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                         />
                       </td>
-                      <td>{item.description}</td>
-                      <td>{item.serialNumber}</td>
-                      <td>
-                        <span className={`location-badge ${item.location === 'magacin' ? 'in-stock' : 'assigned'}`}>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.description}</td>
+                      <td className="px-6 py-4 text-sm text-slate-700">{item.serialNumber}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                          item.location === 'magacin' 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-blue-100 text-blue-800"
+                        )}>
                           {translateLocation(item.location)}
                         </span>
                       </td>
@@ -294,28 +354,37 @@ const AssignEquipment = () => {
               ) : (
                 filteredAssignedEquipment.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="text-center">
+                    <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
                       {searchTerm ? 'Nema rezultata za pretragu' : 'Tehničar nema zaduženu opremu'}
                     </td>
                   </tr>
                 ) : (
                   currentAssignedItems.map((item) => (
                     <tr key={item.id || item.serialNumber}
-                      className={`selectable-row ${selectedEquipment.includes(item.serialNumber) ? 'selected' : ''}`}
+                      className={cn(
+                        "hover:bg-slate-50 transition-colors cursor-pointer",
+                        selectedEquipment.includes(item.serialNumber) ? "bg-blue-50" : ""
+                      )}
                       onClick={() => toggleSelectEquipment(item.serialNumber)}
                     >
-                      <td>
+                      <td className="px-6 py-4">
                         <input
                           type="checkbox"
                           checked={selectedEquipment.includes(item.serialNumber)}
                           onChange={() => { }}
                           onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                         />
                       </td>
-                      <td>{item.description}</td>
-                      <td>{item.serialNumber}</td>
-                      <td>
-                        <span className={`location-badge ${item.location === 'magacin' ? 'in-stock' : 'assigned'}`}>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.description}</td>
+                      <td className="px-6 py-4 text-sm text-slate-700">{item.serialNumber}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                          item.location === 'magacin' 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-blue-100 text-blue-800"
+                        )}>
                           {translateLocation(item.location)}
                         </span>
                       </td>
@@ -327,81 +396,96 @@ const AssignEquipment = () => {
           </table>
         </div>
         
-        <div className="pagination-container">
-          {(activeTab === 'assign' && filteredAvailableEquipment.length > itemsPerPage) ||
-            (activeTab === 'return' && filteredAssignedEquipment.length > itemsPerPage) ? (
-            <div className="pagination">
-              <button
-                onClick={() => paginate(1)}
-                disabled={currentPage === 1}
-              >
-                &laquo;
-              </button>
+        {/* Pagination */}
+        {((activeTab === 'assign' && filteredAvailableEquipment.length > itemsPerPage) ||
+          (activeTab === 'return' && filteredAssignedEquipment.length > itemsPerPage)) && (
+          <div className="flex justify-center items-center space-x-2 p-6 border-t border-slate-200">
+            <Button
+              type="secondary"
+              size="small"
+              onClick={() => paginate(1)}
+              disabled={currentPage === 1}
+            >
+              &laquo;
+            </Button>
 
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                &lsaquo;
-              </button>
+            <Button
+              type="secondary"
+              size="small"
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              &lsaquo;
+            </Button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(number => {
-                  return (
-                    number === 1 ||
-                    number === totalPages ||
-                    Math.abs(number - currentPage) <= 1
-                  );
-                })
-                .map(number => (
-                  <button
-                    key={number}
-                    onClick={() => paginate(number)}
-                    className={currentPage === number ? 'active' : ''}
-                  >
-                    {number}
-                  </button>
-                ))}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(number => {
+                return (
+                  number === 1 ||
+                  number === totalPages ||
+                  Math.abs(number - currentPage) <= 1
+                );
+              })
+              .map(number => (
+                <Button
+                  key={number}
+                  type={currentPage === number ? "primary" : "secondary"}
+                  size="small"
+                  onClick={() => paginate(number)}
+                >
+                  {number}
+                </Button>
+              ))}
 
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                &rsaquo;
-              </button>
+            <Button
+              type="secondary"
+              size="small"
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              &rsaquo;
+            </Button>
 
-              <button
-                onClick={() => paginate(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                &raquo;
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="action-footer">
-          <div className="selected-count">
-            Odabrano: <strong>{selectedEquipment.length}</strong>
+            <Button
+              type="secondary"
+              size="small"
+              onClick={() => paginate(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              &raquo;
+            </Button>
           </div>
-          <div className="action-buttons">
-            {activeTab === 'assign' ? (
-              <button 
-                className="btn btn-primary assign-btn" 
-                onClick={handleAssignEquipment}
-                disabled={loading || selectedEquipment.length === 0}
-              >
-                <PlusIcon /> Zaduži opremu
-              </button>
-            ) : (
-              <button 
-                className="btn btn-primary return-btn" 
-                onClick={handleReturnEquipment}
-                disabled={loading || selectedEquipment.length === 0}
-              >
-                <MinusIcon /> Razduži opremu
-              </button>
-            )}
+        )}
+
+        {/* Action Footer */}
+        <div className="p-6 border-t border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-slate-600">
+              Odabrano: <span className="font-semibold text-slate-900">{selectedEquipment.length}</span> stavka
+            </div>
+            <div className="flex items-center space-x-3">
+              {activeTab === 'assign' ? (
+                <Button 
+                  type="primary" 
+                  size="medium"
+                  prefix={<PlusIcon size={16} />}
+                  onClick={handleAssignEquipment}
+                  disabled={loading || selectedEquipment.length === 0}
+                >
+                  Zaduži opremu
+                </Button>
+              ) : (
+                <Button 
+                  type="primary" 
+                  size="medium"
+                  prefix={<MinusIcon size={16} />}
+                  onClick={handleReturnEquipment}
+                  disabled={loading || selectedEquipment.length === 0}
+                >
+                  Razduži opremu
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

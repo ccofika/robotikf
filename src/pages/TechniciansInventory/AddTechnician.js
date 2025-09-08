@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, UserIcon } from '../../components/icons/SvgIcons';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { techniciansAPI } from '../../services/api';
 import './AddTechnician.css';
 

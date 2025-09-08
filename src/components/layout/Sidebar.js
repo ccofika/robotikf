@@ -13,7 +13,8 @@ import {
   UsersIcon,
   ExcelIcon,
   HistoryIcon,
-  AlertTriangleIcon
+  AlertTriangleIcon,
+  CarIcon
 } from '../icons/SvgIcons';
 import { AuthContext } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -164,6 +165,17 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                   >
                     <HistoryIcon size={20} /> 
                     <span>{(!collapsed || mobileOpen) && 'Logovi'}</span>
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink 
+                    to="/vehicles" 
+                    className={({ isActive }) => isActive ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                    data-title="Vozni park"
+                  >
+                    <CarIcon size={20} /> 
+                    <span>{(!collapsed || mobileOpen) && 'Vozni park'}</span>
                   </NavLink>
                 </li>
                 <li>
