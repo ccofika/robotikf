@@ -5,6 +5,7 @@ import { ChevronsUpDown, ChevronRight } from 'lucide-react'
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
 } from "../ui/avatar"
 import {
   DropdownMenu,
@@ -27,8 +28,11 @@ import {
   HistoryIcon,
   AlertTriangleIcon,
   CarIcon,
-  LogoutIcon
+  LogoutIcon,
+  UserIcon
 } from '../icons/SvgIcons'
+import AccountModal from '../AccountModal'
+import TechnicianAccountModal from '../TechnicianAccountModal'
 
 interface SidebarProps {
   className?: string
@@ -114,6 +118,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showAccountModal, setShowAccountModal] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -284,6 +289,9 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="w-full justify-start">
                     <Avatar className="h-6 w-6">
+                      {user?.profileImage && (
+                        <AvatarImage src={user.profileImage} alt={user.name} />
+                      )}
                       <AvatarFallback className="text-xs">
                         {getUserInitials(user?.name || 'User')}
                       </AvatarFallback>
@@ -297,6 +305,10 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setShowAccountModal(true)}>
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    <span>Moj nalog</span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={logout} className="text-red-600 focus:text-red-600">
                     <LogoutIcon className="mr-2 h-4 w-4" />
                     <span>Odjavite se</span>
@@ -388,6 +400,9 @@ export function ShadcnSidebar({ className }: SidebarProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-[38px] w-full flex items-center justify-center">
                   <Avatar className="h-6 w-6">
+                    {user?.profileImage && (
+                      <AvatarImage src={user.profileImage} alt={user.name} />
+                    )}
                     <AvatarFallback className="text-xs">
                       {getUserInitials(user?.name || 'User')}
                     </AvatarFallback>
@@ -403,6 +418,10 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setShowAccountModal(true)}>
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  <span>Moj nalog</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={logout} className="text-red-600 focus:text-red-600">
                   <LogoutIcon className="mr-2 h-4 w-4" />
                   <span>Odjavite se</span>
@@ -413,6 +432,14 @@ export function ShadcnSidebar({ className }: SidebarProps) {
 
         </motion.div>
       </motion.div>
+
+      {/* Account Modal */}
+      {showAccountModal && user?.role === 'admin' && (
+        <AccountModal onClose={() => setShowAccountModal(false)} />
+      )}
+      {showAccountModal && user?.role === 'technician' && (
+        <TechnicianAccountModal onClose={() => setShowAccountModal(false)} />
+      )}
     </motion.div>
   )
 }

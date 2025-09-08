@@ -74,9 +74,13 @@ const TechniciansList = () => {
     }
   };
   
-  // Filtriranje tehničara
+  // Filtriranje tehničara - isključuj admin korisnike
   const filteredTechnicians = useMemo(() => {
     return technicians.filter(technician => {
+      // Sakrij admin korisnike
+      if (technician.isAdmin) {
+        return false;
+      }
       const searchMatch = searchTerm === '' || 
                          technician.name.toLowerCase().includes(searchTerm.toLowerCase());
       

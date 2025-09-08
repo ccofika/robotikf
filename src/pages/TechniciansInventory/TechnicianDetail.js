@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { techniciansAPI } from '../../services/api';
@@ -12,6 +12,8 @@ const TechnicianDetail = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmedPassword, setConfirmedPassword] = useState('');
+  const [showGmailModal, setShowGmailModal] = useState(false);
+  const [newGmail, setNewGmail] = useState('');
   const { id } = useParams();
   
   // Pagination for equipment
@@ -64,6 +66,27 @@ const TechnicianDetail = () => {
     } catch (error) {
       console.error('Greška pri promeni lozinke:', error);
       toast.error('Neuspešna promena lozinke. Pokušajte ponovo.');
+    }
+  };
+
+  const handleUpdateGmail = async () => {
+    // Validacija email formata
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (newGmail && !emailRegex.test(newGmail)) {
+      toast.error('Unesite validnu Gmail adresu!');
+      return;
+    }
+    
+    try {
+      await techniciansAPI.update(id, { gmail: newGmail });
+      toast.success('Gmail adresa je uspešno ažurirana!');
+      setShowGmailModal(false);
+      setNewGmail('');
+      // Refresh technician data to show updated gmail
+      await fetchTechnicianData();
+    } catch (error) {
+      console.error('Greška pri ažuriranju Gmail adrese:', error);
+      toast.error('Neuspešno ažuriranje Gmail adrese. Pokušajte ponovo.');
     }
   };
   
@@ -155,10 +178,22 @@ const TechnicianDetail = () => {
               <h2 className="text-xl font-bold text-slate-900 mb-2">{technician.name}</h2>
               <div className="space-y-1 text-sm text-slate-600">
                 <p><span className="font-medium">ID:</span> {technician.id}</p>
+                <p><span className="font-medium">Gmail:</span> {technician.gmail || 'Nije uneto'}</p>
                 <p><span className="font-medium">Dodat:</span> {new Date(technician.createdAt).toLocaleDateString('sr-RS')}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
+              <Button 
+                type="tertiary"
+                size="medium"
+                onClick={() => {
+                  setNewGmail(technician.gmail || '');
+                  setShowGmailModal(true);
+                }}
+                prefix={<EditIcon size={16} />}
+              >
+                Uredi Gmail
+              </Button>
               <Button 
                 type="tertiary"
                 size="medium"
@@ -536,6 +571,66 @@ const TechnicianDetail = () => {
                   size="medium"
                   onClick={handleChangePassword}
                   disabled={!newPassword || !confirmedPassword}
+                  prefix={<CheckIcon size={16} />}
+                >
+                  Sačuvaj
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gmail Change Modal */}
+      {showGmailModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-xl font-bold text-slate-900">Uredi Gmail za {technician.name}</h2>
+              <Button
+                type="tertiary"
+                size="small"
+                onClick={() => {
+                  setShowGmailModal(false);
+                  setNewGmail('');
+                }}
+                className="!p-2"
+              >
+                <span className="text-lg leading-none">&times;</span>
+              </Button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="newGmail" className="block text-sm font-medium text-slate-700 mb-2">
+                    Gmail adresa:
+                  </label>
+                  <input
+                    type="email"
+                    id="newGmail"
+                    value={newGmail}
+                    onChange={(e) => setNewGmail(e.target.value)}
+                    placeholder="Unesite Gmail adresu (npr. ime@gmail.com)"
+                    className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
+                <Button 
+                  type="secondary"
+                  size="medium"
+                  onClick={() => {
+                    setShowGmailModal(false);
+                    setNewGmail('');
+                  }}
+                >
+                  Odustani
+                </Button>
+                <Button 
+                  type="primary"
+                  size="medium"
+                  onClick={handleUpdateGmail}
                   prefix={<CheckIcon size={16} />}
                 >
                   Sačuvaj

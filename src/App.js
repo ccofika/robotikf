@@ -100,6 +100,11 @@ function App() {
     window.location.href = '/login';
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
   const handleEquipmentConfirmationComplete = () => {
     setShowEquipmentConfirmation(false);
   };
@@ -115,7 +120,7 @@ const PrivateRoute = ({ children }) => {
   }
   
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       <ToastProvider>
         <Router>
           <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
