@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   ChartIcon, 
   CheckIcon, 
@@ -12,6 +12,8 @@ import {
 } from '../../../components/icons/SvgIcons';
 import { Button } from '../../../components/ui/button-1';
 import { cn } from '../../../utils/cn';
+import TotalSalesChart from '../../../components/ui/total-sales-chart';
+import { processActivityData, getActivityFilterOptions } from '../../../utils/activityDataProcessor';
 
 const DashboardSection = ({ 
   dashboardData, 
@@ -21,8 +23,30 @@ const DashboardSection = ({
   filterOptions, 
   loading,
   handleDateRangeModeToggle,
-  handleDismissWorkOrder
+  handleDismissWorkOrder,
+  technicianLogs = [],
+  userLogs = []
 }) => {
+  
+  // Activity chart state - separate from dashboard filters for instant updates  
+  const [activityPeriod, setActivityPeriod] = useState('all');
+
+  // Process activity data for the chart
+  const activityChartData = useMemo(() => {
+    console.log('Activity Chart Data Processing:', {
+      activityPeriod,
+      technicianLogsLength: technicianLogs.length,
+      userLogsLength: userLogs.length
+    });
+    
+    const processedData = processActivityData(technicianLogs, userLogs, activityPeriod);
+    console.log('Processed Activity Data:', processedData);
+    
+    return processedData;
+  }, [technicianLogs, userLogs, activityPeriod]);
+  
+  // Get filter options for activity chart
+  const activityFilterOptions = useMemo(() => getActivityFilterOptions(), []);
   
   if (loading) {
     return (
@@ -96,6 +120,7 @@ const DashboardSection = ({
                   <option value="mesec">Ovaj mesec</option>
                   <option value="kvartal">Ovaj kvartal</option>
                   <option value="godina">Ova godina</option>
+                  <option value="all">Sve od početka aplikacije</option>
                 </select>
               )}
 
@@ -341,6 +366,24 @@ const DashboardSection = ({
                 <p className="text-xs text-slate-600">Ocena kvaliteta na osnovu završenih naloga</p>
               </div>
             </div>
+          </div>
+
+          {/* Daily Activity Chart - Full Width */}
+          <div className="col-span-full">
+            <TotalSalesChart 
+              data={activityChartData}
+              title="Dnevne aktivnosti na aplikaciji"
+              description="Pregled svih aktivnosti korisnika i tehničara na aplikaciji grupisan po danima"
+              filterOptions={activityFilterOptions}
+              className="w-full"
+              onFilterChange={({ period, actionFilter }) => {
+                // Update activity chart period instantly without affecting dashboard filters
+                if (period && period !== activityPeriod) {
+                  setActivityPeriod(period);
+                }
+                // Action filter is handled internally in the chart
+              }}
+            />
           </div>
 
           {/* Performance Metrics Row */}

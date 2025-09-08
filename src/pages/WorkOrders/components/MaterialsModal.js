@@ -57,32 +57,33 @@ const MaterialsModalContent = React.memo(({
   const isAddDisabled = !localSelectedMaterial || !localMaterialQuantity || localMaterialQuantity === '' || localMaterialQuantity <= 0 || loadingMaterials;
   
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closeMaterialsModal}>
-      <div className="bg-white/95 backdrop-blur-md border border-white/30 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 sm:p-6 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900">Dodaj materijal</h3>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2" onClick={closeMaterialsModal}>
+      <div className="bg-white/95 backdrop-blur-md border border-white/30 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="p-2 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-900">Dodaj materijal</h3>
           <Button
             type="secondary"
             size="small"
             onClick={closeMaterialsModal}
-            prefix={<CloseIcon size={16} />}
-            className="!p-2"
+            prefix={<CloseIcon size={12} />}
+            className="!p-1.5"
           >
             <span className="sr-only">Zatvori modal</span>
           </Button>
         </div>
         
-        <div className="p-4 sm:p-6">
-          <div className="space-y-4">
+        <div className="p-2">
+          <div className="space-y-2">
             <div>
-              <label htmlFor="material-select" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="material-select" className="block text-xs font-medium text-slate-700 mb-1">
                 Materijal:
               </label>
               <select
                 id="material-select"
                 value={localSelectedMaterial}
                 onChange={handleMaterialSelectionChange}
-                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-2 py-2 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none"
+                style={{maxHeight: '200px'}}
               >
                 <option value="">-- Izaberite materijal --</option>
                 {availableMaterials.map(material => (
@@ -94,7 +95,7 @@ const MaterialsModalContent = React.memo(({
             </div>
             
             <div>
-              <label htmlFor="material-quantity" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="material-quantity" className="block text-xs font-medium text-slate-700 mb-1">
                 Količina:
               </label>
               <input
@@ -104,7 +105,7 @@ const MaterialsModalContent = React.memo(({
                 max={maxQuantity}
                 value={localMaterialQuantity}
                 onChange={handleMaterialQuantityChange}
-                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-2 py-2 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="Unesite količinu"
                 autoComplete="off"
               />
@@ -117,22 +118,22 @@ const MaterialsModalContent = React.memo(({
           </div>
         </div>
         
-        <div className="p-4 sm:p-6 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
+        <div className="p-2 border-t border-slate-200 flex gap-2">
           <Button 
             type="secondary"
-            size="medium"
+            size="small"
             onClick={closeMaterialsModal}
-            className="flex-1"
+            className="flex-1 text-xs"
           >
             Otkaži
           </Button>
           <Button 
             type="primary"
-            size="medium"
+            size="small"
             onClick={addMaterial}
             disabled={isAddDisabled}
             loading={loadingMaterials}
-            className="flex-1"
+            className="flex-1 text-xs"
           >
             {loadingMaterials ? 'Dodavanje...' : 'Dodaj materijal'}
           </Button>

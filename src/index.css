@@ -48,6 +48,11 @@
     --ds-shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.08);
     --ds-shadow-small: 0px 2px 2px rgba(0, 0, 0, 0.04);
     --ds-shadow-border-small: var(--ds-shadow-border), var(--ds-shadow-small);
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
@@ -91,6 +96,11 @@
     --ds-shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.145);
     --ds-shadow-small: 0px 1px 2px rgba(0, 0, 0, 0.16);
     --ds-shadow-border-small: var(--ds-shadow-border), 0px 1px 2px rgba(0, 0, 0, 0.16);
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
   .theme {
     --color-context-card-border: var(--context-card-border);

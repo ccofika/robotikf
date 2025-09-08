@@ -64,7 +64,7 @@ const Logs = () => {
   // Dashboard state
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardFilters, setDashboardFilters] = useState({
-    period: 'nedelja',
+    period: 'all',
     technician: 'all',
     municipality: 'all',
     action: 'all',
@@ -72,6 +72,10 @@ const Logs = () => {
     startDate: null,
     endDate: null
   });
+
+  // Activity chart specific logs - separate from regular logs
+  const [activityChartTechnicianLogs, setActivityChartTechnicianLogs] = useState([]);
+  const [activityChartUserLogs, setActivityChartUserLogs] = useState([]);
   const [filterOptions, setFilterOptions] = useState({
     technicians: [],
     municipalities: [],
@@ -101,6 +105,45 @@ const Logs = () => {
       setLoading(false);
     }
   }, [searchTerm, selectedAction, dateFrom, dateTo, pagination.limit]);
+
+  // Activity chart specific log loading - no filters applied
+  const loadActivityChartTechnicianLogs = useCallback(async () => {
+    try {
+      const params = {
+        search: '', // No search filter
+        action: 'all', // All actions
+        dateFrom: '', // No date filter
+        dateTo: '', // No date filter
+        page: 1,
+        limit: 5000 // Higher limit to get all historical data
+      };
+
+      const response = await logsAPI.getTechnicianLogs(params);
+      setActivityChartTechnicianLogs(response.data.data);
+      console.log('Activity Chart Technician Logs loaded:', response.data.data.length, 'technician groups');
+    } catch (error) {
+      console.error('Greška pri učitavanju logova tehničara za activity chart:', error);
+    }
+  }, []); // No dependencies - should not be affected by any filters
+
+  const loadActivityChartUserLogs = useCallback(async () => {
+    try {
+      const params = {
+        search: '', // No search filter
+        action: 'all', // All actions  
+        dateFrom: '', // No date filter
+        dateTo: '', // No date filter
+        page: 1,
+        limit: 5000 // Higher limit to get all historical data
+      };
+
+      const response = await logsAPI.getUserLogs(params);
+      setActivityChartUserLogs(response.data.data);
+      console.log('Activity Chart User Logs loaded:', response.data.data.length, 'user groups');
+    } catch (error) {
+      console.error('Greška pri učitavanju user logova za activity chart:', error);
+    }
+  }, []); // No dependencies - should not be affected by any filters
 
   const loadUserLogs = useCallback(async (page = 1) => {
     setLoading(true);
@@ -261,7 +304,7 @@ const Logs = () => {
 
   const resetDashboardFilters = () => {
     setDashboardFilters({
-      period: 'nedelja',
+      period: 'all',
       technician: 'all',
       municipality: 'all',
       action: 'all',
@@ -304,6 +347,15 @@ const Logs = () => {
       loadUserLogs();
     }
   }, [activeTab, loadTechnicianLogs, loadUserLogs, loadMaterialValidationData, loadDashboardData]);
+
+  // Separate useEffect for loading logs for activity chart (only when switching to dashboard)
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      // Load logs for activity chart data - independent of dashboard filters
+      loadActivityChartTechnicianLogs();
+      loadActivityChartUserLogs();
+    }
+  }, [activeTab, loadActivityChartTechnicianLogs, loadActivityChartUserLogs]); // Only depends on activeTab, not on dashboard filters
 
   // Search and filter handlers
   const handleSearch = () => {
@@ -601,6 +653,8 @@ const Logs = () => {
                 loading={loading}
                 handleDateRangeModeToggle={handleDateRangeModeToggle}
                 handleDismissWorkOrder={handleDismissWorkOrder}
+                technicianLogs={activityChartTechnicianLogs}
+                userLogs={activityChartUserLogs}
               />
             ) : activeTab === 'technicians' ? (
               <TechnicianLogsSection 

@@ -56,7 +56,7 @@ const TechnicianWorkOrderDetail = () => {
   const touchEndY = useRef(0);
   const mainRef = useRef(null);
   const searchInputRef = useRef(null);
-  const searchTermRef = useRef('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [stableEquipment, setStableEquipment] = useState([]);
   
@@ -243,15 +243,10 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
 
-  // Pure input handler that doesn't cause re-renders
+  // Live search handler that triggers re-renders
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value;
-    // Store in ref to avoid re-renders
-    searchTermRef.current = value;
-    // Just update the input value directly
-    if (searchInputRef.current) {
-      searchInputRef.current.value = value;
-    }
+    setSearchTerm(value);
   }, []);
 
   // Update stableEquipment when technicianEquipment changes
@@ -295,8 +290,8 @@ const TechnicianWorkOrderDetail = () => {
   // Separate filtering function that only runs when needed
   const getFilteredEquipment = useCallback(() => {
     console.log('=== FILTERING EQUIPMENT ===');
-    const searchTerm = searchTermRef.current.toLowerCase().trim();
-    console.log('Search term:', searchTerm);
+    const searchTermValue = searchTerm.toLowerCase().trim();
+    console.log('Search term:', searchTermValue);
     console.log('Stable equipment before filtering:', stableEquipment);
     console.log('Stable equipment count:', stableEquipment.length);
     
@@ -324,30 +319,27 @@ const TechnicianWorkOrderDetail = () => {
     console.log('Available equipment after first filter:', availableEquipment);
     console.log('Available equipment count after first filter:', availableEquipment.length);
     
-    if (!searchTerm) {
+    if (!searchTermValue) {
       console.log('No search term, returning all available equipment');
       return availableEquipment;
     }
     
     const searchFiltered = availableEquipment.filter(equipment => 
-      equipment.serialNumber?.toLowerCase().includes(searchTerm) ||
-      equipment.description?.toLowerCase().includes(searchTerm) ||
-      equipment.category?.toLowerCase().includes(searchTerm)
+      equipment.serialNumber?.toLowerCase().includes(searchTermValue) ||
+      equipment.description?.toLowerCase().includes(searchTermValue) ||
+      equipment.category?.toLowerCase().includes(searchTermValue)
     );
     
     console.log('Search filtered equipment:', searchFiltered);
     console.log('Search filtered count:', searchFiltered.length);
     
     return searchFiltered;
-  }, [stableEquipment, user._id]);
+  }, [stableEquipment, user._id, searchTerm]);
 
   // Stable modal close function
   const closeModal = useCallback(() => {
     setShowEquipmentModal(false);
-    searchTermRef.current = '';
-    if (searchInputRef.current) {
-      searchInputRef.current.value = '';
-    }
+    setSearchTerm('');
   }, []);
 
   // Handle search button click - only filter when button is clicked
@@ -372,13 +364,11 @@ const TechnicianWorkOrderDetail = () => {
 
   // Clear search function with focus maintenance
   const clearSearch = useCallback(() => {
-    searchTermRef.current = '';
+    setSearchTerm('');
     if (searchInputRef.current) {
-      searchInputRef.current.value = '';
       searchInputRef.current.focus();
     }
-    performSearch();
-  }, [performSearch]);
+  }, []);
 
   // Handle window resize for mobile detection
   useEffect(() => {
@@ -455,10 +445,7 @@ const TechnicianWorkOrderDetail = () => {
     }
     
     // Clear search input
-    searchTermRef.current = '';
-    if (searchInputRef.current) {
-      searchInputRef.current.value = '';
-    }
+    setSearchTerm('');
     
     // Show modal
     console.log('Opening modal with equipment count:', stableEquipment.length);
@@ -1393,7 +1380,7 @@ const TechnicianWorkOrderDetail = () => {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-3 sm:p-6" ref={mainRef}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-1 sm:p-6" ref={mainRef}>
       {/* Pull to refresh indicator */}
       <div className={`flex items-center justify-center space-x-2 py-2 text-slate-500 text-sm transition-opacity duration-300 ${
         refreshing ? 'opacity-100' : 'opacity-60'
@@ -1412,15 +1399,15 @@ const TechnicianWorkOrderDetail = () => {
       </div>
 
       {/* Modern Header */}
-      <div className="mb-4 sm:mb-6">
+      <div className="mb-2 sm:mb-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 sm:p-3 bg-blue-50 rounded-xl">
-              <BoxIcon size={20} className="text-blue-600 sm:w-6 sm:h-6" />
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 sm:p-3 bg-blue-50 rounded-lg">
+              <BoxIcon size={16} className="text-blue-600 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Radni nalog</h1>
-              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+              <h1 className="text-lg sm:text-2xl font-bold text-slate-900">Radni nalog</h1>
+              <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
                 formData.status === 'zavrsen' ? 'bg-green-50 text-green-700 border border-green-200' :
                 formData.status === 'odlozen' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
                 formData.status === 'otkazan' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -1450,15 +1437,15 @@ const TechnicianWorkOrderDetail = () => {
       </div>
       
       {/* Main Content */}
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-2 sm:space-y-6">
         {/* User Info Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Informacije o korisniku</h2>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 sm:p-6 border-b border-slate-200">
+            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Informacije o korisniku</h2>
           </div>
-          <div className="p-4 sm:p-6">
+          <div className="p-2 sm:p-6">
             {/* Contact Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row gap-1 mb-2">
               {workOrder?.userPhone && (
                 <Button
                   type="primary"
@@ -1482,69 +1469,69 @@ const TechnicianWorkOrderDetail = () => {
             </div>
             
             {/* User Details Grid */}
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Korisnik:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.userName || 'Nije dostupno'}</span>
+            <div className="space-y-1">
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Korisnik:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.userName || 'Nije dostupno'}</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Telefon:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.userPhone || 'Nije dostupno'}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Telefon:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.userPhone || 'Nije dostupno'}</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">TIS ID:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.tisId || 'Nije dostupno'}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">TIS ID:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.tisId || 'Nije dostupno'}</span>
               </div>
             </div>
           </div>
         </div>
           
         {/* Location Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Lokacija</h2>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 sm:p-6 border-b border-slate-200">
+            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Lokacija</h2>
           </div>
-          <div className="p-4 sm:p-6">
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Opština:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.municipality}</span>
+          <div className="p-2 sm:p-6">
+            <div className="space-y-1">
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Opština:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.municipality}</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Adresa:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.address}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Adresa:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.address}</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Datum:</span>
-                <span className="text-sm text-slate-900 font-medium">{new Date(workOrder?.date).toLocaleDateString('sr-RS')}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Datum:</span>
+                <span className="text-xs text-slate-900 font-medium">{new Date(workOrder?.date).toLocaleDateString('sr-RS')}</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Vreme:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.time || '09:00'}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Vreme:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.time || '09:00'}</span>
               </div>
             </div>
           </div>
         </div>
           
         {/* Installation Details Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Detalji instalacije</h2>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 sm:p-6 border-b border-slate-200">
+            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Detalji instalacije</h2>
           </div>
-          <div className="p-4 sm:p-6">
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Tip instalacije:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.type}</span>
+          <div className="p-2 sm:p-6">
+            <div className="space-y-1">
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tip instalacije:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.type}</span>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-3 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-600 mb-1 sm:mb-0">Tehnologija:</span>
-                <span className="text-sm text-slate-900 font-medium">{workOrder?.technology || 'Nije definisana'}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tehnologija:</span>
+                <span className="text-xs text-slate-900 font-medium">{workOrder?.technology || 'Nije definisana'}</span>
               </div>
               {workOrder?.details && (
-                <div className="py-3">
-                  <span className="text-sm font-medium text-slate-600 block mb-2">Detalji:</span>
-                  <p className="text-sm text-slate-900 leading-relaxed bg-slate-50 p-3 rounded-lg border">{workOrder?.details}</p>
+                <div className="py-1">
+                  <span className="text-xs font-medium text-slate-600 block mb-1">Detalji:</span>
+                  <p className="text-xs text-slate-900 leading-tight bg-slate-50 p-2 rounded border">{workOrder?.details}</p>
                 </div>
               )}
             </div>
@@ -1552,11 +1539,11 @@ const TechnicianWorkOrderDetail = () => {
         </div>
           
         {/* Equipment Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Oprema korisnika</h2>
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 sm:p-6 border-b border-slate-200">
+            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Oprema korisnika</h2>
           </div>
-          <div className="p-4 sm:p-6">
+          <div className="p-2 sm:p-6">
             
             <InstalledEquipmentList 
               userEquipment={userEquipment}
@@ -1564,24 +1551,24 @@ const TechnicianWorkOrderDetail = () => {
               isWorkOrderCompleted={isWorkOrderCompleted}
             />
 
-            <div className="mt-6 space-y-4">
-              <h3 className="text-base font-semibold text-slate-900">Dodaj novu opremu:</h3>
+            <div className="mt-3 space-y-2">
+              <h3 className="text-xs font-semibold text-slate-900">Dodaj novu opremu:</h3>
 
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <Button
                   type="secondary"
-                  size="medium"
+                  size="small"
                   onClick={openEquipmentModal}
                   disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}
-                  prefix={<SearchIcon size={16} />}
+                  prefix={<SearchIcon size={12} />}
                   className="w-full sm:w-auto"
                 >
                   Izaberi opremu
                 </Button>
                 
                 {selectedEquipment && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <span className="text-sm text-blue-900 font-medium">
+                  <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                    <span className="text-xs text-blue-900 font-medium">
                       {technicianEquipment.find(eq => eq.id === selectedEquipment)?.description} - 
                       S/N: {technicianEquipment.find(eq => eq.id === selectedEquipment)?.serialNumber}
                     </span>
@@ -1617,7 +1604,7 @@ const TechnicianWorkOrderDetail = () => {
         </div>
           
         {/* Materials Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
           <UsedMaterialsList 
             usedMaterials={usedMaterials}
             openMaterialsModal={openMaterialsModal}
@@ -1628,14 +1615,14 @@ const TechnicianWorkOrderDetail = () => {
         </div>
           
         {/* Images Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-slate-900 flex items-center gap-2">
-              <ImageIcon size={20} /> Slike
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 sm:p-6 border-b border-slate-200">
+            <h2 className="text-sm sm:text-xl font-semibold text-slate-900 flex items-center gap-1">
+              <ImageIcon size={14} /> Slike
             </h2>
           </div>
-          <div className="p-4 sm:p-6">
-            <div className="space-y-6">
+          <div className="p-2 sm:p-6">
+            <div className="space-y-3">
               {/* Upload Area */}
               <div className="relative">
                 <input
@@ -2103,10 +2090,9 @@ const TechnicianWorkOrderDetail = () => {
         closeModal={closeModal}
         stableEquipment={stableEquipment}
         getFilteredEquipment={getFilteredEquipment}
-        searchTermRef={searchTermRef}
+        searchTerm={searchTerm}
         searchInputRef={searchInputRef}
         handleSearchChange={handleSearchChange}
-        performSearch={performSearch}
         clearSearch={clearSearch}
         isSearching={isSearching}
         selectEquipment={selectEquipment}
@@ -2126,64 +2112,76 @@ const TechnicianWorkOrderDetail = () => {
 
       {/* Modal za uklanjanje opreme */}
       {equipmentToRemove && (
-        <div className="modal-overlay">
-          <div className="modal-content equipment-removal-modal">
-            <h3>Uklanjanje opreme</h3>
-            <p>Uklanjate: <strong>{equipmentToRemove.equipmentType} - {equipmentToRemove.equipmentDescription}</strong></p>
-            <p>Serijski broj: <strong>{equipmentToRemove.serialNumber}</strong></p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2" onClick={cancelRemoveEquipment}>
+          <div className="bg-white/95 backdrop-blur-md border border-white/30 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-2 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900">Uklanjanje opreme</h3>
+              <p className="text-xs text-slate-700 mt-1">Uklanjate: <span className="font-medium">{equipmentToRemove.equipmentType} - {equipmentToRemove.equipmentDescription}</span></p>
+              <p className="text-xs text-slate-600">S/N: <span className="font-medium">{equipmentToRemove.serialNumber}</span></p>
+            </div>
 
-            <div className="form-group">
-              <label>Stanje opreme:</label>
-              <div className="radio-options">
-                <label className="radio-option">
-                  <input
-                    type="radio"
-                    name="equipmentCondition"
-                    checked={isEquipmentWorking}
-                    onChange={() => setIsEquipmentWorking(true)}
-                  />
-                  Ispravna
-                </label>
-                <label className="radio-option">
-                  <input
-                    type="radio"
-                    name="equipmentCondition"
-                    checked={!isEquipmentWorking}
-                    onChange={() => setIsEquipmentWorking(false)}
-                  />
-                  Neispravna
-                </label>
+            <div className="p-2">
+              <div className="mb-2">
+                <label className="block text-xs font-medium text-slate-700 mb-1">Stanje opreme:</label>
+                <div className="flex gap-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="equipmentCondition"
+                      checked={isEquipmentWorking}
+                      onChange={() => setIsEquipmentWorking(true)}
+                      className="sr-only"
+                    />
+                    <div className={`w-3 h-3 rounded-full border-2 mr-1 ${isEquipmentWorking ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}></div>
+                    <span className="text-xs text-slate-700">Ispravna</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="equipmentCondition"
+                      checked={!isEquipmentWorking}
+                      onChange={() => setIsEquipmentWorking(false)}
+                      className="sr-only"
+                    />
+                    <div className={`w-3 h-3 rounded-full border-2 mr-1 ${!isEquipmentWorking ? 'bg-red-500 border-red-500' : 'border-slate-300'}`}></div>
+                    <span className="text-xs text-slate-700">Neispravna</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mb-2">
+                <label htmlFor="removalReason" className="block text-xs font-medium text-slate-700 mb-1">Razlog uklanjanja:</label>
+                <textarea
+                  id="removalReason"
+                  value={removalReason}
+                  onChange={(e) => setRemovalReason(e.target.value)}
+                  placeholder="Unesite razlog uklanjanja opreme"
+                  rows="2"
+                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors resize-none"
+                ></textarea>
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="removalReason">Razlog uklanjanja:</label>
-              <textarea
-                id="removalReason"
-                value={removalReason}
-                onChange={(e) => setRemovalReason(e.target.value)}
-                placeholder="Unesite razlog uklanjanja opreme"
-                rows="3"
-              ></textarea>
-            </div>
-
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={handleRemoveEquipment}
-                disabled={loadingEquipment}
-              >
-                {loadingEquipment ? 'Uklanjanje...' : 'Potvrdi uklanjanje'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-cancel"
+            <div className="p-2 border-t border-slate-200 flex gap-2">
+              <Button
+                type="secondary"
+                size="small"
                 onClick={cancelRemoveEquipment}
                 disabled={loadingEquipment}
+                className="flex-1 text-xs"
               >
                 Otkaži
-              </button>
+              </Button>
+              <Button
+                type="primary"
+                size="small"
+                onClick={handleRemoveEquipment}
+                disabled={loadingEquipment}
+                loading={loadingEquipment}
+                className="flex-1 text-xs bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
+              >
+                {loadingEquipment ? 'Uklanjanje...' : 'Potvrdi uklanjanje'}
+              </Button>
             </div>
           </div>
         </div>

@@ -26,6 +26,7 @@ import {
   ExcelIcon,
   HistoryIcon,
   AlertTriangleIcon,
+  CarIcon,
   LogoutIcon
 } from '../icons/SvgIcons'
 
@@ -163,6 +164,11 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       title: "Logovi", 
       href: "/logs", 
       icon: HistoryIcon 
+    },
+    { 
+      title: "Vozni park", 
+      href: "/vehicles", 
+      icon: CarIcon 
     },
     { 
       title: "Neispravna oprema", 

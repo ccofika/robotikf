@@ -204,21 +204,21 @@
 /* Mobile padding optimizacija */
 @media (max-width: 768px) {
   .technician-work-order-detail {
-    padding-top: 1.5rem; /* Više padding na vrh za mobile */
-    padding-bottom: 4rem; /* Više padding na dno za save dugme */
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-top: 0.25rem; /* Minimalni padding na vrh */
+    padding-bottom: 0.5rem; /* Minimalni padding na dno */
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
   }
   
-  /* Prvi card dodatno padding sa vrha */
+  /* Prvi card bez dodatnog padding-a */
   .work-order-main .card:first-child {
-    margin-top: 1rem;
+    margin-top: 0.25rem;
   }
   
-  /* Poslednji element (save dugme) dodatno padding odozdo */
+  /* Poslednji element minimalni padding */
   .save-form {
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
+    margin-bottom: 0.25rem;
+    padding-bottom: 0.25rem;
   }
   
   /* Poboljšanje centriranja za "Instalirana oprema" sekciju */
@@ -369,7 +369,7 @@ textarea {
 .work-order-layout {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.25rem;
   position: relative;
   z-index: 1;
 }
@@ -380,50 +380,52 @@ textarea {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 1rem;
+  border-radius: 8px;
+  padding: 0.375rem;
   box-shadow: var(--glass-shadow);
   transition: var(--transition);
   position: relative;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
 .card-header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
+  gap: 0.125rem;
+  margin-bottom: 0.375rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--gray-200);
 }
 
 .card-header h2,
 .card-header h3 {
   color: var(--corp-primary);
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   margin: 0;
+  line-height: 1.2;
 }
 
 /* Work Order Header */
 .work-order-header {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
+  gap: 0.25rem;
+  margin-bottom: 0.375rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--gray-200);
 }
 
 .status-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
   font-weight: 600;
-  font-size: 0.875rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.375rem;
+  border-radius: 6px;
   margin-right: auto;
+  line-height: 1;
 }
 
 .status-indicator.status-zavrsen {
@@ -473,14 +475,14 @@ textarea {
 .status-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.25rem;
+  margin-bottom: 0.375rem;
 }
 
 .status-btn {
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
@@ -488,11 +490,12 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
   position: relative;
   overflow: hidden;
-  min-height: var(--touch-target);
+  min-height: 32px;
   text-align: center;
+  line-height: 1;
 }
 
 .status-btn.btn-active {
@@ -557,33 +560,34 @@ textarea {
 
 /* Work Order Details - Mobile First */
 .work-order-details {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.375rem;
 }
 
 .details-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.375rem;
 }
 
 .details-section h3 {
   color: var(--corp-primary);
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.25rem 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
+  line-height: 1.2;
 }
 
 .details-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.25rem;
 }
 
 .detail-item {
-  padding: 0.75rem;
+  padding: 0.25rem;
   background: var(--gray-50);
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid var(--gray-200);
   transition: var(--transition);
 }
@@ -597,22 +601,24 @@ textarea {
   display: block;
   font-weight: 600;
   color: var(--corp-primary);
-  margin-bottom: 0.25rem;
-  font-size: 0.75rem;
+  margin-bottom: 0.0625rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1;
 }
 
 .detail-item p {
   margin: 0;
   color: var(--gray-700);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.2;
 }
 
 .details-text {
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.75rem;
+  line-height: 1.3;
   color: var(--gray-700);
 }
 
@@ -620,31 +626,32 @@ textarea {
 .equipment-section {
   background: linear-gradient(135deg, rgba(52, 152, 219, 0.05) 0%, rgba(41, 128, 185, 0.05) 100%);
   border: 1px solid rgba(52, 152, 219, 0.1);
-  border-radius: 16px;
-  padding: 1rem;
-  margin-top: 1rem;
+  border-radius: 8px;
+  padding: 0.375rem;
+  margin-top: 0.375rem;
 }
 
 .equipment-section h3,
 .equipment-section h4 {
   color: var(--corp-primary);
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
 }
 
 .equipment-section h3 {
-  font-size: 1.125rem;
-  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.375rem;
 }
 
 .equipment-section h4 {
-  font-size: 0.875rem;
-  margin-top: 1rem;
+  font-size: 0.75rem;
+  margin-top: 0.375rem;
   color: var(--corp-accent);
 }
 
 .user-equipment-list {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.375rem;
 }
 
 .equipment-items {
@@ -653,18 +660,18 @@ textarea {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.25rem;
 }
 
 .equipment-item {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.875rem;
+  gap: 0.25rem;
+  padding: 0.375rem;
   background: var(--glass-white);
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   transition: var(--transition);
 }
 
@@ -681,20 +688,22 @@ textarea {
 .equipment-info strong {
   color: var(--corp-primary);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.0625rem;
+  line-height: 1.2;
 }
 
 .serial-number {
   color: var(--gray-500);
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-family: monospace;
   background: var(--gray-100);
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
+  padding: 0.0625rem 0.25rem;
+  border-radius: 3px;
   display: inline-block;
-  margin-top: 0.25rem;
+  margin-top: 0.0625rem;
+  line-height: 1;
 }
 
 /* Equipment Form - Mobile Optimized */
@@ -1476,160 +1485,168 @@ input[type="time"] {
   }
 }
 
-/* Mobile-Specific Improvements */
+/* Mobile-Specific Improvements - ULTRA COMPACT */
 @media (max-width: 576px) {
   .technician-work-order-detail {
-    padding: 0.75rem;
+    padding: 0.25rem;
   }
 
   .page-header {
-    padding: 0.75rem;
-    margin-bottom: 0.75rem;
-    border-radius: 12px;
+    padding: 0.25rem;
+    margin-bottom: 0.25rem;
+    border-radius: 6px;
   }
 
   .page-title {
-    font-size: 1.125rem;
+    font-size: 0.875rem;
   }
 
   .card {
-    padding: 0.75rem;
-    border-radius: 12px;
-    margin-bottom: 0.75rem;
+    padding: 0.25rem;
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
   }
 
   .card-header {
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.75rem;
+    padding-bottom: 0.1875rem;
+    margin-bottom: 0.25rem;
   }
 
   .card-header h2,
   .card-header h3 {
-    font-size: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.1;
   }
 
   .work-order-header {
-    padding-bottom: 0.75rem;
-    margin-bottom: 1rem;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.375rem;
   }
 
   .status-indicator {
-    font-size: 0.75rem;
-    padding: 0.375rem 0.625rem;
-    border-radius: 8px;
+    font-size: 0.6875rem;
+    padding: 0.1875rem 0.375rem;
+    border-radius: 4px;
   }
 
   .status-btn {
-    padding: 0.625rem;
-    font-size: 0.75rem;
-    border-radius: 10px;
+    padding: 0.375rem;
+    font-size: 0.6875rem;
+    border-radius: 6px;
+    min-height: 28px;
   }
 
   .details-section h3 {
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    margin-bottom: 0.1875rem;
   }
 
   .detail-item {
-    padding: 0.625rem;
+    padding: 0.25rem;
   }
 
   .detail-item label {
-    font-size: 0.7rem;
+    font-size: 0.625rem;
+    margin-bottom: 0.03125rem;
   }
 
   .detail-item p {
-    font-size: 0.8rem;
+    font-size: 0.6875rem;
+    line-height: 1.1;
   }
 
   .equipment-section {
-    padding: 0.75rem;
-    border-radius: 12px;
-    margin-top: 0.75rem;
+    padding: 0.25rem;
+    border-radius: 6px;
+    margin-top: 0.25rem;
   }
 
   .equipment-section h3 {
-    font-size: 1rem;
-    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+    margin-bottom: 0.25rem;
   }
 
   .equipment-section h4 {
-    font-size: 0.8rem;
-    margin-top: 0.75rem;
+    font-size: 0.6875rem;
+    margin-top: 0.25rem;
   }
 
   .equipment-item {
-    padding: 0.75rem;
-    gap: 0.5rem;
+    padding: 0.25rem;
+    gap: 0.1875rem;
   }
 
   .equipment-info strong {
-    font-size: 0.85rem;
+    font-size: 0.6875rem;
+    margin-bottom: 0.03125rem;
   }
 
   .serial-number {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.4rem;
+    font-size: 0.625rem;
+    padding: 0.0625rem 0.1875rem;
   }
 
   .image-upload-container {
-    min-height: 100px;
+    min-height: 60px;
   }
 
   .upload-label {
-    padding: 0.75rem;
-    font-size: 0.8rem;
-    gap: 0.5rem;
+    padding: 0.25rem;
+    font-size: 0.6875rem;
+    gap: 0.1875rem;
   }
 
   .upload-label svg {
-    width: 2rem;
-    height: 2rem;
+    width: 1rem;
+    height: 1rem;
   }
 
   .image-preview {
-    max-height: 200px;
+    max-height: 120px;
   }
 
   .preview-actions {
-    padding: 0.625rem;
+    padding: 0.25rem;
   }
   
   /* Na mobilnim uređajima uvek prikaži dugme za brisanje */
   .delete-image-btn {
     opacity: 0.9;
-    width: 28px;
-    height: 28px;
-    top: 6px;
-    right: 6px;
+    width: 20px;
+    height: 20px;
+    top: 2px;
+    right: 2px;
   }
   
   .delete-image-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
   }
 
   .postpone-section {
-    padding: 0.75rem;
-    border-radius: 10px;
+    padding: 0.25rem;
+    border-radius: 6px;
   }
 
   .date-picker.mobile-optimized,
   input[type="time"],
   textarea {
-    font-size: 0.8rem;
-    padding: 0.625rem;
+    font-size: 0.6875rem;
+    padding: 0.25rem;
+    min-height: 32px;
   }
 
   .btn {
-    padding: 0.625rem 1rem;
-    font-size: 0.8rem;
-    border-radius: 8px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    border-radius: 4px;
+    min-height: 32px;
   }
 
   .btn-sm {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.7rem;
+    padding: 0.1875rem 0.375rem;
+    font-size: 0.625rem;
+    min-height: 28px;
   }
 
   .modal-content {
