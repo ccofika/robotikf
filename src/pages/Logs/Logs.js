@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { logsAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 import { 
@@ -29,7 +30,9 @@ import TechnicianLogsSection from './components/TechnicianLogsSection';
 import UserLogsSection from './components/UserLogsSection';
 
 const Logs = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'dashboard');
   const [technicianLogs, setTechnicianLogs] = useState([]);
   const [userLogs, setUserLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -328,6 +331,13 @@ const Logs = () => {
       toast.error('Greška pri uklanjanju radnog naloga');
     }
   };
+
+  // Handle navigation state from notifications
+  useEffect(() => {
+    if (location.state?.showMaterialValidation && activeTab === 'technicians') {
+      setShowMaterialValidation(true);
+    }
+  }, [location.state, activeTab]);
 
   useEffect(() => {
     loadActions();

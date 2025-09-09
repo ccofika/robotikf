@@ -1466,3 +1466,45 @@ body {
     font-size: 28px;
   }
 }
+
+/* ===== NOTIFICATION HIGHLIGHT EFFECTS ===== */
+.notification-highlight {
+  animation: notification-pulse 3s ease-in-out;
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+}
+
+@keyframes notification-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    transform: scale(1);
+  }
+  25% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0.3);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(59, 130, 246, 0.1);
+    transform: scale(1.01);
+  }
+  75% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+/* Dark mode support for notifications */
+@media (prefers-color-scheme: dark) {
+  .notification-highlight {
+    background-color: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+}

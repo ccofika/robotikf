@@ -15,7 +15,7 @@ const WorkOrdersByTechnician = () => {
   const [allWorkOrders, setAllWorkOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [technicianFilter, setTechnicianFilter] = useState('');
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'technicians');
@@ -189,6 +189,7 @@ const WorkOrdersByTechnician = () => {
           order.municipality?.toLowerCase().includes(searchLower) ||
           order.address?.toLowerCase().includes(searchLower) ||
           order.tisId?.toString().includes(searchTerm) ||
+          order.tisJobId?.toString().includes(searchTerm) ||
           order.type?.toLowerCase().includes(searchLower) ||
           order.userName?.toLowerCase().includes(searchLower) ||
           order.description?.toLowerCase().includes(searchLower) ||

@@ -29,10 +29,12 @@ import {
   AlertTriangleIcon,
   CarIcon,
   LogoutIcon,
-  UserIcon
+  UserIcon,
+  BellIcon
 } from '../icons/SvgIcons'
 import AccountModal from '../AccountModal'
 import TechnicianAccountModal from '../TechnicianAccountModal'
+import NotificationWindow from '../NotificationWindow'
 
 interface SidebarProps {
   className?: string
@@ -119,6 +121,8 @@ export function ShadcnSidebar({ className }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showAccountModal, setShowAccountModal] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -128,6 +132,43 @@ export function ShadcnSidebar({ className }: SidebarProps) {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Fetch unread notification count
+  const fetchUnreadCount = async () => {
+    if (!user) return
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch('/api/notifications/unread', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUnreadCount(data.unreadCount || 0)
+      }
+    } catch (error) {
+      console.error('Greška pri dohvaćanju broja nepročitanih notifikacija:', error)
+    }
+  }
+
+  // Fetch unread count on component mount and when user changes
+  useEffect(() => {
+    fetchUnreadCount()
+  }, [user])
+
+  // Refresh unread count every 30 seconds
+  useEffect(() => {
+    if (!user) return
+
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [user])
 
   const adminMenuItems = [
     { 
@@ -283,6 +324,26 @@ export function ShadcnSidebar({ className }: SidebarProps) {
               </nav>
             </ScrollArea>
 
+            {/* Mobile notification section */}
+            <div className="border-t p-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start mb-2 relative"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <BellIcon className="mr-3 h-4 w-4" />
+                <span>Notifikacije</span>
+                {unreadCount > 0 && (
+                  <div className="absolute top-1 left-6 h-3 w-3 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-[8px] text-white font-bold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  </div>
+                )}
+              </Button>
+            </div>
+
             {/* Mobile user section */}
             <div className="border-t p-4">
               <DropdownMenu modal={false}>
@@ -318,6 +379,20 @@ export function ShadcnSidebar({ className }: SidebarProps) {
             </div>
           </div>
         </motion.div>
+        
+        {/* Mobile Notification Window */}
+        <NotificationWindow
+          isOpen={showNotifications}
+          onClose={() => {
+            setShowNotifications(false)
+          }}
+          position={{ 
+            bottom: 20, 
+            left: 20,
+            right: 20
+          }}
+          onNotificationUpdate={fetchUnreadCount}
+        />
       </>
     )
   }
@@ -330,7 +405,11 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       variants={sidebarVariants}
       transition={transitionProps}
       onMouseEnter={() => setIsCollapsed(false)}
-      onMouseLeave={() => setIsCollapsed(true)}
+      onMouseLeave={() => {
+        if (!showNotifications) {
+          setIsCollapsed(true)
+        }
+      }}
     >
       <motion.div className="relative z-40 flex text-muted-foreground h-full shrink-0 flex-col bg-white dark:bg-background transition-all">
         <motion.div variants={staggerVariants} className="flex h-full flex-col">
@@ -394,8 +473,47 @@ export function ShadcnSidebar({ className }: SidebarProps) {
             </div>
           </div>
 
+          {/* Notification Section */}
+          <div className="border-t p-2">
+            <motion.li variants={iconVariants} className="list-none">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "flex items-center rounded-md text-sm font-medium transition-colors relative",
+                  isCollapsed 
+                    ? "justify-center w-[38px] h-[38px]" 
+                    : "px-3 justify-start w-full h-[38px]",
+                  showNotifications
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+                onClick={() => setShowNotifications(!showNotifications)}
+                title={isCollapsed ? "Notifikacije" : undefined}
+              >
+                <BellIcon size={18} className="shrink-0" />
+                {!isCollapsed && (
+                  <motion.span 
+                    variants={variants}
+                    className="ml-3 whitespace-nowrap overflow-hidden"
+                  >
+                    Notifikacije
+                  </motion.span>
+                )}
+                {/* Notification badge */}
+                {unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-[8px] text-white font-bold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  </div>
+                )}
+              </Button>
+            </motion.li>
+          </div>
+
           {/* User Section */}
-          <div className="mt-auto border-t p-2">
+          <div className="border-t p-2">
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-[38px] w-full flex items-center justify-center">
@@ -432,6 +550,20 @@ export function ShadcnSidebar({ className }: SidebarProps) {
 
         </motion.div>
       </motion.div>
+
+      {/* Notification Window */}
+      <NotificationWindow
+        isOpen={showNotifications}
+        onClose={() => {
+          setShowNotifications(false)
+          setIsCollapsed(true)
+        }}
+        position={{ 
+          bottom: 20, 
+          left: isCollapsed ? 64 : 256 
+        }}
+        onNotificationUpdate={fetchUnreadCount}
+      />
 
       {/* Account Modal */}
       {showAccountModal && user?.role === 'admin' && (
