@@ -2055,6 +2055,57 @@ const TechnicianWorkOrderDetail = () => {
             </div>
           )}
           
+          {/* Status Selection Section */}
+          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-6 mb-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Status radnog naloga</h3>
+              <p className="text-slate-600 text-sm">Izaberite status radnog naloga</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
+                size="medium"
+                onClick={() => handleStatusChange('zavrsen')}
+                disabled={saving || isWorkOrderCompleted}
+                prefix={<CheckIcon size={16} />}
+                className="flex-1"
+              >
+                Završen
+              </Button>
+              <Button
+                type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
+                size="medium"
+                onClick={() => handleStatusChange('nezavrsen')}
+                disabled={saving || isWorkOrderCompleted}
+                prefix={<ClockIcon size={16} />}
+                className="flex-1"
+              >
+                Nezavršen
+              </Button>
+              <Button
+                type={formData.status === 'odlozen' ? 'primary' : 'secondary'}
+                size="medium"
+                onClick={() => handleStatusChange('odlozen')}
+                disabled={saving || isWorkOrderCompleted}
+                prefix={<AlertIcon size={16} />}
+                className="flex-1"
+              >
+                Odložen
+              </Button>
+              <Button
+                type={formData.status === 'otkazan' ? 'primary' : 'secondary'}
+                size="medium"
+                onClick={() => handleStatusChange('otkazan')}
+                disabled={saving || isWorkOrderCompleted}
+                prefix={<CloseIcon size={16} />}
+                className="flex-1"
+              >
+                Otkazan
+              </Button>
+            </div>
+          </div>
+          
           <form onSubmit={handleSubmit} className="save-form">
             <div className="form-buttons">
               <Button 
