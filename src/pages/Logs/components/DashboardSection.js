@@ -31,22 +31,48 @@ const DashboardSection = ({
   // Activity chart state - separate from dashboard filters for instant updates  
   const [activityPeriod, setActivityPeriod] = useState('all');
 
+  // Completion time analytics state
+  const [completionTimeData, setCompletionTimeData] = useState(null);
+  const [completionTimeLoading, setCompletionTimeLoading] = useState(false);
+  const [completionTimePeriod, setCompletionTimePeriod] = useState('all');
+  const [selectedTechnician, setSelectedTechnician] = useState('all');
+
   // Process activity data for the chart
   const activityChartData = useMemo(() => {
-    console.log('Activity Chart Data Processing:', {
-      activityPeriod,
-      technicianLogsLength: technicianLogs.length,
-      userLogsLength: userLogs.length
-    });
     
     const processedData = processActivityData(technicianLogs, userLogs, activityPeriod);
-    console.log('Processed Activity Data:', processedData);
     
     return processedData;
   }, [technicianLogs, userLogs, activityPeriod]);
   
   // Get filter options for activity chart
   const activityFilterOptions = useMemo(() => getActivityFilterOptions(), []);
+
+  // Fetch completion time analytics (always fetch all data, filter on frontend)
+  const fetchCompletionTimeData = async (period = 'all') => {
+    setCompletionTimeLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (period !== 'all') params.append('period', period);
+      // Don't filter by technician on backend - get all data
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/workorders/statistics/completion-time?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch completion time data');
+      
+      const data = await response.json();
+      setCompletionTimeData(data);
+    } catch (error) {
+      console.error('Error fetching completion time data:', error);
+      setCompletionTimeData(null);
+    } finally {
+      setCompletionTimeLoading(false);
+    }
+  };
+
+  // Load completion time data on mount and when period changes (not technician)
+  useEffect(() => {
+    fetchCompletionTimeData(completionTimePeriod);
+  }, [completionTimePeriod]);
   
   if (loading) {
     return (
@@ -384,6 +410,288 @@ const DashboardSection = ({
                 // Action filter is handled internally in the chart
               }}
             />
+          </div>
+
+          {/* Completion Time Analytics - Full Width */}
+          <div className="col-span-full">
+            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-purple-50 rounded-xl">
+                      <ClockIcon size={24} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">Analitika vremena završavanja radnih naloga</h3>
+                      <p className="text-slate-600 mt-1">Praćenje vremena od zakazanog termina do prvog menjanja statusa</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    {/* Period Filter */}
+                    <select
+                      value={completionTimePeriod}
+                      onChange={(e) => setCompletionTimePeriod(e.target.value)}
+                      className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
+                      disabled={completionTimeLoading}
+                    >
+                      <option value="danas">Danas</option>
+                      <option value="nedelja">Ova nedelja</option>
+                      <option value="mesec">Ovaj mesec</option>
+                      <option value="kvartal">Ovaj kvartal</option>
+                      <option value="godina">Ova godina</option>
+                      <option value="all">Sve od početka</option>
+                    </select>
+                    
+                    {/* Refresh Button */}
+                    <Button 
+                      type="secondary" 
+                      size="small" 
+                      prefix={<RefreshIcon size={16} />}
+                      onClick={() => fetchCompletionTimeData(completionTimePeriod)}
+                      disabled={completionTimeLoading}
+                    >
+                      Osvježi
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {completionTimeLoading ? (
+                <div className="p-12 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4 mx-auto"></div>
+                  <p className="text-slate-600 font-medium">Učitava analitiku vremena...</p>
+                </div>
+              ) : completionTimeData ? (
+                <div className="p-6">
+                  {/* Overall Statistics */}
+                  <div className="mb-8">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                      <BarChartIcon size={18} className="mr-2 text-purple-600" />
+                      {selectedTechnician === 'all' ? 'Ukupna statistika' : `Statistika za ${selectedTechnician}`}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Prosečno vreme</p>
+                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.avgCompletionTime}h</h3>
+                          </div>
+                          <div className="p-2 bg-purple-200 rounded-lg">
+                            <ClockIcon size={20} className="text-purple-700" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Najbrže vreme</p>
+                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.minCompletionTime}h</h3>
+                          </div>
+                          <div className="p-2 bg-green-200 rounded-lg">
+                            <TrendingUpIcon size={20} className="text-green-700" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl p-4 border border-red-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-red-600 uppercase tracking-wider">Najduže vreme</p>
+                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.maxCompletionTime}h</h3>
+                          </div>
+                          <div className="p-2 bg-red-200 rounded-lg">
+                            <ClockIcon size={20} className="text-red-700" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Ukupno naloga</p>
+                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.totalWorkOrders}</h3>
+                          </div>
+                          <div className="p-2 bg-blue-200 rounded-lg">
+                            <ChartIcon size={20} className="text-blue-700" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Distribution */}
+                  <div className="mb-8">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-4">Distribucija brzine završavanja</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-gradient-to-r from-green-50 to-green-100/80 rounded-xl p-4 border border-green-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-green-700">Brzi (≤ {(completionTimeData.overall.avgCompletionTime * 0.8).toFixed(1)}h)</p>
+                            <p className="text-2xl font-bold text-green-800">{completionTimeData.distribution.fast}</p>
+                          </div>
+                          <div className="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center">
+                            <TrendingUpIcon size={20} className="text-green-700" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-r from-yellow-50 to-yellow-100/80 rounded-xl p-4 border border-yellow-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-yellow-700">Prosečni</p>
+                            <p className="text-2xl font-bold text-yellow-800">{completionTimeData.distribution.average}</p>
+                          </div>
+                          <div className="w-12 h-12 bg-yellow-200 rounded-full flex items-center justify-center">
+                            <ClockIcon size={20} className="text-yellow-700" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-r from-red-50 to-red-100/80 rounded-xl p-4 border border-red-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-red-700">Spori (≥ {(completionTimeData.overall.avgCompletionTime * 1.2).toFixed(1)}h)</p>
+                            <p className="text-2xl font-bold text-red-800">{completionTimeData.distribution.slow}</p>
+                          </div>
+                          <div className="w-12 h-12 bg-red-200 rounded-full flex items-center justify-center">
+                            <ClockIcon size={20} className="text-red-700" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Technician Filter Cards */}
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-4">Filter po tehničaru</h4>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => setSelectedTechnician('all')}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md",
+                          selectedTechnician === 'all'
+                            ? "bg-purple-600 text-white shadow-lg"
+                            : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
+                        )}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <HardHatIcon size={16} />
+                          <span>Svi ({completionTimeData.overall.totalWorkOrders})</span>
+                        </div>
+                      </button>
+                      
+                      {completionTimeData.technicians?.map(tech => (
+                        <button
+                          key={tech.name}
+                          onClick={() => setSelectedTechnician(tech.name)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md",
+                            selectedTechnician === tech.name
+                              ? "bg-purple-600 text-white shadow-lg"
+                              : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
+                          )}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              tech.efficiency === 'high' ? "bg-green-500" :
+                              tech.efficiency === 'medium' ? "bg-yellow-500" : "bg-red-500"
+                            )}></div>
+                            <span>{tech.name} ({tech.totalWorkOrders})</span>
+                            <span className="text-xs opacity-75">{tech.avgCompletionTime}h</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Technician Details Table */}
+                  {completionTimeData.technicians && completionTimeData.technicians.length > 0 && (
+                    <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl overflow-hidden">
+                      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                        <h4 className="font-semibold text-slate-900">Detaljni pregled po tehničarima</h4>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-slate-50/50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Prosečno vreme</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Min vreme</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Max vreme</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukupno naloga</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Efikasnost</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">tisJobIds</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {completionTimeData.technicians
+                              .filter(tech => selectedTechnician === 'all' || tech.name === selectedTechnician)
+                              .map((tech, index) => (
+                              <tr key={tech.name} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="flex-shrink-0">
+                                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <HardHatIcon size={16} className="text-purple-600" />
+                                      </div>
+                                    </div>
+                                    <span className="font-medium text-slate-900">{tech.name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-mono text-slate-900">{tech.avgCompletionTime}h</td>
+                                <td className="px-6 py-4 text-sm font-mono text-green-600">{tech.minCompletionTime}h</td>
+                                <td className="px-6 py-4 text-sm font-mono text-red-600">{tech.maxCompletionTime}h</td>
+                                <td className="px-6 py-4 text-sm font-semibold text-slate-900">{tech.totalWorkOrders}</td>
+                                <td className="px-6 py-4">
+                                  <span className={cn(
+                                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                                    tech.efficiency === 'high' ? "bg-green-100 text-green-800" :
+                                    tech.efficiency === 'medium' ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"
+                                  )}>
+                                    {tech.efficiency === 'high' ? 'Visoka' :
+                                     tech.efficiency === 'medium' ? 'Srednja' : 'Niska'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-xs text-slate-600 font-mono">
+                                    {tech.tisJobIds && tech.tisJobIds.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {tech.tisJobIds.slice(0, 3).map((tisId, idx) => (
+                                          <span key={idx} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-medium">
+                                            {tisId}
+                                          </span>
+                                        ))}
+                                        {tech.tisJobIds.length > 3 && (
+                                          <span className="text-slate-400 text-xs">+{tech.tisJobIds.length - 3} više</span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400 italic">N/A</span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <div className="p-3 bg-slate-50 rounded-xl mb-4 inline-flex">
+                    <ClockIcon size={48} className="text-slate-400" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-2">Nema podataka</h4>
+                  <p className="text-slate-600">Nema radnih naloga sa zabeleženim vremenom prvog menjanja statusa za izabrani period.</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Performance Metrics Row */}

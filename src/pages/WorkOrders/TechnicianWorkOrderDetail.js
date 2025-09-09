@@ -9,6 +9,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
+import { useOverdueWorkOrders } from '../../context/OverdueWorkOrdersContext';
 import EquipmentSelectionModal from './components/EquipmentSelectionModal';
 import MaterialsModal from './components/MaterialsModal';
 import UsedMaterialsList from './components/UsedMaterialsList';
@@ -19,6 +20,7 @@ const TechnicianWorkOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { checkOverdueOrders } = useOverdueWorkOrders();
   const [workOrder, setWorkOrder] = useState(null);
   const [formData, setFormData] = useState({
     comment: '',
@@ -968,6 +970,11 @@ const TechnicianWorkOrderDetail = () => {
         status === 'zavrsen' ? 'Završen' : 
         status === 'otkazan' ? 'Otkazan' : 'Nezavršen'
       }"!`);
+      
+      // Refresh overdue orders after status change (especially when completing orders)
+      if (checkOverdueOrders) {
+        checkOverdueOrders();
+      }
     } catch (error) {
       console.error('Greška pri promeni statusa:', error);
       setError(error.response?.data?.error || 'Greška pri promeni statusa. Pokušajte ponovo.');

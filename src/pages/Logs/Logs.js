@@ -120,7 +120,6 @@ const Logs = () => {
 
       const response = await logsAPI.getTechnicianLogs(params);
       setActivityChartTechnicianLogs(response.data.data);
-      console.log('Activity Chart Technician Logs loaded:', response.data.data.length, 'technician groups');
     } catch (error) {
       console.error('Greška pri učitavanju logova tehničara za activity chart:', error);
     }
@@ -139,7 +138,6 @@ const Logs = () => {
 
       const response = await logsAPI.getUserLogs(params);
       setActivityChartUserLogs(response.data.data);
-      console.log('Activity Chart User Logs loaded:', response.data.data.length, 'user groups');
     } catch (error) {
       console.error('Greška pri učitavanju user logova za activity chart:', error);
     }

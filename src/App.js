@@ -1,6 +1,6 @@
 // Kompletna zamena za fajl: src/App.js
 import React, { useState, useEffect, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { toast, ToastProvider } from './components/ui/toast';
 import './styles/main.css'; // <-- DODAJ OVU LINIJU
 import './App.css';
@@ -8,6 +8,7 @@ import './App.css';
 import { ShadcnSidebar } from './components/layout/ShadcnSidebar';
 // Context
 import { AuthContext } from './context/AuthContext';
+import { OverdueWorkOrdersProvider, useOverdueWorkOrders } from './context/OverdueWorkOrdersContext';
 
 // Pages
 import Login from './pages/Auth/Login';
@@ -38,6 +39,8 @@ import TechnicianEquipment from './pages/TechniciansInventory/TechnicianEquipmen
 import TechnicianMaterials from './pages/TechniciansInventory/TechnicianMaterials';
 // Komponenta za potvrđivanje opreme
 import EquipmentConfirmation from './pages/TechniciansInventory/EquipmentConfirmation';
+// Komponenta za overdue radne naloge
+import OverdueWorkOrdersModal from './pages/WorkOrders/OverdueWorkOrdersModal';
 // Korisnička stranica
 import UsersList from './pages/Users/UsersList';
 import ExportSpecification from './pages/Reports/ExportSpecification';
@@ -48,6 +51,26 @@ import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
 import VehicleFleet from './pages/VehicleFleet/VehicleFleet';
 // API Services
 import { techniciansAPI } from './services/api';
+
+// Route Guard Component for overdue work orders
+const OverdueRouteGuard = ({ children }) => {
+  const location = useLocation();
+  const { hasOverdueOrders, isAllowedPath, overdueOrders } = useOverdueWorkOrders();
+
+  console.log('RouteGuard: hasOverdueOrders:', hasOverdueOrders);
+  console.log('RouteGuard: overdueOrders:', overdueOrders);
+  console.log('RouteGuard: current path:', location.pathname);
+  console.log('RouteGuard: isAllowedPath:', isAllowedPath(location.pathname));
+
+  // If there are overdue orders and current path is not allowed, show modal
+  if (hasOverdueOrders && !isAllowedPath(location.pathname)) {
+    console.log('RouteGuard: Showing overdue modal');
+    return <OverdueWorkOrdersModal onModalComplete={() => {}} />;
+  }
+
+  console.log('RouteGuard: Showing normal content');
+  return children;
+};
 
 function App() {
   const [user, setUser] = useState(null);
@@ -121,12 +144,14 @@ const PrivateRoute = ({ children }) => {
   
   return (
     <AuthContext.Provider value={{ user, login, logout, updateUser }}>
-      <ToastProvider>
-        <Router>
-          <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
-            {user && <ShadcnSidebar />}
-            <main className={`${user ? 'md:ml-16' : ''} transition-all duration-300 ease-in-out`}>
-              <div className={`${user ? 'pt-16 md:pt-6' : ''} p-6 min-h-screen`}>
+      <OverdueWorkOrdersProvider>
+        <ToastProvider>
+          <Router>
+            <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
+              {user && <ShadcnSidebar />}
+              <main className={`${user ? 'md:ml-16' : ''} transition-all duration-300 ease-in-out`}>
+                <div className={`${user ? 'pt-16 md:pt-6' : ''} p-6 min-h-screen`}>
+                  <OverdueRouteGuard>
                 <Routes>
                 {/* Javne rute */}
                 <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
@@ -242,6 +267,7 @@ const PrivateRoute = ({ children }) => {
                   <Navigate to={user ? (user.role === 'admin' ? '/' : '/my-work-orders') : '/login'} />
                 } />
                 </Routes>
+                  </OverdueRouteGuard>
               </div>
             </main>
             
@@ -252,6 +278,7 @@ const PrivateRoute = ({ children }) => {
           </div>
         </Router>
       </ToastProvider>
+      </OverdueWorkOrdersProvider>
     </AuthContext.Provider>
   );
 }

@@ -76,6 +76,7 @@ export const workOrdersAPI = {
   getAll: () => api.get('/api/workorders'),
   getOne: (id) => api.get(`/api/workorders/${id}`),
   getTechnicianWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}`),
+  getTechnicianOverdueWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}/overdue`),
   getUnassigned: () => api.get('/api/workorders/unassigned'),
   createBulk: (formData) => api.post('/api/workorders/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
