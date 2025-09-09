@@ -96,60 +96,55 @@ const OverdueWorkOrdersModal = ({ onModalComplete }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-2xl mx-auto max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center mb-4">
-            <div className="p-3 bg-red-50 rounded-xl">
-              <AlertTriangleIcon size={24} className="text-red-600" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Potrebno je završiti stare radne naloge</h2>
-          <p className="text-slate-600">Da biste nastavili sa daljim radom, potrebno je da završite sledeće radne naloge koji su trebali biti završeni pre više od sat vremena:</p>
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 z-50 flex flex-col p-4 sm:p-6">
+      <div className="w-full max-w-2xl mx-auto h-full flex flex-col">
+        {/* Header Section - Limited to 12% of screen height */}
+        <div className="flex-none max-h-[12vh] text-center mb-3 flex flex-col justify-start py-2">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 mb-2 leading-tight">Potrebno je završiti stare radne naloge</h2>
+          <p className="text-xs text-slate-600 px-4 leading-relaxed">Da biste nastavili sa daljim radom, potrebno je da završite sledeće radne naloge koji su trebali biti završeni pre više od sat vremena:</p>
         </div>
 
-        {/* Overdue count indicator */}
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-center space-x-2">
-            <ClockIcon size={20} className="text-red-600" />
-            <span className="text-red-800 font-semibold">
+        {/* Overdue count indicator - Limited to 5% of screen height */}
+        <div className="flex-none max-h-[5vh] bg-red-50 border border-red-200 rounded-lg p-1 mb-2 flex items-center justify-center">
+          <div className="flex items-center justify-center space-x-1">
+            <ClockIcon size={14} className="text-red-600 flex-shrink-0" />
+            <span className="text-red-800 font-semibold text-xs leading-tight text-center">
               {overdueOrders.length} {overdueOrders.length === 1 ? 'radni nalog' : overdueOrders.length < 5 ? 'radnih naloga' : 'radnih naloga'} koji čeka{overdueOrders.length === 1 ? '' : 'ju'} na završetak
             </span>
           </div>
         </div>
 
-        {/* Work Orders List - Scrollable */}
-        <div className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2 max-h-96">
+        {/* Work Orders List - Takes remaining 60% of screen height */}
+        <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-2 min-h-0">
           {overdueOrders.map((workOrder, index) => (
             <div 
               key={workOrder._id} 
-              className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-5 hover:shadow-xl transition-all duration-300 cursor-pointer"
+              className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 cursor-pointer"
               onClick={() => handleWorkOrderClick(workOrder._id)}
             >
-              <div className="flex items-start space-x-4">
-                <div className="p-3 bg-red-50 rounded-xl flex-shrink-0">
-                  <FileIcon size={24} className="text-red-600" />
+              <div className="flex items-start space-x-3">
+                <div className="p-2 bg-red-50 rounded-xl flex-shrink-0">
+                  <FileIcon size={20} className="text-red-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-slate-900 mb-2 break-words">{workOrder.address}</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 break-words">{workOrder.address}</h3>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <div className="flex items-center space-x-2">
-                      <CalendarIcon size={16} className="text-slate-500 flex-shrink-0" />
+                      <CalendarIcon size={14} className="text-slate-500 flex-shrink-0" />
                       <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
-                        <span className="text-sm font-medium text-slate-600">Zakazan za:</span>
-                        <span className="text-sm text-slate-900 font-semibold">
+                        <span className="text-xs sm:text-sm font-medium text-slate-600">Zakazan za:</span>
+                        <span className="text-xs sm:text-sm text-slate-900 font-semibold">
                           {formatDateTime(workOrder.appointmentDateTime)}
                         </span>
                       </div>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <ClockIcon size={16} className="text-red-500 flex-shrink-0" />
+                      <ClockIcon size={14} className="text-red-500 flex-shrink-0" />
                       <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
-                        <span className="text-sm font-medium text-slate-600">Kasni:</span>
-                        <span className="text-sm text-red-600 font-bold">
+                        <span className="text-xs sm:text-sm font-medium text-slate-600">Kasni:</span>
+                        <span className="text-xs sm:text-sm text-red-600 font-bold">
                           {getOverdueHours(workOrder.appointmentDateTime)} {getOverdueHours(workOrder.appointmentDateTime) === 1 ? 'sat' : getOverdueHours(workOrder.appointmentDateTime) < 5 ? 'sata' : 'sati'}
                         </span>
                       </div>
@@ -157,21 +152,21 @@ const OverdueWorkOrdersModal = ({ onModalComplete }) => {
 
                     {workOrder.type && (
                       <div className="flex flex-col sm:flex-row sm:justify-between">
-                        <span className="text-sm font-medium text-slate-600">Tip:</span>
-                        <span className="text-sm text-slate-900 font-semibold">{workOrder.type}</span>
+                        <span className="text-xs sm:text-sm font-medium text-slate-600">Tip:</span>
+                        <span className="text-xs sm:text-sm text-slate-900 font-semibold">{workOrder.type}</span>
                       </div>
                     )}
                   </div>
                   
                   {workOrder.comment && (
-                    <div className="mt-3 p-3 bg-slate-50 rounded-lg">
-                      <p className="text-sm text-slate-700 break-words">{workOrder.comment}</p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-lg">
+                      <p className="text-xs sm:text-sm text-slate-700 break-words line-clamp-2">{workOrder.comment}</p>
                     </div>
                   )}
                   
                   {/* Click indicator */}
-                  <div className="mt-3 flex items-center justify-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-                    <span className="text-sm font-medium text-blue-700">Kliknite da otvorite radni nalog</span>
+                  <div className="mt-2 flex items-center justify-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <span className="text-xs sm:text-sm font-medium text-blue-700">Kliknite da otvorite radni nalog</span>
                   </div>
                 </div>
               </div>
@@ -179,15 +174,15 @@ const OverdueWorkOrdersModal = ({ onModalComplete }) => {
           ))}
         </div>
 
-        {/* Information footer */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <CheckIcon size={16} className="text-blue-600" />
-            <span className="text-blue-800 font-medium text-sm">
+        {/* Information footer - Limited to 10% of screen height */}
+        <div className="flex-none max-h-[10vh] bg-blue-50 border border-blue-200 rounded-lg p-2 text-center flex flex-col justify-center">
+          <div className="flex items-center justify-center space-x-1 mb-1">
+            <CheckIcon size={12} className="text-blue-600 flex-shrink-0" />
+            <span className="text-blue-800 font-medium text-xs leading-tight">
               Kada završite sve overdue radne naloge, moći ćete normalno da koristite aplikaciju
             </span>
           </div>
-          <p className="text-xs text-blue-600">
+          <p className="text-xs text-blue-600 leading-tight px-2">
             Neće biti moguće pristupiti drugim stranicama dok se svi radni nalozi ne završe
           </p>
         </div>
