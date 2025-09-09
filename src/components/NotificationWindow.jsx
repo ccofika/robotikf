@@ -24,7 +24,8 @@ import {
 // API functions
 const fetchNotifications = async () => {
   try {
-    const response = await fetch('/api/notifications', {
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+    const response = await fetch(`${apiUrl}/api/notifications`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
@@ -45,7 +46,8 @@ const fetchNotifications = async () => {
 
 const markAsRead = async (notificationId) => {
   try {
-    const response = await fetch(`/api/notifications/${notificationId}/read`, {
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+    const response = await fetch(`${apiUrl}/api/notifications/${notificationId}/read`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -66,7 +68,8 @@ const markAsRead = async (notificationId) => {
 
 const markAllAsRead = async () => {
   try {
-    const response = await fetch('/api/notifications/mark-all-read', {
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+    const response = await fetch(`${apiUrl}/api/notifications/mark-all-read`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -87,7 +90,8 @@ const markAllAsRead = async () => {
 
 const markSelectedAsRead = async (notificationIds) => {
   try {
-    const response = await fetch('/api/notifications/mark-selected-read', {
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+    const response = await fetch(`${apiUrl}/api/notifications/mark-selected-read`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,

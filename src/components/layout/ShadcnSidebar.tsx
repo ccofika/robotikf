@@ -141,7 +141,8 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       const token = localStorage.getItem('token')
       if (!token) return
 
-      const response = await fetch('/api/notifications/unread', {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/notifications/unread`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
