@@ -114,7 +114,6 @@ const EditEquipment = () => {
         if (technicianExists) {
           updateData.assignedTo = technicianId;
           updateData.status = 'assigned';
-          updateData.location = `tehnicar-${technicianId}`;
         } else {
           throw new Error('Izabrani tehničar ne postoji');
         }

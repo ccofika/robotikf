@@ -101,7 +101,7 @@ const OverdueWorkOrdersModal = ({ onModalComplete }) => {
         {/* Header Section - Limited to 12% of screen height */}
         <div className="flex-none max-h-[12vh] text-center mb-3 flex flex-col justify-start py-2">
           <h2 className="text-sm sm:text-lg font-bold text-slate-900 mb-2 leading-tight">Potrebno je završiti stare radne naloge</h2>
-          <p className="text-xs text-slate-600 px-4 leading-relaxed">Da biste nastavili sa daljim radom, potrebno je da završite sledeće radne naloge koji su trebali biti završeni pre više od sat vremena:</p>
+          <p className="text-xs text-slate-600 px-4 leading-relaxed">Da biste nastavili sa daljim radom, potrebno je da završite sledeće radne naloge koji su trebali biti završeni pre više od 24 sata:</p>
         </div>
 
         {/* Overdue count indicator - Limited to 5% of screen height */}
