@@ -163,6 +163,14 @@ const OverdueWorkOrdersModal = ({ onModalComplete }) => {
                       <p className="text-xs sm:text-sm text-slate-700 break-words line-clamp-2">{workOrder.comment}</p>
                     </div>
                   )}
+
+                  {/* Admin comment for returned work orders */}
+                  {workOrder.adminComment && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="text-xs sm:text-sm font-medium text-red-800 mb-1">Razlog vraćanja:</div>
+                      <p className="text-xs sm:text-sm text-red-700 break-words">{workOrder.adminComment}</p>
+                    </div>
+                  )}
                   
                   {/* Click indicator */}
                   <div className="mt-2 flex items-center justify-center p-2 bg-blue-50 rounded-lg border border-blue-200">

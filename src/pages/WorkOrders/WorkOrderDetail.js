@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const WorkOrderDetail = () => {
   const { id } = useParams();
@@ -36,6 +38,12 @@ const WorkOrderDetail = () => {
   const [materials, setMaterials] = useState([]);
   const [showFullImage, setShowFullImage] = useState(null);
   const [deletingImage, setDeletingImage] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [adminComment, setAdminComment] = useState('');
+  const [orderStatuses, setOrderStatuses] = useState({});
+  const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
@@ -66,6 +74,11 @@ const WorkOrderDetail = () => {
         // Postavi slike i materijale
         setImages(workOrderRes.data.images || []);
         setMaterials(workOrderRes.data.materials || []);
+
+        // Load customer status if this is a finished work order that needs verification
+        if (workOrderRes.data.status === 'zavrsen' && !workOrderRes.data.verified && workOrderRes.data.technicianId) {
+          loadCustomerStatus(workOrderRes.data._id);
+        }
 
         const fetchUserEquipment = async () => {
           if (!workOrderRes.data.tisId) return;
@@ -163,6 +176,404 @@ const WorkOrderDetail = () => {
   
   const handleUnassign = (field) => {
     setFormData(prev => ({ ...prev, [field]: '' }));
+  };
+
+  // Function to check if work order needs verification
+  const needsVerification = () => {
+    return workOrder &&
+           workOrder.status === 'zavrsen' &&
+           !workOrder.verified &&
+           workOrder.technicianId;
+  };
+
+  // Load customer status for verification
+  const loadCustomerStatus = async (orderId) => {
+    try {
+      const response = await axios.get(`${apiUrl}/api/workorders/${orderId}/evidence`);
+      const status = response.data.customerStatus || null; // Don't set default, leave as null if not set
+      setOrderStatuses(prev => ({
+        ...prev,
+        [orderId]: status
+      }));
+      return status;
+    } catch (error) {
+      console.error(`Failed to load status for order ${orderId}:`, error);
+      // If there's an error (like 404), set as null - no status set
+      setOrderStatuses(prev => ({
+        ...prev,
+        [orderId]: null
+      }));
+      return null;
+    }
+  };
+
+  // Handle verification
+  const handleVerifyOrder = async () => {
+    if (!workOrder) return;
+
+    try {
+      setVerifying(true);
+
+      // First load the current customer status if not already loaded
+      let currentStatus = orderStatuses[workOrder._id];
+      if (!currentStatus) {
+        currentStatus = await loadCustomerStatus(workOrder._id);
+      }
+
+      // Check if customer status is set
+      if (!currentStatus) {
+        toast.error('Potrebno je prvo postaviti status korisnika pre verifikacije!');
+        return;
+      }
+
+      await axios.put(`${apiUrl}/api/workorders/${workOrder._id}/verify`, {});
+      toast.success('Radni nalog je uspešno verifikovan!');
+
+      // Refresh work order data
+      const response = await workOrdersAPI.getOne(id);
+      setWorkOrder(response.data);
+
+    } catch (error) {
+      console.error('Greška pri verifikaciji:', error);
+      toast.error('Neuspešna verifikacija radnog naloga!');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // Handle return as incorrect
+  const handleReturnIncorrect = async () => {
+    if (!workOrder || !adminComment.trim()) return;
+
+    try {
+      setVerifying(true);
+
+      await axios.put(`${apiUrl}/api/workorders/${workOrder._id}/return-incorrect`, {
+        adminComment: adminComment.trim()
+      });
+
+      toast.success('Radni nalog je vraćen tehničaru!');
+      setShowReturnModal(false);
+      setAdminComment('');
+
+      // Refresh work order data
+      const response = await workOrdersAPI.getOne(id);
+      setWorkOrder(response.data);
+      setFormData(prev => ({ ...prev, status: response.data.status }));
+
+    } catch (error) {
+      console.error('Greška pri vraćanju radnog naloga:', error);
+      toast.error('Neuspešno vraćanje radnog naloga!');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // Open customer status modal
+  const openCustomerStatusModal = async (orderId) => {
+    if (!orderStatuses[orderId]) {
+      await loadCustomerStatus(orderId);
+    }
+    setCustomerStatusModal({ isOpen: true, orderId });
+  };
+
+  // Close customer status modal
+  const closeCustomerStatusModal = () => {
+    setCustomerStatusModal({ isOpen: false, orderId: null });
+  };
+
+  // Handle customer status change
+  const handleCustomerStatusChange = async (orderId, newStatus) => {
+    try {
+      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+        customerStatus: newStatus
+      });
+
+      setOrderStatuses(prev => ({
+        ...prev,
+        [orderId]: newStatus
+      }));
+
+      toast.success('Status korisnika je uspešno ažuriran!');
+      closeCustomerStatusModal();
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      toast.error('Greška pri ažuriranju statusa korisnika!');
+    }
+  };
+
+  // Get customer status color
+  const getCustomerStatusColor = (status) => {
+    if (status?.includes('HFC KDS')) return 'bg-blue-100 text-blue-800';
+    if (status?.includes('GPON')) return 'bg-green-100 text-green-800';
+    if (status?.includes('montažnim radovima')) return 'bg-yellow-100 text-yellow-800';
+    if (status?.includes('bez montažnih radova')) return 'bg-purple-100 text-purple-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  // Funkcija za generisanje PDF-a
+  const generatePDF = async () => {
+    if (!workOrder) {
+      toast.error('Podaci o radnom nalogu nisu dostupni!');
+      return;
+    }
+
+    setGeneratingPDF(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 15;
+      const contentWidth = pageWidth - (2 * margin);
+      let currentY = margin;
+
+      // Funkcija za normalizaciju teksta (uklanja probleme sa karakterima)
+      const normalizeText = (text) => {
+        if (!text) return 'N/A';
+
+        let normalized = text.toString();
+
+        // Zameni srpske karaktere eksplicitno
+        const replacements = {
+          'š': 's', 'Š': 'S',
+          'đ': 'dj', 'Đ': 'Dj',
+          'č': 'c', 'Č': 'C',
+          'ć': 'c', 'Ć': 'C',
+          'ž': 'z', 'Ž': 'Z',
+          'á': 'a', 'à': 'a', 'â': 'a', 'ä': 'a', 'ā': 'a', 'ã': 'a',
+          'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e', 'ē': 'e',
+          'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i',
+          'ó': 'o', 'ò': 'o', 'ô': 'o', 'ö': 'o', 'ō': 'o', 'õ': 'o',
+          'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ū': 'u',
+          'Á': 'A', 'À': 'A', 'Â': 'A', 'Ä': 'A', 'Ā': 'A', 'Ã': 'A',
+          'É': 'E', 'È': 'E', 'Ê': 'E', 'Ë': 'E', 'Ē': 'E',
+          'Í': 'I', 'Ì': 'I', 'Î': 'I', 'Ï': 'I', 'Ī': 'I',
+          'Ó': 'O', 'Ò': 'O', 'Ô': 'O', 'Ö': 'O', 'Ō': 'O', 'Õ': 'O',
+          'Ú': 'U', 'Ù': 'U', 'Û': 'U', 'Ü': 'U', 'Ū': 'U'
+        };
+
+        // Zameni karaktere
+        for (const [original, replacement] of Object.entries(replacements)) {
+          normalized = normalized.replace(new RegExp(original, 'g'), replacement);
+        }
+
+        // Ukloni sve nelatinske karaktere
+        normalized = normalized.replace(/[^\x00-\x7F]/g, '');
+
+        // Kompresuj razmake
+        normalized = normalized.replace(/\s+/g, ' ').trim();
+
+        return normalized;
+      };
+
+      // Naslov
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('RADNI NALOG', pageWidth / 2, currentY, { align: 'center' });
+      currentY += 15;
+
+      // Status
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      const statusText = formData.status === 'zavrsen' ? 'Zavrsen' :
+                        formData.status === 'odlozen' ? 'Odlozen' :
+                        formData.status === 'otkazan' ? 'Otkazan' : 'Nezavrsen';
+      pdf.text(`Status: ${statusText}`, margin, currentY);
+      currentY += 10;
+
+      // Osnovni podaci
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('OSNOVNI PODACI', margin, currentY);
+      currentY += 8;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+
+      const basicData = [
+        ['Datum:', formData.date ? new Date(formData.date).toLocaleDateString('sr-RS') : 'N/A'],
+        ['Vreme:', normalizeText(formData.time) || 'N/A'],
+        ['Opstina:', normalizeText(formData.municipality) || 'N/A'],
+        ['Adresa:', normalizeText(formData.address) || 'N/A'],
+        ['Tip instalacije:', normalizeText(formData.type) || 'N/A'],
+        ['Prvi tehnicar:', normalizeText(technicians.find(t => t._id === formData.technicianId)?.name) || 'Nije dodeljen'],
+        ['Drugi tehnicar:', normalizeText(technicians.find(t => t._id === formData.technician2Id)?.name) || 'Nije dodeljen']
+      ];
+
+      basicData.forEach(([label, value]) => {
+        pdf.text(normalizeText(label), margin, currentY);
+        pdf.text(value, margin + 40, currentY);
+        currentY += 6;
+      });
+
+      currentY += 5;
+
+      // Detalji i komentari
+      if (formData.details) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('DETALJI:', margin, currentY);
+        currentY += 6;
+        pdf.setFont('helvetica', 'normal');
+        const detailsLines = pdf.splitTextToSize(normalizeText(formData.details), contentWidth);
+        detailsLines.forEach(line => {
+          pdf.text(line, margin, currentY);
+          currentY += 5;
+        });
+        currentY += 3;
+      }
+
+      if (formData.comment) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('KOMENTAR:', margin, currentY);
+        currentY += 6;
+        pdf.setFont('helvetica', 'normal');
+        const commentLines = pdf.splitTextToSize(normalizeText(formData.comment), contentWidth);
+        commentLines.forEach(line => {
+          pdf.text(line, margin, currentY);
+          currentY += 5;
+        });
+        currentY += 3;
+      }
+
+      // Dodatne informacije
+      const additionalInfo = [];
+      if (workOrder.tisId) additionalInfo.push(['TIS ID:', normalizeText(workOrder.tisId)]);
+      if (workOrder.userName) additionalInfo.push(['Ime korisnika:', normalizeText(workOrder.userName)]);
+      if (workOrder.userPhone) additionalInfo.push(['Telefon:', normalizeText(workOrder.userPhone)]);
+      if (workOrder.tisJobId) additionalInfo.push(['TIS Job ID:', normalizeText(workOrder.tisJobId)]);
+      if (workOrder.technology) additionalInfo.push(['Tehnologija:', normalizeText(workOrder.technology)]);
+      if (workOrder.additionalJobs) additionalInfo.push(['Dodatni poslovi:', normalizeText(workOrder.additionalJobs)]);
+
+      if (additionalInfo.length > 0) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('DODATNE INFORMACIJE:', margin, currentY);
+        currentY += 8;
+        pdf.setFont('helvetica', 'normal');
+
+        additionalInfo.forEach(([label, value]) => {
+          pdf.text(normalizeText(label), margin, currentY);
+          pdf.text(value, margin + 40, currentY);
+          currentY += 6;
+        });
+        currentY += 5;
+      }
+
+      // Oprema korisnika
+      if (userEquipment.length > 0) {
+        if (currentY > pageHeight - 50) {
+          pdf.addPage();
+          currentY = margin;
+        }
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('OPREMA KORISNIKA:', margin, currentY);
+        currentY += 8;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+
+        userEquipment.forEach(eq => {
+          pdf.text(`• ${normalizeText(eq.equipmentType)}: ${normalizeText(eq.equipmentDescription)}`, margin, currentY);
+          currentY += 5;
+          pdf.text(`  Serijski broj: ${normalizeText(eq.serialNumber)}`, margin + 5, currentY);
+          currentY += 5;
+          pdf.text(`  Instaliran: ${new Date(eq.installedAt).toLocaleDateString('sr-RS')}`, margin + 5, currentY);
+          currentY += 8;
+        });
+      }
+
+      // Materijali
+      if (materials.length > 0) {
+        if (currentY > pageHeight - 50) {
+          pdf.addPage();
+          currentY = margin;
+        }
+
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('UTROSENI MATERIJALI:', margin, currentY);
+        currentY += 8;
+        pdf.setFont('helvetica', 'normal');
+
+        materials.forEach(materialItem => {
+          pdf.text(`• ${normalizeText(materialItem.material?.type || 'Nepoznat materijal')} - Kolicina: ${materialItem.quantity}`, margin, currentY);
+          currentY += 6;
+        });
+        currentY += 5;
+      }
+
+      // Slike - dodaj na novu stranicu
+      if (images.length > 0) {
+        pdf.addPage();
+        currentY = margin;
+
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('SLIKE RADNOG NALOGA', margin, currentY);
+        currentY += 15;
+
+        // Funkcija za učitavanje slika
+        const loadImage = (src) => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+          });
+        };
+
+        const imageWidth = (contentWidth - 15) / 4; // 4 slike po redu sa razmakom
+        const imageHeight = 40;
+        let imagesInRow = 0;
+        let rowY = currentY;
+
+        for (let i = 0; i < images.length; i++) {
+          try {
+            const imageUrl = typeof images[i] === 'object' ? images[i].url : images[i];
+            const img = await loadImage(imageUrl);
+
+            const x = margin + (imagesInRow * (imageWidth + 5));
+
+            // Proveri da li slika stane na trenutnu stranicu
+            if (rowY + imageHeight > pageHeight - margin) {
+              pdf.addPage();
+              rowY = margin;
+              imagesInRow = 0;
+            }
+
+            // Canvas za resize slike
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = imageWidth * 3; // 3x resolution za kvalitet
+            canvas.height = imageHeight * 3;
+
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const resizedImageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            pdf.addImage(resizedImageData, 'JPEG', x, rowY, imageWidth, imageHeight);
+
+            imagesInRow++;
+            if (imagesInRow === 4) {
+              imagesInRow = 0;
+              rowY += imageHeight + 10;
+            }
+
+          } catch (error) {
+            console.error('Greška pri učitavanju slike:', error);
+          }
+        }
+      }
+
+      // Sacuvaj PDF
+      const fileName = `Radni_Nalog_${workOrder.tisId || workOrder._id}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+      toast.success('PDF je uspesno generisan i downloadovan!');
+
+    } catch (error) {
+      console.error('Greska pri generisanju PDF-a:', error);
+      toast.error('Greska pri generisanju PDF-a. Pokusajte ponovo.');
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
 
   // Funkcija za brisanje slike
@@ -317,8 +728,71 @@ const WorkOrderDetail = () => {
               >
                 Otkazan
               </Button>
+              <Button
+                type="secondary"
+                size="small"
+                prefix={generatingPDF ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div> : <FileIcon size={16} />}
+                onClick={generatePDF}
+                disabled={generatingPDF || saving}
+                title="Preuzmi PDF"
+              >
+                {generatingPDF ? 'Generiše...' : 'Preuzmi PDF'}
+              </Button>
+
+              {/* Verification buttons - only show for finished work orders that need verification */}
+              {needsVerification() && (
+                <>
+                  <Button
+                    type="secondary"
+                    size="small"
+                    prefix={<UserCheckIcon size={16} />}
+                    onClick={() => openCustomerStatusModal(workOrder._id)}
+                    disabled={verifying}
+                  >
+                    Status
+                  </Button>
+                  <Button
+                    type="primary"
+                    size="small"
+                    prefix={<CheckIcon size={16} />}
+                    onClick={handleVerifyOrder}
+                    disabled={verifying || !orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id]}
+                    title={!orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id] ? 'Prvo postavite status korisnika' : ''}
+                  >
+                    {verifying ? 'Verifikuje...' : 'Verifikuj'}
+                  </Button>
+                  <Button
+                    type="error"
+                    size="small"
+                    prefix={<BanIcon size={16} />}
+                    onClick={() => setShowReturnModal(true)}
+                    disabled={verifying}
+                  >
+                    Neispravno popunjen
+                  </Button>
+                </>
+              )}
             </div>
           </div>
+
+          {/* Customer Status Indicator */}
+          {needsVerification() && (
+            <div className="p-4 border-t border-slate-200">
+              <div className="text-sm text-slate-600 mb-2">Status korisnika:</div>
+              {orderStatuses[workOrder._id] ? (
+                <div className={cn(
+                  "inline-flex px-3 py-1 rounded-full text-xs font-medium",
+                  getCustomerStatusColor(orderStatuses[workOrder._id])
+                )}>
+                  {orderStatuses[workOrder._id]}
+                </div>
+              ) : (
+                <div className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                  Kliknite "Status" da postavite
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
@@ -613,6 +1087,14 @@ const WorkOrderDetail = () => {
                 {workOrder?.verified ? 'Da' : 'Ne'}
               </p>
             </div>
+            {workOrder?.adminComment && (
+              <div className="col-span-full">
+                <label className="text-sm font-medium text-slate-600">Razlog vraćanja:</label>
+                <div className="mt-1 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">{workOrder.adminComment}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -907,6 +1389,15 @@ const WorkOrderDetail = () => {
                 Odustani
               </Button>
               <Button
+                type="secondary"
+                size="medium"
+                prefix={generatingPDF ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div> : <DownloadIcon size={16} />}
+                onClick={generatePDF}
+                disabled={generatingPDF || saving}
+              >
+                {generatingPDF ? 'Generiše PDF...' : 'Preuzmi PDF'}
+              </Button>
+              <Button
                 type="primary"
                 size="medium"
                 prefix={<SaveIcon size={16} />}
@@ -948,6 +1439,127 @@ const WorkOrderDetail = () => {
             >
               <DeleteIcon size={20} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Return Work Order Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Vraćanje radnog naloga</h3>
+                <button
+                  onClick={() => {
+                    setShowReturnModal(false);
+                    setAdminComment('');
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <XIcon size={20} className="text-slate-400" />
+                </button>
+              </div>
+              <p className="text-sm text-slate-600 mt-2">
+                Unesite razlog vraćanja radnog naloga tehničaru
+              </p>
+            </div>
+
+            <div className="p-6">
+              <textarea
+                value={adminComment}
+                onChange={(e) => setAdminComment(e.target.value)}
+                placeholder="Razlog vraćanja radnog naloga..."
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
+                rows={4}
+              />
+            </div>
+
+            <div className="p-6 border-t border-slate-200 flex space-x-3">
+              <Button
+                type="secondary"
+                size="medium"
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setAdminComment('');
+                }}
+                className="flex-1"
+                disabled={verifying}
+              >
+                Odustani
+              </Button>
+              <Button
+                type="primary"
+                size="medium"
+                onClick={handleReturnIncorrect}
+                className="flex-1"
+                disabled={verifying || !adminComment.trim()}
+              >
+                {verifying ? 'Vraćanje...' : 'Vrati nalog'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Status Modal */}
+      {customerStatusModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Status korisnika</h3>
+                <button
+                  onClick={closeCustomerStatusModal}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <XIcon size={20} className="text-slate-400" />
+                </button>
+              </div>
+              <p className="text-sm text-slate-600 mt-2">
+                Izaberite status korisnika za ovaj radni nalog
+              </p>
+            </div>
+
+            <div className="p-6 space-y-3">
+              {[
+                'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)',
+                'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme)',
+                'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
+                'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima',
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova'
+              ].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
+                  className={cn(
+                    "w-full p-4 text-left rounded-lg border-2 transition-all hover:shadow-md",
+                    orderStatuses[customerStatusModal.orderId] === status
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-slate-900 text-sm">{status}</span>
+                    {orderStatuses[customerStatusModal.orderId] === status && (
+                      <CheckIcon size={18} className="text-blue-600 flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 border-t border-slate-200 flex space-x-3">
+              <Button
+                type="secondary"
+                size="medium"
+                onClick={closeCustomerStatusModal}
+                className="flex-1"
+              >
+                Zatvori
+              </Button>
+            </div>
           </div>
         </div>
       )}

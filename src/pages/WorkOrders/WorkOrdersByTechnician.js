@@ -36,6 +36,22 @@ const WorkOrdersByTechnician = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Prati promene u URL parametrima i automatski postavlja tab i search
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const search = searchParams.get('search');
+
+    // Postavi tab ako postoji u URL-u (bez provere trenutne vrednosti)
+    if (tab) {
+      setActiveTab(tab);
+    }
+
+    // Postavi search ako postoji u URL-u (bez provere trenutne vrednosti)
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [searchParams]);
   
   const fetchData = async () => {
     setLoading(true);

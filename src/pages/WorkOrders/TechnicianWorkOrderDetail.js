@@ -1544,7 +1544,24 @@ const TechnicianWorkOrderDetail = () => {
             </div>
           </div>
         </div>
-          
+
+        {/* Admin Comment Card - Razlog vraćanja */}
+        {workOrder?.adminComment && (
+          <div className="bg-red-50/80 backdrop-blur-md border border-red-200 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-2 sm:p-6 border-b border-red-300">
+              <h2 className="text-sm sm:text-xl font-semibold text-red-900">Razlog vraćanja radnog naloga</h2>
+            </div>
+            <div className="p-2 sm:p-6">
+              <div className="bg-red-100 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-800 leading-relaxed">{workOrder.adminComment}</p>
+              </div>
+              <div className="mt-3 text-xs text-red-700">
+                <strong>Napomena:</strong> Admin je vratio ovaj radni nalog na doradu. Molimo pročitajte razlog vraćanja i ispravite nedostajuće podatke pre ponovnog označavanja kao završen.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Equipment Card */}
         <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
           <div className="p-2 sm:p-6 border-b border-slate-200">

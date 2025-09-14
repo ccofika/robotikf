@@ -692,13 +692,21 @@ const TechnicianWorkOrders = () => {
                             </div>
                             
                             {order.userPhone && (
-                              <a 
-                                href={`tel:${order.userPhone}`} 
+                              <a
+                                href={`tel:${order.userPhone}`}
                                 className="flex items-center space-x-1.5 text-blue-600 text-xs font-medium py-1 -mx-1 px-1 rounded hover:bg-blue-50 active:bg-blue-100 transition-colors"
                               >
                                 <PhoneIcon className="w-3.5 h-3.5" />
                                 <span>{order.userPhone}</span>
                               </a>
+                            )}
+
+                            {/* Admin comment for returned work orders */}
+                            {order.adminComment && (
+                              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                                <div className="text-xs font-medium text-red-800 mb-1">Razlog vraćanja:</div>
+                                <div className="text-xs text-red-700">{order.adminComment}</div>
+                              </div>
                             )}
                           </div>
                           
@@ -766,32 +774,45 @@ const TechnicianWorkOrders = () => {
                         };
                         
                         return (
-                          <tr key={order._id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 text-sm text-slate-900">{new Date(order.date).toLocaleDateString('sr-RS')}</td>
-                            <td className="px-6 py-4 text-sm text-slate-700">{order.time || '09:00'}</td>
-                            <td className="px-6 py-4 text-sm font-medium text-slate-900">{order.municipality}</td>
-                            <td className="px-6 py-4 text-sm text-slate-700">{order.address}</td>
-                            <td className="px-6 py-4 text-sm text-slate-700">{order.type}</td>
-                            <td className="px-6 py-4">
-                              <span className={cn(
-                                "px-2 py-1 text-xs font-semibold uppercase tracking-wider rounded-full border",
-                                statusBadgeColors[displayStatus.cssClass]
-                              )}>
-                                {displayStatus.text}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <Button
-                                type="tertiary"
-                                size="small"
-                                onClick={() => navigate(`/my-work-orders/${order._id}`)}
-                                className="h-8 px-3 text-xs"
-                              >
-                                <ViewIcon className="w-3 h-3 mr-1" />
-                                Detalji
-                              </Button>
-                            </td>
-                          </tr>
+                          <React.Fragment key={order._id}>
+                            <tr className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 text-sm text-slate-900">{new Date(order.date).toLocaleDateString('sr-RS')}</td>
+                              <td className="px-6 py-4 text-sm text-slate-700">{order.time || '09:00'}</td>
+                              <td className="px-6 py-4 text-sm font-medium text-slate-900">{order.municipality}</td>
+                              <td className="px-6 py-4 text-sm text-slate-700">{order.address}</td>
+                              <td className="px-6 py-4 text-sm text-slate-700">{order.type}</td>
+                              <td className="px-6 py-4">
+                                <span className={cn(
+                                  "px-2 py-1 text-xs font-semibold uppercase tracking-wider rounded-full border",
+                                  statusBadgeColors[displayStatus.cssClass]
+                                )}>
+                                  {displayStatus.text}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <Button
+                                  type="tertiary"
+                                  size="small"
+                                  onClick={() => navigate(`/my-work-orders/${order._id}`)}
+                                  className="h-8 px-3 text-xs"
+                                >
+                                  <ViewIcon className="w-3 h-3 mr-1" />
+                                  Detalji
+                                </Button>
+                              </td>
+                            </tr>
+                            {/* Admin comment row */}
+                            {order.adminComment && (
+                              <tr>
+                                <td colSpan="7" className="px-6 py-2 border-t-0">
+                                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                                    <div className="text-xs font-medium text-red-800 mb-1">Razlog vraćanja:</div>
+                                    <div className="text-sm text-red-700">{order.adminComment}</div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })
                     )}
