@@ -12,6 +12,7 @@ import { OverdueWorkOrdersProvider, useOverdueWorkOrders } from './context/Overd
 
 // Pages
 import Login from './pages/Auth/Login';
+import Logout from './pages/Auth/Logout';
 import Dashboard from './pages/Dashboard/Dashboard';
 // Admin inventar stranice
 import EquipmentList from './pages/CentralInventory/EquipmentList';
@@ -20,6 +21,7 @@ import EditEquipment from './pages/CentralInventory/EditEquipment';
 import MaterialsList from './pages/CentralInventory/MaterialsList';
 import AddMaterial from './pages/CentralInventory/AddMaterial';
 import EditMaterial from './pages/CentralInventory/EditMaterial';
+import BasicEquipmentManager from './pages/BasicEquipment/BasicEquipmentManager';
 import TechniciansList from './pages/TechniciansInventory/TechniciansList';
 import AddTechnician from './pages/TechniciansInventory/AddTechnician';
 import TechnicianDetail from './pages/TechniciansInventory/TechnicianDetail';
@@ -37,6 +39,7 @@ import TechnicianWorkOrderDetail from './pages/WorkOrders/TechnicianWorkOrderDet
 // Tehnicar inventar stranice
 import TechnicianEquipment from './pages/TechniciansInventory/TechnicianEquipment';
 import TechnicianMaterials from './pages/TechniciansInventory/TechnicianMaterials';
+import TechnicianBasicEquipment from './pages/TechniciansInventory/TechnicianBasicEquipment';
 // Komponenta za potvrđivanje opreme
 import EquipmentConfirmation from './pages/TechniciansInventory/EquipmentConfirmation';
 // Komponenta za overdue radne naloge
@@ -155,6 +158,7 @@ const PrivateRoute = ({ children }) => {
                 <Routes>
                 {/* Javne rute */}
                 <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+                <Route path="/logout" element={<Logout />} />
                 
                 {/* Ruta za pristup odbijen */}
                 <Route path="/access-denied" element={
@@ -190,6 +194,9 @@ const PrivateRoute = ({ children }) => {
                 } />
                 <Route path="/materials/edit/:id" element={
                   user?.role === 'admin' ? <EditMaterial /> : <Navigate to="/access-denied" />
+                } />
+                <Route path="/basic-equipment" element={
+                  user?.role === 'admin' ? <BasicEquipmentManager /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/technicians" element={
                   user?.role === 'admin' ? <TechniciansList /> : <Navigate to="/access-denied" />
@@ -255,6 +262,9 @@ const PrivateRoute = ({ children }) => {
                 } />
                 <Route path="/my-materials" element={
                   user ? <TechnicianMaterials /> : <Navigate to="/login" />
+                } />
+                <Route path="/my-basic-equipment" element={
+                  user ? <TechnicianBasicEquipment /> : <Navigate to="/login" />
                 } />
                 <Route path="/reports/user-equipment" element={
                   <PrivateRoute>

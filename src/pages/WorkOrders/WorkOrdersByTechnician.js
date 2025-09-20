@@ -423,13 +423,14 @@ const WorkOrdersByTechnician = () => {
     );
   };
 
-  // Funkcija za navigaciju na detalje radnog naloga
+  // Funkcija za navigaciju na detalje radnog naloga u novom tabu
   const navigateToOrderDetails = (orderId, event) => {
     if (event.target.closest('.delete-btn') || event.target.closest('.verify-btn')) {
       return;
     }
-    
-    navigate(`/work-orders/${orderId}`);
+
+    // Otvori detalje radnog naloga u novom tabu
+    window.open(`/work-orders/${orderId}`, '_blank');
   };
 
   // Funkcija za handleovanje klika na statistike tehničara
@@ -790,8 +791,10 @@ const WorkOrdersByTechnician = () => {
                                           <td className="px-6 py-4 text-sm">
                                             <div className="flex items-center space-x-2">
                                               <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                                <Link 
-                                                  to={`/work-orders/${order._id}`} 
+                                                <Link
+                                                  to={`/work-orders/${order._id}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
                                                   onClick={(e) => e.stopPropagation()}
                                                 >
                                                   Detalji
@@ -894,8 +897,10 @@ const WorkOrdersByTechnician = () => {
                               <td className="px-6 py-4 text-sm">
                                 <div className="flex items-center space-x-2">
                                   <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                    <Link 
-                                      to={`/work-orders/${order._id}`} 
+                                    <Link
+                                      to={`/work-orders/${order._id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       Detalji
@@ -985,8 +990,10 @@ const WorkOrdersByTechnician = () => {
                                   <div className="flex flex-col space-y-2">
                                     <div className="flex items-center space-x-2">
                                       <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                        <Link 
-                                          to={`/work-orders/${order._id}`} 
+                                        <Link
+                                          to={`/work-orders/${order._id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           Detalji
@@ -1122,8 +1129,10 @@ const WorkOrdersByTechnician = () => {
                               <td className="px-6 py-4 text-sm">
                                 <div className="flex items-center space-x-2">
                                   <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                    <Link 
-                                      to={`/work-orders/${order._id}`} 
+                                    <Link
+                                      to={`/work-orders/${order._id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       Detalji

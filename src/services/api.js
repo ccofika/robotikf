@@ -51,6 +51,15 @@ export const materialsAPI = {
   delete: (id) => api.delete(`/api/materials/${id}`),
 };
 
+// Basic Equipment API
+export const basicEquipmentAPI = {
+  getAll: () => api.get('/api/basic-equipment'),
+  getOne: (id) => api.get(`/api/basic-equipment/${id}`),
+  create: (data) => api.post('/api/basic-equipment', data),
+  update: (id, data) => api.put(`/api/basic-equipment/${id}`, data),
+  delete: (id) => api.delete(`/api/basic-equipment/${id}`),
+};
+
 // Technicians API
 export const techniciansAPI = {
   getAll: () => api.get('/api/technicians'),
@@ -65,6 +74,9 @@ export const techniciansAPI = {
   returnEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/return`, data),
   assignMaterial: (id, data) => api.post(`/api/technicians/${id}/materials`, data),
   returnMaterial: (id, data) => api.post(`/api/technicians/${id}/materials/return`, data),
+  getBasicEquipment: (id) => api.get(`/api/technicians/${id}/basic-equipment`),
+  assignBasicEquipment: (id, data) => api.post(`/api/technicians/${id}/basic-equipment`, data),
+  returnBasicEquipment: (id, data) => api.post(`/api/technicians/${id}/basic-equipment/return`, data),
   // Nove funkcije za potvrđivanje opreme
   getPendingEquipment: (id) => api.get(`/api/technicians/${id}/equipment/pending`),
   confirmEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/confirm`, data),

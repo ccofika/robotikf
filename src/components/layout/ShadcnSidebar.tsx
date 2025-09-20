@@ -182,10 +182,15 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       href: "/equipment", 
       icon: BoxIcon 
     },
-    { 
-      title: "Materijali", 
-      href: "/materials", 
-      icon: ToolsIcon 
+    {
+      title: "Materijali",
+      href: "/materials",
+      icon: ToolsIcon
+    },
+    {
+      title: "Osnovna oprema",
+      href: "/basic-equipment",
+      icon: BoxIcon
     },
     { 
       title: "Tehničari", 
@@ -235,10 +240,15 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       href: "/my-equipment", 
       icon: BoxIcon 
     },
-    { 
-      title: "Moji materijali", 
-      href: "/my-materials", 
-      icon: ToolsIcon 
+    {
+      title: "Moji materijali",
+      href: "/my-materials",
+      icon: ToolsIcon
+    },
+    {
+      title: "Moja osnovna oprema",
+      href: "/my-basic-equipment",
+      icon: BoxIcon
     },
   ]
 
