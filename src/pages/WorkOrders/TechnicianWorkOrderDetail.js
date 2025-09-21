@@ -43,13 +43,11 @@ const TechnicianWorkOrderDetail = () => {
   const [technicianEquipment, setTechnicianEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
   const [equipmentOperation, setEquipmentOperation] = useState('add'); // 'add' ili 'remove'
-  const [isEquipmentWorking, setIsEquipmentWorking] = useState(true);
-  const [removalReason, setRemovalReason] = useState('');
   const [loadingEquipment, setLoadingEquipment] = useState(false);
-  const [equipmentToRemove, setEquipmentToRemove] = useState(null);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
   const [equipmentSearchTerm, setEquipmentSearchTerm] = useState('');
   const [userEquipment, setUserEquipment] = useState([]);
+  const [removedEquipment, setRemovedEquipment] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showStatusActions, setShowStatusActions] = useState(false);
   const [showFullImage, setShowFullImage] = useState(null);
@@ -61,9 +59,16 @@ const TechnicianWorkOrderDetail = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [stableEquipment, setStableEquipment] = useState([]);
-  
+
+  // State za uklanjanje opreme
+  const [removalEquipmentName, setRemovalEquipmentName] = useState('');
+  const [removalSerialNumber, setRemovalSerialNumber] = useState('');
+  const [removalCondition, setRemovalCondition] = useState('ispravna');
+  const [loadingRemoval, setLoadingRemoval] = useState(false);
+
   // Dodaj state za provjeru da li je radni nalog završen
   const isWorkOrderCompleted = workOrder?.status === 'zavrsen';
+
   
   // Materijali state - optimizovano sa ref-ovima za stable input handling
   const [materials, setMaterials] = useState([]);
@@ -158,12 +163,16 @@ const TechnicianWorkOrderDetail = () => {
           const userEqResponse = await axios.get(`${apiUrl}/api/workorders/${id}/user-equipment`);
           setUserEquipment(userEqResponse.data);
 
+          // Dohvati uklonjenu opremu za ovaj radni nalog
+          const removedEqResponse = await userEquipmentAPI.getRemovedForWorkOrder(id);
+          setRemovedEquipment(removedEqResponse.data);
+
           // Dohvati opremu tehničara
           if (user?._id) {
             const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
             setTechnicianEquipment(techEqResponse.data);
           }
-          
+
           // Dohvati materijale koje tehničar poseduje
           const materialsResponse = await techniciansAPI.getMaterials(user._id);
           setAvailableMaterials(materialsResponse.data);
@@ -454,42 +463,23 @@ const TechnicianWorkOrderDetail = () => {
     setShowEquipmentModal(true);
   };
 
-  const openRemoveEquipmentDialog = (equipment) => {
-    setEquipmentToRemove(equipment);
-    setIsEquipmentWorking(true);
-    setRemovalReason('');
-  };
-
-  const handleRemoveEquipment = async () => {
-    if (!equipmentToRemove) {
-      return;
-    }
-
+  const openRemoveEquipmentDialog = async (equipment) => {
+    // Odmah ukloni opremu bez modal-a
     setLoadingEquipment(true);
 
     try {
-      const response = await userEquipmentAPI.remove(equipmentToRemove.id, {
+      const response = await userEquipmentAPI.remove(equipment.id, {
         workOrderId: id,
         technicianId: user._id,
-        isWorking: isEquipmentWorking,
-        removalReason: removalReason
+        isWorking: true, // Uvek ispravna oprema - vraća se tehničaru
+        removalReason: 'Uklonjena oprema'
       });
 
-      toast.success('Oprema je uspešno uklonjena od korisnika!');
-
-      // Ažuriraj prikaz opreme
-      const userEqResponse = await axios.get(`${apiUrl}/api/workorders/${id}/user-equipment`);
-      setUserEquipment(userEqResponse.data);
-
-      // Ažuriraj opremu tehničara ako je oprema ispravna
-      if (isEquipmentWorking) {
-        const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
-        setTechnicianEquipment(techEqResponse.data);
+      if (response.data) {
+        toast.success('Oprema je uspešno uklonjena');
+        // Odmah osvezi podatke
+        fetchData();
       }
-
-      // Reset forme
-      setEquipmentToRemove(null);
-      setRemovalReason('');
     } catch (error) {
       console.error('Greška pri uklanjanju opreme:', error);
       toast.error(error.response?.data?.error || 'Neuspešno uklanjanje opreme. Pokušajte ponovo.');
@@ -498,12 +488,45 @@ const TechnicianWorkOrderDetail = () => {
     }
   };
 
-  const cancelRemoveEquipment = () => {
-    setEquipmentToRemove(null);
-    setIsEquipmentWorking(true);
-    setRemovalReason('');
+
+  // Funkcija za uklanjanje opreme sa novim formom
+  const handleEquipmentRemoval = async () => {
+    if (!removalEquipmentName.trim() || !removalSerialNumber.trim()) {
+      toast.error('Morate popuniti naziv opreme i serijski broj');
+      return;
+    }
+
+    setLoadingRemoval(true);
+
+    try {
+      // Poziv backend API-ja za uklanjanje opreme
+      const response = await userEquipmentAPI.removeBySerial({
+        workOrderId: id,
+        technicianId: user._id,
+        equipmentName: removalEquipmentName,
+        serialNumber: removalSerialNumber,
+        condition: removalCondition
+      });
+
+      if (response.data && response.data.success) {
+        toast.success('Oprema je uspešno uklonjena');
+
+        // Resetuj formu
+        setRemovalEquipmentName('');
+        setRemovalSerialNumber('');
+        setRemovalCondition('ispravna');
+
+        // Osvezi podatke odmah
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Greška pri uklanjanju opreme:', error);
+      toast.error(error.response?.data?.error || 'Neuspešno uklanjanje opreme. Pokušajte ponovo.');
+    } finally {
+      setLoadingRemoval(false);
+    }
   };
-  
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -1051,7 +1074,7 @@ const TechnicianWorkOrderDetail = () => {
     // Inicijalizacija progress tracking-a
     const progressArray = compressedFiles.map(() => 0);
     setUploadProgress(progressArray);
-    
+
     // KORAK 2: Upload kompresovanih slika
     console.log('\n📤========== KORAK 2: UPLOAD NA CLOUDINARY ==========📤');
     const successfulUploads = [];
@@ -1623,10 +1646,149 @@ const TechnicianWorkOrderDetail = () => {
                   <span className="text-sm text-gray-700">Radni nalog je završen - uređivanje opreme nije moguće.</span>
                 </div>
               )}
+
+              {/* Equipment Removal Section */}
+              <div className="mt-6 pt-4 border-t border-slate-200">
+                <h3 className="text-xs font-semibold text-slate-900 mb-2">Uklanjanje opreme:</h3>
+                <p className="text-xs text-slate-600 mb-4">Ovde možete ukloniti opremu koja je prethodno dodata kod korisnika.</p>
+
+                <div className="space-y-3">
+                  {/* Equipment Name/Category Field */}
+                  <div>
+                    <label htmlFor="removalEquipmentName" className="block text-xs font-medium text-slate-700 mb-1">
+                      Naziv opreme (kategorija): <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="removalEquipmentName"
+                      value={removalEquipmentName}
+                      onChange={(e) => setRemovalEquipmentName(e.target.value)}
+                      placeholder="Unesite naziv opreme"
+                      disabled={loadingRemoval || isWorkOrderCompleted}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Serial Number Field */}
+                  <div>
+                    <label htmlFor="removalSerialNumber" className="block text-xs font-medium text-slate-700 mb-1">
+                      Serijski broj opreme: <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="removalSerialNumber"
+                      value={removalSerialNumber}
+                      onChange={(e) => setRemovalSerialNumber(e.target.value)}
+                      placeholder="Unesite tačan serijski broj opreme"
+                      disabled={loadingRemoval || isWorkOrderCompleted}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Equipment Condition Radio Buttons */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-2">
+                      Stanje opreme: <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="removalCondition"
+                          value="ispravna"
+                          checked={removalCondition === 'ispravna'}
+                          onChange={(e) => setRemovalCondition(e.target.value)}
+                          disabled={loadingRemoval || isWorkOrderCompleted}
+                          className="sr-only"
+                        />
+                        <div className={`w-4 h-4 rounded-full border-2 mr-2 ${
+                          removalCondition === 'ispravna' ? 'bg-green-500 border-green-500' : 'border-slate-300'
+                        }`}></div>
+                        <span className="text-xs text-slate-700">Ispravna</span>
+                      </label>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="removalCondition"
+                          value="neispravna"
+                          checked={removalCondition === 'neispravna'}
+                          onChange={(e) => setRemovalCondition(e.target.value)}
+                          disabled={loadingRemoval || isWorkOrderCompleted}
+                          className="sr-only"
+                        />
+                        <div className={`w-4 h-4 rounded-full border-2 mr-2 ${
+                          removalCondition === 'neispravna' ? 'bg-red-500 border-red-500' : 'border-slate-300'
+                        }`}></div>
+                        <span className="text-xs text-slate-700">Neispravna</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Remove Button */}
+                  <Button
+                    type="primary"
+                    size="medium"
+                    onClick={handleEquipmentRemoval}
+                    disabled={!removalEquipmentName.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}
+                    loading={loadingRemoval}
+                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
+                  >
+                    {loadingRemoval ? 'Uklanjanje...' : 'Ukloni opremu'}
+                  </Button>
+                </div>
+
+                {isWorkOrderCompleted && (
+                  <div className="flex items-center space-x-2 p-3 bg-gray-50 border border-gray-200 rounded-lg mt-3">
+                    <span className="text-sm text-gray-700">Radni nalog je završen - uklanjanje opreme nije moguće.</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-          
+
+        {/* Removed Equipment Card */}
+        {removedEquipment.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-2 sm:p-6 border-b border-slate-200">
+              <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Uklonjena oprema (u ovom radnom nalogu)</h2>
+            </div>
+            <div className="p-2 sm:p-6">
+              <div className="space-y-2">
+                {removedEquipment.map((equipment) => (
+                  <div key={equipment.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-red-900">{equipment.equipmentType}</span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          equipment.condition === 'ispravna'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {equipment.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-red-700 mt-1">
+                        S/N: <span className="font-mono">{equipment.serialNumber}</span>
+                      </div>
+                      {equipment.removedAt && (
+                        <div className="text-xs text-red-600 mt-1">
+                          Uklonjeno: {new Date(equipment.removedAt).toLocaleDateString('sr-RS')} u {new Date(equipment.removedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="ml-3">
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <DeleteIcon size={14} className="text-red-600" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Materials Card */}
         <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
           <UsedMaterialsList 
@@ -2185,82 +2347,6 @@ const TechnicianWorkOrderDetail = () => {
         loadingMaterials={loadingMaterials}
       />
 
-      {/* Modal za uklanjanje opreme */}
-      {equipmentToRemove && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2" onClick={cancelRemoveEquipment}>
-          <div className="bg-white/95 backdrop-blur-md border border-white/30 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-2 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-900">Uklanjanje opreme</h3>
-              <p className="text-xs text-slate-700 mt-1">Uklanjate: <span className="font-medium">{equipmentToRemove.equipmentType} - {equipmentToRemove.equipmentDescription}</span></p>
-              <p className="text-xs text-slate-600">S/N: <span className="font-medium">{equipmentToRemove.serialNumber}</span></p>
-            </div>
-
-            <div className="p-2">
-              <div className="mb-2">
-                <label className="block text-xs font-medium text-slate-700 mb-1">Stanje opreme:</label>
-                <div className="flex gap-2">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="equipmentCondition"
-                      checked={isEquipmentWorking}
-                      onChange={() => setIsEquipmentWorking(true)}
-                      className="sr-only"
-                    />
-                    <div className={`w-3 h-3 rounded-full border-2 mr-1 ${isEquipmentWorking ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}></div>
-                    <span className="text-xs text-slate-700">Ispravna</span>
-                  </label>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="equipmentCondition"
-                      checked={!isEquipmentWorking}
-                      onChange={() => setIsEquipmentWorking(false)}
-                      className="sr-only"
-                    />
-                    <div className={`w-3 h-3 rounded-full border-2 mr-1 ${!isEquipmentWorking ? 'bg-red-500 border-red-500' : 'border-slate-300'}`}></div>
-                    <span className="text-xs text-slate-700">Neispravna</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="mb-2">
-                <label htmlFor="removalReason" className="block text-xs font-medium text-slate-700 mb-1">Razlog uklanjanja:</label>
-                <textarea
-                  id="removalReason"
-                  value={removalReason}
-                  onChange={(e) => setRemovalReason(e.target.value)}
-                  placeholder="Unesite razlog uklanjanja opreme"
-                  rows="2"
-                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors resize-none"
-                ></textarea>
-              </div>
-            </div>
-
-            <div className="p-2 border-t border-slate-200 flex gap-2">
-              <Button
-                type="secondary"
-                size="small"
-                onClick={cancelRemoveEquipment}
-                disabled={loadingEquipment}
-                className="flex-1 text-xs"
-              >
-                Otkaži
-              </Button>
-              <Button
-                type="primary"
-                size="small"
-                onClick={handleRemoveEquipment}
-                disabled={loadingEquipment}
-                loading={loadingEquipment}
-                className="flex-1 text-xs bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
-              >
-                {loadingEquipment ? 'Uklanjanje...' : 'Potvrdi uklanjanje'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Portal za DatePicker na desktop uređajima */}
       {!isMobile && <div id="mobile-datepicker-portal"></div>}
