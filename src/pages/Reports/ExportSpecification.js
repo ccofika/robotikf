@@ -1,11 +1,12 @@
 // C:\Users\stefa\OneDrive\Desktop\transfer\frontend\src\pages\Reports\ExportSpecification.js
 import React, { useState, useEffect } from 'react';
 import { toast } from '../../utils/toast';
-import DatePicker from 'react-datepicker';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { DownloadIcon, CalendarIcon, ExcelIcon, SpinnerIcon, TableIcon, UsersIcon, SettingsIcon, ClipboardIcon, RefreshIcon } from '../../components/icons/SvgIcons';
-import 'react-datepicker/dist/react-datepicker.css';
+import { DateRangePicker } from '../../components/ui/date-picker';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 
 const ExportSpecification = () => {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -123,84 +124,67 @@ const ExportSpecification = () => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <button 
+            <Button
               onClick={handleRefresh}
-              className="flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-lg hover:bg-white transition-all shadow-sm"
+              variant="outline"
+              className="flex items-center space-x-2"
               disabled={isRefreshing}
               title="Osvežiti statistike"
             >
-              <RefreshIcon size={16} className={`${isRefreshing ? 'animate-spin' : ''} text-slate-600`} />
-              <span className="text-sm font-medium text-slate-700">Osveži</span>
-            </button>
+              <RefreshIcon size={16} className={`${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="text-sm font-medium">Osveži</span>
+            </Button>
           </div>
         </div>
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-200">
-            <div className="flex items-center space-x-3">
+        <Card className="bg-white/80 backdrop-blur-md border border-white/30 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center space-x-3">
               <CalendarIcon size={20} className="text-slate-600" />
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Vremenski period</h2>
-                <p className="text-slate-600 text-sm">Odaberite period za koji želite da eksportujete evidenciju</p>
+                <p className="text-slate-600 text-sm font-normal">Odaberite period za koji želite da eksportujete evidenciju</p>
               </div>
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="pt-0">
+            <div className="space-y-6">
+              <div className="flex flex-col space-y-4">
+                <h3 className="text-sm font-medium text-slate-700">Izaberite vremenski period:</h3>
+                <div className="flex items-center justify-center w-full">
+                  <DateRangePicker
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateSelect={(date) => setStartDate(date)}
+                    onEndDateSelect={(date) => setEndDate(date)}
+                    startPlaceholder="Početni datum"
+                    endPlaceholder="Krajnji datum"
+                    className="w-full max-w-lg"
+                  />
+                </div>
+              </div>
+
+              {formatPeriod() && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900">Izabrani period: {formatPeriod()}</p>
+                </div>
+              )}
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="p-6">
-            <div className="flex items-center justify-center space-x-6">
-              <div className="flex flex-col space-y-2">
-                <label htmlFor="startDate" className="text-sm font-medium text-slate-700">Početni datum:</label>
-                <DatePicker
-                  id="startDate"
-                  selected={startDate}
-                  onChange={(date) => setStartDate(date)}
-                  selectsStart
-                  startDate={startDate}
-                  endDate={endDate}
-                  dateFormat="dd.MM.yyyy"
-                  className="h-9 w-40 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                  placeholderText="Odaberite početni datum"
-                />
-              </div>
+        <Card className="bg-white/80 backdrop-blur-md border border-white/30 shadow-lg">
+          <CardHeader>
+            <CardTitle>
+              <h2 className="text-lg font-semibold text-slate-900">Pregled podataka</h2>
+              <p className="text-slate-600 text-sm font-normal mt-1">Broj zapisa koji će biti uključen u evidenciju</p>
+            </CardTitle>
+          </CardHeader>
 
-              <div className="flex items-center pt-6">
-                <span className="text-slate-500 font-medium">do</span>
-              </div>
-
-              <div className="flex flex-col space-y-2">
-                <label htmlFor="endDate" className="text-sm font-medium text-slate-700">Krajnji datum:</label>
-                <DatePicker
-                  id="endDate"
-                  selected={endDate}
-                  onChange={(date) => setEndDate(date)}
-                  selectsEnd
-                  startDate={startDate}
-                  endDate={endDate}
-                  minDate={startDate}
-                  dateFormat="dd.MM.yyyy"
-                  className="h-9 w-40 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                  placeholderText="Odaberite krajnji datum"
-                />
-              </div>
-            </div>
-
-            {formatPeriod() && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-900">Izabrani period: {formatPeriod()}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">Pregled podataka</h2>
-            <p className="text-slate-600 text-sm mt-1">Broj zapisa koji će biti uključen u evidenciju</p>
-          </div>
-
-          <div className="p-6">
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
                 <div className="flex items-center space-x-3">
@@ -250,16 +234,18 @@ const ExportSpecification = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">Evidencija radnih naloga</h2>
-            <p className="text-slate-600 text-sm mt-1">Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom iz WorkOrderEvidence baze</p>
-          </div>
+        <Card className="bg-white/80 backdrop-blur-md border border-white/30 shadow-lg">
+          <CardHeader>
+            <CardTitle>
+              <h2 className="text-lg font-semibold text-slate-900">Evidencija radnih naloga</h2>
+              <p className="text-slate-600 text-sm font-normal mt-1">Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom iz WorkOrderEvidence baze</p>
+            </CardTitle>
+          </CardHeader>
 
-          <div className="p-6">
+          <CardContent>
             <div className="flex items-start space-x-4 mb-6">
               <div className="p-3 bg-slate-50 rounded-xl">
                 <TableIcon size={24} className="text-slate-600" />
@@ -281,14 +267,11 @@ const ExportSpecification = () => {
             </div>
 
             <div className="flex flex-col items-center space-y-4">
-              <button 
-                onClick={handleExport} 
+              <Button
+                onClick={handleExport}
                 disabled={loading || !startDate || !endDate}
-                className={`flex items-center space-x-3 px-6 py-3 rounded-lg font-medium transition-all ${
-                  loading || !startDate || !endDate 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                }`}
+                className="flex items-center space-x-3 px-8 py-4 text-base"
+                size="lg"
               >
                 {loading ? (
                   <>
@@ -301,7 +284,7 @@ const ExportSpecification = () => {
                     <span>Preuzmi Excel evidenciju (WorkOrderEvidence)</span>
                   </>
                 )}
-              </button>
+              </Button>
 
               {stats.workOrders === 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
@@ -309,8 +292,8 @@ const ExportSpecification = () => {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
