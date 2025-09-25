@@ -27,7 +27,7 @@ api.interceptors.request.use(
 // Auth API
 export const authAPI = {
   login: (credentials) => api.post('/api/auth/login', credentials),
-  refresh: () => api.post('/api/auth/refresh'),
+  refresh: () => api.post('/api/auth/refresh-token'),
 };
 
 // Equipment API
