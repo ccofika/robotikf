@@ -217,7 +217,7 @@ api.interceptors.response.use(
 
       const token = localStorage.getItem('token');
 
-      if (token && !isTokenExpired(token)) {
+      if (token) {
         try {
           const response = await authAPI.refresh();
           const { token: newToken, user } = response.data;
