@@ -288,6 +288,7 @@ export const financesAPI = {
   getFailedTransactions: () => api.get('/api/finances/failed-transactions'),
   retryFailedTransaction: (workOrderId) => api.post(`/api/finances/retry-failed-transaction/${workOrderId}`),
   dismissFailedTransaction: (workOrderId) => api.delete(`/api/finances/failed-transaction/${workOrderId}`),
+  excludeFromFinances: (workOrderId) => api.post(`/api/finances/exclude-from-finances/${workOrderId}`),
   confirmDiscount: (data) => api.post('/api/finances/confirm-discount', data),
 };
 

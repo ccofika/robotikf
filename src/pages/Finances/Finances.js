@@ -282,6 +282,18 @@ const Finances = () => {
     }
   };
 
+  const excludeFromFinances = async (workOrderId) => {
+    try {
+      await financesAPI.excludeFromFinances(workOrderId);
+      toast.success('Radni nalog je potpuno isključen iz finansijskih kalkulacija');
+      // Ukloni iz liste
+      setFailedTransactions(prev => prev.filter(ft => ft.workOrderId._id !== workOrderId));
+    } catch (error) {
+      console.error('Greška pri isključivanju iz finansija:', error);
+      toast.error('Greška pri isključivanju iz finansija');
+    }
+  };
+
   const confirmDiscount = async (municipality, discountPercent, workOrderIds) => {
     setRetryLoading(prev => {
       const newState = { ...prev };
@@ -352,9 +364,15 @@ const Finances = () => {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = (
+        // TIS Job ID search - check both direct field and workOrderId field
         transaction.tisJobId?.toLowerCase().includes(searchLower) ||
+        transaction.workOrderId?.tisJobId?.toLowerCase().includes(searchLower) ||
+        // Municipality search
         transaction.municipality?.toLowerCase().includes(searchLower) ||
+        // Customer status search (both full name and short name)
+        transaction.customerStatus?.toLowerCase().includes(searchLower) ||
         getCustomerStatusShortName(transaction.customerStatus).toLowerCase().includes(searchLower) ||
+        // Technicians search
         transaction.technicians?.some(tech =>
           tech.name?.toLowerCase().includes(searchLower) ||
           tech.technicianId?.name?.toLowerCase().includes(searchLower)
@@ -423,7 +441,7 @@ const Finances = () => {
               <p className="text-red-700 mb-4 text-sm">
                 Sledeći radni nalozi nisu mogli biti obračunati zbog nedostajućih podataka:
               </p>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
+              <div className="space-y-3 overflow-y-auto" style={{maxHeight: '31.2rem'}}>
                 {failedTransactions.map((failed) => (
                   <div
                     key={failed._id}
@@ -495,6 +513,15 @@ const Finances = () => {
                             >
                               Pokušaj ponovo
                             </Button>
+                            <Button
+                              type="danger"
+                              size="small"
+                              onClick={() => excludeFromFinances(failed.workOrderId._id)}
+                              prefix={<XIcon size={14} />}
+                              className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
+                            >
+                              Ne računaj
+                            </Button>
                           </>
                         ) : (
                           <>
@@ -520,6 +547,15 @@ const Finances = () => {
                               className="text-xs"
                             >
                               Zanemari
+                            </Button>
+                            <Button
+                              type="danger"
+                              size="small"
+                              onClick={() => excludeFromFinances(failed.workOrderId._id)}
+                              prefix={<XIcon size={14} />}
+                              className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
+                            >
+                              Ne računaj
                             </Button>
                           </>
                         )}
@@ -1005,9 +1041,23 @@ const Finances = () => {
                       type="text"
                       placeholder="Pretraži po TIS Job ID, opštini, tipu usluge ili tehničaru..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1); // Reset to first page on search
+                      }}
                       className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
                     />
+                    {searchTerm && (
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setCurrentPage(1);
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <XIcon size={16} />
+                      </button>
+                    )}
                   </div>
 
                   {/* Technician Filter */}
@@ -1025,7 +1075,10 @@ const Finances = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56 max-h-60 overflow-auto">
                         <DropdownMenuItem
-                          onClick={() => setSelectedTechnicianFilter(null)}
+                          onClick={() => {
+                            setSelectedTechnicianFilter(null);
+                            setCurrentPage(1); // Reset to first page on filter change
+                          }}
                           className="cursor-pointer"
                         >
                           <div className="flex items-center space-x-2">
@@ -1038,7 +1091,10 @@ const Finances = () => {
                         {technicians && technicians.length > 0 && technicians.map((technician) => (
                           <DropdownMenuItem
                             key={technician._id}
-                            onClick={() => setSelectedTechnicianFilter(technician)}
+                            onClick={() => {
+                              setSelectedTechnicianFilter(technician);
+                              setCurrentPage(1); // Reset to first page on filter change
+                            }}
                             className="cursor-pointer"
                           >
                             <div className="flex items-center space-x-2">
@@ -1275,67 +1331,91 @@ const Finances = () => {
                   </table>
                 </div>
 
-                {/* Modern Pagination */}
+                {/* Modern Pagination - Enhanced like UsersList */}
                 {filteredTransactions.length > itemsPerPage && (
-                  <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-3">
-                    <div className="flex-1 flex justify-between sm:hidden">
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+                    <div className="text-sm text-slate-600">
+                      Prikazano {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredTransactions.length)} od {filteredTransactions.length} rezultata
+                    </div>
+                    <div className="flex items-center space-x-2">
                       <Button
                         type="tertiary"
                         size="small"
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        onClick={() => setCurrentPage(1)}
                         disabled={currentPage === 1}
                       >
-                        Prethodna
+                        &laquo;
                       </Button>
                       <Button
                         type="tertiary"
                         size="small"
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        &lsaquo;
+                      </Button>
+
+                      {(() => {
+                        const getVisiblePages = () => {
+                          const current = currentPage;
+                          const total = totalPages;
+                          const delta = 2;
+
+                          let pages = [];
+
+                          // Always show first page
+                          if (current > delta + 1) {
+                            pages.push(1);
+                            if (current > delta + 2) pages.push('...');
+                          }
+
+                          // Show pages around current
+                          for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
+                            pages.push(i);
+                          }
+
+                          // Always show last page
+                          if (current < total - delta) {
+                            if (current < total - delta - 1) pages.push('...');
+                            pages.push(total);
+                          }
+
+                          return pages;
+                        };
+
+                        return getVisiblePages().map((page, index) => (
+                          <Button
+                            key={index}
+                            type={page === currentPage ? "primary" : "tertiary"}
+                            size="small"
+                            onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
+                            disabled={page === '...'}
+                            className={page === currentPage ?
+                              "!bg-blue-600 !text-white !hover:bg-blue-700" :
+                              "hover:bg-gray-100"
+                            }
+                          >
+                            {page}
+                          </Button>
+                        ));
+                      })()}
+
+                      <Button
+                        type="tertiary"
+                        size="small"
+                        onClick={() => setCurrentPage(currentPage + 1)}
                         disabled={currentPage === totalPages}
                       >
-                        Sledeća
+                        &rsaquo;
                       </Button>
-                    </div>
-                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm text-slate-700">
-                          Prikazuje se <span className="font-medium">{startIndex + 1}</span> do{' '}
-                          <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredTransactions.length)}</span>{' '}
-                          od <span className="font-medium">{filteredTransactions.length}</span> rezultata
-                        </p>
-                      </div>
-                      <div>
-                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                          >
-                            Prethodna
-                          </button>
-                          {[...Array(totalPages)].map((_, i) => (
-                            <button
-                              key={i + 1}
-                              onClick={() => setCurrentPage(i + 1)}
-                              className={cn(
-                                "relative inline-flex items-center px-4 py-2 border text-sm font-medium",
-                                currentPage === i + 1
-                                  ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                  : "bg-white border-slate-300 text-slate-500 hover:bg-slate-50"
-                              )}
-                            >
-                              {i + 1}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
-                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                          >
-                            Sledeća
-                          </button>
-                        </nav>
-                      </div>
+                      <Button
+                        type="tertiary"
+                        size="small"
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                      >
+                        &raquo;
+                      </Button>
                     </div>
                   </div>
                 )}
