@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BoxIcon, ToolsIcon, UsersIcon, ClipboardIcon, CheckCircleIcon, ClockIcon, TrendingUpIcon, BarChartIcon, PlusIcon } from '../../components/icons/SvgIcons';
+import { BoxIcon, ToolsIcon, UsersIcon, ClipboardIcon, CheckCircleIcon, ClockIcon, TrendingUpIcon, BarChartIcon, PlusIcon, RefreshIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import axios from 'axios';
 import { cn } from '../../utils/cn';
@@ -19,39 +19,39 @@ const Dashboard = () => {
       postponed: 0
     }
   });
-  
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+      // Prikupljanje podataka sa različitih endpointa
+      const [equipment, materials, technicians, workOrderStats] = await Promise.all([
+        axios.get(`${apiUrl}/api/equipment`),
+        axios.get(`${apiUrl}/api/materials`),
+        axios.get(`${apiUrl}/api/technicians`),
+        axios.get(`${apiUrl}/api/workorders/statistics/summary`)
+      ]);
+
+      setStats({
+        equipment: equipment.data.length,
+        materials: materials.data.length,
+        technicians: technicians.data.length,
+        workOrders: {
+          total: workOrderStats.data.total,
+          completed: workOrderStats.data.completed,
+          pending: workOrderStats.data.pending,
+          postponed: workOrderStats.data.postponed
+        }
+      });
+    } catch (error) {
+      console.error('Greška pri učitavanju dashboard podataka:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      try {
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-        
-        // Prikupljanje podataka sa različitih endpointa
-        const [equipment, materials, technicians, workOrderStats] = await Promise.all([
-          axios.get(`${apiUrl}/api/equipment`),
-          axios.get(`${apiUrl}/api/materials`),
-          axios.get(`${apiUrl}/api/technicians`),
-          axios.get(`${apiUrl}/api/workorders/statistics/summary`)
-        ]);
-        
-        setStats({
-          equipment: equipment.data.length,
-          materials: materials.data.length,
-          technicians: technicians.data.length,
-          workOrders: {
-            total: workOrderStats.data.total,
-            completed: workOrderStats.data.completed,
-            pending: workOrderStats.data.pending,
-            postponed: workOrderStats.data.postponed
-          }
-        });
-      } catch (error) {
-        console.error('Greška pri učitavanju dashboard podataka:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchDashboardData();
   }, []);
   
@@ -85,14 +85,25 @@ const Dashboard = () => {
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-3">
       {/* Header Section */}
       <div className="mb-3">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 rounded-xl">
-            <BarChartIcon size={24} className="text-blue-600" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <BarChartIcon size={24} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+              <p className="text-slate-600 mt-1">Pregled sistemskih informacija i ključnih metrika</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-            <p className="text-slate-600 mt-1">Pregled sistemskih informacija i ključnih metrika</p>
-          </div>
+          <Button
+            type="secondary"
+            size="small"
+            prefix={<RefreshIcon size={16} className={loading ? 'animate-spin' : ''} />}
+            onClick={fetchDashboardData}
+            disabled={loading}
+          >
+            {loading ? 'Osvežava...' : 'Osveži'}
+          </Button>
         </div>
       </div>
       

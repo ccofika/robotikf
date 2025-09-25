@@ -58,18 +58,21 @@ const TechniciansList = () => {
   
   const handleDelete = async (id, name) => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete tehničara "${name}"?`)) {
-      setLoading(true);
-      
+      // OPTIMISTIC UPDATE - immediately remove from UI
+      const originalTechnicians = [...technicians];
+      setTechnicians(prev => prev.filter(tech => tech._id !== id));
+
       try {
         await techniciansAPI.delete(id);
         toast.success('Tehničar je uspešno obrisan!');
-        fetchTechnicians();
+        // Success - optimistic update already done
       } catch (error) {
         console.error('Greška pri brisanju tehničara:', error);
         const errorMessage = error.response?.data?.error || 'Greška pri brisanju tehničara.';
         toast.error(errorMessage);
-      } finally {
-        setLoading(false);
+
+        // ROLLBACK - restore original data on error
+        setTechnicians(originalTechnicians);
       }
     }
   };

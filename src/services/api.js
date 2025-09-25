@@ -10,13 +10,22 @@ const api = axios.create({
   },
 });
 
-// Interceptor za dodavanje auth tokena
+// Interceptor za dodavanje auth tokena i cache-busting
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Force fresh data - cache busting via query parameter only
+    if (config.method === 'get') {
+      config.params = {
+        ...config.params,
+        _t: new Date().getTime() // timestamp for cache busting
+      };
+    }
+
     return config;
   },
   (error) => {

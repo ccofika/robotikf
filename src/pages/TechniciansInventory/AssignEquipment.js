@@ -93,19 +93,40 @@ const AssignEquipment = () => {
       toast.warning('Niste odabrali nijedan komad opreme!');
       return;
     }
-    
-    setLoading(true);
-    
+
+    // OPTIMISTIC UPDATE - immediately move equipment from available to assigned
+    const originalAvailable = [...availableEquipment];
+    const originalAssigned = [...assignedEquipment];
+
+    // Find selected equipment items and move them
+    const equipmentToMove = availableEquipment.filter(item =>
+      selectedEquipment.includes(item.serialNumber)
+    );
+
+    setAvailableEquipment(prev =>
+      prev.filter(item => !selectedEquipment.includes(item.serialNumber))
+    );
+
+    setAssignedEquipment(prev => [
+      ...prev,
+      ...equipmentToMove.map(item => ({
+        ...item,
+        location: `tehnicar-${id}`
+      }))
+    ]);
+
     try {
       await techniciansAPI.assignEquipment(id, { serialNumbers: selectedEquipment });
       toast.success(`Uspešno ste zadužili ${selectedEquipment.length} komada opreme tehničaru!`);
       setSelectedEquipment([]);
-      fetchData();
+      // Success - optimistic update already done
     } catch (error) {
       console.error('Greška pri zaduživanju opreme:', error);
       toast.error(error.response?.data?.error || 'Greška pri zaduživanju opreme!');
-    } finally {
-      setLoading(false);
+
+      // ROLLBACK - restore original data on error
+      setAvailableEquipment(originalAvailable);
+      setAssignedEquipment(originalAssigned);
     }
   };
   
@@ -114,19 +135,40 @@ const AssignEquipment = () => {
       toast.warning('Niste odabrali nijedan komad opreme!');
       return;
     }
-    
-    setLoading(true);
-    
+
+    // OPTIMISTIC UPDATE - immediately move equipment from assigned back to available
+    const originalAvailable = [...availableEquipment];
+    const originalAssigned = [...assignedEquipment];
+
+    // Find selected equipment items and move them back
+    const equipmentToReturn = assignedEquipment.filter(item =>
+      selectedEquipment.includes(item.serialNumber)
+    );
+
+    setAssignedEquipment(prev =>
+      prev.filter(item => !selectedEquipment.includes(item.serialNumber))
+    );
+
+    setAvailableEquipment(prev => [
+      ...prev,
+      ...equipmentToReturn.map(item => ({
+        ...item,
+        location: 'magacin'
+      }))
+    ]);
+
     try {
       await techniciansAPI.returnEquipment(id, { serialNumbers: selectedEquipment });
       toast.success(`Uspešno ste razdužili ${selectedEquipment.length} komada opreme!`);
       setSelectedEquipment([]);
-      fetchData();
+      // Success - optimistic update already done
     } catch (error) {
       console.error('Greška pri razduživanju opreme:', error);
       toast.error(error.response?.data?.error || 'Greška pri razduživanju opreme!');
-    } finally {
-      setLoading(false);
+
+      // ROLLBACK - restore original data on error
+      setAvailableEquipment(originalAvailable);
+      setAssignedEquipment(originalAssigned);
     }
   };
   

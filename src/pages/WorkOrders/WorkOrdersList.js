@@ -46,17 +46,20 @@ const WorkOrdersList = () => {
   
   const handleDelete = async (id, address) => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete radni nalog za adresu "${address}"?`)) {
-      setLoading(true);
-      
+      // OPTIMISTIC UPDATE - immediately remove from UI
+      const originalWorkOrders = [...workOrders];
+      setWorkOrders(prev => prev.filter(order => order._id !== id));
+
       try {
         await workOrdersAPI.delete(id);
         toast.success('Radni nalog je uspešno obrisan!');
-        fetchData();
+        // Success - optimistic update already done, optionally refresh to confirm
       } catch (error) {
         console.error('Greška pri brisanju radnog naloga:', error);
         toast.error('Greška pri brisanju radnog naloga!');
-      } finally {
-        setLoading(false);
+
+        // ROLLBACK - restore original data on error
+        setWorkOrders(originalWorkOrders);
       }
     }
   };
@@ -71,9 +74,10 @@ const WorkOrdersList = () => {
                          (order.comment && order.comment.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const statusMatch = statusFilter === '' || order.status === statusFilter;
-      const technicianMatch = technicianFilter === '' || 
-                             (technicianFilter === 'unassigned' ? (!order.technicianId && !order.technician2Id) : 
-                              (order.technicianId === technicianFilter || order.technician2Id === technicianFilter));
+      const technicianMatch = technicianFilter === '' ||
+                             (technicianFilter === 'unassigned' ? (!order.technicianId && !order.technician2Id) :
+                              ((order.technicianId?._id || order.technicianId) === technicianFilter ||
+                               (order.technician2Id?._id || order.technician2Id) === technicianFilter));
       
       return searchMatch && statusMatch && technicianMatch;
     });
@@ -82,7 +86,14 @@ const WorkOrdersList = () => {
   // Dobavljanje imena tehničara po ID-u
   const getTechnicianName = (technicianId) => {
     if (!technicianId) return 'Nedodeljen';
-    const technician = technicians.find(t => t._id === technicianId);
+
+    // Handle both populated object and string ID
+    if (typeof technicianId === 'object' && technicianId.name) {
+      return technicianId.name;
+    }
+
+    const actualId = technicianId._id || technicianId;
+    const technician = technicians.find(t => t._id === actualId);
     return technician ? technician.name : 'Nepoznat';
   };
 
@@ -138,6 +149,14 @@ const WorkOrdersList = () => {
           Pregled radnih naloga
         </h1>
         <div className="Work-orders-header-actions">
+          <button
+            onClick={fetchData}
+            className="btn btn-secondary"
+            disabled={loading}
+            title="Osveži podatke"
+          >
+            <RefreshIcon /> {loading ? 'Osvežava...' : 'Osveži'}
+          </button>
           <Link to="/work-orders/add" className="btn btn-primary">
             <PlusIcon /> Novi nalog
           </Link>

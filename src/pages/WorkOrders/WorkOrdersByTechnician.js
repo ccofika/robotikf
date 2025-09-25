@@ -18,16 +18,6 @@ const WorkOrdersByTechnician = () => {
   const [verificationOrders, setVerificationOrders] = useState([]);
   const [dashboardStats, setDashboardStats] = useState({});
 
-  // Local memory cache
-  const [memoryCache, setMemoryCache] = useState({
-    technicians: null,
-    recentWorkOrders: null,
-    olderWorkOrders: null,
-    recentUnassigned: null,
-    olderUnassigned: null,
-    verificationOrders: null,
-    lastUpdate: null
-  });
 
   // Loading states
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -56,27 +46,7 @@ const WorkOrdersByTechnician = () => {
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
-    // Check memory cache first
-    const cacheExpiry = 5 * 60 * 1000; // 5 minutes
-    const now = new Date().getTime();
-
-    if (memoryCache.lastUpdate && (now - memoryCache.lastUpdate) < cacheExpiry) {
-      // Use cached data
-      if (memoryCache.technicians) setTechnicians(memoryCache.technicians);
-      if (memoryCache.recentWorkOrders) setRecentWorkOrders(memoryCache.recentWorkOrders);
-      if (memoryCache.olderWorkOrders) setOlderWorkOrders(memoryCache.olderWorkOrders);
-      if (memoryCache.recentUnassigned) setRecentUnassigned(memoryCache.recentUnassigned);
-      if (memoryCache.olderUnassigned) setOlderUnassigned(memoryCache.olderUnassigned);
-      if (memoryCache.verificationOrders) setVerificationOrders(memoryCache.verificationOrders);
-
-      setDashboardLoading(false);
-      setRecentLoading(false);
-      setOlderLoading(false);
-      if (memoryCache.verificationOrders) setVerificationDataLoaded(true);
-    } else {
-      // Start priority-based loading
-      fetchDashboardAndTechnicians();
-    }
+    fetchDashboardAndTechnicians();
   }, []);
 
   // Prati promene u URL parametrima i automatski postavlja tab i search
@@ -125,12 +95,6 @@ const WorkOrdersByTechnician = () => {
         loadedAt: new Date().toISOString()
       });
 
-      // Update memory cache
-      setMemoryCache(prev => ({
-        ...prev,
-        technicians: techniciansData,
-        lastUpdate: new Date().getTime()
-      }));
 
       // Start loading recent data
       setTimeout(() => {
@@ -176,13 +140,6 @@ const WorkOrdersByTechnician = () => {
       setRecentWorkOrders(recentWorkOrdersData);
       setRecentUnassigned(recentUnassignedData);
 
-      // Update memory cache
-      setMemoryCache(prev => ({
-        ...prev,
-        recentWorkOrders: recentWorkOrdersData,
-        recentUnassigned: recentUnassignedData,
-        lastUpdate: new Date().getTime()
-      }));
 
       // Start loading older data in background
       setTimeout(() => {
@@ -227,13 +184,6 @@ const WorkOrdersByTechnician = () => {
       setOlderWorkOrders(olderWorkOrdersData);
       setOlderUnassigned(olderUnassignedData);
 
-      // Update memory cache
-      setMemoryCache(prev => ({
-        ...prev,
-        olderWorkOrders: olderWorkOrdersData,
-        olderUnassigned: olderUnassignedData,
-        lastUpdate: new Date().getTime()
-      }));
 
     } catch (error) {
       console.error('Greška pri učitavanju starijih radnih naloga:', error);
@@ -256,12 +206,6 @@ const WorkOrdersByTechnician = () => {
       setVerificationOrders(verificationData);
       setVerificationDataLoaded(true);
 
-      // Update memory cache
-      setMemoryCache(prev => ({
-        ...prev,
-        verificationOrders: verificationData,
-        lastUpdate: new Date().getTime()
-      }));
 
     } catch (error) {
       console.error('Greška pri učitavanju naloga za verifikaciju:', error);
@@ -271,19 +215,8 @@ const WorkOrdersByTechnician = () => {
     }
   };
 
-  // Refresh all data (maintains same interface as before)
+  // Refresh all data
   const fetchData = async () => {
-    // Clear cache and start fresh loading
-    setMemoryCache({
-      technicians: null,
-      recentWorkOrders: null,
-      olderWorkOrders: null,
-      recentUnassigned: null,
-      olderUnassigned: null,
-      verificationOrders: null,
-      lastUpdate: null
-    });
-
     setVerificationDataLoaded(false);
     await fetchDashboardAndTechnicians();
 

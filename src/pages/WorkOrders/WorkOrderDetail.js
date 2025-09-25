@@ -47,7 +47,8 @@ const WorkOrderDetail = () => {
   const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
+
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -137,6 +138,8 @@ const WorkOrderDetail = () => {
 
       const response = await workOrdersAPI.update(id, updatedData);
       setWorkOrder(response.data);
+
+
       toast.success('Radni nalog je uspešno ažuriran!');
     } catch (error) {
       console.error('Greška pri ažuriranju radnog naloga:', error);
@@ -166,8 +169,10 @@ const WorkOrderDetail = () => {
       
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status }));
-      toast.success(`Status radnog naloga je promenjen na "${status === 'zavrsen' ? 'Završen' : 
-        status === 'odlozen' ? 'Odložen' : 
+
+
+      toast.success(`Status radnog naloga je promenjen na "${status === 'zavrsen' ? 'Završen' :
+        status === 'odlozen' ? 'Odložen' :
         status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}"!`);
     } catch (error) {
       console.error('Full error:', error);
@@ -238,6 +243,7 @@ const WorkOrderDetail = () => {
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
 
+
     } catch (error) {
       console.error('Greška pri verifikaciji:', error);
       toast.error('Neuspešna verifikacija radnog naloga!');
@@ -265,6 +271,7 @@ const WorkOrderDetail = () => {
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status: response.data.status }));
+
 
     } catch (error) {
       console.error('Greška pri vraćanju radnog naloga:', error);

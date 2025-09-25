@@ -145,20 +145,25 @@ const MaterialsList = () => {
   
   const handleDelete = async (id, type) => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete materijal "${type}"?`)) {
-      setDashboardLoading(true);
-      setRecentLoading(true);
+      // OPTIMISTIC UPDATE - immediately remove from both lists
+      const originalRecentMaterials = [...recentMaterials];
+      const originalAllMaterials = [...allMaterials];
+
+      setRecentMaterials(prev => prev.filter(mat => mat._id !== id));
+      setAllMaterials(prev => prev.filter(mat => mat._id !== id));
 
       try {
         await axios.delete(`${apiUrl}/api/materials/${id}`);
         toast.success('Materijal je uspešno obrisan!');
-        fetchMaterials();
+        // Success - optimistic update already done
       } catch (error) {
         console.error('Greška pri brisanju materijala:', error);
         const errorMessage = error.response?.data?.error || 'Greška pri brisanju materijala.';
         toast.error(errorMessage);
-      } finally {
-        setDashboardLoading(false);
-        setRecentLoading(false);
+
+        // ROLLBACK - restore original data on error
+        setRecentMaterials(originalRecentMaterials);
+        setAllMaterials(originalAllMaterials);
       }
     }
   };
