@@ -36,6 +36,7 @@ import {
 import AccountModal from '../AccountModal'
 import TechnicianAccountModal from '../TechnicianAccountModal'
 import NotificationWindow from '../NotificationWindow'
+import api from '../../services/api'
 
 interface SidebarProps {
   className?: string
@@ -134,35 +135,25 @@ export function ShadcnSidebar({ className }: SidebarProps) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Fetch unread notification count
+  // Fetch unread notification count using axios (so interceptor works)
   const fetchUnreadCount = async () => {
     if (!user) return
 
     try {
-      const token = localStorage.getItem('token')
-      if (!token) return
-
-      const apiUrl = process.env.REACT_APP_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/notifications/unread`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUnreadCount(data.unreadCount || 0)
-      }
+      const response = await api.get('/api/notifications/unread')
+      setUnreadCount(response.data.unreadCount || 0)
     } catch (error) {
       console.error('Greška pri dohvaćanju broja nepročitanih notifikacija:', error)
+      // If error is 401, interceptor will handle token refresh automatically
     }
   }
 
-  // DISABLED: Only fetch notifications when user explicitly opens notification panel
-  // useEffect(() => {
-  //   fetchUnreadCount()
-  // }, [user])
+  // Fetch notification count on initial load (using axios so interceptor works)
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount()
+    }
+  }, [user])
 
   // DISABLED: No automatic polling - notifications only refresh when user opens panel
   // useEffect(() => {
