@@ -125,6 +125,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
   const [showAccountModal, setShowAccountModal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [lastFetchTime, setLastFetchTime] = useState(0)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -136,22 +137,44 @@ export function ShadcnSidebar({ className }: SidebarProps) {
   }, [])
 
   // Fetch unread notification count using axios (so interceptor works)
-  const fetchUnreadCount = async () => {
-    if (!user) return
+  const fetchUnreadCount = async (force = false) => {
+    if (!user) {
+      console.log('🔔 fetchUnreadCount: No user found, skipping');
+      return;
+    }
+
+    // Debounce: ne dozvoliti pozive češće od 5 sekundi osim ako nije force
+    const now = Date.now();
+    if (!force && now - lastFetchTime < 5000) {
+      console.log('🔔 fetchUnreadCount: Debounced, skipping (last call was', now - lastFetchTime, 'ms ago)');
+      return;
+    }
+
+    setLastFetchTime(now);
+    console.log('🔔 fetchUnreadCount: Starting request for user:', user.name);
 
     try {
-      const response = await api.get('/api/notifications/unread')
-      setUnreadCount(response.data.unreadCount || 0)
+      const response = await api.get('/api/notifications/unread', {
+        timeout: 10000 // 10 second timeout
+      });
+
+      console.log('🔔 fetchUnreadCount: Success, count:', response.data.unreadCount || 0);
+      setUnreadCount(response.data.unreadCount || 0);
     } catch (error) {
-      console.error('Greška pri dohvaćanju broja nepročitanih notifikacija:', error)
+      console.error('🔔 fetchUnreadCount: Error:', error.message);
+
+      // Set count to 0 on error to prevent showing stale data
+      setUnreadCount(0);
+
       // If error is 401, interceptor will handle token refresh automatically
+      // For other errors, don't retry to prevent spam
     }
   }
 
   // Fetch notification count on initial load (using axios so interceptor works)
   useEffect(() => {
     if (user) {
-      fetchUnreadCount()
+      fetchUnreadCount(true) // Force on initial load
     }
   }, [user])
 
@@ -345,7 +368,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                 onClick={() => {
                   // Refresh notifications only when user explicitly opens panel
                   if (!showNotifications) {
-                    fetchUnreadCount();
+                    fetchUnreadCount(true); // Force refresh when user clicks
                   }
                   setShowNotifications(!showNotifications);
                 }}
@@ -512,7 +535,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                 onClick={() => {
                   // Refresh notifications only when user explicitly opens panel
                   if (!showNotifications) {
-                    fetchUnreadCount();
+                    fetchUnreadCount(true); // Force refresh when user clicks
                   }
                   setShowNotifications(!showNotifications);
                 }}

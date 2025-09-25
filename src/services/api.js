@@ -178,6 +178,7 @@ const isTokenExpired = (token) => {
   }
 };
 
+// Queue management za multiple refresh requests
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -189,66 +190,86 @@ const processQueue = (error, token = null) => {
       prom.resolve(token);
     }
   });
-
   failedQueue = [];
 };
 
-// Interceptor za automatski refresh tokena
+// Interceptor za automatski refresh tokena sa proper queue management
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    // Provjeri da li je 401 error i da request nije već retry-an
     if (error.response?.status === 401 && !originalRequest._retry) {
+
+      // Ako je refresh već u toku, dodaj request u queue
       if (isRefreshing) {
-        // Ako je refresh u toku, čekaj
+        console.log('🔄 Token refresh in progress, queueing request...');
         return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
+          failedQueue.push({
+            resolve: (token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
+            reject: (err) => {
+              reject(err);
+            }
+          });
         });
       }
 
+      console.log('🔄 Starting token refresh process...');
       originalRequest._retry = true;
       isRefreshing = true;
 
       const token = localStorage.getItem('token');
 
-      if (token) {
-        try {
-          const response = await authAPI.refresh();
-          const { token: newToken, user } = response.data;
-
-          localStorage.setItem('token', newToken);
-          localStorage.setItem('user', JSON.stringify(user));
-
-          api.defaults.headers.Authorization = `Bearer ${newToken}`;
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-          processQueue(null, newToken);
-
-          return api(originalRequest);
-        } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
-          processQueue(refreshError, null);
-
-          // Odjavi korisnika
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
-          window.location.href = '/login';
-
-          return Promise.reject(refreshError);
-        } finally {
-          isRefreshing = false;
-        }
-      } else {
-        // Token je expired ili ne postoji - odjavi korisnika
+      if (!token) {
+        console.log('❌ No token found, redirecting to login');
+        isRefreshing = false;
         localStorage.removeItem('user');
         localStorage.removeItem('token');
         window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      try {
+        console.log('🔄 Calling refresh token API...');
+        const response = await authAPI.refresh();
+        const { token: newToken, user } = response.data;
+
+        console.log('✅ Token refreshed successfully');
+
+        // Ažuriraj token u localStorage i axios defaults
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(user));
+        api.defaults.headers.Authorization = `Bearer ${newToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        // Processi queue sa novim tokenon
+        processQueue(null, newToken);
+
+        console.log('🔄 Retrying original request...');
+        return api(originalRequest);
+
+      } catch (refreshError) {
+        console.error('❌ Token refresh failed:', refreshError);
+
+        // Processi queue sa greškom
+        processQueue(refreshError, null);
+
+        // Odjavi korisnika i preusmeri na login
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+
+        // Provjeri da li nije već na login stranici da izbjegne beskonačnu petlju
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 
