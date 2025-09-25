@@ -49,6 +49,7 @@ import UsersList from './pages/Users/UsersList';
 import ExportSpecification from './pages/Reports/ExportSpecification';
 import Logs from './pages/Logs/Logs';
 import DefectiveEquipment from './pages/DefectiveEquipment/DefectiveEquipment';
+import Finances from './pages/Finances/Finances';
 
 import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
 import VehicleFleet from './pages/VehicleFleet/VehicleFleet';
@@ -83,12 +84,25 @@ function App() {
   useEffect(() => {
     // Provera da li postoji korisnik u localStorage-u
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const token = localStorage.getItem('token');
+
+    if (storedUser && token) {
+      // Proveri da li je token istekao
       try {
-        setUser(JSON.parse(storedUser));
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const isExpired = Date.now() >= payload.exp * 1000;
+
+        if (isExpired) {
+          // Token je istekao, obriši podatke
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        } else {
+          setUser(JSON.parse(storedUser));
+        }
       } catch (error) {
-        console.error('Greška pri parsiranju korisničkih podataka:', error);
+        console.error('Greška pri validaciji tokena:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
     setLoading(false);
@@ -125,6 +139,31 @@ function App() {
     // Preusmjeri na login stranicu nakon logout-a
     window.location.href = '/login';
   };
+
+  // Auto-refresh token svakih 23 sata
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshInterval = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const timeUntilExpiry = (payload.exp * 1000) - Date.now();
+
+          // Refresh token 1 sat pre isteka
+          if (timeUntilExpiry < 3600000 && timeUntilExpiry > 0) {
+            console.log('Auto-refreshing token...');
+            // Token će biti refresšovan automatski preko interceptora
+          }
+        } catch (error) {
+          console.error('Greška pri proveri tokena:', error);
+        }
+      }
+    }, 3600000); // Proveri svakih sat vremena
+
+    return () => clearInterval(refreshInterval);
+  }, [user]);
 
   const updateUser = (userData) => {
     setUser(userData);
@@ -172,80 +211,83 @@ const PrivateRoute = ({ children }) => {
                 {/* Admin rute */}
                 <Route path="/" element={
                   user ? (
-                    user.role === 'admin' ? <Dashboard /> : <Navigate to="/my-work-orders" />
+                    (user.role === 'admin' || user.role === 'superadmin') ? <Dashboard /> : <Navigate to="/my-work-orders" />
                   ) : <Navigate to="/login" />
                 } />
                 
                 {/* Inventar rute */}
                 <Route path="/equipment" element={
-                  user?.role === 'admin' ? <EquipmentList /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <EquipmentList /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/equipment/upload" element={
-                  user?.role === 'admin' ? <EquipmentUpload /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <EquipmentUpload /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/equipment/edit/:id" element={
-                  user?.role === 'admin' ? <EditEquipment /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <EditEquipment /> : <Navigate to="/access-denied" />
                 } />
                                 <Route path="/materials" element={
-                  user?.role === 'admin' ? <MaterialsList /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <MaterialsList /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/materials/add" element={
-                  user?.role === 'admin' ? <AddMaterial /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <AddMaterial /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/materials/edit/:id" element={
-                  user?.role === 'admin' ? <EditMaterial /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <EditMaterial /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/basic-equipment" element={
-                  user?.role === 'admin' ? <BasicEquipmentManager /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <BasicEquipmentManager /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/technicians" element={
-                  user?.role === 'admin' ? <TechniciansList /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <TechniciansList /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/technicians/add" element={
-                  user?.role === 'admin' ? <AddTechnician /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <AddTechnician /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/technicians/:id" element={
-                  user?.role === 'admin' ? <TechnicianDetail /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <TechnicianDetail /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/technicians/:id/assign-equipment" element={
-                  user?.role === 'admin' ? <AssignEquipment /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <AssignEquipment /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/technicians/:id/assign-material" element={
-                  user?.role === 'admin' ? <AssignMaterial /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <AssignMaterial /> : <Navigate to="/access-denied" />
                 } />
                 
                 {/* Radni nalozi rute za admina */}
                 <Route path="/work-orders" element={
-                  user?.role === 'admin' ? <WorkOrdersByTechnician /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <WorkOrdersByTechnician /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/work-orders/list" element={
-                  user?.role === 'admin' ? <WorkOrdersList /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <WorkOrdersList /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/work-orders/upload" element={
-                  user?.role === 'admin' ? <WorkOrdersUpload /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <WorkOrdersUpload /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/work-orders/add" element={
-                  user?.role === 'admin' ? <AddWorkOrder /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <AddWorkOrder /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/work-orders/:id" element={
-                  user?.role === 'admin' ? <WorkOrderDetail /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <WorkOrderDetail /> : <Navigate to="/access-denied" />
                 } />
                 
                 {/* Korisnici ruta za admina */}
                 <Route path="/users" element={
-                  user?.role === 'admin' ? <UsersList /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <UsersList /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/export" element={
-                  user?.role === 'admin' ? <ExportSpecification /> : <Navigate to="/access-denied" />
+                  user?.role === 'superadmin' ? <ExportSpecification /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/logs" element={
-                  user?.role === 'admin' ? <Logs /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <Logs /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/vehicles" element={
-                  user?.role === 'admin' ? <VehicleFleet /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <VehicleFleet /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/defective-equipment" element={
-                  user?.role === 'admin' ? <DefectiveEquipment /> : <Navigate to="/access-denied" />
+                  (user?.role === 'admin' || user?.role === 'superadmin') ? <DefectiveEquipment /> : <Navigate to="/access-denied" />
+                } />
+                <Route path="/finances" element={
+                  user?.role === 'superadmin' ? <Finances /> : <Navigate to="/access-denied" />
                 } />
                 
                 {/* Radni nalozi rute za tehničara */}
@@ -274,7 +316,7 @@ const PrivateRoute = ({ children }) => {
                 
                 {/* Fallback ruta */}
                 <Route path="*" element={
-                  <Navigate to={user ? (user.role === 'admin' ? '/' : '/my-work-orders') : '/login'} />
+                  <Navigate to={user ? ((user.role === 'admin' || user.role === 'superadmin') ? '/' : '/my-work-orders') : '/login'} />
                 } />
                 </Routes>
                   </OverdueRouteGuard>

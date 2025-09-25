@@ -9,11 +9,33 @@ import axios from 'axios';
 const WorkOrdersByTechnician = () => {
   const [searchParams] = useSearchParams();
   const [technicians, setTechnicians] = useState([]);
-  const [workOrders, setWorkOrders] = useState([]);
-  const [unassignedOrders, setUnassignedOrders] = useState([]);
+
+  // Optimized state management with priority-based loading
+  const [recentWorkOrders, setRecentWorkOrders] = useState([]);
+  const [olderWorkOrders, setOlderWorkOrders] = useState([]);
+  const [recentUnassigned, setRecentUnassigned] = useState([]);
+  const [olderUnassigned, setOlderUnassigned] = useState([]);
   const [verificationOrders, setVerificationOrders] = useState([]);
-  const [allWorkOrders, setAllWorkOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState({});
+
+  // Local memory cache
+  const [memoryCache, setMemoryCache] = useState({
+    technicians: null,
+    recentWorkOrders: null,
+    olderWorkOrders: null,
+    recentUnassigned: null,
+    olderUnassigned: null,
+    verificationOrders: null,
+    lastUpdate: null
+  });
+
+  // Loading states
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationDataLoaded, setVerificationDataLoaded] = useState(false);
+
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
@@ -34,7 +56,27 @@ const WorkOrdersByTechnician = () => {
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
-    fetchData();
+    // Check memory cache first
+    const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+    const now = new Date().getTime();
+
+    if (memoryCache.lastUpdate && (now - memoryCache.lastUpdate) < cacheExpiry) {
+      // Use cached data
+      if (memoryCache.technicians) setTechnicians(memoryCache.technicians);
+      if (memoryCache.recentWorkOrders) setRecentWorkOrders(memoryCache.recentWorkOrders);
+      if (memoryCache.olderWorkOrders) setOlderWorkOrders(memoryCache.olderWorkOrders);
+      if (memoryCache.recentUnassigned) setRecentUnassigned(memoryCache.recentUnassigned);
+      if (memoryCache.olderUnassigned) setOlderUnassigned(memoryCache.olderUnassigned);
+      if (memoryCache.verificationOrders) setVerificationOrders(memoryCache.verificationOrders);
+
+      setDashboardLoading(false);
+      setRecentLoading(false);
+      setOlderLoading(false);
+      if (memoryCache.verificationOrders) setVerificationDataLoaded(true);
+    } else {
+      // Start priority-based loading
+      fetchDashboardAndTechnicians();
+    }
   }, []);
 
   // Prati promene u URL parametrima i automatski postavlja tab i search
@@ -45,43 +87,209 @@ const WorkOrdersByTechnician = () => {
     // Postavi tab ako postoji u URL-u (bez provere trenutne vrednosti)
     if (tab) {
       setActiveTab(tab);
+
+      // Lazy load verification data when tab is accessed
+      if (tab === 'verification' && !verificationDataLoaded) {
+        fetchVerificationOrders();
+      }
     }
 
     // Postavi search ako postoji u URL-u (bez provere trenutne vrednosti)
     if (search) {
       setSearchTerm(search);
     }
-  }, [searchParams]);
+  }, [searchParams, verificationDataLoaded]);
+
+  // Handle tab changes and lazy loading
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+
+    // Lazy load verification data when tab is clicked
+    if (tabName === 'verification' && !verificationDataLoaded) {
+      fetchVerificationOrders();
+    }
+  };
   
-  const fetchData = async () => {
-    setLoading(true);
+  // Priority 1: Load dashboard stats and technicians (fastest)
+  const fetchDashboardAndTechnicians = async () => {
+    setDashboardLoading(true);
     setError('');
-    
+
     try {
-      const [techniciansResponse, workOrdersResponse, unassignedResponse, verificationResponse] = await Promise.all([
-        axios.get(`${apiUrl}/api/technicians`),
-        axios.get(`${apiUrl}/api/workorders`),
-        axios.get(`${apiUrl}/api/workorders/unassigned`),
-        axios.get(`${apiUrl}/api/workorders/verification`)
-      ]);
-      
-      const workOrdersData = workOrdersResponse.data;
-      const verificationData = verificationResponse.data;
-      
-      setTechnicians(techniciansResponse.data);
-      setWorkOrders(workOrdersData);
-      setUnassignedOrders(unassignedResponse.data);
-      setVerificationOrders(verificationData);
-      setAllWorkOrders(workOrdersData);
-      
-      // Initialize empty order statuses - will be loaded on demand
-      setOrderStatuses({});
+      const techniciansResponse = await axios.get(`${apiUrl}/api/technicians`);
+      const techniciansData = techniciansResponse.data;
+
+      setTechnicians(techniciansData);
+      setDashboardStats({
+        totalTechnicians: techniciansData.length,
+        loadedAt: new Date().toISOString()
+      });
+
+      // Update memory cache
+      setMemoryCache(prev => ({
+        ...prev,
+        technicians: techniciansData,
+        lastUpdate: new Date().getTime()
+      }));
+
+      // Start loading recent data
+      setTimeout(() => {
+        fetchRecentWorkOrders();
+      }, 100);
+
     } catch (error) {
-      console.error('Greška pri učitavanju podataka:', error);
-      setError('Greška pri učitavanju radnih naloga. Pokušajte ponovo.');
-      toast.error('Neuspešno učitavanje podataka!');
+      console.error('Greška pri učitavanju dashboard podataka:', error);
+      setError('Greška pri učitavanju osnovnih podataka. Pokušajte ponovo.');
+      toast.error('Neuspešno učitavanje osnovnih podataka!');
     } finally {
-      setLoading(false);
+      setDashboardLoading(false);
+    }
+  };
+
+  // Priority 2: Load recent work orders (last 3 days)
+  const fetchRecentWorkOrders = async () => {
+    setRecentLoading(true);
+
+    try {
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+      const [workOrdersResponse, unassignedResponse] = await Promise.all([
+        axios.get(`${apiUrl}/api/workorders?recent=3`),
+        axios.get(`${apiUrl}/api/workorders/unassigned?recent=3`)
+      ]);
+
+      const workOrdersData = workOrdersResponse.data;
+      const unassignedData = unassignedResponse.data;
+
+      // Filter for last 3 days
+      const recentWorkOrdersData = workOrdersData.filter(order => {
+        const orderDate = new Date(order.date);
+        return orderDate >= threeDaysAgo;
+      });
+
+      const recentUnassignedData = unassignedData.filter(order => {
+        const orderDate = new Date(order.date);
+        return orderDate >= threeDaysAgo;
+      });
+
+      setRecentWorkOrders(recentWorkOrdersData);
+      setRecentUnassigned(recentUnassignedData);
+
+      // Update memory cache
+      setMemoryCache(prev => ({
+        ...prev,
+        recentWorkOrders: recentWorkOrdersData,
+        recentUnassigned: recentUnassignedData,
+        lastUpdate: new Date().getTime()
+      }));
+
+      // Start loading older data in background
+      setTimeout(() => {
+        fetchOlderWorkOrders();
+      }, 500);
+
+    } catch (error) {
+      console.error('Greška pri učitavanju najnovijih radnih naloga:', error);
+      // Don't show error for background loading
+    } finally {
+      setRecentLoading(false);
+    }
+  };
+
+  // Priority 3: Load older work orders (background loading)
+  const fetchOlderWorkOrders = async () => {
+    setOlderLoading(true);
+
+    try {
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+      const [workOrdersResponse, unassignedResponse] = await Promise.all([
+        axios.get(`${apiUrl}/api/workorders`),
+        axios.get(`${apiUrl}/api/workorders/unassigned`)
+      ]);
+
+      const workOrdersData = workOrdersResponse.data;
+      const unassignedData = unassignedResponse.data;
+
+      // Filter for older than 3 days
+      const olderWorkOrdersData = workOrdersData.filter(order => {
+        const orderDate = new Date(order.date);
+        return orderDate < threeDaysAgo;
+      });
+
+      const olderUnassignedData = unassignedData.filter(order => {
+        const orderDate = new Date(order.date);
+        return orderDate < threeDaysAgo;
+      });
+
+      setOlderWorkOrders(olderWorkOrdersData);
+      setOlderUnassigned(olderUnassignedData);
+
+      // Update memory cache
+      setMemoryCache(prev => ({
+        ...prev,
+        olderWorkOrders: olderWorkOrdersData,
+        olderUnassigned: olderUnassignedData,
+        lastUpdate: new Date().getTime()
+      }));
+
+    } catch (error) {
+      console.error('Greška pri učitavanju starijih radnih naloga:', error);
+      // Silent background loading
+    } finally {
+      setOlderLoading(false);
+    }
+  };
+
+  // Lazy loading for verification tab
+  const fetchVerificationOrders = async () => {
+    if (verificationDataLoaded) return;
+
+    setVerificationLoading(true);
+
+    try {
+      const verificationResponse = await axios.get(`${apiUrl}/api/workorders/verification`);
+      const verificationData = verificationResponse.data;
+
+      setVerificationOrders(verificationData);
+      setVerificationDataLoaded(true);
+
+      // Update memory cache
+      setMemoryCache(prev => ({
+        ...prev,
+        verificationOrders: verificationData,
+        lastUpdate: new Date().getTime()
+      }));
+
+    } catch (error) {
+      console.error('Greška pri učitavanju naloga za verifikaciju:', error);
+      toast.error('Neuspešno učitavanje naloga za verifikaciju!');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  // Refresh all data (maintains same interface as before)
+  const fetchData = async () => {
+    // Clear cache and start fresh loading
+    setMemoryCache({
+      technicians: null,
+      recentWorkOrders: null,
+      olderWorkOrders: null,
+      recentUnassigned: null,
+      olderUnassigned: null,
+      verificationOrders: null,
+      lastUpdate: null
+    });
+
+    setVerificationDataLoaded(false);
+    await fetchDashboardAndTechnicians();
+
+    // If verification tab is active, reload it
+    if (activeTab === 'verification') {
+      await fetchVerificationOrders();
     }
   };
   
@@ -124,18 +332,26 @@ const WorkOrdersByTechnician = () => {
       
       setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
       
-      const updatedWorkOrders = [...workOrders];
-      const updatedIndex = updatedWorkOrders.findIndex(order => order._id === orderId);
-      
-      if (updatedIndex !== -1) {
-        updatedWorkOrders[updatedIndex] = {
-          ...updatedWorkOrders[updatedIndex],
-          verified: true,
-          verifiedAt: new Date().toISOString()
-        };
-        
-        setWorkOrders(updatedWorkOrders);
-        setAllWorkOrders(updatedWorkOrders);
+      // Update in both recent and older work orders
+      const updateOrderInArray = (ordersArray, setOrdersFunc) => {
+        const updatedOrders = [...ordersArray];
+        const updatedIndex = updatedOrders.findIndex(order => order._id === orderId);
+
+        if (updatedIndex !== -1) {
+          updatedOrders[updatedIndex] = {
+            ...updatedOrders[updatedIndex],
+            verified: true,
+            verifiedAt: new Date().toISOString()
+          };
+          setOrdersFunc(updatedOrders);
+          return true;
+        }
+        return false;
+      };
+
+      // Try to update in recent orders first, then older orders
+      if (!updateOrderInArray(recentWorkOrders, setRecentWorkOrders)) {
+        updateOrderInArray(olderWorkOrders, setOlderWorkOrders);
       }
       
     } catch (error) {
@@ -150,10 +366,12 @@ const WorkOrdersByTechnician = () => {
         await axios.delete(`${apiUrl}/api/workorders/${id}`);
         toast.success('Radni nalog je uspešno obrisan!');
         
-        setWorkOrders(prev => prev.filter(order => order._id !== id));
-        setUnassignedOrders(prev => prev.filter(order => order._id !== id));
+        // Update both recent and older work orders
+        setRecentWorkOrders(prev => prev.filter(order => order._id !== id));
+        setOlderWorkOrders(prev => prev.filter(order => order._id !== id));
+        setRecentUnassigned(prev => prev.filter(order => order._id !== id));
+        setOlderUnassigned(prev => prev.filter(order => order._id !== id));
         setVerificationOrders(prev => prev.filter(order => order._id !== id));
-        setAllWorkOrders(prev => prev.filter(order => order._id !== id));
         
       } catch (error) {
         console.error('Greška pri brisanju:', error);
@@ -162,17 +380,29 @@ const WorkOrdersByTechnician = () => {
     }
   };
   
+  // Combine recent and older work orders for compatibility
+  const getAllWorkOrders = () => {
+    return [...recentWorkOrders, ...olderWorkOrders];
+  };
+
+  const getAllUnassignedOrders = () => {
+    return [...recentUnassigned, ...olderUnassigned];
+  };
+
   const groupWorkOrdersByTechnician = () => {
     const techWorkOrders = {};
-    
+
     technicians.forEach(tech => {
       techWorkOrders[tech._id] = {
         technicianInfo: tech,
         workOrders: []
       };
     });
-    
-    workOrders.forEach(order => {
+
+    // Combine recent and older work orders
+    const allWorkOrders = getAllWorkOrders();
+
+    allWorkOrders.forEach(order => {
       const techId = order.technicianId?._id || order.technicianId;
       const tech2Id = order.technician2Id?._id || order.technician2Id;
       if (techId && techWorkOrders[techId]) {
@@ -182,10 +412,10 @@ const WorkOrdersByTechnician = () => {
         techWorkOrders[tech2Id].workOrders.push(order);
       }
     });
-    
+
     return techWorkOrders;
   };
-  
+
   const technicianWorkOrders = groupWorkOrdersByTechnician();
   
   // Enhanced filtering function with deep search
@@ -229,9 +459,9 @@ const WorkOrdersByTechnician = () => {
   };
   
   // Filtrirani podaci sa paginacijom
-  const filteredUnassigned = useMemo(() => filterOrders(unassignedOrders), [unassignedOrders, statusFilter, technicianFilter, searchTerm]);
+  const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, searchTerm]);
   const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, searchTerm]);
-  const filteredAllOrders = useMemo(() => filterOrders(allWorkOrders), [allWorkOrders, statusFilter, technicianFilter, searchTerm]);
+  const filteredAllOrders = useMemo(() => filterOrders(getAllWorkOrders()), [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, searchTerm]);
   
   // Paginacija za nedodeljene naloge
   const indexOfLastUnassigned = currentPageUnassigned * itemsPerPage;
@@ -490,8 +720,8 @@ const WorkOrdersByTechnician = () => {
       {/* Tab Navigation */}
       <div className="mb-6">
         <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
-          <button 
-            onClick={() => setActiveTab('technicians')}
+          <button
+            onClick={() => handleTabChange('technicians')}
             className={cn(
               "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
               "hover:bg-white hover:text-slate-900",
@@ -504,8 +734,8 @@ const WorkOrdersByTechnician = () => {
               {Object.keys(technicianWorkOrders).length}
             </span>
           </button>
-          <button 
-            onClick={() => setActiveTab('unassigned')}
+          <button
+            onClick={() => handleTabChange('unassigned')}
             className={cn(
               "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
               "hover:bg-white hover:text-slate-900",
@@ -515,11 +745,11 @@ const WorkOrdersByTechnician = () => {
             <UserSlashIcon size={16} />
             <span>Nedodeljeni</span>
             <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {unassignedOrders.length}
+              {getAllUnassignedOrders().length}
             </span>
           </button>
-          <button 
-            onClick={() => setActiveTab('verification')}
+          <button
+            onClick={() => handleTabChange('verification')}
             className={cn(
               "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
               "hover:bg-white hover:text-slate-900",
@@ -532,8 +762,8 @@ const WorkOrdersByTechnician = () => {
               {verificationOrders.length}
             </span>
           </button>
-          <button 
-            onClick={() => setActiveTab('all')}
+          <button
+            onClick={() => handleTabChange('all')}
             className={cn(
               "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
               "hover:bg-white hover:text-slate-900",
@@ -543,7 +773,7 @@ const WorkOrdersByTechnician = () => {
             <ClipboardIcon size={16} />
             <span>Svi radni nalozi</span>
             <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {allWorkOrders.length}
+              {getAllWorkOrders().length}
             </span>
           </button>
         </div>
@@ -628,9 +858,9 @@ const WorkOrdersByTechnician = () => {
               <Button 
                 type="secondary" 
                 size="small" 
-                prefix={<RefreshIcon size={16} className={loading ? 'animate-spin' : ''} />} 
-                onClick={fetchData} 
-                disabled={loading}
+                prefix={<RefreshIcon size={16} className={(dashboardLoading || recentLoading || olderLoading) ? 'animate-spin' : ''} />}
+                onClick={fetchData}
+                disabled={dashboardLoading || recentLoading}
               >
                 Osveži
               </Button>
@@ -639,11 +869,11 @@ const WorkOrdersByTechnician = () => {
         </div>
       </div>
       
-      {loading ? (
+      {(dashboardLoading && recentLoading) ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-slate-600">Učitavanje podataka...</p>
+            <p className="text-slate-600">Učitavanje osnovnih podataka...</p>
           </div>
         </div>
       ) : (
@@ -744,6 +974,7 @@ const WorkOrdersByTechnician = () => {
                             {filteredTechOrders.length === 0 ? (
                               <div className="text-center py-8">
                                 <p className="text-slate-600">Nema radnih naloga koji odgovaraju pretrazi</p>
+                                {olderLoading && <p className="text-slate-500 text-sm mt-2">Učitavanje starijih naloga u pozadini...</p>}
                               </div>
                             ) : (
                               <>
@@ -845,7 +1076,10 @@ const WorkOrdersByTechnician = () => {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Nedodeljeni radni nalozi</h2>
-                    <p className="text-sm text-slate-600">{filteredUnassigned.length} naloga</p>
+                    <p className="text-sm text-slate-600">
+                      {recentLoading ? 'Učitavanje najnovijih...' : `${filteredUnassigned.length} naloga`}
+                      {olderLoading && <span className="ml-2 text-xs">(učitavanje starijih...)</span>}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -945,13 +1179,22 @@ const WorkOrdersByTechnician = () => {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Radni nalozi za verifikaciju</h2>
-                    <p className="text-sm text-slate-600">{filteredVerification.length} naloga</p>
+                    <p className="text-sm text-slate-600">
+                      {verificationLoading ? 'Učitavanje...' : `${filteredVerification.length} naloga`}
+                    </p>
                   </div>
                 </div>
               </div>
               
               <div className="p-6">
-                {filteredVerification.length === 0 ? (
+                {verificationLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+                      <p className="text-slate-600">Učitavanje naloga za verifikaciju...</p>
+                    </div>
+                  </div>
+                ) : filteredVerification.length === 0 ? (
                   <div className="text-center py-12">
                     <AlertIcon size={48} className="text-slate-400 mx-auto mb-4" />
                     <p className="text-slate-600">Nema radnih naloga za verifikaciju</p>
@@ -1070,7 +1313,10 @@ const WorkOrdersByTechnician = () => {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Svi radni nalozi</h2>
-                    <p className="text-sm text-slate-600">{filteredAllOrders.length} naloga</p>
+                    <p className="text-sm text-slate-600">
+                      {recentLoading ? 'Učitavanje najnovijih...' : `${filteredAllOrders.length} naloga`}
+                      {olderLoading && <span className="ml-2 text-xs">(učitavanje starijih...)</span>}
+                    </p>
                   </div>
                 </div>
               </div>

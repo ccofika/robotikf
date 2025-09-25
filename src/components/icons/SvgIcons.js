@@ -322,6 +322,18 @@ export const ChevronRightIcon = ({ size = 16, color = 'currentColor', className 
   </svg>
 );
 
+export const ChevronDownIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="6,9 12,15 18,9"/>
+  </svg>
+);
+
+export const ChevronUpIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="18,15 12,9 6,15"/>
+  </svg>
+);
+
 export const TrendingUpIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/>
@@ -388,6 +400,13 @@ export const CarIcon = ({ size = 16, color = 'currentColor', className = '' }) =
   </svg>
 );
 
+export const DollarSignIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="12" y1="1" x2="12" y2="23"/>
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+  </svg>
+);
+
 export const BellIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -437,6 +456,7 @@ export default {
   HardHatIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   TrendingUpIcon,
   BarChartIcon,
   RefreshIcon,
@@ -446,5 +466,6 @@ export default {
   UserCheckIcon,
   XIcon,
   CarIcon,
+  DollarSignIcon,
   BellIcon
 }; 

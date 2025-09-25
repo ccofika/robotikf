@@ -25,9 +25,9 @@ api.interceptors.request.use(
 );
 
 // Auth API
-// Auth API
 export const authAPI = {
   login: (credentials) => api.post('/api/auth/login', credentials),
+  refresh: () => api.post('/api/auth/refresh'),
 };
 
 // Equipment API
@@ -167,18 +167,107 @@ export const vehiclesAPI = {
   getStats: () => api.get('/api/vehicles/stats/overview'),
 };
 
-// Interceptor za obradu grešaka
+// Token utility funkcije
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+};
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+
+  failedQueue = [];
+};
+
+// Interceptor za automatski refresh tokena
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // Automatski odjavi korisnika ako dobijemo 401 Unauthorized
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Ako je refresh u toku, čekaj
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const token = localStorage.getItem('token');
+
+      if (token && !isTokenExpired(token)) {
+        try {
+          const response = await authAPI.refresh();
+          const { token: newToken, user } = response.data;
+
+          localStorage.setItem('token', newToken);
+          localStorage.setItem('user', JSON.stringify(user));
+
+          api.defaults.headers.Authorization = `Bearer ${newToken}`;
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+          processQueue(null, newToken);
+
+          return api(originalRequest);
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          processQueue(refreshError, null);
+
+          // Odjavi korisnika
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        // Token je expired ili ne postoji - odjavi korisnika
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
+
     return Promise.reject(error);
   }
 );
+
+// Finances API
+export const financesAPI = {
+  getSettings: () => api.get('/api/finances/settings'),
+  saveSettings: (data) => api.post('/api/finances/settings', data),
+  getMunicipalities: () => api.get('/api/finances/municipalities'),
+  getCustomerStatusOptions: () => api.get('/api/finances/customer-status-options'),
+  getTechnicians: () => api.get('/api/finances/technicians'),
+  getReports: (params) => api.get('/api/finances/reports', { params }),
+  getFailedTransactions: () => api.get('/api/finances/failed-transactions'),
+  retryFailedTransaction: (workOrderId) => api.post(`/api/finances/retry-failed-transaction/${workOrderId}`),
+  dismissFailedTransaction: (workOrderId) => api.delete(`/api/finances/failed-transaction/${workOrderId}`),
+  confirmDiscount: (data) => api.post('/api/finances/confirm-discount', data),
+};
 
 export default api;

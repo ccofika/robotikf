@@ -370,4 +370,4 @@ const WorkOrdersList = () => {
   );
 };
 
-export default WorkOrdersList;
+export default React.memo(WorkOrdersList);

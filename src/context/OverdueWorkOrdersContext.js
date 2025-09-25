@@ -30,6 +30,19 @@ export const OverdueWorkOrdersProvider = ({ children }) => {
       return;
     }
 
+    // Check if other critical operations are in progress
+    const otherLoadingIndicators = document.querySelectorAll('.loading, [data-loading="true"], .spinner');
+    if (otherLoadingIndicators.length > 0) {
+      console.log('OverdueWorkOrders: Deferring check - other operations in progress');
+      // Retry after 10 seconds when other operations might be completed
+      setTimeout(() => {
+        if (otherLoadingIndicators.length === 0) {
+          checkOverdueOrders();
+        }
+      }, 10000);
+      return;
+    }
+
     console.log('OverdueWorkOrders: Checking overdue orders for technician:', user._id);
     setLoading(true);
     try {
@@ -70,14 +83,21 @@ export const OverdueWorkOrdersProvider = ({ children }) => {
     return false;
   };
 
-  // Check for overdue orders periodically
+  // Check for overdue orders periodically with low priority
   useEffect(() => {
     if (user && user.role === 'technician') {
-      checkOverdueOrders();
-      
-      // Check every 2 minutes for updates
-      const interval = setInterval(checkOverdueOrders, 2 * 60 * 1000);
-      return () => clearInterval(interval);
+      // Initial check with delay to allow other data to load first
+      const initialTimeout = setTimeout(() => {
+        checkOverdueOrders();
+      }, 5000); // Wait 5 seconds before first check
+
+      // Check every 30 minutes for updates (less frequent to not interfere with other operations)
+      const interval = setInterval(checkOverdueOrders, 30 * 60 * 1000);
+
+      return () => {
+        clearTimeout(initialTimeout);
+        clearInterval(interval);
+      };
     }
   }, [user]);
 

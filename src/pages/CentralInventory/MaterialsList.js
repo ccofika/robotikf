@@ -7,8 +7,15 @@ import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 
 const MaterialsList = () => {
-  const [materials, setMaterials] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Prioritized loading states
+  const [dashboardStats, setDashboardStats] = useState(null); // Prvi prioritet: statistike
+  const [recentMaterials, setRecentMaterials] = useState([]); // Drugi prioritet: osnovni materijali
+  const [allMaterials, setAllMaterials] = useState([]); // Treći prioritet: svi materijali
+
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [allLoading, setAllLoading] = useState(true);
+
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleColumns, setVisibleColumns] = useState({
@@ -17,15 +24,29 @@ const MaterialsList = () => {
     actions: true
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
-  
+
   // Paginacija
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+
+  // Kombinovani materijali - koristi sve materijale ako su učitani, inače osnovne
+  const materials = allLoading ? recentMaterials : allMaterials;
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
-    fetchMaterials();
+    // Prvi prioritet: Učitaj dashboard statistike
+    fetchDashboardStats();
+
+    // Drugi prioritet: Učitaj osnovne materijale (prva stranica)
+    setTimeout(() => {
+      fetchRecentMaterials();
+    }, 300);
+
+    // Treći prioritet: Učitaj sve materijale u pozadini
+    setTimeout(() => {
+      fetchAllMaterials();
+    }, 1000);
   }, []);
   
   // Close column menu when clicking outside
@@ -42,26 +63,91 @@ const MaterialsList = () => {
     };
   }, [showColumnMenu]);
   
-  const fetchMaterials = async () => {
-    setLoading(true);
+  // Prvi prioritet: Učitaj samo osnovne statistike
+  const fetchDashboardStats = async () => {
+    setDashboardLoading(true);
     setError('');
-    
+
     try {
-      const response = await axios.get(`${apiUrl}/api/materials`);
-      setMaterials(response.data);
+      // Učitaj samo osnovne informacije za statistike
+      const response = await axios.get(`${apiUrl}/api/materials?stats=true`);
+      const materials = response.data;
+
+      const stats = {
+        total: materials.length,
+        outOfStock: materials.filter(item => item.quantity === 0).length,
+        lowStock: materials.filter(item => item.quantity > 0 && item.quantity < 5).length
+      };
+
+      setDashboardStats(stats);
     } catch (error) {
-      console.error('Greška pri učitavanju materijala:', error);
+      console.error('Greška pri učitavanju statistika:', error);
+      setError('Greška pri učitavanju statistika.');
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // Drugi prioritet: Učitaj osnovne materijale za prikaz
+  const fetchRecentMaterials = async () => {
+    setRecentLoading(true);
+
+    try {
+      // Učitaj samo prvu stranicu materijala
+      const response = await axios.get(`${apiUrl}/api/materials?limit=40`);
+      setRecentMaterials(response.data);
+    } catch (error) {
+      console.error('Greška pri učitavanju osnovnih materijala:', error);
       setError('Greška pri učitavanju materijala. Pokušajte ponovo.');
       toast.error('Neuspešno učitavanje materijala!');
     } finally {
-      setLoading(false);
+      setRecentLoading(false);
     }
+  };
+
+  // Treći prioritet: Učitaj sve materijale u pozadini
+  const fetchAllMaterials = async () => {
+    setAllLoading(true);
+
+    try {
+      const response = await axios.get(`${apiUrl}/api/materials`);
+      setAllMaterials(response.data);
+
+      // Ažuriraj statistike sa kompletnim podacima
+      const stats = {
+        total: response.data.length,
+        outOfStock: response.data.filter(item => item.quantity === 0).length,
+        lowStock: response.data.filter(item => item.quantity > 0 && item.quantity < 5).length
+      };
+      setDashboardStats(stats);
+    } catch (error) {
+      console.error('Greška pri učitavanju svih materijala:', error);
+      // Ne prikazuj grešku ako su osnovni materijali već učitani
+      if (recentMaterials.length === 0) {
+        setError('Greška pri učitavanju materijala. Pokušajte ponovo.');
+        toast.error('Neuspešno učitavanje materijala!');
+      }
+    } finally {
+      setAllLoading(false);
+    }
+  };
+
+  // Refresh funkcija - zadržava kompatibilnost
+  const fetchMaterials = async () => {
+    setDashboardLoading(true);
+    setRecentLoading(true);
+    setAllLoading(true);
+
+    await fetchDashboardStats();
+    await fetchRecentMaterials();
+    await fetchAllMaterials();
   };
   
   const handleDelete = async (id, type) => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete materijal "${type}"?`)) {
-      setLoading(true);
-      
+      setDashboardLoading(true);
+      setRecentLoading(true);
+
       try {
         await axios.delete(`${apiUrl}/api/materials/${id}`);
         toast.success('Materijal je uspešno obrisan!');
@@ -71,7 +157,8 @@ const MaterialsList = () => {
         const errorMessage = error.response?.data?.error || 'Greška pri brisanju materijala.';
         toast.error(errorMessage);
       } finally {
-        setLoading(false);
+        setDashboardLoading(false);
+        setRecentLoading(false);
       }
     }
   };
@@ -140,7 +227,7 @@ const MaterialsList = () => {
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Ukupno materijala</p>
-                <h3 className="text-lg font-bold text-slate-900">{filteredMaterials.length}</h3>
+                <h3 className="text-lg font-bold text-slate-900">{dashboardStats?.total || 0}</h3>
               </div>
             </div>
           </div>
@@ -148,13 +235,13 @@ const MaterialsList = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-10 h-10 bg-red-100 text-red-700 rounded-lg font-bold">
-                {filteredMaterials.filter(item => item.quantity === 0).length}
+                {dashboardStats?.outOfStock || 0}
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Nema na stanju</p>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {filteredMaterials.length ? 
-                    Math.round(filteredMaterials.filter(item => item.quantity === 0).length / filteredMaterials.length * 100) : 0}%
+                  {dashboardStats?.total ?
+                    Math.round((dashboardStats.outOfStock / dashboardStats.total) * 100) : 0}%
                 </h3>
               </div>
             </div>
@@ -163,13 +250,13 @@ const MaterialsList = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 text-yellow-700 rounded-lg font-bold">
-                {filteredMaterials.filter(item => item.quantity > 0 && item.quantity < 5).length}
+                {dashboardStats?.lowStock || 0}
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Malo na stanju</p>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {filteredMaterials.length ? 
-                    Math.round(filteredMaterials.filter(item => item.quantity > 0 && item.quantity < 5).length / filteredMaterials.length * 100) : 0}%
+                  {dashboardStats?.total ?
+                    Math.round((dashboardStats.lowStock / dashboardStats.total) * 100) : 0}%
                 </h3>
               </div>
             </div>
@@ -238,7 +325,7 @@ const MaterialsList = () => {
                 type="secondary"
                 size="medium"
                 onClick={fetchMaterials}
-                loading={loading}
+                loading={dashboardLoading || recentLoading || allLoading}
                 prefix={<RefreshIcon size={16} />}
               >
                 Osveži
@@ -247,7 +334,7 @@ const MaterialsList = () => {
           </div>
         </div>
         
-        {loading ? (
+        {(dashboardLoading || recentLoading) ? (
           <div className="flex items-center justify-center p-12">
             <div className="flex items-center space-x-3 text-slate-600">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
@@ -327,7 +414,7 @@ const MaterialsList = () => {
                                 size="small"
                                 prefix={<DeleteIcon size={14} />}
                                 onClick={() => handleDelete(material._id, material.type)}
-                                disabled={loading}
+                                disabled={dashboardLoading || recentLoading || allLoading}
                               >
                                 Obriši
                               </Button>

@@ -17,17 +17,18 @@ import { Button } from "../ui/button"
 import { ScrollArea } from "../ui/scroll-area"
 import { cn } from "../../lib/utils"
 import { AuthContext } from '../../context/AuthContext'
-import { 
-  ChartIcon, 
-  BoxIcon, 
-  ToolsIcon, 
-  ClipboardIcon, 
-  HardHatIcon, 
+import {
+  ChartIcon,
+  BoxIcon,
+  ToolsIcon,
+  ClipboardIcon,
+  HardHatIcon,
   UsersIcon,
   ExcelIcon,
   HistoryIcon,
   AlertTriangleIcon,
   CarIcon,
+  DollarSignIcon,
   LogoutIcon,
   UserIcon,
   BellIcon
@@ -158,18 +159,17 @@ export function ShadcnSidebar({ className }: SidebarProps) {
     }
   }
 
-  // Fetch unread count on component mount and when user changes
-  useEffect(() => {
-    fetchUnreadCount()
-  }, [user])
+  // DISABLED: Only fetch notifications when user explicitly opens notification panel
+  // useEffect(() => {
+  //   fetchUnreadCount()
+  // }, [user])
 
-  // Refresh unread count every 30 seconds
-  useEffect(() => {
-    if (!user) return
-
-    const interval = setInterval(fetchUnreadCount, 30000)
-    return () => clearInterval(interval)
-  }, [user])
+  // DISABLED: No automatic polling - notifications only refresh when user opens panel
+  // useEffect(() => {
+  //   if (!user) return
+  //   const interval = setInterval(fetchUnreadCount, 30 * 60 * 1000) // 30 minutes
+  //   return () => clearInterval(interval)
+  // }, [user])
 
   const adminMenuItems = [
     { 
@@ -206,11 +206,6 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       title: "Korisnici", 
       href: "/users", 
       icon: UsersIcon 
-    },
-    { 
-      title: "Export", 
-      href: "/export", 
-      icon: ExcelIcon 
     },
     { 
       title: "Logovi", 
@@ -252,7 +247,22 @@ export function ShadcnSidebar({ className }: SidebarProps) {
     },
   ]
 
-  const menuItems = user?.role === 'admin' ? adminMenuItems : technicianMenuItems
+  // SuperAdmin ima sve admin stranice + dodatne opcije
+  const superAdminMenuItems = [
+    ...adminMenuItems,
+    {
+      title: "Export",
+      href: "/export",
+      icon: ExcelIcon
+    },
+    {
+      title: "Finansije",
+      href: "/finances",
+      icon: DollarSignIcon
+    },
+  ]
+
+  const menuItems = user?.role === 'superadmin' ? superAdminMenuItems : (user?.role === 'admin' ? adminMenuItems : technicianMenuItems)
 
   const getUserInitials = (name: string) => {
     return name
@@ -341,7 +351,13 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start mb-2 relative"
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  // Refresh notifications only when user explicitly opens panel
+                  if (!showNotifications) {
+                    fetchUnreadCount();
+                  }
+                  setShowNotifications(!showNotifications);
+                }}
               >
                 <BellIcon className="mr-3 h-4 w-4" />
                 <span>Notifikacije</span>
@@ -397,12 +413,15 @@ export function ShadcnSidebar({ className }: SidebarProps) {
           onClose={() => {
             setShowNotifications(false)
           }}
-          position={{ 
-            bottom: 20, 
+          position={{
+            bottom: 20,
             left: 20,
             right: 20
           }}
-          onNotificationUpdate={fetchUnreadCount}
+          onNotificationUpdate={() => {
+            // Decrement unread count locally instead of making API call
+            setUnreadCount(prev => Math.max(0, prev - 1))
+          }}
         />
       </>
     )
@@ -499,7 +518,13 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  // Refresh notifications only when user explicitly opens panel
+                  if (!showNotifications) {
+                    fetchUnreadCount();
+                  }
+                  setShowNotifications(!showNotifications);
+                }}
                 title={isCollapsed ? "Notifikacije" : undefined}
               >
                 <BellIcon size={18} className="shrink-0" />
@@ -573,7 +598,10 @@ export function ShadcnSidebar({ className }: SidebarProps) {
           bottom: 20, 
           left: isCollapsed ? 64 : 256 
         }}
-        onNotificationUpdate={fetchUnreadCount}
+        onNotificationUpdate={() => {
+          // Decrement unread count locally instead of making API call
+          setUnreadCount(prev => Math.max(0, prev - 1))
+        }}
       />
 
       {/* Account Modal */}

@@ -9,7 +9,16 @@ import { cn } from '../../utils/cn';
 
 const EquipmentList = () => {
   const [equipment, setEquipment] = useState([]);
+  const [recentEquipment, setRecentEquipment] = useState([]); // Najskorije dodata oprema
+  const [olderEquipment, setOlderEquipment] = useState([]); // Starija oprema
+  const [dashboardStats, setDashboardStats] = useState(null); // Dashboard statistike
+  const [availableCategories, setAvailableCategories] = useState([]); // Kategorije
+
   const [loading, setLoading] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [olderLoading, setOlderLoading] = useState(true);
+
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
@@ -21,9 +30,8 @@ const EquipmentList = () => {
     actions: true
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
-  
+
   const [technicians, setTechnicians] = useState([]);
-  const [users, setUsers] = useState([]);
 
   // Modalni prozor za dodavanje pojedinačne opreme
   const [showAddModal, setShowAddModal] = useState(false);
@@ -41,10 +49,23 @@ const EquipmentList = () => {
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
+  // Prioritetno učitavanje podataka
   useEffect(() => {
-    fetchEquipment();
+    // Prvo prioritet: Dashboard statistike i kategorije
+    fetchDashboardAndCategories();
+
+    // Tehničare učitavamo odmah jer nisu kritični za UI
     fetchTechnicians();
-    fetchUsers();
+
+    // Drugi prioritet: Najskorija oprema (poslednja 2 dana)
+    setTimeout(() => {
+      fetchRecentEquipment();
+    }, 500); // Kratka pauza da dashboard statistike stignu prve
+
+    // Treći prioritet: Starija oprema u pozadini
+    setTimeout(() => {
+      fetchOlderEquipment();
+    }, 2000); // Učitava tek nakon što se sve ostalo učita
   }, []);
   
   // Close column menu when clicking outside
@@ -61,15 +82,118 @@ const EquipmentList = () => {
     };
   }, [showColumnMenu]);
   
+  // PRIORITET 1: Dashboard statistike i kategorije (najbrže učitavanje)
+  const fetchDashboardAndCategories = async () => {
+    setDashboardLoading(true);
+    try {
+      const response = await equipmentAPI.getDisplay();
+      const filteredData = response.data.filter(item =>
+        item.location === 'magacin' ||
+        (item.location && item.location.startsWith('tehnicar-'))
+      );
+
+      // Izvlačimo samo kategorije za dashboard
+      const categories = [...new Set(filteredData.map(item => item.category))];
+      setAvailableCategories(categories);
+
+      // Osnovne statistike za dashboard
+      const stats = {
+        total: filteredData.length,
+        inWarehouse: filteredData.filter(item => item.location === 'magacin').length,
+        assigned: filteredData.filter(item => item.location !== 'magacin').length
+      };
+      setDashboardStats(stats);
+
+    } catch (error) {
+      console.error('Greška pri učitavanju dashboard podataka:', error);
+      setError('Greška pri učitavanju osnovnih podataka.');
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // PRIORITET 2: Najskorije dodata oprema (poslednja 2 dana)
+  const fetchRecentEquipment = async () => {
+    setRecentLoading(true);
+    try {
+      const response = await equipmentAPI.getDisplay();
+      const filteredData = response.data.filter(item =>
+        item.location === 'magacin' ||
+        (item.location && item.location.startsWith('tehnicar-'))
+      );
+
+      // Filtriramo opremu dodatu u poslednja 2 dana
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      const recentData = filteredData.filter(item => {
+        if (item.createdAt) {
+          const createdDate = new Date(item.createdAt);
+          return createdDate >= twoDaysAgo;
+        }
+        // Ako nema createdAt, uzimamo poslednje dodane po ID-u
+        return false;
+      });
+
+      // Ako nema podataka o datumu kreiranja, uzimamo poslednje dodane
+      const sortedRecent = recentData.length > 0 ? recentData : filteredData.slice(-20);
+
+      setRecentEquipment(sortedRecent);
+
+      // Odmah kombinujemo sa dashboard podacima za osnovni prikaz
+      setEquipment(sortedRecent);
+
+    } catch (error) {
+      console.error('Greška pri učitavanju najskorije opreme:', error);
+    } finally {
+      setRecentLoading(false);
+    }
+  };
+
+  // PRIORITET 3: Starija oprema (učitava u pozadini)
+  const fetchOlderEquipment = async () => {
+    setOlderLoading(true);
+    try {
+      const response = await equipmentAPI.getDisplay();
+      const filteredData = response.data.filter(item =>
+        item.location === 'magacin' ||
+        (item.location && item.location.startsWith('tehnicar-'))
+      );
+
+      // Filtriramo stariju opremu (stariju od 2 dana)
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      const olderData = filteredData.filter(item => {
+        if (item.createdAt) {
+          const createdDate = new Date(item.createdAt);
+          return createdDate < twoDaysAgo;
+        }
+        // Ako nema createdAt, uzimamo sve osim poslednih 20
+        return true;
+      });
+
+      setOlderEquipment(olderData);
+
+      // Sada kombinujemo svu opremu (najskorija + starija)
+      setEquipment([...recentEquipment, ...olderData]);
+
+    } catch (error) {
+      console.error('Greška pri učitavanju starije opreme:', error);
+    } finally {
+      setOlderLoading(false);
+    }
+  };
+
+  // Zadržavam staru funkciju za refresh dugme
   const fetchEquipment = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await equipmentAPI.getDisplay();
-      // Filtriramo opremu da prikaže samo onu iz magacina i kod tehničara
-      const filteredData = response.data.filter(item => 
-        item.location === 'magacin' || 
+      const filteredData = response.data.filter(item =>
+        item.location === 'magacin' ||
         (item.location && item.location.startsWith('tehnicar-'))
       );
       setEquipment(filteredData);
@@ -91,14 +215,6 @@ const EquipmentList = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get(`${apiUrl}/api/users`);
-      setUsers(response.data);
-    } catch (error) {
-      console.error('Greška pri učitavanju korisnika:', error);
-    }
-  };
   
   // Filtriranje i pretraga opreme
   const filteredEquipment = useMemo(() => {
@@ -114,10 +230,13 @@ const EquipmentList = () => {
     });
   }, [equipment, searchTerm, locationFilter, selectedCategory]);
   
-  // Dobijanje jedinstvenih vrednosti za filtere
+  // Dobijanje jedinstvenih vrednosti za filtere - koristi dashboard podatke kad su dostupni
   const categories = useMemo(() => {
+    if (availableCategories.length > 0) {
+      return availableCategories;
+    }
     return [...new Set(equipment.map(item => item.category))];
-  }, [equipment]);
+  }, [equipment, availableCategories]);
   
   // Dobijanje broja elemenata po kategoriji
   const getCategoryCount = (category) => {
@@ -699,4 +818,4 @@ const EquipmentList = () => {
   );
 };
 
-export default EquipmentList;
+export default React.memo(EquipmentList);
