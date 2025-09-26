@@ -62,16 +62,18 @@ const WorkOrdersUpload = () => {
         }
       );
       
-      const { newWorkOrders, newUsers, existingUsers, errors } = response.data;
-      
+      const { newWorkOrders, newUsers, existingUsers, errors, duplicates } = response.data;
+
       setParseResults({
         workOrdersAdded: newWorkOrders?.length || 0,
         usersAdded: newUsers?.length || 0,
         usersUpdated: existingUsers?.length || 0,
-        errors: errors || []
+        errors: errors || [],
+        duplicates: duplicates || []
       });
       
-      setSuccessMessage(`Uspešno dodato ${newWorkOrders?.length || 0} radnih naloga i ${newUsers?.length || 0} novih korisnika!`);
+      const duplicateMessage = duplicates?.length > 0 ? ` (${duplicates.length} duplikat${duplicates.length === 1 ? '' : 'a'} preskočen${duplicates.length === 1 ? '' : 'o'})` : '';
+      setSuccessMessage(`Uspešno dodato ${newWorkOrders?.length || 0} radnih naloga i ${newUsers?.length || 0} novih korisnika!${duplicateMessage}`);
       toast.success('Uspešno dodavanje radnih naloga!');
       setFile(null);
       
@@ -334,7 +336,7 @@ const WorkOrdersUpload = () => {
               </div>
               
               {parseResults.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                   <h4 className="font-semibold text-red-800 mb-2">Greške prilikom obrade:</h4>
                   <ul className="space-y-1">
                     {parseResults.errors.map((err, index) => (
@@ -344,6 +346,48 @@ const WorkOrdersUpload = () => {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {parseResults.duplicates.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-orange-800 mb-2">Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
+                  <p className="text-sm text-orange-700 mb-3">Sledeći radni nalozi već postoje u sistemu i nisu dodati:</p>
+                  <div className="space-y-3">
+                    {parseResults.duplicates.map((duplicate, index) => (
+                      <div key={index} className="bg-white border border-orange-200 rounded-lg p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium text-slate-700">Adresa:</span>
+                            <p className="text-slate-600">{duplicate.address}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Korisnik:</span>
+                            <p className="text-slate-600">{duplicate.userName}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">TIS ID:</span>
+                            <p className="text-slate-600">{duplicate.tisId}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Datum i vreme:</span>
+                            <p className="text-slate-600">{duplicate.date} {duplicate.time}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Tehničar:</span>
+                            <p className="text-slate-600">{duplicate.technicianName1}{duplicate.technicianName2 ? `, ${duplicate.technicianName2}` : ''}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Paket:</span>
+                            <p className="text-slate-600">{duplicate.packageName}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-orange-100">
+                          <span className="text-xs text-orange-700">{duplicate.reason}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

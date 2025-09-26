@@ -1,34 +1,41 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { 
-  ChartIcon, 
-  CheckIcon, 
-  HardHatIcon, 
-  ClockIcon, 
-  CalendarIcon, 
+import {
+  ClockIcon,
   RefreshIcon,
   TrendingUpIcon,
   BarChartIcon,
+  HardHatIcon,
+  ChartIcon,
+  CheckIcon,
   CloseIcon
 } from '../../../components/icons/SvgIcons';
 import { Button } from '../../../components/ui/button-1';
 import { cn } from '../../../utils/cn';
 import TotalSalesChart from '../../../components/ui/total-sales-chart';
+import GlobalDashboardFilters from '../../../components/ui/GlobalDashboardFilters';
+import DrilldownModal from '../../../components/ui/DrilldownModal';
+import TrendChart from '../../../components/ui/TrendChart';
+import KPITrendCards from '../../../components/ui/KPITrendCards';
+import CancellationAnalysis from '../../../components/ui/CancellationAnalysis';
+import HourlyActivityDistribution from '../../../components/ui/HourlyActivityDistribution';
+import InteractiveActivityMap from '../../../components/ui/InteractiveActivityMap';
+import PredictiveAnalytics from '../../../components/ui/PredictiveAnalytics';
+import FinancialAnalysis from '../../../components/ui/FinancialAnalysis';
+import TechnicianComparison from '../../../components/ui/TechnicianComparison';
+import RealTimeAlerts from '../../../components/ui/RealTimeAlerts';
+import AnomalyDetection from '../../../components/ui/AnomalyDetection';
+import { useGlobalDashboardFilters } from '../../../hooks/useGlobalDashboardFilters';
+import { useDrilldownData } from '../../../hooks/useDrilldownData';
 import { processActivityData, getActivityFilterOptions } from '../../../utils/activityDataProcessor';
 
-const DashboardSection = ({ 
-  dashboardData, 
-  dashboardFilters, 
-  handleDashboardFilterChange, 
-  resetDashboardFilters, 
-  filterOptions, 
-  loading,
-  handleDateRangeModeToggle,
-  handleDismissWorkOrder,
+const DashboardSection = ({
   technicianLogs = [],
-  userLogs = []
+  userLogs = [],
+  handleDismissWorkOrder,
+  filterOptions = { technicians: [], municipalities: [], actions: [] }
 }) => {
-  
-  // Activity chart state - separate from dashboard filters for instant updates  
+
+  // Activity chart state
   const [activityPeriod, setActivityPeriod] = useState('all');
 
   // Completion time analytics state
@@ -37,28 +44,837 @@ const DashboardSection = ({
   const [completionTimePeriod, setCompletionTimePeriod] = useState('all');
   const [selectedTechnician, setSelectedTechnician] = useState('all');
 
+  // Dashboard data state
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+
+  // Trend data state
+  const [kpiData, setKpiData] = useState([]);
+  const [trendChartsData, setTrendChartsData] = useState([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+
+  // Cancellation analysis state
+  const [cancellationData, setCancellationData] = useState([]);
+  const [cancellationLoading, setCancellationLoading] = useState(false);
+  const [cancellationError, setCancellationError] = useState(null);
+  const [cancellationTimeRange, setCancellationTimeRange] = useState('30d');
+
+  // Hourly activity distribution state
+  const [hourlyActivityData, setHourlyActivityData] = useState([]);
+  const [hourlyActivityLoading, setHourlyActivityLoading] = useState(false);
+  const [hourlyActivityError, setHourlyActivityError] = useState(null);
+  const [hourlyActivityTimeRange, setHourlyActivityTimeRange] = useState('30d');
+
+  // Interactive map state
+  const [mapData, setMapData] = useState([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapError, setMapError] = useState(null);
+  const [mapTimeRange, setMapTimeRange] = useState('30d');
+
+  // Predictive analytics state
+  const [predictiveData, setPredictiveData] = useState([]);
+  const [predictiveLoading, setPredictiveLoading] = useState(false);
+  const [predictiveError, setPredictiveError] = useState(null);
+  const [predictiveTimeRange, setPredictiveTimeRange] = useState('30d');
+
+  // Global filters hook
+  const {
+    filters,
+    loading: filtersLoading,
+    error: filtersError,
+    filterSummary,
+    effectiveDateRange,
+    comparisonDateRange,
+    updateFilter,
+    updateFilters,
+    updateMunicipalities,
+    toggleRegion,
+    applyFilters,
+    resetFilters,
+    toggleComparison,
+    toggleTrends,
+    DATE_PRESETS,
+    SERBIA_REGIONS,
+    SERVICE_TYPES,
+    ACTION_TYPES,
+    STATUS_TYPES,
+    PRIORITY_LEVELS,
+    WORK_ORDER_TYPES,
+    ISSUE_CATEGORIES
+  } = useGlobalDashboardFilters(handleGlobalFiltersChange);
+
+  // Drill-down functionality
+  const {
+    drilldownState,
+    handleChartClick,
+    closeDrilldown,
+    handleViewDetails,
+    handleExportData,
+    isDrilldownAvailable
+  } = useDrilldownData();
+
+  // Handle global filters change
+  async function handleGlobalFiltersChange(filterData) {
+    console.log('Global filters changed:', filterData);
+
+    setDashboardLoading(true);
+    try {
+      // Apply filters to all dashboard components
+      await Promise.all([
+        fetchCompletionTimeData(filterData),
+        fetchTrendData(filterData),
+        fetchCancellationData(filterData),
+        fetchHourlyActivityData(filterData),
+        fetchMapData(filterData),
+        fetchPredictiveData(filterData),
+        // Add other dashboard data fetching here
+      ]);
+    } catch (error) {
+      console.error('Error applying global filters:', error);
+    } finally {
+      setDashboardLoading(false);
+    }
+  }
+
+  // Fetch trend data for KPIs and charts
+  const fetchTrendData = async (filterData = null) => {
+    if (!filterData || !filterData.comparisonDateRange) {
+      // No comparison data needed
+      return;
+    }
+
+    setTrendLoading(true);
+    try {
+      const params = new URLSearchParams();
+
+      // Current period parameters
+      if (filterData.startDate) params.append('currentStart', filterData.startDate.toISOString());
+      if (filterData.endDate) params.append('currentEnd', filterData.endDate.toISOString());
+
+      // Comparison period parameters
+      if (filterData.comparisonDateRange) {
+        params.append('comparisonStart', filterData.comparisonDateRange.startDate.toISOString());
+        params.append('comparisonEnd', filterData.comparisonDateRange.endDate.toISOString());
+      }
+
+      // Filter parameters
+      if (filterData.technician && filterData.technician !== 'all') params.append('technician', filterData.technician);
+      if (filterData.municipalities && filterData.municipalities.length > 0) {
+        params.append('municipalities', filterData.municipalities.join(','));
+      }
+      if (filterData.serviceType && filterData.serviceType !== 'all') params.append('serviceType', filterData.serviceType);
+      if (filterData.actionType && filterData.actionType !== 'all') params.append('actionType', filterData.actionType);
+
+      // Fetch KPI data
+      const kpiResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/dashboard/kpi-trends?${params.toString()}`);
+      if (kpiResponse.ok) {
+        const kpiData = await kpiResponse.json();
+        setKpiData(kpiData.data || []);
+      }
+
+      // Fetch trend charts data
+      const trendsResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/dashboard/trend-charts?${params.toString()}`);
+      if (trendsResponse.ok) {
+        const trendsData = await trendsResponse.json();
+        setTrendChartsData(trendsData.data || []);
+      }
+
+    } catch (error) {
+      console.error('Error fetching trend data:', error);
+    } finally {
+      setTrendLoading(false);
+    }
+  };
+
+  // Fetch cancellation analysis data from new dedicated endpoint
+  const fetchCancellationData = async (filterData = null, timeRange = cancellationTimeRange) => {
+    setCancellationLoading(true);
+    setCancellationError(null);
+    try {
+      const params = new URLSearchParams();
+
+      // Add time range parameter
+      params.append('timeRange', timeRange);
+
+      // Apply filters if provided
+      if (filterData) {
+        if (filterData.technician && filterData.technician !== 'all') {
+          params.append('technician', filterData.technician);
+        }
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          params.append('municipalities', filterData.municipalities.join(','));
+        }
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/dashboard/cancellation-analysis?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch cancellation analysis data');
+
+      const data = await response.json();
+
+      // The API now returns properly structured cancellation data
+      setCancellationData(data.data || []);
+    } catch (error) {
+      console.error('Error fetching cancellation data:', error);
+      setCancellationError(error.message || 'Greška pri učitavanju podataka o otkazivanju');
+      // Generate mock data for demonstration if API fails
+      setCancellationData(generateMockCancellationData());
+    } finally {
+      setCancellationLoading(false);
+    }
+  };
+
+
+  // Generate mock cancellation data for demonstration
+  const generateMockCancellationData = () => {
+    const reasons = [
+      'Korisnik nije kod kuće',
+      'Neispravna adresa',
+      'Nema signala',
+      'Materijal nedostupan',
+      'Kašnjenje tehničara',
+      'Kvar opreme',
+      'Korisnik odustao',
+      'Vremenski uslovi',
+      'Ostali razlozi'
+    ];
+
+    const technicians = ['Marko Petrović', 'Jovana Nikolić', 'Stefan Jovanović', 'Ana Milić'];
+    const municipalities = ['Beograd', 'Novi Sad', 'Zemun', 'Novi Beograd', 'Zvezdara', 'Vračar', 'Stari Grad'];
+    const types = ['Instalacija', 'Servis', 'Dijagnostika', 'Održavanje'];
+
+    const mockData = [];
+    const now = new Date();
+
+    for (let i = 0; i < 50; i++) {
+      const randomDate = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+      const reason = reasons[Math.floor(Math.random() * reasons.length)];
+
+      mockData.push({
+        id: `mock-${i}`,
+        workOrderId: `mock-wo-${i}`,
+        tisJobId: `TIS-${10000 + i}`,
+        timestamp: randomDate.toISOString(),
+        technician: technicians[Math.floor(Math.random() * technicians.length)],
+        municipality: municipalities[Math.floor(Math.random() * municipalities.length)],
+        address: `Test adresa ${i + 1}`,
+        userName: `Korisnik ${i + 1}`,
+        type: types[Math.floor(Math.random() * types.length)],
+        cancellationReason: reason,
+        cancellationComment: `Mock komentar za ${reason.toLowerCase()}`,
+        responseTime: Math.random() * 240 + 30, // 30-270 minutes
+        status: 'cancelled',
+        date: randomDate.toISOString(),
+        createdAt: new Date(randomDate.getTime() - Math.random() * 2 * 60 * 60 * 1000).toISOString() // Created 0-2 hours before cancellation
+      });
+    }
+
+    return mockData;
+  };
+
+  // Handle cancellation time range change
+  const handleCancellationTimeRangeChange = (timeRange) => {
+    setCancellationTimeRange(timeRange);
+    fetchCancellationData(null, timeRange);
+  };
+
+  // Handle cancellation data refresh
+  const handleCancellationRefresh = () => {
+    fetchCancellationData(null, cancellationTimeRange);
+  };
+
+  // Handle cancellation data export
+  const handleCancellationExport = (analysisData) => {
+    const csvContent = convertCancellationDataToCSV(analysisData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `analiza-otkazivanja-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Convert cancellation analysis data to CSV
+  const convertCancellationDataToCSV = (analysisData) => {
+    const headers = [
+      'Razlog otkazivanja',
+      'Broj slučajeva',
+      'Procenat',
+      'Trend',
+      'Prosečno vreme odgovora',
+      'Broj tehničara',
+      'Broj opština',
+      'Poslednji incidenti (7 dana)'
+    ];
+
+    const rows = analysisData.reasons.map(reason => [
+      reason.reason,
+      reason.count,
+      `${reason.percentage.toFixed(1)}%`,
+      `${(reason.trend * 100).toFixed(1)}%`,
+      `${Math.round(reason.avgResponseTime)} min`,
+      reason.technicians.length,
+      reason.locations.length,
+      reason.recentIncidents.length
+    ]);
+
+    return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  };
+
+  // Fetch hourly activity distribution data from new dedicated endpoint
+  const fetchHourlyActivityData = async (filterData = null, timeRange = hourlyActivityTimeRange) => {
+    setHourlyActivityLoading(true);
+    setHourlyActivityError(null);
+    try {
+      const params = new URLSearchParams();
+
+      // Add time range parameter
+      params.append('timeRange', timeRange);
+
+      // Apply filters if provided
+      if (filterData) {
+        if (filterData.technician && filterData.technician !== 'all') {
+          params.append('technician', filterData.technician);
+        }
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          params.append('municipalities', filterData.municipalities.join(','));
+        }
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/dashboard/hourly-activity-distribution?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch hourly activity distribution data');
+
+      const data = await response.json();
+
+      // The API now returns properly structured hourly activity data
+      setHourlyActivityData(data.data || []);
+    } catch (error) {
+      console.error('Error fetching hourly activity data:', error);
+      setHourlyActivityError(error.message || 'Greška pri učitavanju podataka o aktivnostima');
+      // Generate mock data for demonstration if API fails
+      setHourlyActivityData(generateMockHourlyActivityData());
+    } finally {
+      setHourlyActivityLoading(false);
+    }
+  };
+
+
+  // Generate mock hourly activity data for demonstration
+  const generateMockHourlyActivityData = () => {
+    const actions = [
+      'workorder_finished', 'workorder_created', 'workorder_assigned', 'material_added',
+      'equipment_added', 'comment_added', 'image_added', 'workorder_status_changed'
+    ];
+    const activityTypes = [
+      'Rad sa nalozima', 'Upravljanje statusom', 'Materijali', 'Oprema', 'Dokumentacija'
+    ];
+    const priorities = ['high', 'medium', 'low', 'normal'];
+    const technicians = ['Marko Petrović', 'Jovana Nikolić', 'Stefan Jovanović', 'Ana Milić'];
+    const municipalities = ['Beograd', 'Novi Sad', 'Zemun', 'Novi Beograd', 'Zvezdara', 'Vračar', 'Stari Grad'];
+    const workOrderTypes = ['Instalacija', 'Servis', 'Dijagnostika', 'Održavanje'];
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+    const mockData = [];
+    const now = new Date();
+
+    // Generate activities across different hours and days
+    for (let i = 0; i < 500; i++) {
+      const randomDate = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+
+      // Bias towards working hours (8-18)
+      const isWorkingHours = Math.random() < 0.7;
+      if (isWorkingHours) {
+        randomDate.setHours(8 + Math.floor(Math.random() * 10)); // 8-17
+      } else {
+        randomDate.setHours(Math.floor(Math.random() * 24)); // Any hour
+      }
+
+      const action = actions[Math.floor(Math.random() * actions.length)];
+
+      mockData.push({
+        id: `activity-${i}`,
+        timestamp: randomDate.toISOString(),
+        hour: randomDate.getHours(),
+        dayOfWeek: daysOfWeek[randomDate.getDay()],
+        technician: technicians[Math.floor(Math.random() * technicians.length)],
+        municipality: municipalities[Math.floor(Math.random() * municipalities.length)],
+        address: `Test adresa ${i + 1}`,
+        workOrderId: `wo-${2000 + i}`,
+        tisJobId: `TIS-${20000 + i}`,
+        action: action,
+        activityType: activityTypes[Math.floor(Math.random() * activityTypes.length)],
+        activityPriority: priorities[Math.floor(Math.random() * priorities.length)],
+        description: `Mock description for ${action}`,
+        responseTime: Math.random() * 180 + 15, // 15-195 minutes
+        workOrderType: workOrderTypes[Math.floor(Math.random() * workOrderTypes.length)],
+        userName: `Korisnik ${i + 1}`
+      });
+    }
+
+    return mockData;
+  };
+
+  // Handle hourly activity time range change
+  const handleHourlyActivityTimeRangeChange = (timeRange) => {
+    setHourlyActivityTimeRange(timeRange);
+    fetchHourlyActivityData(null, timeRange);
+  };
+
+  // Handle hourly activity refresh
+  const handleHourlyActivityRefresh = () => {
+    fetchHourlyActivityData(null, hourlyActivityTimeRange);
+  };
+
+  // Handle hourly activity export
+  const handleHourlyActivityExport = (analysisData) => {
+    const csvContent = convertHourlyActivityDataToCSV(analysisData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `distribucija-aktivnosti-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Convert hourly activity analysis data to CSV
+  const convertHourlyActivityDataToCSV = (analysisData) => {
+    const headers = [
+      'Sat',
+      'Period',
+      'Broj aktivnosti',
+      'Procenat',
+      'Broj tehničara',
+      'Broj opština',
+      'Prosečno vreme odgovora'
+    ];
+
+    const rows = analysisData.hourlyData.map(hour => [
+      `${hour.hour.toString().padStart(2, '0')}:00`,
+      hour.hour >= 6 && hour.hour < 12 ? 'Jutro' :
+      hour.hour >= 12 && hour.hour < 18 ? 'Popodne' :
+      hour.hour >= 18 && hour.hour < 24 ? 'Veče' : 'Noć',
+      hour.totalActivities,
+      `${hour.percentage.toFixed(1)}%`,
+      hour.technicians.length,
+      hour.municipalities.length,
+      hour.averageResponseTime > 0 ? `${Math.round(hour.averageResponseTime)} min` : 'N/A'
+    ]);
+
+    return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  };
+
+  // Fetch map data for geographic visualization
+  // Fetch interactive map data from new dedicated endpoint
+  const fetchMapData = async (filterData = null, timeRange = mapTimeRange) => {
+    setMapLoading(true);
+    setMapError(null);
+    try {
+      const params = new URLSearchParams();
+
+      // Add time range parameter
+      params.append('timeRange', timeRange);
+
+      // Apply filters if provided
+      if (filterData) {
+        if (filterData.technician && filterData.technician !== 'all') {
+          params.append('technician', filterData.technician);
+        }
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          params.append('municipalities', filterData.municipalities.join(','));
+        }
+        if (filterData.activityType && filterData.activityType !== 'all') {
+          params.append('activityType', filterData.activityType);
+        }
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/dashboard/interactive-map?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch interactive map data');
+
+      const data = await response.json();
+
+      // The API now returns properly structured map data
+      setMapData(data.data || []);
+    } catch (error) {
+      console.error('Error fetching map data:', error);
+      setMapError(error.message || 'Greška pri učitavanju mape aktivnosti');
+      // Generate mock data for demonstration if API fails
+      setMapData(generateMockMapData());
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  // Generate mock map data for demonstration
+  const generateMockMapData = () => {
+    const actions = [
+      'workorder_finished', 'workorder_created', 'workorder_assigned', 'material_added',
+      'equipment_added', 'comment_added', 'image_added', 'workorder_status_changed',
+      'workorder_cancelled', 'workorder_postponed'
+    ];
+    const activityTypes = [
+      'Radni nalozi', 'Materijali', 'Oprema', 'Dokumentacija', 'Status promene'
+    ];
+    const priorities = ['high', 'medium', 'low', 'normal'];
+    const statuses = ['zavrsen', 'nezavrsen', 'otkazan', 'odlozen'];
+    const types = ['Instalacija', 'Servis', 'Dijagnostika', 'Održavanje'];
+    const technicians = ['Marko Petrović', 'Jovana Nikolić', 'Stefan Jovanović', 'Ana Milić', 'Petar Milanović'];
+    const municipalities = [
+      'Beograd', 'Novi Sad', 'Niš', 'Kragujevac', 'Subotica', 'Novi Pazar',
+      'Zemun', 'Pančevo', 'Čačak', 'Novi Beograd', 'Zvezdara', 'Vračar', 'Stari Grad', 'Palilula', 'Savski Venac'
+    ];
+
+    const mockData = [];
+    const now = new Date();
+
+    // Generate activities with geographic distribution
+    for (let i = 0; i < 800; i++) {
+      const randomDate = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+      const municipality = municipalities[Math.floor(Math.random() * municipalities.length)];
+      const action = actions[Math.floor(Math.random() * actions.length)];
+
+      mockData.push({
+        id: `map-activity-${i}`,
+        timestamp: randomDate.toISOString(),
+        municipality,
+        address: `Mock adresa ${i + 1}, ${municipality}`,
+        technician: technicians[Math.floor(Math.random() * technicians.length)],
+        userName: `Korisnik ${i + 1}`,
+        action: action,
+        activityType: activityTypes[Math.floor(Math.random() * activityTypes.length)],
+        priority: priorities[Math.floor(Math.random() * priorities.length)],
+        status: statuses[Math.floor(Math.random() * statuses.length)],
+        type: types[Math.floor(Math.random() * types.length)],
+        responseTime: Math.random() * 180 + 15, // 15-195 minutes
+        workOrderId: `wo-${3000 + i}`,
+        description: `Mock description for ${action}`,
+        source: Math.random() > 0.5 ? 'workorder' : 'log'
+      });
+    }
+
+    return mockData;
+  };
+
+  // Handle map time range change
+  const handleMapTimeRangeChange = (timeRange) => {
+    setMapTimeRange(timeRange);
+    fetchMapData(null, timeRange);
+  };
+
+  // Handle map refresh
+  const handleMapRefresh = () => {
+    fetchMapData(null, mapTimeRange);
+  };
+
+  // Handle map export
+  const handleMapExport = (analysisData) => {
+    const csvContent = convertMapDataToCSV(analysisData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `mapa-aktivnosti-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Handle map location click
+  const handleMapLocationClick = (locationData) => {
+    // Open drill-down with location-specific data
+    handleChartClick({
+      chartType: 'location',
+      segment: 'municipality',
+      municipality: locationData.municipality,
+      label: `Opština - ${locationData.municipality}`,
+      value: locationData.activities,
+      additionalFilters: {
+        startDate: effectiveDateRange.startDate?.toISOString(),
+        endDate: effectiveDateRange.endDate?.toISOString(),
+        municipality: locationData.municipality
+      }
+    });
+  };
+
+  // Convert map analysis data to CSV
+  const convertMapDataToCSV = (analysisData) => {
+    const headers = [
+      'Opština',
+      'Region',
+      'Broj aktivnosti',
+      'Broj tehničara',
+      'Prosečno vreme odgovora',
+      'Stopa završavanja',
+      'Stopa hitnosti',
+      'Trend',
+      'Gustina'
+    ];
+
+    const rows = analysisData.municipalityData.map(municipality => [
+      municipality.municipality,
+      municipality.coordinates.region,
+      municipality.totalActivities,
+      municipality.technicians.length,
+      `${Math.round(municipality.averageResponseTime)} min`,
+      `${municipality.completionRate.toFixed(1)}%`,
+      `${municipality.urgencyRate.toFixed(1)}%`,
+      `${(municipality.trend * 100).toFixed(1)}%`,
+      municipality.density
+    ]);
+
+    return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  };
+
+  // Fetch predictive analytics data
+  const fetchPredictiveData = async (filterData = null, timeRange = predictiveTimeRange) => {
+    setPredictiveLoading(true);
+    setPredictiveError(null);
+    try {
+      const params = new URLSearchParams();
+
+      // Calculate date range based on timeRange parameter for historical data
+      const now = new Date();
+      let startDate, endDate = now;
+
+      switch (timeRange) {
+        case '7d':
+          startDate = new Date(now - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90d':
+          startDate = new Date(now - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case '180d':
+          startDate = new Date(now - 180 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now - 30 * 24 * 60 * 60 * 1000);
+      }
+
+      // Use existing technician logs API for historical data
+      params.append('dateFrom', startDate.toISOString().split('T')[0]);
+      params.append('dateTo', endDate.toISOString().split('T')[0]);
+      params.append('page', '1');
+      params.append('limit', '10000'); // Get comprehensive data for better predictions
+
+      // Apply additional filters if provided
+      if (filterData) {
+        if (filterData.technician && filterData.technician !== 'all') {
+          params.append('technician', filterData.technician);
+        }
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          // Filter will be applied on frontend since API doesn't support municipality filtering
+        }
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/technicians?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch predictive data');
+
+      const data = await response.json();
+
+      // Process the logs for predictive analysis
+      const rawLogs = data.data || [];
+      const processedPredictiveData = processPredictiveAnalysisLogs(rawLogs, filterData);
+
+      setPredictiveData(processedPredictiveData);
+    } catch (error) {
+      console.error('Error fetching predictive data:', error);
+      setPredictiveError(error.message || 'Greška pri učitavanju prediktivnih podataka');
+      // Generate mock data for demonstration if API fails
+      setPredictiveData(generateMockPredictiveData());
+    } finally {
+      setPredictiveLoading(false);
+    }
+  };
+
+  // Process logs for predictive analysis
+  const processPredictiveAnalysisLogs = (logs, filterData) => {
+    // Apply municipality filter if provided
+    let filteredLogs = logs;
+    if (filterData && filterData.municipalities && filterData.municipalities.length > 0) {
+      filteredLogs = logs.filter(log => filterData.municipalities.includes(log.municipality));
+    }
+
+    // Add additional processing to create prediction-ready activity records
+    return filteredLogs.map(log => ({
+      id: log.id,
+      timestamp: log.timestamp,
+      technician: log.technician,
+      municipality: log.municipality,
+      workOrderId: log.workOrderId || `WO-${log.id}`,
+      action: log.action,
+      activityType: log.action || 'General Activity',
+      responseTime: Math.random() * 120 + 15, // Mock response time for demo
+      status: log.status || 'completed',
+      priority: Math.random() > 0.8 ? 'urgent' : 'normal', // Mock priority
+      urgent: Math.random() > 0.8, // Mock urgent flag
+      completedAt: log.timestamp,
+      duration: Math.random() * 240 + 30, // Mock duration for predictions
+      complexity: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low'
+    }));
+  };
+
+  // Generate mock predictive data for demonstration
+  const generateMockPredictiveData = () => {
+    const activities = [
+      'Instalacija', 'Servis', 'Dijagnostika', 'Održavanje', 'Zamena opreme',
+      'Konfiguracija', 'Tehnička podrška', 'Pregled kvaliteta', 'Otklanjanje kvara'
+    ];
+    const technicians = ['Marko Petrović', 'Jovana Nikolić', 'Stefan Jovanović', 'Ana Milić', 'Petar Milanović'];
+    const municipalities = [
+      'Beograd', 'Novi Sad', 'Niš', 'Kragujevac', 'Subotica', 'Novi Pazar',
+      'Zemun', 'Pančevo', 'Čačak', 'Novi Beograd', 'Zvezdara', 'Vračar', 'Stari Grad'
+    ];
+
+    const mockData = [];
+    const now = new Date();
+
+    // Generate historical data for better predictions (last 60 days)
+    for (let i = 0; i < 1200; i++) {
+      const randomDate = new Date(now - Math.random() * 60 * 24 * 60 * 60 * 1000);
+
+      // Create realistic patterns (more work on weekdays, seasonal variations)
+      const dayOfWeek = randomDate.getDay();
+      let workloadMultiplier = 1;
+
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        workloadMultiplier = 0.3; // Weekend reduced workload
+      } else if (dayOfWeek === 1 || dayOfWeek === 5) {
+        workloadMultiplier = 1.2; // Monday/Friday slightly higher
+      }
+
+      // Skip some entries to create realistic gaps
+      if (Math.random() > workloadMultiplier) continue;
+
+      mockData.push({
+        id: `pred-activity-${i}`,
+        timestamp: randomDate.toISOString(),
+        technician: technicians[Math.floor(Math.random() * technicians.length)],
+        municipality: municipalities[Math.floor(Math.random() * municipalities.length)],
+        workOrderId: `WO-${4000 + i}`,
+        action: activities[Math.floor(Math.random() * activities.length)],
+        activityType: activities[Math.floor(Math.random() * activities.length)],
+        responseTime: Math.random() * 120 + 15,
+        status: Math.random() > 0.1 ? 'completed' : 'in_progress',
+        priority: Math.random() > 0.75 ? 'urgent' : 'normal',
+        urgent: Math.random() > 0.8,
+        completedAt: randomDate.toISOString(),
+        duration: Math.random() * 240 + 30,
+        complexity: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low'
+      });
+    }
+
+    return mockData;
+  };
+
+  // Handle predictive analytics time range change
+  const handlePredictiveTimeRangeChange = (timeRange) => {
+    setPredictiveTimeRange(timeRange);
+    fetchPredictiveData(null, timeRange);
+  };
+
+  // Handle predictive analytics refresh
+  const handlePredictiveRefresh = () => {
+    fetchPredictiveData(null, predictiveTimeRange);
+  };
+
+  // Handle predictive analytics export
+  const handlePredictiveExport = (analysisData) => {
+    const csvContent = convertPredictiveDataToCSV(analysisData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `prediktivna-analiza-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Convert predictive analysis data to CSV
+  const convertPredictiveDataToCSV = (analysisData) => {
+    const headers = [
+      'Datum',
+      'Predviđeno naloga',
+      'Potrebno tehničara',
+      'Vreme odgovora',
+      'Pouzdanost',
+      'Dan u nedelji'
+    ];
+
+    const rows = analysisData.predictions?.map(prediction => [
+      prediction.date,
+      prediction.predictedWorkOrders,
+      prediction.predictedTechnicians,
+      `${Math.round(prediction.predictedResponseTime)} min`,
+      `${prediction.confidence.toFixed(1)}%`,
+      prediction.dayOfWeek
+    ]) || [];
+
+    return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  };
+
   // Process activity data for the chart
   const activityChartData = useMemo(() => {
-    
     const processedData = processActivityData(technicianLogs, userLogs, activityPeriod);
-    
     return processedData;
   }, [technicianLogs, userLogs, activityPeriod]);
-  
+
   // Get filter options for activity chart
   const activityFilterOptions = useMemo(() => getActivityFilterOptions(), []);
 
-  // Fetch completion time analytics (always fetch all data, filter on frontend)
-  const fetchCompletionTimeData = async (period = 'all') => {
+  // Fetch completion time analytics with global filters
+  const fetchCompletionTimeData = async (filterData = null) => {
     setCompletionTimeLoading(true);
     try {
       const params = new URLSearchParams();
-      if (period !== 'all') params.append('period', period);
-      // Don't filter by technician on backend - get all data
-      
+
+      if (filterData) {
+        // Use global filters
+        if (filterData.startDate) params.append('startDate', filterData.startDate.toISOString());
+        if (filterData.endDate) params.append('endDate', filterData.endDate.toISOString());
+        if (filterData.technician && filterData.technician !== 'all') params.append('technician', filterData.technician);
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          params.append('municipalities', filterData.municipalities.join(','));
+        }
+        if (filterData.serviceType && filterData.serviceType !== 'all') params.append('serviceType', filterData.serviceType);
+        if (filterData.actionType && filterData.actionType !== 'all') params.append('actionType', filterData.actionType);
+        if (filterData.status && filterData.status !== 'all') params.append('status', filterData.status);
+        if (filterData.priority && filterData.priority !== 'all') params.append('priority', filterData.priority);
+
+        // Add comparison period if enabled
+        if (filterData.comparisonDateRange) {
+          params.append('comparisonStart', filterData.comparisonDateRange.startDate.toISOString());
+          params.append('comparisonEnd', filterData.comparisonDateRange.endDate.toISOString());
+        }
+      } else {
+        // Fallback to legacy period parameter
+        if (completionTimePeriod !== 'all') params.append('period', completionTimePeriod);
+      }
+
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/workorders/statistics/completion-time?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch completion time data');
-      
+
       const data = await response.json();
       setCompletionTimeData(data);
     } catch (error) {
@@ -69,1028 +885,593 @@ const DashboardSection = ({
     }
   };
 
-  // Load completion time data on mount and when period changes (not technician)
+  // Load completion time data on mount and when period changes
   useEffect(() => {
     fetchCompletionTimeData(completionTimePeriod);
   }, [completionTimePeriod]);
-  
-  if (loading) {
-    return (
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
-        <div className="flex flex-col items-center text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-slate-600 font-medium">Učitava dashboard podatke...</p>
-        </div>
-      </div>
-    );
-  }
 
-  // Show message when no data is available
-  if (!dashboardData) {
-    return (
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
-        <div className="flex flex-col items-center text-center">
-          <div className="p-3 bg-slate-50 rounded-xl mb-4">
-            <BarChartIcon size={64} className="text-slate-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Nema dashboard podataka</h3>
-          <p className="text-slate-600">Pokušajte sa drugim filterima ili kontaktirajte administratora.</p>
-        </div>
-      </div>
-    );
-  }
+  // Load cancellation data on mount
+  useEffect(() => {
+    fetchCancellationData();
+  }, []);
+
+  // Load hourly activity data on mount
+  useEffect(() => {
+    fetchHourlyActivityData();
+  }, []);
+
+  // Load map data on mount
+  useEffect(() => {
+    fetchMapData();
+  }, []);
+
+  // Load predictive data on mount
+  useEffect(() => {
+    fetchPredictiveData();
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Filter Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center space-x-4 flex-1 min-w-0">
-              {/* Date/Period Filter */}
-              <div className="relative">
-                <Button
-                  type={dashboardFilters.dateRangeMode ? "primary" : "secondary"}
-                  size="small"
-                  onClick={handleDateRangeModeToggle}
-                  prefix={<CalendarIcon size={16} />}
-                >
-                  {dashboardFilters.dateRangeMode ? 'Opseg datuma' : 'Period'}
-                </Button>
+      {/* Global Dashboard Filters */}
+      <GlobalDashboardFilters
+        filters={filters}
+        loading={filtersLoading || dashboardLoading}
+        error={filtersError}
+        filterSummary={filterSummary}
+        filterOptions={filterOptions}
+        onUpdateFilter={updateFilter}
+        onUpdateFilters={updateFilters}
+        onUpdateMunicipalities={updateMunicipalities}
+        onToggleRegion={toggleRegion}
+        onApplyFilters={applyFilters}
+        onResetFilters={resetFilters}
+        onToggleComparison={toggleComparison}
+        onToggleTrends={toggleTrends}
+        DATE_PRESETS={DATE_PRESETS}
+        SERBIA_REGIONS={SERBIA_REGIONS}
+        SERVICE_TYPES={SERVICE_TYPES}
+        ACTION_TYPES={ACTION_TYPES}
+        STATUS_TYPES={STATUS_TYPES}
+        PRIORITY_LEVELS={PRIORITY_LEVELS}
+        WORK_ORDER_TYPES={WORK_ORDER_TYPES}
+        ISSUE_CATEGORIES={ISSUE_CATEGORIES}
+      />
+
+      {/* KPI Trend Cards - Only show when comparison is enabled */}
+      {filterSummary.comparisonEnabled && (
+        <div className="col-span-full">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center">
+              <TrendingUpIcon size={20} className="mr-2 text-blue-600" />
+              Ključni indikatori performansi sa trendovima
+            </h3>
+            <p className="text-slate-600 text-sm mt-1">
+              Poređenje trenutnog perioda sa prethodnim periodom
+            </p>
+          </div>
+
+          <KPITrendCards
+            kpiData={kpiData}
+            loading={trendLoading}
+            comparisonEnabled={filterSummary.comparisonEnabled}
+            className="mb-6"
+          />
+        </div>
+      )}
+
+      {/* Trend Charts - Only show when trends are enabled and comparison data exists */}
+      {filterSummary.showTrends && filterSummary.comparisonEnabled && trendChartsData.length > 0 && (
+        <div className="col-span-full">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center">
+              <ChartIcon size={20} className="mr-2 text-purple-600" />
+              Trendski grafici
+            </h3>
+            <p className="text-slate-600 text-sm mt-1">
+              Detaljan pregled trendova tokom vremena
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {trendChartsData.map((chartData, index) => (
+              <TrendChart
+                key={chartData.id || index}
+                title={chartData.title}
+                subtitle={chartData.subtitle}
+                currentPeriodData={chartData.currentPeriodData || []}
+                previousPeriodData={chartData.previousPeriodData || []}
+                metric={chartData.metric || 'value'}
+                showComparison={true}
+                color={chartData.color || 'blue'}
+                className="h-80"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Analysis */}
+      <div className="col-span-full">
+        <CancellationAnalysis
+          data={cancellationData}
+          loading={cancellationLoading}
+          error={cancellationError}
+          timeRange={cancellationTimeRange}
+          onTimeRangeChange={handleCancellationTimeRangeChange}
+          onRefresh={handleCancellationRefresh}
+          onExport={handleCancellationExport}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Hourly Activity Distribution */}
+      <div className="col-span-full">
+        <HourlyActivityDistribution
+          data={hourlyActivityData}
+          loading={hourlyActivityLoading}
+          error={hourlyActivityError}
+          timeRange={hourlyActivityTimeRange}
+          onTimeRangeChange={handleHourlyActivityTimeRangeChange}
+          onRefresh={handleHourlyActivityRefresh}
+          onExport={handleHourlyActivityExport}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Interactive Activity Map */}
+      <div className="col-span-full">
+        <InteractiveActivityMap
+          data={mapData}
+          loading={mapLoading}
+          error={mapError}
+          timeRange={mapTimeRange}
+          onTimeRangeChange={handleMapTimeRangeChange}
+          onRefresh={handleMapRefresh}
+          onExport={handleMapExport}
+          onLocationClick={handleMapLocationClick}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Real-time Alerts */}
+      <div className="col-span-full">
+        <RealTimeAlerts
+          data={[...technicianLogs, ...userLogs]}
+          loading={dashboardLoading}
+          onRefresh={() => {
+            // Refresh dashboard data
+            fetchCancellationData();
+            fetchHourlyActivityData();
+            fetchMapData();
+            fetchPredictiveData();
+          }}
+          onAlertAction={(alert, action) => {
+            console.log('Alert action:', alert, action);
+            // Handle alert actions (escalate, dismiss, etc.)
+          }}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Financial Analysis */}
+      <div className="col-span-full">
+        <FinancialAnalysis
+          data={[...technicianLogs, ...userLogs]}
+          loading={dashboardLoading}
+          timeRange={filters.dateRange}
+          onTimeRangeChange={(range) => updateFilter('dateRange', range)}
+          onRefresh={() => {
+            fetchCancellationData();
+            fetchHourlyActivityData();
+            fetchMapData();
+            fetchPredictiveData();
+          }}
+          onExport={(data) => {
+            console.log('Exporting financial data:', data);
+            // Handle financial data export
+          }}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Technician Comparison */}
+      <div className="col-span-full">
+        <TechnicianComparison
+          data={[...technicianLogs, ...userLogs]}
+          loading={dashboardLoading}
+          timeRange={filters.dateRange}
+          onTimeRangeChange={(range) => updateFilter('dateRange', range)}
+          onRefresh={() => {
+            fetchCancellationData();
+            fetchHourlyActivityData();
+            fetchMapData();
+            fetchPredictiveData();
+          }}
+          onExport={(data) => {
+            console.log('Exporting technician comparison:', data);
+            // Handle technician comparison export
+          }}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Anomaly Detection */}
+      <div className="col-span-full">
+        <AnomalyDetection
+          data={[...technicianLogs, ...userLogs]}
+          loading={dashboardLoading}
+          onRefresh={() => {
+            fetchCancellationData();
+            fetchHourlyActivityData();
+            fetchMapData();
+            fetchPredictiveData();
+          }}
+          onExport={(data) => {
+            console.log('Exporting anomaly data:', data);
+            // Handle anomaly data export
+          }}
+          onAnomalyClick={(anomaly) => {
+            console.log('Anomaly clicked:', anomaly);
+            // Handle anomaly details view
+          }}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Predictive Analytics */}
+      <div className="col-span-full">
+        <PredictiveAnalytics
+          data={predictiveData}
+          loading={predictiveLoading}
+          error={predictiveError}
+          timeRange={predictiveTimeRange}
+          onTimeRangeChange={handlePredictiveTimeRangeChange}
+          onRefresh={handlePredictiveRefresh}
+          onExport={handlePredictiveExport}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Daily Activity Chart - Full Width */}
+      <div className="col-span-full">
+        <TotalSalesChart
+          data={activityChartData}
+          title="Dnevne aktivnosti na aplikaciji"
+          description="Pregled svih aktivnosti korisnika i tehničara na aplikaciji grupisan po danima"
+          filterOptions={activityFilterOptions}
+          className="w-full"
+          onFilterChange={({ period, actionFilter }) => {
+            // Update activity chart period instantly
+            if (period && period !== activityPeriod) {
+              setActivityPeriod(period);
+            }
+          }}
+          onChartClick={(chartData) => {
+            // Enable drill-down on chart click
+            handleChartClick({
+              ...chartData,
+              chartType: 'activity',
+              additionalFilters: {
+                startDate: effectiveDateRange.startDate?.toISOString(),
+                endDate: effectiveDateRange.endDate?.toISOString(),
+                ...filterSummary
+              }
+            });
+          }}
+          enableDrilldown={isDrilldownAvailable('activity')}
+        />
+      </div>
+
+      {/* Completion Time Analytics - Full Width */}
+      <div className="col-span-full">
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-slate-200">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-purple-50 rounded-xl">
+                  <ClockIcon size={24} className="text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Analitika vremena završavanja radnih naloga</h3>
+                  <p className="text-slate-600 mt-1">Praćenje vremena od zakazanog termina do prvog menjanja statusa</p>
+                </div>
               </div>
 
-              {dashboardFilters.dateRangeMode ? (
-                <>
-                  <input
-                    type="date"
-                    value={dashboardFilters.startDate ? dashboardFilters.startDate.toISOString().split('T')[0] : ''}
-                    onChange={(e) => handleDashboardFilterChange('startDate', new Date(e.target.value))}
-                    className="h-9 px-3 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                  />
-                  <span className="text-slate-500 text-sm">do</span>
-                  <input
-                    type="date"
-                    value={dashboardFilters.endDate ? dashboardFilters.endDate.toISOString().split('T')[0] : ''}
-                    onChange={(e) => handleDashboardFilterChange('endDate', new Date(e.target.value))}
-                    className="h-9 px-3 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                  />
-                </>
-              ) : (
+              <div className="flex items-center space-x-3">
+                {/* Period Filter */}
                 <select
-                  value={dashboardFilters.period}
-                  onChange={(e) => handleDashboardFilterChange('period', e.target.value)}
-                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
+                  value={completionTimePeriod}
+                  onChange={(e) => setCompletionTimePeriod(e.target.value)}
+                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
+                  disabled={completionTimeLoading}
                 >
                   <option value="danas">Danas</option>
                   <option value="nedelja">Ova nedelja</option>
                   <option value="mesec">Ovaj mesec</option>
                   <option value="kvartal">Ovaj kvartal</option>
                   <option value="godina">Ova godina</option>
-                  <option value="all">Sve od početka aplikacije</option>
+                  <option value="all">Sve od početka</option>
                 </select>
-              )}
 
-              {/* Technician Filter */}
-              <select
-                value={dashboardFilters.technician}
-                onChange={(e) => handleDashboardFilterChange('technician', e.target.value)}
-                className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-              >
-                <option value="all">Svi tehnićari</option>
-                {filterOptions?.technicians?.map(tech => (
-                  <option key={tech} value={tech}>{tech}</option>
-                ))}
-              </select>
-
-              {/* Municipality Filter */}
-              <select
-                value={dashboardFilters.municipality}
-                onChange={(e) => handleDashboardFilterChange('municipality', e.target.value)}
-                className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-              >
-                <option value="all">Sve opštine</option>
-                {filterOptions?.municipalities?.map(mun => (
-                  <option key={mun} value={mun}>{mun}</option>
-                ))}
-              </select>
-
-              {/* Action Filter */}
-              <select
-                value={dashboardFilters.action}
-                onChange={(e) => handleDashboardFilterChange('action', e.target.value)}
-                className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-              >
-                <option value="all">Sve akcije</option>
-                {filterOptions?.actions?.map(action => (
-                  <option key={action.value} value={action.value}>{action.label}</option>
-                ))}
-              </select>
+                {/* Refresh Button */}
+                <Button
+                  type="secondary"
+                  size="small"
+                  prefix={<RefreshIcon size={16} />}
+                  onClick={() => fetchCompletionTimeData(completionTimePeriod)}
+                  disabled={completionTimeLoading}
+                >
+                  Osvježi
+                </Button>
+              </div>
             </div>
-            
-            <Button 
-              type="secondary" 
-              size="medium" 
-              prefix={<RefreshIcon size={16} />}
-              onClick={resetDashboardFilters}
-            >
-              Resetuj filtere
-            </Button>
           </div>
+
+          {completionTimeLoading ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4 mx-auto"></div>
+              <p className="text-slate-600 font-medium">Učitava analitiku vremena...</p>
+            </div>
+          ) : completionTimeData ? (
+            <div className="p-6">
+              {/* Overall Statistics */}
+              <div className="mb-8">
+                <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                  <BarChartIcon size={18} className="mr-2 text-purple-600" />
+                  {selectedTechnician === 'all' ? 'Ukupna statistika' : `Statistika za ${selectedTechnician}`}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Prosečno vreme</p>
+                        <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.avgCompletionTime}h</h3>
+                      </div>
+                      <div className="p-2 bg-purple-200 rounded-lg">
+                        <ClockIcon size={20} className="text-purple-700" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Najbrže vreme</p>
+                        <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.minCompletionTime}h</h3>
+                      </div>
+                      <div className="p-2 bg-green-200 rounded-lg">
+                        <TrendingUpIcon size={20} className="text-green-700" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl p-4 border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-red-600 uppercase tracking-wider">Najduže vreme</p>
+                        <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.maxCompletionTime}h</h3>
+                      </div>
+                      <div className="p-2 bg-red-200 rounded-lg">
+                        <ClockIcon size={20} className="text-red-700" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Ukupno naloga</p>
+                        <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.totalWorkOrders}</h3>
+                      </div>
+                      <div className="p-2 bg-blue-200 rounded-lg">
+                        <ChartIcon size={20} className="text-blue-700" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Distribution */}
+              <div className="mb-8">
+                <h4 className="text-lg font-semibold text-slate-900 mb-4">Distribucija brzine završavanja</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-r from-green-50 to-green-100/80 rounded-xl p-4 border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-green-700">Brzi (≤ {(completionTimeData.overall.avgCompletionTime * 0.8).toFixed(1)}h)</p>
+                        <p className="text-2xl font-bold text-green-800">{completionTimeData.distribution.fast}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center">
+                        <TrendingUpIcon size={20} className="text-green-700" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-yellow-50 to-yellow-100/80 rounded-xl p-4 border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-yellow-700">Prosečni</p>
+                        <p className="text-2xl font-bold text-yellow-800">{completionTimeData.distribution.average}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-yellow-200 rounded-full flex items-center justify-center">
+                        <ClockIcon size={20} className="text-yellow-700" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-red-50 to-red-100/80 rounded-xl p-4 border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-red-700">Spori (≥ {(completionTimeData.overall.avgCompletionTime * 1.2).toFixed(1)}h)</p>
+                        <p className="text-2xl font-bold text-red-800">{completionTimeData.distribution.slow}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-red-200 rounded-full flex items-center justify-center">
+                        <ClockIcon size={20} className="text-red-700" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technician Filter Cards */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-slate-900 mb-4">Filter po tehničaru</h4>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setSelectedTechnician('all')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md",
+                      selectedTechnician === 'all'
+                        ? "bg-purple-600 text-white shadow-lg"
+                        : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
+                    )}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <HardHatIcon size={16} />
+                      <span>Svi ({completionTimeData.overall.totalWorkOrders})</span>
+                    </div>
+                  </button>
+
+                  {completionTimeData.technicians?.map(tech => (
+                    <button
+                      key={tech.name}
+                      onClick={() => setSelectedTechnician(tech.name)}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md",
+                        selectedTechnician === tech.name
+                          ? "bg-purple-600 text-white shadow-lg"
+                          : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
+                      )}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          tech.efficiency === 'high' ? "bg-green-500" :
+                          tech.efficiency === 'medium' ? "bg-yellow-500" : "bg-red-500"
+                        )}></div>
+                        <span>{tech.name} ({tech.totalWorkOrders})</span>
+                        <span className="text-xs opacity-75">{tech.avgCompletionTime}h</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Technician Details Table */}
+              {completionTimeData.technicians && completionTimeData.technicians.length > 0 && (
+                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl overflow-hidden">
+                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                    <h4 className="font-semibold text-slate-900">Detaljni pregled po tehničarima</h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50/50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Prosečno vreme</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Min vreme</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Max vreme</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukupno naloga</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Efikasnost</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">tisJobIds</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {completionTimeData.technicians
+                          .filter(tech => selectedTechnician === 'all' || tech.name === selectedTechnician)
+                          .map((tech, index) => (
+                          <tr
+                            key={tech.name}
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            onClick={() => handleChartClick({
+                              chartType: 'completion_time',
+                              segment: 'technician',
+                              technician: tech.name,
+                              label: `Tehničar - ${tech.name}`,
+                              value: tech.totalWorkOrders,
+                              additionalFilters: {
+                                startDate: effectiveDateRange.startDate?.toISOString(),
+                                endDate: effectiveDateRange.endDate?.toISOString(),
+                                technician: tech.name
+                              }
+                            })}
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-shrink-0">
+                                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <HardHatIcon size={16} className="text-purple-600" />
+                                  </div>
+                                </div>
+                                <span className="font-medium text-slate-900">{tech.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-mono text-slate-900">{tech.avgCompletionTime}h</td>
+                            <td className="px-6 py-4 text-sm font-mono text-green-600">{tech.minCompletionTime}h</td>
+                            <td className="px-6 py-4 text-sm font-mono text-red-600">{tech.maxCompletionTime}h</td>
+                            <td className="px-6 py-4 text-sm font-semibold text-slate-900">{tech.totalWorkOrders}</td>
+                            <td className="px-6 py-4">
+                              <span className={cn(
+                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                                tech.efficiency === 'high' ? "bg-green-100 text-green-800" :
+                                tech.efficiency === 'medium' ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"
+                              )}>
+                                {tech.efficiency === 'high' ? 'Visoka' :
+                                 tech.efficiency === 'medium' ? 'Srednja' : 'Niska'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-xs text-slate-600 font-mono">
+                                {tech.tisJobIds && tech.tisJobIds.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {tech.tisJobIds.slice(0, 3).map((tisId, idx) => (
+                                      <span key={idx} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-medium">
+                                        {tisId}
+                                      </span>
+                                    ))}
+                                    {tech.tisJobIds.length > 3 && (
+                                      <span className="text-slate-400 text-xs">+{tech.tisJobIds.length - 3} više</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 italic">N/A</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-12 text-center">
+              <div className="p-3 bg-slate-50 rounded-xl mb-4 inline-flex">
+                <ClockIcon size={48} className="text-slate-400" />
+              </div>
+              <h4 className="text-lg font-semibold text-slate-900 mb-2">Nema podataka</h4>
+              <p className="text-slate-600">Nema radnih naloga sa zabeleženim vremenom prvog menjanja statusa za izabrani period.</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Modern KPI Cards */}
-      {dashboardData?.kpi && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Ukupno akcija</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{dashboardData.kpi.totalActions}</h3>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <ChartIcon size={24} className="text-blue-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              <TrendingUpIcon size={16} className="text-green-600 mr-1" />
-              <span className="text-sm text-green-600 font-medium">Ukupna aktivnost</span>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Završeni nalozi</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{dashboardData.kpi.completedWorkOrders}</h3>
-              </div>
-              <div className="p-3 bg-green-50 rounded-xl">
-                <CheckIcon size={24} className="text-green-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              <TrendingUpIcon size={16} className="text-green-600 mr-1" />
-              <span className="text-sm text-green-600 font-medium">Završeno uspešno</span>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Aktivni tehnićari</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{dashboardData.kpi.activeTechniciansCount}</h3>
-              </div>
-              <div className="p-3 bg-orange-50 rounded-xl">
-                <HardHatIcon size={24} className="text-orange-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              <TrendingUpIcon size={16} className="text-orange-600 mr-1" />
-              <span className="text-sm text-orange-600 font-medium">Na terenu</span>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Avg vreme odgovora</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{dashboardData.kpi.avgResponseTime}h</h3>
-              </div>
-              <div className="p-3 bg-red-50 rounded-xl">
-                <ClockIcon size={24} className="text-red-600" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              <ClockIcon size={16} className="text-slate-500 mr-1" />
-              <span className="text-sm text-slate-500 font-medium">Prosečno vreme</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Enhanced Analytics Cards */}
-      {dashboardData?.kpi && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Success Rate Card */}
-            <div className="group bg-gradient-to-br from-green-50 via-green-50/80 to-emerald-50 rounded-xl p-6 border border-green-200/60 shadow-sm hover:shadow-lg transition-all duration-200 hover:border-green-300/80">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-                    <CheckIcon size={16} className="text-green-600" />
-                  </div>
-                  <h4 className="font-semibold text-slate-900">Stopa uspeha</h4>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-3xl font-bold text-slate-900 tabular-nums">
-                    {dashboardData.kpi.completedWorkOrders && dashboardData.kpi.totalActions ? 
-                      Math.round((dashboardData.kpi.completedWorkOrders / dashboardData.kpi.totalActions) * 100) : 0}%
-                  </span>
-                  <div className="flex items-center px-2 py-1 bg-green-100 rounded-full">
-                    <TrendingUpIcon size={12} className="text-green-600 mr-1" />
-                    <span className="text-xs text-green-700 font-medium">+5.2%</span>
-                  </div>
-                </div>
-                <div className="w-full bg-green-200/60 rounded-full h-3 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full transition-all duration-500 ease-out" 
-                    style={{ 
-                      width: `${dashboardData.kpi.completedWorkOrders && dashboardData.kpi.totalActions ? 
-                        (dashboardData.kpi.completedWorkOrders / dashboardData.kpi.totalActions) * 100 : 0}%` 
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-slate-600">Od ukupno {dashboardData.kpi.totalActions} akcija završeno uspešno</p>
-              </div>
-            </div>
-
-            {/* Efficiency Card */}
-            <div className="group bg-gradient-to-br from-blue-50 via-blue-50/80 to-cyan-50 rounded-xl p-6 border border-blue-200/60 shadow-sm hover:shadow-lg transition-all duration-200 hover:border-blue-300/80">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                    <TrendingUpIcon size={16} className="text-blue-600" />
-                  </div>
-                  <h4 className="font-semibold text-slate-900">Efikasnost rada</h4>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-3xl font-bold text-slate-900 tabular-nums">
-                    {dashboardData.kpi.activeTechniciansCount ? 
-                      Math.round(dashboardData.kpi.totalActions / dashboardData.kpi.activeTechniciansCount * 10) / 10 : 0}
-                  </span>
-                  <div className="text-sm text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">acc/tech</div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="flex-1 bg-blue-200/60 rounded-full h-3 overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-400 to-blue-500 h-3 rounded-full transition-all duration-500" style={{ width: '78%' }} />
-                  </div>
-                  <span className="text-xs text-slate-600 font-medium">78%</span>
-                </div>
-                <p className="text-xs text-slate-600">Prosečna efikasnost po tehničaru</p>
-              </div>
-            </div>
-
-            {/* Response Time Card */}
-            <div className="group bg-gradient-to-br from-orange-50 via-orange-50/80 to-amber-50 rounded-xl p-6 border border-orange-200/60 shadow-sm hover:shadow-lg transition-all duration-200 hover:border-orange-300/80">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
-                    <ClockIcon size={16} className="text-orange-600" />
-                  </div>
-                  <h4 className="font-semibold text-slate-900">Vreme odgovora</h4>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-3xl font-bold text-slate-900 tabular-nums">{dashboardData.kpi.avgResponseTime}h</span>
-                  <div className="flex items-center px-2 py-1 bg-orange-100 rounded-full">
-                    <span className="text-xs text-orange-700 font-medium">↘ -12%</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs text-slate-600">
-                    <span>Min: 2h</span>
-                    <span>Max: 8h</span>
-                    <span>Target: ≤6h</span>
-                  </div>
-                  <div className="w-full bg-orange-200/60 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-orange-400 to-orange-500 h-2 rounded-full" style={{ width: '65%' }} />
-                  </div>
-                </div>
-                <p className="text-xs text-slate-600">Poboljšanje za 12% u odnosu na prethodni period</p>
-              </div>
-            </div>
-
-            {/* Quality Score Card */}
-            <div className="group bg-gradient-to-br from-purple-50 via-purple-50/80 to-violet-50 rounded-xl p-6 border border-purple-200/60 shadow-sm hover:shadow-lg transition-all duration-200 hover:border-purple-300/80">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-                    <CheckIcon size={16} className="text-purple-600" />
-                  </div>
-                  <h4 className="font-semibold text-slate-900">Kvalitet rada</h4>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-3xl font-bold text-slate-900 tabular-nums">8.7</span>
-                  <div className="flex items-center space-x-1">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className={`w-2 h-2 rounded-full ${
-                        i < 4 ? 'bg-purple-400' : 'bg-purple-200'
-                      }`} />
-                    ))}
-                  </div>
-                </div>
-                <div className="w-full bg-purple-200/60 rounded-full h-3 overflow-hidden">
-                  <div className="bg-gradient-to-r from-purple-400 to-purple-500 h-3 rounded-full transition-all duration-500" style={{ width: '87%' }} />
-                </div>
-                <p className="text-xs text-slate-600">Ocena kvaliteta na osnovu završenih naloga</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Daily Activity Chart - Full Width */}
-          <div className="col-span-full">
-            <TotalSalesChart 
-              data={activityChartData}
-              title="Dnevne aktivnosti na aplikaciji"
-              description="Pregled svih aktivnosti korisnika i tehničara na aplikaciji grupisan po danima"
-              filterOptions={activityFilterOptions}
-              className="w-full"
-              onFilterChange={({ period, actionFilter }) => {
-                // Update activity chart period instantly without affecting dashboard filters
-                if (period && period !== activityPeriod) {
-                  setActivityPeriod(period);
-                }
-                // Action filter is handled internally in the chart
-              }}
-            />
-          </div>
-
-          {/* Completion Time Analytics - Full Width */}
-          <div className="col-span-full">
-            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-              {/* Header */}
-              <div className="p-6 border-b border-slate-200">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-purple-50 rounded-xl">
-                      <ClockIcon size={24} className="text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900">Analitika vremena završavanja radnih naloga</h3>
-                      <p className="text-slate-600 mt-1">Praćenje vremena od zakazanog termina do prvog menjanja statusa</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    {/* Period Filter */}
-                    <select
-                      value={completionTimePeriod}
-                      onChange={(e) => setCompletionTimePeriod(e.target.value)}
-                      className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-                      disabled={completionTimeLoading}
-                    >
-                      <option value="danas">Danas</option>
-                      <option value="nedelja">Ova nedelja</option>
-                      <option value="mesec">Ovaj mesec</option>
-                      <option value="kvartal">Ovaj kvartal</option>
-                      <option value="godina">Ova godina</option>
-                      <option value="all">Sve od početka</option>
-                    </select>
-                    
-                    {/* Refresh Button */}
-                    <Button 
-                      type="secondary" 
-                      size="small" 
-                      prefix={<RefreshIcon size={16} />}
-                      onClick={() => fetchCompletionTimeData(completionTimePeriod)}
-                      disabled={completionTimeLoading}
-                    >
-                      Osvježi
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {completionTimeLoading ? (
-                <div className="p-12 text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4 mx-auto"></div>
-                  <p className="text-slate-600 font-medium">Učitava analitiku vremena...</p>
-                </div>
-              ) : completionTimeData ? (
-                <div className="p-6">
-                  {/* Overall Statistics */}
-                  <div className="mb-8">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                      <BarChartIcon size={18} className="mr-2 text-purple-600" />
-                      {selectedTechnician === 'all' ? 'Ukupna statistika' : `Statistika za ${selectedTechnician}`}
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Prosečno vreme</p>
-                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.avgCompletionTime}h</h3>
-                          </div>
-                          <div className="p-2 bg-purple-200 rounded-lg">
-                            <ClockIcon size={20} className="text-purple-700" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Najbrže vreme</p>
-                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.minCompletionTime}h</h3>
-                          </div>
-                          <div className="p-2 bg-green-200 rounded-lg">
-                            <TrendingUpIcon size={20} className="text-green-700" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl p-4 border border-red-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-medium text-red-600 uppercase tracking-wider">Najduže vreme</p>
-                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.maxCompletionTime}h</h3>
-                          </div>
-                          <div className="p-2 bg-red-200 rounded-lg">
-                            <ClockIcon size={20} className="text-red-700" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Ukupno naloga</p>
-                            <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{completionTimeData.overall.totalWorkOrders}</h3>
-                          </div>
-                          <div className="p-2 bg-blue-200 rounded-lg">
-                            <ChartIcon size={20} className="text-blue-700" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Distribution */}
-                  <div className="mb-8">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4">Distribucija brzine završavanja</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gradient-to-r from-green-50 to-green-100/80 rounded-xl p-4 border border-green-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-green-700">Brzi (≤ {(completionTimeData.overall.avgCompletionTime * 0.8).toFixed(1)}h)</p>
-                            <p className="text-2xl font-bold text-green-800">{completionTimeData.distribution.fast}</p>
-                          </div>
-                          <div className="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center">
-                            <TrendingUpIcon size={20} className="text-green-700" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-r from-yellow-50 to-yellow-100/80 rounded-xl p-4 border border-yellow-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-yellow-700">Prosečni</p>
-                            <p className="text-2xl font-bold text-yellow-800">{completionTimeData.distribution.average}</p>
-                          </div>
-                          <div className="w-12 h-12 bg-yellow-200 rounded-full flex items-center justify-center">
-                            <ClockIcon size={20} className="text-yellow-700" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-r from-red-50 to-red-100/80 rounded-xl p-4 border border-red-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-red-700">Spori (≥ {(completionTimeData.overall.avgCompletionTime * 1.2).toFixed(1)}h)</p>
-                            <p className="text-2xl font-bold text-red-800">{completionTimeData.distribution.slow}</p>
-                          </div>
-                          <div className="w-12 h-12 bg-red-200 rounded-full flex items-center justify-center">
-                            <ClockIcon size={20} className="text-red-700" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Technician Filter Cards */}
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4">Filter po tehničaru</h4>
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        onClick={() => setSelectedTechnician('all')}
-                        className={cn(
-                          "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md",
-                          selectedTechnician === 'all'
-                            ? "bg-purple-600 text-white shadow-lg"
-                            : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
-                        )}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <HardHatIcon size={16} />
-                          <span>Svi ({completionTimeData.overall.totalWorkOrders})</span>
-                        </div>
-                      </button>
-                      
-                      {completionTimeData.technicians?.map(tech => (
-                        <button
-                          key={tech.name}
-                          onClick={() => setSelectedTechnician(tech.name)}
-                          className={cn(
-                            "px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md",
-                            selectedTechnician === tech.name
-                              ? "bg-purple-600 text-white shadow-lg"
-                              : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50"
-                          )}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              tech.efficiency === 'high' ? "bg-green-500" :
-                              tech.efficiency === 'medium' ? "bg-yellow-500" : "bg-red-500"
-                            )}></div>
-                            <span>{tech.name} ({tech.totalWorkOrders})</span>
-                            <span className="text-xs opacity-75">{tech.avgCompletionTime}h</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Technician Details Table */}
-                  {completionTimeData.technicians && completionTimeData.technicians.length > 0 && (
-                    <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl overflow-hidden">
-                      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
-                        <h4 className="font-semibold text-slate-900">Detaljni pregled po tehničarima</h4>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-slate-50/50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Prosečno vreme</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Min vreme</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Max vreme</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukupno naloga</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Efikasnost</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">tisJobIds</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200">
-                            {completionTimeData.technicians
-                              .filter(tech => selectedTechnician === 'all' || tech.name === selectedTechnician)
-                              .map((tech, index) => (
-                              <tr key={tech.name} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center space-x-3">
-                                    <div className="flex-shrink-0">
-                                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                        <HardHatIcon size={16} className="text-purple-600" />
-                                      </div>
-                                    </div>
-                                    <span className="font-medium text-slate-900">{tech.name}</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-sm font-mono text-slate-900">{tech.avgCompletionTime}h</td>
-                                <td className="px-6 py-4 text-sm font-mono text-green-600">{tech.minCompletionTime}h</td>
-                                <td className="px-6 py-4 text-sm font-mono text-red-600">{tech.maxCompletionTime}h</td>
-                                <td className="px-6 py-4 text-sm font-semibold text-slate-900">{tech.totalWorkOrders}</td>
-                                <td className="px-6 py-4">
-                                  <span className={cn(
-                                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                                    tech.efficiency === 'high' ? "bg-green-100 text-green-800" :
-                                    tech.efficiency === 'medium' ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"
-                                  )}>
-                                    {tech.efficiency === 'high' ? 'Visoka' :
-                                     tech.efficiency === 'medium' ? 'Srednja' : 'Niska'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="text-xs text-slate-600 font-mono">
-                                    {tech.tisJobIds && tech.tisJobIds.length > 0 ? (
-                                      <div className="flex flex-wrap gap-1">
-                                        {tech.tisJobIds.slice(0, 3).map((tisId, idx) => (
-                                          <span key={idx} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-medium">
-                                            {tisId}
-                                          </span>
-                                        ))}
-                                        {tech.tisJobIds.length > 3 && (
-                                          <span className="text-slate-400 text-xs">+{tech.tisJobIds.length - 3} više</span>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className="text-slate-400 italic">N/A</span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="p-12 text-center">
-                  <div className="p-3 bg-slate-50 rounded-xl mb-4 inline-flex">
-                    <ClockIcon size={48} className="text-slate-400" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">Nema podataka</h4>
-                  <p className="text-slate-600">Nema radnih naloga sa zabeleženim vremenom prvog menjanja statusa za izabrani period.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Performance Metrics Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Daily Activity Card */}
-            <div className="bg-white/90 backdrop-blur-md rounded-xl p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-slate-900 flex items-center">
-                  <BarChartIcon size={18} className="mr-2 text-slate-600" />
-                  Dnevna aktivnost
-                </h4>
-                <div className="px-2 py-1 bg-slate-100 rounded-full text-xs text-slate-600 font-medium">Poslednih 7 dana</div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-end justify-between h-20 px-2">
-                  {[65, 78, 52, 89, 73, 91, 67].map((height, i) => (
-                    <div key={i} className="flex flex-col items-center space-y-1">
-                      <div 
-                        className="bg-gradient-to-t from-blue-400 to-blue-300 rounded-t-sm transition-all duration-300 hover:from-blue-500 hover:to-blue-400" 
-                        style={{ height: `${height}%`, width: '12px' }}
-                      />
-                      <span className="text-xs text-slate-500 font-medium">
-                        {['P', 'U', 'S', 'Č', 'P', 'S', 'N'][i]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Prosek: <span className="font-medium text-slate-900">73.6</span></span>
-                  <span className="text-green-600 font-medium">↗ +8.2%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Resource Utilization Card */}
-            <div className="bg-white/90 backdrop-blur-md rounded-xl p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-slate-900 flex items-center">
-                  <HardHatIcon size={18} className="mr-2 text-slate-600" />
-                  Iskorišćenost resursa
-                </h4>
-                <div className="px-2 py-1 bg-green-100 rounded-full text-xs text-green-700 font-medium">Optimalno</div>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600">Tehnićari na terenu</span>
-                    <span className="text-sm font-medium text-slate-900">{dashboardData.kpi.activeTechniciansCount}/12</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full" 
-                      style={{ width: `${(dashboardData.kpi.activeTechniciansCount / 12) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600">Oprema u upotrebi</span>
-                    <span className="text-sm font-medium text-slate-900">156/200</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-400 to-blue-500 h-2 rounded-full" style={{ width: '78%' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Charts Section */}
-      {dashboardData?.charts && (
-        <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl overflow-hidden">
-          <div className="p-6 border-b border-white/30 bg-gradient-to-r from-white/20 to-transparent">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center">
-              <BarChartIcon size={20} className="mr-2" />
-              Analitika i grafici
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Actions Distribution */}
-              {dashboardData.charts.actionsDistribution && (
-                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
-                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                    Distribucija akcija
-                  </h4>
-                  <div className="space-y-3">
-                    {dashboardData.charts.actionsDistribution.map((item, i) => {
-                      const actionName = item.action || item.label || item.name || item.type || item._id || `Akcija ${i + 1}`;
-                      const actionCount = item.count || item.total || item.value || 0;
-                      return (
-                        <div key={actionName || i} className="group p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/60 transition-all duration-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-slate-700">{actionName}</span>
-                            <span className="text-sm font-bold text-slate-900 bg-white/50 px-2 py-1 rounded-full">{actionCount}</span>
-                          </div>
-                          <div className="w-full bg-slate-200/60 rounded-full h-2.5 overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-blue-400 to-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
-                              style={{ width: `${dashboardData.charts.actionsDistribution.length > 0 ? (actionCount / Math.max(...dashboardData.charts.actionsDistribution.map(d => d.count || d.total || d.value || 0))) * 100 : 0}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              
-              {/* Status Breakdown */}
-              {dashboardData.charts.statusBreakdown && (
-                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
-                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    Status pregled
-                  </h4>
-                  <div className="space-y-3">
-                    {dashboardData.charts.statusBreakdown.map((item, i) => {
-                      const statusName = item.status || item.label || item.state || item.name || item._id || `Status ${i + 1}`;
-                      const statusCount = item.count || item.total || item.value || 0;
-                      return (
-                        <div key={statusName || i} className="group p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/60 transition-all duration-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full shadow-sm ${
-                                statusName === 'completed' || statusName === 'završeno' ? 'bg-gradient-to-r from-green-400 to-green-500' :
-                                statusName === 'pending' || statusName === 'na čekanju' ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' :
-                                statusName === 'failed' || statusName === 'neuspešno' ? 'bg-gradient-to-r from-red-400 to-red-500' :
-                                'bg-gradient-to-r from-gray-400 to-gray-500'
-                              }`}></div>
-                              <span className="text-sm font-medium text-slate-700 capitalize">{statusName}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-bold text-slate-900 bg-white/50 px-2 py-1 rounded-full">{statusCount}</span>
-                              <div className={`w-8 h-2 rounded-full ${
-                                statusName === 'completed' || statusName === 'završeno' ? 'bg-green-200' :
-                                statusName === 'pending' || statusName === 'na čekanju' ? 'bg-yellow-200' :
-                                statusName === 'failed' || statusName === 'neuspešno' ? 'bg-red-200' :
-                                'bg-gray-200'
-                              }`}>
-                                <div className={`h-2 rounded-full transition-all duration-300 ${
-                                  statusName === 'completed' || statusName === 'završeno' ? 'bg-green-500 w-full' :
-                                  statusName === 'pending' || statusName === 'na čekanju' ? 'bg-yellow-500 w-3/4' :
-                                  statusName === 'failed' || statusName === 'neuspešno' ? 'bg-red-500 w-1/2' :
-                                  'bg-gray-500 w-2/3'
-                                }`}></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              
-              {/* Technician Productivity */}
-              {dashboardData.charts.technicianProductivity && (
-                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
-                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                    Produktivnost tehničara
-                  </h4>
-                  <div className="space-y-3">
-                    {dashboardData.charts.technicianProductivity.slice(0, 5).map((tech, i) => {
-                      const technicianName = tech.name || tech.technician || tech.technicianName || tech.user || tech._id || `Tehnićar ${i + 1}`;
-                      const productivity = tech.productivity || tech.efficiency || tech.performance || tech.score || 0;
-                      return (
-                        <div key={technicianName || i} className="group p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/60 transition-all duration-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-6 h-6 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                                {i + 1}
-                              </div>
-                              <span className="text-sm font-medium text-slate-700">{technicianName}</span>
-                            </div>
-                            <span className="text-sm font-bold text-slate-900 bg-white/50 px-2 py-1 rounded-full">{productivity}%</span>
-                          </div>
-                          <div className="w-full bg-orange-200/60 rounded-full h-2.5 overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-orange-400 to-orange-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
-                              style={{ width: `${(productivity / 100) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tables Section */}
-      {dashboardData?.tables && (
-        <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl overflow-hidden">
-          <div className="p-6 border-b border-white/30 bg-gradient-to-r from-white/20 to-transparent">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center">
-              <div className="w-2 h-2 bg-slate-600 rounded-full mr-2"></div>
-              Detaljne tabele
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top Technicians Table */}
-              {dashboardData.tables.topTechnicians && (
-                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
-                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center">
-                    <HardHatIcon size={16} className="mr-2 text-blue-600" />
-                    Top tehnićari
-                  </h4>
-                  <div className="space-y-3">
-                    {dashboardData.tables.topTechnicians.map((tech, i) => {
-                      const technicianName = tech.name || tech.technician || tech.technicianName || tech._id || `Tehničar ${i + 1}`;
-                      const technicianCount = tech.count || tech.actions || tech.totalActions || 0;
-                      return (
-                        <div key={technicianName || i} className="group p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/60 transition-all duration-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-7 h-7 text-white text-xs font-bold rounded-full flex items-center justify-center ${
-                                i === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' :
-                                i === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
-                                i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-500' :
-                                'bg-gradient-to-r from-blue-400 to-blue-500'
-                              }`}>
-                                {i + 1}
-                              </div>
-                              <div>
-                                <span className="text-sm font-medium text-slate-700 block">{technicianName}</span>
-                                <div className="w-16 bg-blue-200/60 rounded-full h-1.5 mt-1">
-                                  <div 
-                                    className="bg-gradient-to-r from-blue-400 to-blue-500 h-1.5 rounded-full" 
-                                    style={{ width: `${dashboardData.tables.topTechnicians.length > 0 ? (technicianCount / Math.max(...dashboardData.tables.topTechnicians.map(t => t.count || t.actions || t.totalActions || 0))) * 100 : 0}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-sm font-bold text-slate-900 bg-white/50 px-2 py-1 rounded-full">{technicianCount}</span>
-                              <div className="text-xs text-slate-500 mt-1">akcija</div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              
-              {/* Recent Activities Table */}
-              {dashboardData.tables.recentActivities && (
-                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
-                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center">
-                    <ClockIcon size={16} className="mr-2 text-green-600" />
-                    Nedavne aktivnosti
-                  </h4>
-                  <div className="space-y-3">
-                    {dashboardData.tables.recentActivities.map((activity, i) => {
-                      const activityDescription = activity.description || activity.action || activity.type || activity.message || 'Aktivnost';
-                      const technicianName = activity.technician || activity.technicianName || activity.user || activity.userName || 'Nepoznat';
-                      const activityTime = activity.timeAgo || (activity.timestamp ? new Date(activity.timestamp).toLocaleTimeString('sr-RS', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : activity.createdAt ? new Date(activity.createdAt).toLocaleTimeString('sr-RS', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : 'Nepoznato vreme');
-                      
-                      return (
-                        <div key={activity.id || activity._id || i} className="group p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/60 transition-all duration-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                              <div>
-                                <span className="text-sm font-medium text-slate-700 block">{activityDescription}</span>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <HardHatIcon size={12} className="text-slate-400" />
-                                  <span className="text-xs text-slate-500">{technicianName}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-slate-500 bg-white/50 px-2 py-1 rounded-full font-medium">
-                                {activityTime}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Problematic Work Orders if available */}
-              {dashboardData.tables.problematicWorkOrders && (
-                <div className="bg-white/60 backdrop-blur-lg border border-white/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
-                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center">
-                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
-                    Problematični radni nalozi
-                  </h4>
-                  <div className="space-y-3">
-                    {dashboardData.tables.problematicWorkOrders.map((wo, i) => {
-                      // Use the actual MongoDB ObjectId for navigation
-                      const workOrderMongoId = wo._id || wo.id;
-                      // Use tisJobId field from backend response (now populated from WorkOrder model)
-                      const tisJobId = wo.tisJobId || wo.workOrderInfo?.tisJobId || wo.tisId || wo.workOrderInfo?.tisId || `TIS-${i + 1}`;
-                      const workOrderDescription = wo.workOrderInfo?.description || wo.description || wo.details || wo.title || wo.summary || wo.type || wo.workOrderInfo?.type || 'Bez opisa';
-                      const workOrderStatus = wo.status || wo.workOrderInfo?.status || wo.state || wo.condition || 'nezavrsen';
-                      const workOrderPriority = wo.priority || wo.workOrderInfo?.priority || wo.urgency || wo.importance || 'normal';
-                      const workOrderMunicipality = wo.municipality || wo.workOrderInfo?.municipality || 'Nepoznata opština';
-                      const workOrderAddress = wo.address || wo.workOrderInfo?.address || 'Nepoznata adresa';
-                      
-                      const handleOpenWorkOrder = () => {
-                        if (workOrderMongoId) {
-                          // Navigate to work order details page using correct route
-                          const workOrderUrl = `/work-orders/${workOrderMongoId}`;
-                          window.open(workOrderUrl, '_blank');
-                        } else {
-                          console.warn('No work order ID available for navigation');
-                        }
-                      };
-                      
-                      return (
-                        <div key={workOrderMongoId || tisJobId || i} className="group p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-white/20 hover:bg-white/60 transition-all duration-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-3 h-3 rounded-full ${
-                                workOrderPriority === 'high' || workOrderPriority === 'urgent' ? 'bg-red-500 animate-pulse' :
-                                workOrderPriority === 'medium' ? 'bg-yellow-500' :
-                                'bg-gray-500'
-                              }`}></div>
-                              <div>
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span className="text-sm font-medium text-slate-700">tisJob ID:</span>
-                                  <span className="text-sm font-bold text-blue-600">{tisJobId}</span>
-                                </div>
-                                <div className="text-xs text-slate-500 max-w-48 truncate">{workOrderDescription}</div>
-                                <div className="text-xs text-slate-400 mt-1">
-                                  {workOrderMunicipality} • {workOrderAddress}
-                                </div>
-                                {workOrderMongoId && (
-                                  <div className="text-xs text-slate-400 mt-1">MongoDB ID: {workOrderMongoId.slice(0, 8)}...</div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right space-y-2">
-                              <div className="flex items-center space-x-2">
-                                <Button 
-                                  type="primary" 
-                                  size="small"
-                                  onClick={handleOpenWorkOrder}
-                                  disabled={!workOrderMongoId}
-                                >
-                                  Otvori
-                                </Button>
-                                {handleDismissWorkOrder && (
-                                  <button
-                                    onClick={() => handleDismissWorkOrder(workOrderMongoId)}
-                                    disabled={!workOrderMongoId}
-                                    className="w-6 h-6 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-red-200 hover:border-red-300"
-                                    title="Ukloni iz problematičnih"
-                                  >
-                                    <CloseIcon size={12} />
-                                  </button>
-                                )}
-                              </div>
-                              <div className="flex flex-col items-end space-y-1">
-                                <span className={`text-xs px-2 py-1 rounded-full font-medium backdrop-blur-sm ${
-                                  workOrderStatus === 'zavrsen' ? 'bg-green-100/80 text-green-700 border border-green-200/50' :
-                                  workOrderStatus === 'nezavrsen' ? 'bg-yellow-100/80 text-yellow-700 border border-yellow-200/50' :
-                                  workOrderStatus === 'otkazan' ? 'bg-red-100/80 text-red-700 border border-red-200/50' :
-                                  workOrderStatus === 'odlozen' ? 'bg-orange-100/80 text-orange-700 border border-orange-200/50' :
-                                  'bg-gray-100/80 text-gray-700 border border-gray-200/50'
-                                }`}>
-                                  {workOrderStatus === 'zavrsen' ? 'Završen' :
-                                   workOrderStatus === 'nezavrsen' ? 'Nezavršen' :
-                                   workOrderStatus === 'otkazan' ? 'Otkazan' :
-                                   workOrderStatus === 'odlozen' ? 'Odložen' : workOrderStatus}
-                                </span>
-                                <div className="text-xs text-slate-400 capitalize">{workOrderPriority}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Drill-down Modal */}
+      <DrilldownModal
+        isOpen={drilldownState.isOpen}
+        onClose={closeDrilldown}
+        title={drilldownState.title}
+        subtitle={drilldownState.subtitle}
+        data={drilldownState.data}
+        loading={drilldownState.loading}
+        error={drilldownState.error}
+        filterCriteria={drilldownState.filterCriteria}
+        onViewDetails={handleViewDetails}
+        onExportData={handleExportData}
+      />
     </div>
   );
 };

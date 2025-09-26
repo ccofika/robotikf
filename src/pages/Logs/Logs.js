@@ -66,15 +66,6 @@ const Logs = () => {
 
   // Dashboard state
   const [dashboardData, setDashboardData] = useState(null);
-  const [dashboardFilters, setDashboardFilters] = useState({
-    period: 'all',
-    technician: 'all',
-    municipality: 'all',
-    action: 'all',
-    dateRangeMode: false,
-    startDate: null,
-    endDate: null
-  });
 
   // Activity chart specific logs - separate from regular logs
   const [activityChartTechnicianLogs, setActivityChartTechnicianLogs] = useState([]);
@@ -257,17 +248,19 @@ const Logs = () => {
     }
   }, []);
 
-  // Dashboard functions
-  const loadDashboardData = useCallback(async () => {
+  // Dashboard functions - simplified
+  const loadDashboardData = useCallback(async (filterData) => {
     setLoading(true);
     try {
       const params = {
-        period: dashboardFilters.period,
-        technician: dashboardFilters.technician,
-        municipality: dashboardFilters.municipality,
-        action: dashboardFilters.action,
-        startDate: dashboardFilters.startDate,
-        endDate: dashboardFilters.endDate
+        period: filterData.dateMode || '7d',
+        technician: filterData.technician || 'all',
+        municipality: Array.isArray(filterData.municipalities) && filterData.municipalities.length > 0
+          ? filterData.municipalities.join(',')
+          : 'all',
+        action: filterData.action || 'all',
+        startDate: filterData.startDate,
+        endDate: filterData.endDate
       };
 
       // Load dashboard data from separate API endpoints
@@ -288,7 +281,7 @@ const Logs = () => {
     } finally {
       setLoading(false);
     }
-  }, [dashboardFilters]);
+  }, []);
 
   const loadFilterOptions = useCallback(async () => {
     try {
@@ -299,25 +292,6 @@ const Logs = () => {
     }
   }, []);
 
-  const handleDashboardFilterChange = (key, value) => {
-    setDashboardFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const resetDashboardFilters = () => {
-    setDashboardFilters({
-      period: 'all',
-      technician: 'all',
-      municipality: 'all',
-      action: 'all',
-      dateRangeMode: false,
-      startDate: null,
-      endDate: null
-    });
-  };
-
-  const handleDateRangeModeToggle = () => {
-    setDashboardFilters(prev => ({ ...prev, dateRangeMode: !prev.dateRangeMode }));
-  };
 
   // Admin dismiss functionality
   const handleDismissWorkOrder = async (workOrderId) => {
@@ -331,6 +305,12 @@ const Logs = () => {
       toast.error('Greška pri uklanjanju radnog naloga');
     }
   };
+
+  // Handle dashboard filter changes
+  const handleDashboardFiltersChange = useCallback(async (filterData) => {
+    console.log('Dashboard filters changed:', filterData);
+    await loadDashboardData(filterData);
+  }, [loadDashboardData]);
 
   // Handle navigation state from notifications
   useEffect(() => {
@@ -346,15 +326,14 @@ const Logs = () => {
   }, [loadActions, loadStatistics, loadFilterOptions]);
 
   useEffect(() => {
-    if (activeTab === 'dashboard') {
-      loadDashboardData();
-    } else if (activeTab === 'technicians') {
+    if (activeTab === 'technicians') {
       loadTechnicianLogs();
       loadMaterialValidationData();
-    } else {
+    } else if (activeTab === 'users') {
       loadUserLogs();
     }
-  }, [activeTab, loadTechnicianLogs, loadUserLogs, loadMaterialValidationData, loadDashboardData]);
+    // Dashboard tab loading is handled by the DashboardSection component
+  }, [activeTab, loadTechnicianLogs, loadUserLogs, loadMaterialValidationData]);
 
   // Separate useEffect for loading logs for activity chart (only when switching to dashboard)
   useEffect(() => {
@@ -652,17 +631,14 @@ const Logs = () => {
         ) : (
           <>
             {activeTab === 'dashboard' ? (
-              <DashboardSection 
+              <DashboardSection
                 dashboardData={dashboardData}
-                dashboardFilters={dashboardFilters}
-                handleDashboardFilterChange={handleDashboardFilterChange}
-                resetDashboardFilters={resetDashboardFilters}
                 filterOptions={filterOptions}
                 loading={loading}
-                handleDateRangeModeToggle={handleDateRangeModeToggle}
                 handleDismissWorkOrder={handleDismissWorkOrder}
                 technicianLogs={activityChartTechnicianLogs}
                 userLogs={activityChartUserLogs}
+                onFiltersChange={handleDashboardFiltersChange}
               />
             ) : activeTab === 'technicians' ? (
               <TechnicianLogsSection 
