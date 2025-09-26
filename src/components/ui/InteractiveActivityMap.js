@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -157,158 +157,103 @@ const InteractiveActivityMap = ({
     });
   };
 
-  // Serbia municipalities and Belgrade districts with precise coordinates
-  const SERBIA_MUNICIPALITIES = {
-    // Major Serbian cities
-    'Beograd': { lat: 44.7866, lng: 20.4489, region: 'Centralna Srbija' },
-    'Novi Sad': { lat: 45.2671, lng: 19.8335, region: 'Vojvodina' },
-    'Niš': { lat: 43.3209, lng: 21.8958, region: 'Južna Srbija' },
-    'Kragujevac': { lat: 44.0165, lng: 20.9114, region: 'Centralna Srbija' },
-    'Subotica': { lat: 46.1008, lng: 19.6677, region: 'Vojvodina' },
-    'Novi Pazar': { lat: 43.1436, lng: 20.5126, region: 'Južna Srbija' },
-    'Pančevo': { lat: 44.8709, lng: 20.6400, region: 'Centralna Srbija' },
-    'Čačak': { lat: 43.8914, lng: 20.3499, region: 'Centralna Srbija' },
+  // Municipality coordinates will be fetched dynamically from geocoding service
+  const [municipalityCoordinates, setMunicipalityCoordinates] = useState({});
+  const [geocodingLoading, setGeocodingLoading] = useState(false);
+  const [geocodingError, setGeocodingError] = useState(null);
 
-    // Belgrade municipalities - precise coordinates
-    'Zemun': { lat: 44.8549, lng: 20.3941, region: 'Centralna Srbija' },
-    'Novi Beograd': { lat: 44.8000, lng: 20.4167, region: 'Centralna Srbija' },
-    'Zvezdara': { lat: 44.8031, lng: 20.5051, region: 'Centralna Srbija' },
-    'Vračar': { lat: 44.7820, lng: 20.4685, region: 'Centralna Srbija' },
-    'Stari Grad': { lat: 44.8176, lng: 20.4633, region: 'Centralna Srbija' },
-    'Palilula': { lat: 44.8225, lng: 20.5144, region: 'Centralna Srbija' },
-    'Savski Venac': { lat: 44.8056, lng: 20.4489, region: 'Centralna Srbija' },
-    'Voždovac': { lat: 44.7575, lng: 20.4914, region: 'Centralna Srbija' },
-    'Čukarica': { lat: 44.7347, lng: 20.4219, region: 'Centralna Srbija' },
-    'Rakovica': { lat: 44.7392, lng: 20.4408, region: 'Centralna Srbija' },
-    'Barajevo': { lat: 44.6408, lng: 20.3686, region: 'Centralna Srbija' },
-    'Grocka': { lat: 44.6744, lng: 20.7653, region: 'Centralna Srbija' },
-    'Lazarevac': { lat: 44.3831, lng: 20.2589, region: 'Centralna Srbija' },
-    'Mladenovac': { lat: 44.4375, lng: 20.6925, region: 'Centralna Srbija' },
-    'Obrenovac': { lat: 44.6597, lng: 20.2097, region: 'Centralna Srbija' },
-    'Sopot': { lat: 44.5147, lng: 20.5786, region: 'Centralna Srbija' },
-    'Surčin': { lat: 44.7944, lng: 20.2747, region: 'Centralna Srbija' },
+  // Fetch municipality coordinates when data changes
+  useEffect(() => {
+    const fetchMunicipalityCoordinates = async () => {
+      if (!data || data.length === 0) {
+        setMunicipalityCoordinates({});
+        return;
+      }
 
-    // Belgrade settlements and neighborhoods - precise coordinates
-    'BORČA': { lat: 44.8988, lng: 20.5253, region: 'Centralna Srbija' },
-    'Borča': { lat: 44.8988, lng: 20.5253, region: 'Centralna Srbija' },
-    'KRNJAČA': { lat: 44.8844, lng: 20.4994, region: 'Centralna Srbija' },
-    'Krnjača': { lat: 44.8844, lng: 20.4994, region: 'Centralna Srbija' },
-    'Ovča': { lat: 44.8741, lng: 20.5186, region: 'Centralna Srbija' },
-    'Kotež': { lat: 44.8744, lng: 20.4886, region: 'Centralna Srbija' },
-    'Mirijevo': { lat: 44.8267, lng: 20.5536, region: 'Centralna Srbija' },
-    'Karaburma': { lat: 44.8244, lng: 20.5261, region: 'Centralna Srbija' },
-    'Višnjica': { lat: 44.8525, lng: 20.5281, region: 'Centralna Srbija' },
-    'Rospi Ćuprija': { lat: 44.8519, lng: 20.5103, region: 'Centralna Srbija' },
-    'Dunavski Venac': { lat: 44.8372, lng: 20.4681, region: 'Centralna Srbija' },
+      // Extract unique municipalities from data
+      const uniqueMunicipalities = [...new Set(
+        data
+          .map(activity => activity.municipality || activity.location)
+          .filter(Boolean)
+      )];
 
-    // Additional Belgrade areas
-    'Centar': { lat: 44.8176, lng: 20.4633, region: 'Centralna Srbija' },
-    'Dorćol': { lat: 44.8236, lng: 20.4686, region: 'Centralna Srbija' },
-    'Skadarlija': { lat: 44.8178, lng: 20.4658, region: 'Centralna Srbija' },
-    'Terazije': { lat: 44.8147, lng: 20.4611, region: 'Centralna Srbija' },
-    'Republika Trg': { lat: 44.8161, lng: 20.4603, region: 'Centralna Srbija' },
-    'Kalemegdan': { lat: 44.8225, lng: 20.4508, region: 'Centralna Srbija' },
+      if (uniqueMunicipalities.length === 0) {
+        return;
+      }
 
-    // Novi Beograd blocks and areas
-    'Blok 70': { lat: 44.8089, lng: 20.4039, region: 'Centralna Srbija' },
-    'Blok 45': { lat: 44.8156, lng: 20.3997, region: 'Centralna Srbija' },
-    'Blok 61': { lat: 44.8025, lng: 20.4147, region: 'Centralna Srbija' },
-    'Blok 62': { lat: 44.7994, lng: 20.4197, region: 'Centralna Srbija' },
-    'Blok 63': { lat: 44.7964, lng: 20.4247, region: 'Centralna Srbija' },
-    'Blok 64': { lat: 44.7933, lng: 20.4297, region: 'Centralna Srbija' },
-    'Blok 65': { lat: 44.7903, lng: 20.4347, region: 'Centralna Srbija' },
-    'Blok 19': { lat: 44.8219, lng: 20.4075, region: 'Centralna Srbija' },
-    'Blok 28': { lat: 44.8108, lng: 20.4247, region: 'Centralna Srbija' },
-    'Blok 37': { lat: 44.8039, lng: 20.4397, region: 'Centralna Srbija' },
+      // Check if we already have coordinates for all municipalities
+      const missingMunicipalities = uniqueMunicipalities.filter(
+        municipality => !municipalityCoordinates[municipality]
+      );
 
-    // Zemun areas
-    'Zemun Polje': { lat: 44.8694, lng: 20.3575, region: 'Centralna Srbija' },
-    'Batajnica': { lat: 44.8958, lng: 20.3044, region: 'Centralna Srbija' },
-    'Ugrinovci': { lat: 44.8506, lng: 20.3161, region: 'Centralna Srbija' },
-    'Altina': { lat: 44.8825, lng: 20.3797, region: 'Centralna Srbija' },
+      if (missingMunicipalities.length === 0) {
+        return; // All municipalities already geocoded
+      }
 
-    // Zvezdara areas
-    'Vukov Spomenik': { lat: 44.8011, lng: 20.4892, region: 'Centralna Srbija' },
-    'Đeram': { lat: 44.7950, lng: 20.5158, region: 'Centralna Srbija' },
-    'Mali Mokri Lug': { lat: 44.8119, lng: 20.5494, region: 'Centralna Srbija' },
-    'Veliki Mokri Lug': { lat: 44.8186, lng: 20.5647, region: 'Centralna Srbija' },
+      console.log(`🗺️ Need to geocode ${missingMunicipalities.length} municipalities:`, missingMunicipalities);
 
-    // Other Belgrade areas
-    'Banjica': { lat: 44.7522, lng: 20.4608, region: 'Centralna Srbija' },
-    'Voždovo': { lat: 44.7644, lng: 20.4750, region: 'Centralna Srbija' },
-    'Autokomanda': { lat: 44.7661, lng: 20.4697, region: 'Centralna Srbija' },
-    'Kumodraž': { lat: 44.7256, lng: 20.5156, region: 'Centralna Srbija' },
-    'Medaković': { lat: 44.7347, lng: 20.4889, region: 'Centralna Srbija' },
-    'Jajinci': { lat: 44.7050, lng: 20.4525, region: 'Centralna Srbija' },
-    'Petlovo Brdo': { lat: 44.7458, lng: 20.4269, region: 'Centralna Srbija' },
-    'Banovo Brdo': { lat: 44.7572, lng: 20.4092, region: 'Centralna Srbija' },
-    'Košutnjak': { lat: 44.7500, lng: 20.4250, region: 'Centralna Srbija' },
-    'Topčider': { lat: 44.7653, lng: 20.4489, region: 'Centralna Srbija' },
+      setGeocodingLoading(true);
+      setGeocodingError(null);
 
-    // Additional municipalities commonly found in work orders
-    'Smederevo': { lat: 44.6636, lng: 20.9300, region: 'Centralna Srbija' },
-    'Loznica': { lat: 44.5342, lng: 19.2269, region: 'Centralna Srbija' },
-    'Šabac': { lat: 44.7467, lng: 19.6908, region: 'Centralna Srbija' },
-    'Sabac': { lat: 44.7467, lng: 19.6908, region: 'Centralna Srbija' },
-    'Valjevo': { lat: 44.2719, lng: 19.8900, region: 'Centralna Srbija' },
-    'Smederevska Palanka': { lat: 44.3658, lng: 20.9606, region: 'Centralna Srbija' },
-    'Požarevac': { lat: 44.6194, lng: 21.1856, region: 'Centralna Srbija' },
-    'Pozarevac': { lat: 44.6194, lng: 21.1856, region: 'Centralna Srbija' },
-    'Jagodina': { lat: 43.9775, lng: 21.2611, region: 'Centralna Srbija' },
-    'Paraćin': { lat: 43.8597, lng: 21.4075, region: 'Centralna Srbija' },
-    'Paracin': { lat: 43.8597, lng: 21.4075, region: 'Centralna Srbija' },
-    'Aleksandrovac': { lat: 43.4608, lng: 21.0475, region: 'Centralna Srbija' },
-    'Trstenik': { lat: 43.6167, lng: 20.9986, region: 'Centralna Srbija' },
-    'Kruševac': { lat: 43.5808, lng: 21.3281, region: 'Centralna Srbija' },
-    'Krusevac': { lat: 43.5808, lng: 21.3281, region: 'Centralna Srbija' },
-    'Leskovac': { lat: 42.9981, lng: 21.9456, region: 'Južna Srbija' },
-    'Vranje': { lat: 42.5515, lng: 21.9025, region: 'Južna Srbija' },
-    'Prokuplje': { lat: 43.2394, lng: 21.5886, region: 'Južna Srbija' },
-    'Pirot': { lat: 43.1531, lng: 22.5897, region: 'Južna Srbija' },
-    'Zaječar': { lat: 43.9053, lng: 22.2900, region: 'Istočna Srbija' },
-    'Zajecar': { lat: 43.9053, lng: 22.2900, region: 'Istočna Srbija' },
-    'Bor': { lat: 44.0742, lng: 22.0958, region: 'Istočna Srbija' },
-    'Majdanpek': { lat: 44.4275, lng: 21.9403, region: 'Istočna Srbija' },
-    'Negotin': { lat: 44.2269, lng: 22.5361, region: 'Istočna Srbija' },
-    'Kladovo': { lat: 44.6078, lng: 22.6089, region: 'Istočna Srbija' },
+      try {
+        const response = await fetch('/api/logs/geocode/municipalities', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            municipalities: missingMunicipalities
+          })
+        });
 
-    // Vojvodina municipalities
-    'Zrenjanin': { lat: 45.3833, lng: 20.3833, region: 'Vojvodina' },
-    'Kikinda': { lat: 45.8372, lng: 20.4631, region: 'Vojvodina' },
-    'Sombor': { lat: 45.7742, lng: 19.1122, region: 'Vojvodina' },
-    'Apatin': { lat: 45.6711, lng: 18.9831, region: 'Vojvodina' },
-    'Odžaci': { lat: 45.5119, lng: 19.2881, region: 'Vojvodina' },
-    'Odzaci': { lat: 45.5119, lng: 19.2881, region: 'Vojvodina' },
-    'Bačka Topola': { lat: 45.8147, lng: 19.6381, region: 'Vojvodina' },
-    'Backa Topola': { lat: 45.8147, lng: 19.6381, region: 'Vojvodina' },
-    'Bač': { lat: 45.3881, lng: 19.2342, region: 'Vojvodina' },
-    'Bac': { lat: 45.3881, lng: 19.2342, region: 'Vojvodina' },
-    'Vrbas': { lat: 45.5681, lng: 19.6411, region: 'Vojvodina' },
-    'Kula': { lat: 45.6211, lng: 19.5361, region: 'Vojvodina' },
-    'Temerin': { lat: 45.4089, lng: 19.8942, region: 'Vojvodina' },
-    'Titel': { lat: 45.2042, lng: 20.3033, region: 'Vojvodina' },
-    'Bečej': { lat: 45.6169, lng: 20.0419, region: 'Vojvodina' },
-    'Becej': { lat: 45.6169, lng: 20.0419, region: 'Vojvodina' },
-    'Ada': { lat: 45.8000, lng: 20.1167, region: 'Vojvodina' },
-    'Senta': { lat: 45.9333, lng: 20.0833, region: 'Vojvodina' },
-    'Kanjiža': { lat: 46.0667, lng: 20.0667, region: 'Vojvodina' },
-    'Kanjiza': { lat: 46.0667, lng: 20.0667, region: 'Vojvodina' },
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-    // Additional Belgrade suburban areas
-    'Ripanj': { lat: 44.6794, lng: 20.5336, region: 'Centralna Srbija' },
-    'Avala': { lat: 44.6922, lng: 20.5153, region: 'Centralna Srbija' },
-    'Vinča': { lat: 44.7558, lng: 20.6086, region: 'Centralna Srbija' },
-    'Vinca': { lat: 44.7558, lng: 20.6086, region: 'Centralna Srbija' },
-    'Grocka centar': { lat: 44.6744, lng: 20.7653, region: 'Centralna Srbija' },
-    'Umčari': { lat: 44.6964, lng: 20.7347, region: 'Centralna Srbija' },
-    'Umcari': { lat: 44.6964, lng: 20.7347, region: 'Centralna Srbija' },
-    'Leštane': { lat: 44.7083, lng: 20.7750, region: 'Centralna Srbija' },
-    'Lestane': { lat: 44.7083, lng: 20.7750, region: 'Centralna Srbija' },
+        const result = await response.json();
 
-    // Common address prefixes and variations
-    'BG': { lat: 44.7866, lng: 20.4489, region: 'Centralna Srbija' }, // Belgrade prefix
-    'BEOGRAD': { lat: 44.7866, lng: 20.4489, region: 'Centralna Srbija' }
-  };
+        if (result.coordinatesMap) {
+          // Merge new coordinates with existing ones
+          setMunicipalityCoordinates(prev => ({
+            ...prev,
+            ...result.coordinatesMap
+          }));
+
+          console.log(`🗺️ Successfully geocoded ${Object.keys(result.coordinatesMap).length} municipalities`);
+
+          if (result.statistics) {
+            console.log(`🗺️ Geocoding stats:`, result.statistics);
+          }
+        }
+
+      } catch (error) {
+        console.error('❌ Error geocoding municipalities:', error);
+        setGeocodingError(`Failed to geocode municipalities: ${error.message}`);
+
+        // Set fallback coordinates for failed municipalities
+        const fallbackCoordinates = {};
+        missingMunicipalities.forEach(municipality => {
+          fallbackCoordinates[municipality] = {
+            lat: 44.7866, // Belgrade center
+            lng: 20.4489,
+            region: 'Nepoznat region (fallback)',
+            displayName: `${municipality}, Serbia (fallback)`,
+            type: 'fallback',
+            class: 'fallback'
+          };
+        });
+
+        setMunicipalityCoordinates(prev => ({
+          ...prev,
+          ...fallbackCoordinates
+        }));
+      } finally {
+        setGeocodingLoading(false);
+      }
+    };
+
+    fetchMunicipalityCoordinates();
+  }, [data]); // Re-run when data changes
 
   // Process map data for visualization
   const mapAnalysis = useMemo(() => {
@@ -325,38 +270,28 @@ const InteractiveActivityMap = ({
     const activityTypeGroups = {};
     const regionGroups = {};
 
-    // Initialize municipality groups from SERBIA_MUNICIPALITIES
-    Object.keys(SERBIA_MUNICIPALITIES).forEach(municipality => {
-      municipalityGroups[municipality] = {
-        municipality,
-        coordinates: SERBIA_MUNICIPALITIES[municipality],
-        totalActivities: 0,
-        technicians: new Set(),
-        activities: [],
-        activityTypes: {},
-        averageResponseTime: 0,
-        totalResponseTime: 0,
-        recentActivities: [],
-        urgentActivities: 0,
-        completedActivities: 0,
-        trend: 0
-      };
-    });
+    // Municipality groups will be created dynamically from data
 
-    // Also initialize groups for any municipalities found in data that aren't in the predefined list
-    const unknownMunicipalities = new Set();
+    // Initialize municipality groups for all municipalities found in data
+    const discoveredMunicipalities = new Set();
     data.forEach(activity => {
       const municipality = activity.municipality || activity.location;
-      if (municipality && !municipalityGroups[municipality]) {
-        unknownMunicipalities.add(municipality);
+      if (municipality) {
+        discoveredMunicipalities.add(municipality);
       }
     });
 
-    // Add unknown municipalities with default coordinates
-    unknownMunicipalities.forEach(municipality => {
+    // Create municipality groups with coordinates from geocoding service
+    discoveredMunicipalities.forEach(municipality => {
+      const coordinates = municipalityCoordinates[municipality] || {
+        lat: 44.7866, // Default to Belgrade center
+        lng: 20.4489,
+        region: 'Nepoznat region'
+      };
+
       municipalityGroups[municipality] = {
         municipality,
-        coordinates: { lat: 44.7866, lng: 20.4489, region: 'Nepoznat region' }, // Default to Belgrade coordinates
+        coordinates,
         totalActivities: 0,
         technicians: new Set(),
         activities: [],
@@ -370,7 +305,7 @@ const InteractiveActivityMap = ({
       };
     });
 
-    // Initialize region groups - collect from all municipality groups (including unknown ones)
+    // Initialize region groups
     const regions = [...new Set(Object.values(municipalityGroups).map(m => m.coordinates.region))];
     regions.forEach(region => {
       regionGroups[region] = {
@@ -505,11 +440,17 @@ const InteractiveActivityMap = ({
     }
   }, [onLocationClick]);
 
-  if (loading) {
+  if (loading || geocodingLoading) {
     return (
       <div className={cn("bg-white rounded-xl border border-slate-200 p-6", className)}>
         <div className="animate-pulse">
           <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
+          {geocodingLoading && (
+            <div className="text-sm text-blue-600 mb-4 flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span>Geocoding municipalities...</span>
+            </div>
+          )}
           <div className="h-80 bg-slate-200 rounded mb-4"></div>
           <div className="grid grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
@@ -521,13 +462,18 @@ const InteractiveActivityMap = ({
     );
   }
 
-  if (error) {
+  if (error || geocodingError) {
     return (
       <div className={cn("bg-white rounded-xl border border-red-200 p-6", className)}>
         <div className="text-center">
           <AlertTriangleIcon size={48} className="text-red-400 mb-4 mx-auto" />
           <h4 className="text-lg font-semibold text-slate-900 mb-2">Greška pri učitavanju mape</h4>
-          <p className="text-slate-600 mb-4">{error}</p>
+          <p className="text-slate-600 mb-4">{error || geocodingError}</p>
+          {geocodingError && (
+            <p className="text-sm text-orange-600 mb-4">
+              Geocoding failed, using fallback coordinates. Map may show approximate locations.
+            </p>
+          )}
           {onRefresh && (
             <Button type="secondary" size="small" onClick={onRefresh} prefix={<RefreshIcon size={16} />}>
               Pokušaj ponovo
@@ -637,7 +583,7 @@ const InteractiveActivityMap = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="all">Sve opštine</option>
-                  {Object.keys(SERBIA_MUNICIPALITIES).map(municipality => (
+                  {Object.keys(municipalityCoordinates).map(municipality => (
                     <option key={municipality} value={municipality}>{municipality}</option>
                   ))}
                 </select>

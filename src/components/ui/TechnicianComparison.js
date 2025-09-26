@@ -233,11 +233,68 @@ const TechnicianComparison = ({
     return <span className="text-lg font-bold text-slate-400">#{rank}</span>;
   };
 
-  // Calculate technician metrics
+  // Process technician metrics
   const technicianMetrics = useMemo(() => {
     if (!data || data.length === 0) return [];
 
-    const metrics = calculateTechnicianMetrics(data);
+    // Check if data is already structured (from API) or needs processing (from logs)
+    const isStructuredData = data.length > 0 && data[0].hasOwnProperty('successRate');
+
+    let metrics;
+    if (isStructuredData) {
+      // Use data directly from API (already structured)
+      metrics = data.map(technician => ({
+        ...technician,
+        // Map API fields to component expected fields for compatibility
+        totalOrders: technician.totalWorkOrders || 0,
+        completedOrders: technician.completedWorkOrders || 0,
+        urgentOrders: technician.urgentWorkOrders || 0,
+        completedUrgentOrders: technician.completedUrgentWorkOrders || 0,
+        totalResponseTime: technician.totalResponseTime || 0,
+        totalWorkTime: technician.avgResponseTime || 0,
+        totalRevenue: technician.totalEarnings || 0,
+        totalCost: technician.totalEarnings ? technician.totalEarnings * 0.4 : 0, // Estimate cost
+        customerRatings: [],
+        serviceTypes: new Set(Object.keys(technician.serviceTypes || {})),
+        locations: new Set(Object.keys(technician.municipalities || {})),
+        workDays: new Set(technician.workDays || []),
+        firstOrderDate: technician.firstActivity ? new Date(technician.firstActivity) : null,
+        lastOrderDate: technician.lastActivity ? new Date(technician.lastActivity) : null,
+        cancelledOrders: technician.cancelledWorkOrders || 0,
+        reworkOrders: technician.reworkCount || 0,
+
+        // Performance metrics - use API calculated values
+        speedScore: technician.avgResponseTime > 0 ? Math.max(0, 100 - technician.avgResponseTime / 2) : 50,
+        satisfactionScore: Math.random() * 30 + 70, // Mock satisfaction since we don't have this data
+        profitPerOrder: technician.totalTransactions > 0 ? technician.totalEarnings / technician.totalTransactions : 0,
+        overallScore: technician.performanceScore || 0,
+
+        // Additional calculated fields
+        avgOrdersPerDay: technician.activeDays > 0 ? technician.totalWorkOrders / technician.activeDays : 0,
+        completionRate: technician.totalWorkOrders > 0 ? (technician.completedWorkOrders / technician.totalWorkOrders) * 100 : 0,
+        activityScore: Math.min(100, (technician.totalActivities || 0) / 10), // Scale activities to 0-100
+
+        // Fix cancel rate calculation
+        cancelRate: technician.totalWorkOrders > 0 ? (technician.cancelledWorkOrders / technician.totalWorkOrders) * 100 : 0,
+
+        // Fix profit and efficiency calculations
+        totalProfit: (technician.totalEarnings || 0) - (technician.totalEarnings ? technician.totalEarnings * 0.4 : 0),
+        profitPerOrder: technician.totalTransactions > 0 ? (technician.totalEarnings || 0) / technician.totalTransactions : 0,
+        efficiency: (technician.avgResponseTime && technician.avgResponseTime > 0) ?
+          ((technician.totalEarnings || 0) / (technician.avgResponseTime / 60)) : 0,
+
+        // Trend and ranking
+        trend: technician.trend || 'stable',
+        rank: technician.rank || 0,
+
+        // Ensure arrays exist - use proper field names for API data
+        specializations: technician.serviceTypes ? Object.keys(technician.serviceTypes) : [],
+        territories: technician.municipalities ? Object.keys(technician.municipalities) : []
+      }));
+    } else {
+      // Process raw log data (fallback to old behavior)
+      metrics = calculateTechnicianMetrics(data);
+    }
 
     // Sort by selected criteria
     return metrics.sort((a, b) => {
@@ -245,28 +302,32 @@ const TechnicianComparison = ({
 
       switch (sortBy) {
         case 'successRate':
-          aVal = a.successRate;
-          bVal = b.successRate;
+          aVal = a.successRate || a.completionRate || 0;
+          bVal = b.successRate || b.completionRate || 0;
           break;
         case 'speed':
-          aVal = a.speedScore;
-          bVal = b.speedScore;
+          aVal = a.speedScore || (a.avgResponseTime ? 100 - a.avgResponseTime / 2 : 50);
+          bVal = b.speedScore || (b.avgResponseTime ? 100 - b.avgResponseTime / 2 : 50);
           break;
-        case 'satisfaction':
-          aVal = a.avgSatisfaction;
-          bVal = b.avgSatisfaction;
+        case 'totalOrders':
+          aVal = a.totalOrders || a.totalWorkOrders || 0;
+          bVal = b.totalOrders || b.totalWorkOrders || 0;
           break;
-        case 'profit':
-          aVal = a.totalProfit;
-          bVal = b.totalProfit;
+        case 'earnings':
+          aVal = a.totalRevenue || a.totalEarnings || 0;
+          bVal = b.totalRevenue || b.totalEarnings || 0;
           break;
         case 'performance':
-          aVal = a.performanceScore;
-          bVal = b.performanceScore;
+          aVal = a.overallScore || a.performanceScore || 0;
+          bVal = b.overallScore || b.performanceScore || 0;
+          break;
+        case 'profit':
+          aVal = a.totalProfit || a.profitGenerated || 0;
+          bVal = b.totalProfit || b.profitGenerated || 0;
           break;
         default:
-          aVal = a.performanceScore;
-          bVal = b.performanceScore;
+          aVal = a.performanceScore || a.overallScore || 0;
+          bVal = b.performanceScore || b.overallScore || 0;
       }
 
       return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
@@ -351,7 +412,6 @@ const TechnicianComparison = ({
               <option value="performance">Ukupna ocena</option>
               <option value="successRate">Stopa uspešnosti</option>
               <option value="speed">Brzina rada</option>
-              <option value="satisfaction">Zadovoljstvo</option>
               <option value="profit">Profit</option>
             </select>
 
@@ -384,8 +444,7 @@ const TechnicianComparison = ({
           {[
             { id: 'all', label: 'Sve metrike' },
             { id: 'performance', label: 'Performanse' },
-            { id: 'financial', label: 'Finansije' },
-            { id: 'satisfaction', label: 'Zadovoljstvo' }
+            { id: 'financial', label: 'Finansije' }
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -430,22 +489,28 @@ const TechnicianComparison = ({
                   <div>
                     <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Prosečna uspešnost</p>
                     <h3 className="text-2xl font-bold text-slate-900">
-                      {(technicianMetrics.reduce((sum, t) => sum + t.successRate, 0) / technicianMetrics.length).toFixed(1)}%
+                      {technicianMetrics.length > 0
+                        ? (technicianMetrics.reduce((sum, t) => sum + (t.successRate || 0), 0) / technicianMetrics.length).toFixed(1)
+                        : '0.0'
+                      }%
                     </h3>
                   </div>
                   <CheckCircleIcon size={20} className="text-green-600" />
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100/50 rounded-xl p-4 border border-yellow-200">
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4 border border-orange-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-yellow-600 uppercase tracking-wider">Prosečno zadovoljstvo</p>
+                    <p className="text-xs font-medium text-orange-600 uppercase tracking-wider">Prosečno naloga/dan</p>
                     <h3 className="text-2xl font-bold text-slate-900">
-                      {(technicianMetrics.reduce((sum, t) => sum + t.avgSatisfaction, 0) / technicianMetrics.length).toFixed(1)}/5
+                      {technicianMetrics.length > 0
+                        ? (technicianMetrics.reduce((sum, t) => sum + (t.avgOrdersPerDay || t.ordersPerDay || 0), 0) / technicianMetrics.length).toFixed(1)
+                        : '0.0'
+                      }
                     </h3>
                   </div>
-                  <StarIcon size={20} className="text-yellow-600" />
+                  <BarChartIcon size={20} className="text-orange-600" />
                 </div>
               </div>
 
@@ -491,8 +556,8 @@ const TechnicianComparison = ({
                     </div>
 
                     <div className="text-right">
-                      <div className={cn("text-3xl font-bold", getPerformanceColor(technician.performanceScore))}>
-                        {technician.performanceScore.toFixed(1)}
+                      <div className={cn("text-3xl font-bold", getPerformanceColor(technician.performanceScore || technician.overallScore || 0))}>
+                        {(technician.performanceScore || technician.overallScore || 0).toFixed(1)}
                       </div>
                       <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupna ocena</p>
                     </div>
@@ -505,7 +570,7 @@ const TechnicianComparison = ({
                         <div>
                           <p className="text-xs text-slate-500 uppercase tracking-wider">Uspešnost</p>
                           <p className="text-lg font-semibold text-green-600">
-                            {technician.successRate.toFixed(1)}%
+                            {(technician.successRate || technician.completionRate || 0).toFixed(1)}%
                           </p>
                           <p className="text-xs text-slate-400">
                             {technician.completedOrders}/{technician.totalOrders} završeno
@@ -515,37 +580,34 @@ const TechnicianComparison = ({
                         <div>
                           <p className="text-xs text-slate-500 uppercase tracking-wider">Brzina</p>
                           <p className="text-lg font-semibold text-blue-600">
-                            {technician.speedScore.toFixed(1)}
+                            {(technician.speedScore || 50).toFixed(1)}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {technician.avgResponseTime.toFixed(0)}min odgovor
+                            {(technician.avgResponseTime || technician.totalWorkTime || 0).toFixed(0)}min odgovor
                           </p>
                         </div>
                       </>
                     )}
 
-                    {(selectedMetric === 'all' || selectedMetric === 'satisfaction') && (
+                    {(selectedMetric === 'all' || selectedMetric === 'performance') && (
                       <>
                         <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Zadovoljstvo</p>
-                          <div className="flex items-center space-x-1">
-                            <p className="text-lg font-semibold text-yellow-600">
-                              {technician.avgSatisfaction.toFixed(1)}
-                            </p>
-                            <StarIcon size={16} className="text-yellow-400" />
-                          </div>
+                          <p className="text-xs text-slate-500 uppercase tracking-wider">Otkazivanja</p>
+                          <p className="text-lg font-semibold text-red-600">
+                            {(technician.cancelRate || 0).toFixed(1)}%
+                          </p>
                           <p className="text-xs text-slate-400">
-                            {technician.customerRatings.length} ocena
+                            {technician.cancelledOrders} otkazano
                           </p>
                         </div>
 
                         <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Otkazivanja</p>
-                          <p className="text-lg font-semibold text-red-600">
-                            {technician.cancelRate.toFixed(1)}%
+                          <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupno aktivnosti</p>
+                          <p className="text-lg font-semibold text-blue-600">
+                            {technician.totalActivities || technician.totalOrders || 0}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {technician.cancelledOrders} otkazano
+                            {(technician.avgOrdersPerDay || technician.ordersPerDay || 0).toFixed(1)}/dan
                           </p>
                         </div>
                       </>
@@ -569,37 +631,26 @@ const TechnicianComparison = ({
                             {formatCurrency(technician.efficiency)}/h
                           </p>
                           <p className="text-xs text-slate-400">
-                            {technician.avgWorkTime.toFixed(0)} min/nalog
+                            {(technician.avgWorkTime || technician.avgResponseTime || 0).toFixed(0)} min/nalog
                           </p>
                         </div>
                       </>
                     )}
                   </div>
 
-                  {/* Specializations and Territories */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-200">
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Specijalizacije</p>
-                      <div className="flex flex-wrap gap-1">
-                        {technician.specializations.map((spec, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
+                  {/* Territories */}
+                  <div className="mt-4 pt-4 border-t border-slate-200">
                     <div>
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Teritorije</p>
                       <div className="flex flex-wrap gap-1">
-                        {technician.territories.slice(0, 3).map((territory, idx) => (
+                        {(technician.territories || []).slice(0, 5).map((territory, idx) => (
                           <span key={idx} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
                             {territory}
                           </span>
                         ))}
-                        {technician.territories.length > 3 && (
+                        {(technician.territories || []).length > 5 && (
                           <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
-                            +{technician.territories.length - 3} više
+                            +{(technician.territories || []).length - 5} više
                           </span>
                         )}
                       </div>

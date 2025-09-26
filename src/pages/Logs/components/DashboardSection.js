@@ -77,6 +77,18 @@ const DashboardSection = ({
   const [predictiveError, setPredictiveError] = useState(null);
   const [predictiveTimeRange, setPredictiveTimeRange] = useState('30d');
 
+  // Financial analysis state
+  const [financialData, setFinancialData] = useState([]);
+  const [financialLoading, setFinancialLoading] = useState(false);
+  const [financialError, setFinancialError] = useState(null);
+  const [financialTimeRange, setFinancialTimeRange] = useState('30d');
+
+  // Technician comparison state
+  const [technicianComparisonData, setTechnicianComparisonData] = useState([]);
+  const [technicianComparisonLoading, setTechnicianComparisonLoading] = useState(false);
+  const [technicianComparisonError, setTechnicianComparisonError] = useState(null);
+  const [technicianComparisonTimeRange, setTechnicianComparisonTimeRange] = useState('30d');
+
   // Global filters hook
   const {
     filters,
@@ -127,6 +139,8 @@ const DashboardSection = ({
         fetchHourlyActivityData(filterData),
         fetchMapData(filterData),
         fetchPredictiveData(filterData),
+        fetchFinancialData(filterData),
+        fetchTechnicianComparisonData(filterData),
         // Add other dashboard data fetching here
       ]);
     } catch (error) {
@@ -683,16 +697,34 @@ const DashboardSection = ({
         }
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/technicians?${params.toString()}`);
+      // Use new predictive analytics endpoint
+      const predictiveParams = new URLSearchParams();
+      predictiveParams.append('startDate', startDate.toISOString().split('T')[0]);
+      predictiveParams.append('endDate', endDate.toISOString().split('T')[0]);
+      predictiveParams.append('predictionHorizon', timeRange);
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/dashboard/predictive-analytics?${predictiveParams.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch predictive data');
 
-      const data = await response.json();
+      const result = await response.json();
 
-      // Process the logs for predictive analysis
-      const rawLogs = data.data || [];
-      const processedPredictiveData = processPredictiveAnalysisLogs(rawLogs, filterData);
+      if (result.success) {
+        // Data is already processed by the backend
+        const processedData = result.data || [];
 
-      setPredictiveData(processedPredictiveData);
+        // Apply frontend filters if needed
+        let filteredData = processedData;
+        if (filterData?.municipalities?.length > 0) {
+          filteredData = processedData.filter(item =>
+            filterData.municipalities.includes(item.municipality)
+          );
+        }
+
+        setPredictiveData(filteredData);
+        console.log(`📊 Predictive Analytics: Loaded ${filteredData.length} records`, result.metadata);
+      } else {
+        throw new Error(result.error || 'Failed to fetch predictive data');
+      }
     } catch (error) {
       console.error('Error fetching predictive data:', error);
       setPredictiveError(error.message || 'Greška pri učitavanju prediktivnih podataka');
@@ -701,6 +733,409 @@ const DashboardSection = ({
     } finally {
       setPredictiveLoading(false);
     }
+  };
+
+  // Fetch financial analysis data
+  const fetchFinancialData = async (filterData = null, timeRange = financialTimeRange) => {
+    setFinancialLoading(true);
+    setFinancialError(null);
+    try {
+      const params = new URLSearchParams();
+
+      // Add time range parameter
+      params.append('timeRange', timeRange);
+
+      // Apply filters if provided
+      if (filterData) {
+        if (filterData.technician && filterData.technician !== 'all') {
+          params.append('technician', filterData.technician);
+        }
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          params.append('municipalities', filterData.municipalities.join(','));
+        }
+      }
+
+      console.log(`💰 Fetching financial data with params: ${params.toString()}`);
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/dashboard/financial-analysis?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch financial analysis data');
+
+      const data = await response.json();
+
+      console.log(`💰 Financial data received:`, data);
+
+      // The API returns properly structured financial data
+      setFinancialData(data.data || []);
+    } catch (error) {
+      console.error('Error fetching financial data:', error);
+      setFinancialError(error.message || 'Greška pri učitavanju finansijskih podataka');
+      // Generate mock data for demonstration if API fails
+      setFinancialData(generateMockFinancialData());
+    } finally {
+      setFinancialLoading(false);
+    }
+  };
+
+  // Generate mock financial data for demonstration
+  const generateMockFinancialData = () => {
+    const serviceTypes = ['HFC', 'GPON', 'Servisne usluge', 'Novi korisnici'];
+    const technicians = ['Marko Petrović', 'Jovana Nikolić', 'Stefan Jovanović', 'Ana Milić', 'Petar Milanović'];
+    const municipalities = [
+      'Beograd', 'Novi Sad', 'Niš', 'Kragujevac', 'Subotica', 'Novi Pazar',
+      'Zemun', 'Pančevo', 'Čačak', 'Novi Beograd', 'Zvezdara', 'Vračar', 'Stari Grad'
+    ];
+
+    const mockData = [];
+    const now = new Date();
+
+    // Generate financial transactions
+    for (let i = 0; i < 250; i++) {
+      const randomDate = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+      const serviceType = serviceTypes[Math.floor(Math.random() * serviceTypes.length)];
+      const basePrice = Math.floor(Math.random() * 3000) + 1500; // 1500-4500 RSD
+      const discount = Math.random() > 0.7 ? Math.floor(Math.random() * 500) : 0;
+      const finalPrice = basePrice - discount;
+      const technicianEarnings = Math.floor(finalPrice * 0.6); // 60% to technicians
+      const companyProfit = finalPrice - technicianEarnings;
+
+      mockData.push({
+        id: `financial-${i}`,
+        timestamp: randomDate.toISOString(),
+        workOrderId: `wo-${4000 + i}`,
+        tisJobId: `TIS-${9000 + i}`,
+
+        // Financial data
+        basePrice: basePrice,
+        discountPercent: discount > 0 ? Math.floor((discount / basePrice) * 100) : 0,
+        discountAmount: discount,
+        finalPrice: finalPrice,
+        totalTechnicianEarnings: technicianEarnings,
+        companyProfit: companyProfit,
+        profitMargin: (companyProfit / finalPrice) * 100,
+
+        // Service and location data
+        serviceCategory: serviceType,
+        municipality: municipalities[Math.floor(Math.random() * municipalities.length)],
+        address: `Mock adresa ${i + 1}`,
+        userName: `Korisnik ${i + 1}`,
+
+        // Technician data
+        technician: technicians[Math.floor(Math.random() * technicians.length)],
+        primaryTechnicianEarnings: technicianEarnings,
+
+        // For compatibility with existing frontend
+        revenue: finalPrice,
+        cost: technicianEarnings,
+        profit: companyProfit,
+        service_type: serviceType,
+        location: municipalities[Math.floor(Math.random() * municipalities.length)],
+
+        // Additional data
+        hasDiscount: discount > 0,
+        isHighValue: finalPrice > 3500
+      });
+    }
+
+    return mockData;
+  };
+
+  // Handle financial time range change
+  const handleFinancialTimeRangeChange = (timeRange) => {
+    setFinancialTimeRange(timeRange);
+    fetchFinancialData(null, timeRange);
+  };
+
+  // Handle financial refresh
+  const handleFinancialRefresh = () => {
+    fetchFinancialData(null, financialTimeRange);
+  };
+
+  // Handle financial export
+  const handleFinancialExport = (financialData) => {
+    const csvContent = convertFinancialDataToCSV(financialData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `finansijska-analiza-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Convert financial data to CSV for export
+  const convertFinancialDataToCSV = (data) => {
+    if (!data || data.length === 0) {
+      return 'Nema podataka za izvoz\n';
+    }
+
+    const headers = [
+      'ID', 'Datum', 'Tehničar', 'Opština', 'Korisnik',
+      'Tip usluge', 'Osnovna cena', 'Popust', 'Finalna cena',
+      'Zarada tehničara', 'Profit kompanije', 'Marža profita (%)',
+      'TIS Job ID', 'Adresa'
+    ];
+
+    const csvRows = [headers.join(',')];
+
+    data.forEach(item => {
+      const row = [
+        item.id || '',
+        item.timestamp ? new Date(item.timestamp).toLocaleDateString('sr-RS') : '',
+        item.technician || 'N/A',
+        item.municipality || 'N/A',
+        item.userName || 'N/A',
+        item.serviceCategory || item.service_type || 'N/A',
+        item.basePrice || item.revenue || 0,
+        item.discountAmount || 0,
+        item.finalPrice || item.revenue || 0,
+        item.totalTechnicianEarnings || item.cost || 0,
+        item.companyProfit || item.profit || 0,
+        item.profitMargin ? item.profitMargin.toFixed(2) : '0.00',
+        item.tisJobId || 'N/A',
+        item.address || 'N/A'
+      ];
+
+      csvRows.push(row.map(value =>
+        typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      ).join(','));
+    });
+
+    return csvRows.join('\n');
+  };
+
+  // Fetch technician comparison data
+  const fetchTechnicianComparisonData = async (filterData = null, timeRange = technicianComparisonTimeRange) => {
+    setTechnicianComparisonLoading(true);
+    setTechnicianComparisonError(null);
+    try {
+      const params = new URLSearchParams();
+
+      // Add time range parameter
+      params.append('timeRange', timeRange);
+
+      // Add includeInactive parameter (only show active technicians by default)
+      params.append('includeInactive', 'false');
+
+      // Apply filters if provided
+      if (filterData) {
+        if (filterData.municipalities && filterData.municipalities.length > 0) {
+          params.append('municipalities', filterData.municipalities.join(','));
+        }
+      }
+
+      console.log(`👥 Fetching technician comparison data with params: ${params.toString()}`);
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/dashboard/technician-comparison?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch technician comparison data');
+
+      const data = await response.json();
+
+      console.log(`👥 Technician comparison data received:`, data);
+
+      // The API returns properly structured technician data
+      setTechnicianComparisonData(data.technicians || []);
+    } catch (error) {
+      console.error('Error fetching technician comparison data:', error);
+      setTechnicianComparisonError(error.message || 'Greška pri učitavanju podataka za poređenje tehničara');
+      // Generate mock data for demonstration if API fails
+      setTechnicianComparisonData(generateMockTechnicianComparisonData());
+    } finally {
+      setTechnicianComparisonLoading(false);
+    }
+  };
+
+  // Generate mock technician comparison data for demonstration
+  const generateMockTechnicianComparisonData = () => {
+    const technicians = [
+      'Marko Petrović', 'Jovana Nikolić', 'Stefan Jovanović',
+      'Ana Milić', 'Petar Milanović', 'Milica Radović',
+      'Nikola Stojanović', 'Jelena Pavlović', 'Milan Đorđević'
+    ];
+
+    const serviceTypes = ['Instalacija', 'Servis', 'Dijagnostika', 'Održavanje'];
+    const municipalities = [
+      'Beograd', 'Novi Sad', 'Niš', 'Kragujevac', 'Subotica', 'Novi Pazar',
+      'Zemun', 'Pančevo', 'Čačak', 'Novi Beograd', 'Zvezdara', 'Vračar'
+    ];
+
+    const mockData = technicians.map((name, index) => {
+      const totalWorkOrders = Math.floor(Math.random() * 150) + 50; // 50-200 work orders
+      const completedWorkOrders = Math.floor(totalWorkOrders * (0.6 + Math.random() * 0.35)); // 60-95% success rate
+      const totalActivities = Math.floor(Math.random() * 500) + 200; // 200-700 activities
+      const totalEarnings = Math.floor(Math.random() * 80000) + 30000; // 30k-110k RSD
+      const avgResponseTime = Math.random() * 48 + 2; // 2-50 hours
+
+      // Create work days
+      const workDays = [];
+      const now = new Date();
+      for (let i = 0; i < 30; i++) {
+        if (Math.random() > 0.3) { // 70% chance of working each day
+          const workDate = new Date(now - i * 24 * 60 * 60 * 1000);
+          workDays.push(workDate.toISOString().split('T')[0]);
+        }
+      }
+
+      // Create municipality distribution
+      const techMunicipalities = {};
+      const numMunicipalities = Math.floor(Math.random() * 5) + 2; // 2-6 municipalities
+      for (let i = 0; i < numMunicipalities; i++) {
+        const municipality = municipalities[Math.floor(Math.random() * municipalities.length)];
+        techMunicipalities[municipality] = Math.floor(Math.random() * 30) + 5;
+      }
+
+      // Create service type distribution
+      const techServiceTypes = {};
+      serviceTypes.forEach(type => {
+        if (Math.random() > 0.3) {
+          techServiceTypes[type] = Math.floor(Math.random() * 40) + 5;
+        }
+      });
+
+      const successRate = totalWorkOrders > 0 ? (completedWorkOrders / totalWorkOrders) * 100 : 0;
+      const performanceScore = Math.min(100,
+        (successRate * 0.4) +
+        (Math.max(0, 100 - avgResponseTime) * 0.3) +
+        (Math.min(100, totalActivities / 5) * 0.3)
+      );
+
+      return {
+        id: `tech-${index}`,
+        name,
+        email: `${name.toLowerCase().replace(' ', '.')}@example.com`,
+        role: index < 2 ? 'admin' : 'technician',
+
+        // Work Order Statistics
+        totalWorkOrders,
+        completedWorkOrders,
+        cancelledWorkOrders: Math.floor(totalWorkOrders * 0.05 + Math.random() * 0.1), // 5-15% cancelled
+        postponedWorkOrders: Math.floor(totalWorkOrders * 0.02 + Math.random() * 0.05), // 2-7% postponed
+        overdueWorkOrders: Math.floor(totalWorkOrders * 0.03 + Math.random() * 0.07), // 3-10% overdue
+
+        // Performance Metrics
+        successRate,
+        avgResponseTime,
+        totalResponseTime: avgResponseTime * completedWorkOrders,
+        responseTimeCount: completedWorkOrders,
+
+        // Activity Metrics
+        totalActivities,
+        activeDays: workDays.length,
+        workDays,
+
+        // Financial Metrics
+        totalEarnings,
+        totalTransactions: Math.floor(completedWorkOrders * 0.8), // 80% of completed orders have financial data
+        avgEarningsPerTransaction: totalEarnings / Math.max(1, Math.floor(completedWorkOrders * 0.8)),
+        profitGenerated: totalEarnings * 1.5, // Company profit is typically 1.5x technician earnings
+
+        // Location Distribution
+        municipalities: techMunicipalities,
+        serviceTypes: techServiceTypes,
+
+        // Time Analysis
+        firstActivity: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+        lastActivity: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+
+        // Ranking Metrics
+        rank: index + 1,
+        performanceScore,
+        trend: Math.random() > 0.6 ? 'up' : Math.random() > 0.3 ? 'stable' : 'down',
+
+        // For compatibility with existing component
+        worker: name,
+        technician: name
+      };
+    });
+
+    // Sort by performance score
+    return mockData.sort((a, b) => b.performanceScore - a.performanceScore)
+      .map((tech, index) => ({ ...tech, rank: index + 1 }));
+  };
+
+  // Handle technician comparison time range change
+  const handleTechnicianComparisonTimeRangeChange = (timeRange) => {
+    setTechnicianComparisonTimeRange(timeRange);
+    fetchTechnicianComparisonData(null, timeRange);
+  };
+
+  // Handle technician comparison refresh
+  const handleTechnicianComparisonRefresh = () => {
+    fetchTechnicianComparisonData(null, technicianComparisonTimeRange);
+  };
+
+  // Handle technician comparison export
+  const handleTechnicianComparisonExport = (technicianData) => {
+    const csvContent = convertTechnicianComparisonDataToCSV(technicianData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `poredenje-tehnicara-${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Convert technician comparison data to CSV for export
+  const convertTechnicianComparisonDataToCSV = (data) => {
+    if (!data || data.length === 0) {
+      return 'Nema podataka za izvoz\n';
+    }
+
+    const headers = [
+      'Rank', 'Ime', 'Email', 'Uloga', 'Ukupno radnih naloga', 'Završeno',
+      'Otkazano', 'Odloženo', 'Stopa uspešnosti (%)', 'Prosečno vreme odgovora (h)',
+      'Ukupne aktivnosti', 'Aktivni dani', 'Ukupne zarade (RSD)',
+      'Prosečna zarada po transakciji', 'Profit generisan', 'Performance Score',
+      'Trend', 'Najčešća opština', 'Najčešći tip usluge'
+    ];
+
+    const csvRows = [headers.join(',')];
+
+    data.forEach(technician => {
+      // Find most common municipality and service type
+      const topMunicipality = Object.entries(technician.municipalities || {})
+        .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
+      const topServiceType = Object.entries(technician.serviceTypes || {})
+        .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A';
+
+      const row = [
+        technician.rank || 0,
+        technician.name || 'N/A',
+        technician.email || 'N/A',
+        technician.role || 'technician',
+        technician.totalWorkOrders || 0,
+        technician.completedWorkOrders || 0,
+        technician.cancelledWorkOrders || 0,
+        technician.postponedWorkOrders || 0,
+        technician.successRate ? technician.successRate.toFixed(2) : '0.00',
+        technician.avgResponseTime ? technician.avgResponseTime.toFixed(2) : '0.00',
+        technician.totalActivities || 0,
+        technician.activeDays || 0,
+        technician.totalEarnings || 0,
+        technician.avgEarningsPerTransaction ? technician.avgEarningsPerTransaction.toFixed(2) : '0.00',
+        technician.profitGenerated || 0,
+        technician.performanceScore ? technician.performanceScore.toFixed(2) : '0.00',
+        technician.trend || 'stable',
+        topMunicipality,
+        topServiceType
+      ];
+
+      csvRows.push(row.map(value =>
+        typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      ).join(','));
+    });
+
+    return csvRows.join('\n');
   };
 
   // Process logs for predictive analysis
@@ -910,6 +1345,16 @@ const DashboardSection = ({
     fetchPredictiveData();
   }, []);
 
+  // Load financial data on mount
+  useEffect(() => {
+    fetchFinancialData();
+  }, []);
+
+  // Load technician comparison data on mount
+  useEffect(() => {
+    fetchTechnicianComparisonData();
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Global Dashboard Filters */}
@@ -1056,20 +1501,13 @@ const DashboardSection = ({
       {/* Financial Analysis */}
       <div className="col-span-full">
         <FinancialAnalysis
-          data={[...technicianLogs, ...userLogs]}
-          loading={dashboardLoading}
-          timeRange={filters.dateRange}
-          onTimeRangeChange={(range) => updateFilter('dateRange', range)}
-          onRefresh={() => {
-            fetchCancellationData();
-            fetchHourlyActivityData();
-            fetchMapData();
-            fetchPredictiveData();
-          }}
-          onExport={(data) => {
-            console.log('Exporting financial data:', data);
-            // Handle financial data export
-          }}
+          data={financialData}
+          loading={financialLoading}
+          error={financialError}
+          timeRange={financialTimeRange}
+          onTimeRangeChange={handleFinancialTimeRangeChange}
+          onRefresh={handleFinancialRefresh}
+          onExport={handleFinancialExport}
           className="mb-6"
         />
       </div>
@@ -1077,20 +1515,13 @@ const DashboardSection = ({
       {/* Technician Comparison */}
       <div className="col-span-full">
         <TechnicianComparison
-          data={[...technicianLogs, ...userLogs]}
-          loading={dashboardLoading}
-          timeRange={filters.dateRange}
-          onTimeRangeChange={(range) => updateFilter('dateRange', range)}
-          onRefresh={() => {
-            fetchCancellationData();
-            fetchHourlyActivityData();
-            fetchMapData();
-            fetchPredictiveData();
-          }}
-          onExport={(data) => {
-            console.log('Exporting technician comparison:', data);
-            // Handle technician comparison export
-          }}
+          data={technicianComparisonData}
+          loading={technicianComparisonLoading}
+          error={technicianComparisonError}
+          timeRange={technicianComparisonTimeRange}
+          onTimeRangeChange={handleTechnicianComparisonTimeRangeChange}
+          onRefresh={handleTechnicianComparisonRefresh}
+          onExport={handleTechnicianComparisonExport}
           className="mb-6"
         />
       </div>
