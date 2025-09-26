@@ -20,6 +20,32 @@ import {
 import { Button } from './button-1';
 import { cn } from '../../utils/cn';
 
+// Custom CSS for Leaflet popups to ensure proper z-index
+const customStyles = `
+  .leaflet-popup-pane {
+    z-index: 700 !important;
+  }
+  .leaflet-popup {
+    z-index: 701 !important;
+  }
+  .leaflet-popup-content-wrapper {
+    z-index: 702 !important;
+  }
+  .leaflet-popup-tip {
+    z-index: 703 !important;
+  }
+`;
+
+// Inject custom styles
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = customStyles;
+  if (!document.head.querySelector('style[data-leaflet-custom]')) {
+    styleElement.setAttribute('data-leaflet-custom', 'true');
+    document.head.appendChild(styleElement);
+  }
+}
+
 // Fix Leaflet default markers
 delete Icon.Default.prototype._getIconUrl;
 Icon.Default.mergeOptions({
@@ -217,7 +243,71 @@ const InteractiveActivityMap = ({
     'Petlovo Brdo': { lat: 44.7458, lng: 20.4269, region: 'Centralna Srbija' },
     'Banovo Brdo': { lat: 44.7572, lng: 20.4092, region: 'Centralna Srbija' },
     'Košutnjak': { lat: 44.7500, lng: 20.4250, region: 'Centralna Srbija' },
-    'Topčider': { lat: 44.7653, lng: 20.4489, region: 'Centralna Srbija' }
+    'Topčider': { lat: 44.7653, lng: 20.4489, region: 'Centralna Srbija' },
+
+    // Additional municipalities commonly found in work orders
+    'Smederevo': { lat: 44.6636, lng: 20.9300, region: 'Centralna Srbija' },
+    'Loznica': { lat: 44.5342, lng: 19.2269, region: 'Centralna Srbija' },
+    'Šabac': { lat: 44.7467, lng: 19.6908, region: 'Centralna Srbija' },
+    'Sabac': { lat: 44.7467, lng: 19.6908, region: 'Centralna Srbija' },
+    'Valjevo': { lat: 44.2719, lng: 19.8900, region: 'Centralna Srbija' },
+    'Smederevska Palanka': { lat: 44.3658, lng: 20.9606, region: 'Centralna Srbija' },
+    'Požarevac': { lat: 44.6194, lng: 21.1856, region: 'Centralna Srbija' },
+    'Pozarevac': { lat: 44.6194, lng: 21.1856, region: 'Centralna Srbija' },
+    'Jagodina': { lat: 43.9775, lng: 21.2611, region: 'Centralna Srbija' },
+    'Paraćin': { lat: 43.8597, lng: 21.4075, region: 'Centralna Srbija' },
+    'Paracin': { lat: 43.8597, lng: 21.4075, region: 'Centralna Srbija' },
+    'Aleksandrovac': { lat: 43.4608, lng: 21.0475, region: 'Centralna Srbija' },
+    'Trstenik': { lat: 43.6167, lng: 20.9986, region: 'Centralna Srbija' },
+    'Kruševac': { lat: 43.5808, lng: 21.3281, region: 'Centralna Srbija' },
+    'Krusevac': { lat: 43.5808, lng: 21.3281, region: 'Centralna Srbija' },
+    'Leskovac': { lat: 42.9981, lng: 21.9456, region: 'Južna Srbija' },
+    'Vranje': { lat: 42.5515, lng: 21.9025, region: 'Južna Srbija' },
+    'Prokuplje': { lat: 43.2394, lng: 21.5886, region: 'Južna Srbija' },
+    'Pirot': { lat: 43.1531, lng: 22.5897, region: 'Južna Srbija' },
+    'Zaječar': { lat: 43.9053, lng: 22.2900, region: 'Istočna Srbija' },
+    'Zajecar': { lat: 43.9053, lng: 22.2900, region: 'Istočna Srbija' },
+    'Bor': { lat: 44.0742, lng: 22.0958, region: 'Istočna Srbija' },
+    'Majdanpek': { lat: 44.4275, lng: 21.9403, region: 'Istočna Srbija' },
+    'Negotin': { lat: 44.2269, lng: 22.5361, region: 'Istočna Srbija' },
+    'Kladovo': { lat: 44.6078, lng: 22.6089, region: 'Istočna Srbija' },
+
+    // Vojvodina municipalities
+    'Zrenjanin': { lat: 45.3833, lng: 20.3833, region: 'Vojvodina' },
+    'Kikinda': { lat: 45.8372, lng: 20.4631, region: 'Vojvodina' },
+    'Sombor': { lat: 45.7742, lng: 19.1122, region: 'Vojvodina' },
+    'Apatin': { lat: 45.6711, lng: 18.9831, region: 'Vojvodina' },
+    'Odžaci': { lat: 45.5119, lng: 19.2881, region: 'Vojvodina' },
+    'Odzaci': { lat: 45.5119, lng: 19.2881, region: 'Vojvodina' },
+    'Bačka Topola': { lat: 45.8147, lng: 19.6381, region: 'Vojvodina' },
+    'Backa Topola': { lat: 45.8147, lng: 19.6381, region: 'Vojvodina' },
+    'Bač': { lat: 45.3881, lng: 19.2342, region: 'Vojvodina' },
+    'Bac': { lat: 45.3881, lng: 19.2342, region: 'Vojvodina' },
+    'Vrbas': { lat: 45.5681, lng: 19.6411, region: 'Vojvodina' },
+    'Kula': { lat: 45.6211, lng: 19.5361, region: 'Vojvodina' },
+    'Temerin': { lat: 45.4089, lng: 19.8942, region: 'Vojvodina' },
+    'Titel': { lat: 45.2042, lng: 20.3033, region: 'Vojvodina' },
+    'Bečej': { lat: 45.6169, lng: 20.0419, region: 'Vojvodina' },
+    'Becej': { lat: 45.6169, lng: 20.0419, region: 'Vojvodina' },
+    'Ada': { lat: 45.8000, lng: 20.1167, region: 'Vojvodina' },
+    'Senta': { lat: 45.9333, lng: 20.0833, region: 'Vojvodina' },
+    'Kanjiža': { lat: 46.0667, lng: 20.0667, region: 'Vojvodina' },
+    'Kanjiza': { lat: 46.0667, lng: 20.0667, region: 'Vojvodina' },
+
+    // Additional Belgrade suburban areas
+    'Ripanj': { lat: 44.6794, lng: 20.5336, region: 'Centralna Srbija' },
+    'Avala': { lat: 44.6922, lng: 20.5153, region: 'Centralna Srbija' },
+    'Vinča': { lat: 44.7558, lng: 20.6086, region: 'Centralna Srbija' },
+    'Vinca': { lat: 44.7558, lng: 20.6086, region: 'Centralna Srbija' },
+    'Grocka centar': { lat: 44.6744, lng: 20.7653, region: 'Centralna Srbija' },
+    'Umčari': { lat: 44.6964, lng: 20.7347, region: 'Centralna Srbija' },
+    'Umcari': { lat: 44.6964, lng: 20.7347, region: 'Centralna Srbija' },
+    'Leštane': { lat: 44.7083, lng: 20.7750, region: 'Centralna Srbija' },
+    'Lestane': { lat: 44.7083, lng: 20.7750, region: 'Centralna Srbija' },
+
+    // Common address prefixes and variations
+    'BG': { lat: 44.7866, lng: 20.4489, region: 'Centralna Srbija' }, // Belgrade prefix
+    'BEOGRAD': { lat: 44.7866, lng: 20.4489, region: 'Centralna Srbija' }
   };
 
   // Process map data for visualization
@@ -619,11 +709,11 @@ const InteractiveActivityMap = ({
         ) : (
           <div>
             {/* Interactive Leaflet Map */}
-            <div className="h-80 rounded-xl border border-slate-200 mb-6 overflow-hidden">
+            <div className="h-80 rounded-xl border border-slate-200 mb-6 overflow-hidden relative z-0">
               <MapContainer
                 center={[44.2619, 20.5819]} // Center of Serbia
                 zoom={7}
-                style={{ height: '100%', width: '100%' }}
+                style={{ height: '100%', width: '100%', zIndex: 1 }}
                 zoomControl={false}
               >
                 <TileLayer
@@ -650,8 +740,8 @@ const InteractiveActivityMap = ({
                       click: () => handleLocationClick(municipality)
                     }}
                   >
-                    <Popup>
-                      <div className="p-2">
+                    <Popup className="z-50" closeOnClick={true} autoClose={true}>
+                      <div className="p-2 relative z-50">
                         <h4 className="font-bold text-sm mb-2">{municipality.municipality}</h4>
                         <div className="text-xs space-y-1">
                           <div><strong>Region:</strong> {municipality.coordinates.region}</div>
@@ -675,8 +765,8 @@ const InteractiveActivityMap = ({
                       click: () => handleLocationClick(municipality)
                     }}
                   >
-                    <Popup>
-                      <div className="p-2">
+                    <Popup className="z-50" closeOnClick={true} autoClose={true}>
+                      <div className="p-2 relative z-50">
                         <h4 className="font-bold text-sm mb-2">{municipality.municipality}</h4>
                         <div className="text-xs space-y-1">
                           <div><strong>Region:</strong> {municipality.coordinates.region}</div>
@@ -718,8 +808,8 @@ const InteractiveActivityMap = ({
                       opacity={0.8}
                       fillOpacity={0.3}
                     >
-                      <Popup>
-                        <div className="p-2">
+                      <Popup className="z-50" closeOnClick={true} autoClose={true}>
+                        <div className="p-2 relative z-50">
                           <h4 className="font-bold text-sm mb-2">{region.region}</h4>
                           <div className="text-xs space-y-1">
                             <div><strong>Ukupne aktivnosti:</strong> {region.totalActivities}</div>
