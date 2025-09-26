@@ -131,23 +131,93 @@ const InteractiveActivityMap = ({
     });
   };
 
-  // Serbia municipalities with approximate coordinates for demonstration
+  // Serbia municipalities and Belgrade districts with precise coordinates
   const SERBIA_MUNICIPALITIES = {
+    // Major Serbian cities
     'Beograd': { lat: 44.7866, lng: 20.4489, region: 'Centralna Srbija' },
     'Novi Sad': { lat: 45.2671, lng: 19.8335, region: 'Vojvodina' },
     'Niš': { lat: 43.3209, lng: 21.8958, region: 'Južna Srbija' },
     'Kragujevac': { lat: 44.0165, lng: 20.9114, region: 'Centralna Srbija' },
     'Subotica': { lat: 46.1008, lng: 19.6677, region: 'Vojvodina' },
     'Novi Pazar': { lat: 43.1436, lng: 20.5126, region: 'Južna Srbija' },
-    'Zemun': { lat: 44.8458, lng: 20.4011, region: 'Centralna Srbija' },
     'Pančevo': { lat: 44.8709, lng: 20.6400, region: 'Centralna Srbija' },
     'Čačak': { lat: 43.8914, lng: 20.3499, region: 'Centralna Srbija' },
-    'Novi Beograd': { lat: 44.8125, lng: 20.4612, region: 'Centralna Srbija' },
-    'Zvezdara': { lat: 44.7939, lng: 20.5066, region: 'Centralna Srbija' },
+
+    // Belgrade municipalities - precise coordinates
+    'Zemun': { lat: 44.8549, lng: 20.3941, region: 'Centralna Srbija' },
+    'Novi Beograd': { lat: 44.8000, lng: 20.4167, region: 'Centralna Srbija' },
+    'Zvezdara': { lat: 44.8031, lng: 20.5051, region: 'Centralna Srbija' },
     'Vračar': { lat: 44.7820, lng: 20.4685, region: 'Centralna Srbija' },
     'Stari Grad': { lat: 44.8176, lng: 20.4633, region: 'Centralna Srbija' },
     'Palilula': { lat: 44.8225, lng: 20.5144, region: 'Centralna Srbija' },
-    'Savski Venac': { lat: 44.8056, lng: 20.4489, region: 'Centralna Srbija' }
+    'Savski Venac': { lat: 44.8056, lng: 20.4489, region: 'Centralna Srbija' },
+    'Voždovac': { lat: 44.7575, lng: 20.4914, region: 'Centralna Srbija' },
+    'Čukarica': { lat: 44.7347, lng: 20.4219, region: 'Centralna Srbija' },
+    'Rakovica': { lat: 44.7392, lng: 20.4408, region: 'Centralna Srbija' },
+    'Barajevo': { lat: 44.6408, lng: 20.3686, region: 'Centralna Srbija' },
+    'Grocka': { lat: 44.6744, lng: 20.7653, region: 'Centralna Srbija' },
+    'Lazarevac': { lat: 44.3831, lng: 20.2589, region: 'Centralna Srbija' },
+    'Mladenovac': { lat: 44.4375, lng: 20.6925, region: 'Centralna Srbija' },
+    'Obrenovac': { lat: 44.6597, lng: 20.2097, region: 'Centralna Srbija' },
+    'Sopot': { lat: 44.5147, lng: 20.5786, region: 'Centralna Srbija' },
+    'Surčin': { lat: 44.7944, lng: 20.2747, region: 'Centralna Srbija' },
+
+    // Belgrade settlements and neighborhoods - precise coordinates
+    'BORČA': { lat: 44.8988, lng: 20.5253, region: 'Centralna Srbija' },
+    'Borča': { lat: 44.8988, lng: 20.5253, region: 'Centralna Srbija' },
+    'KRNJAČA': { lat: 44.8844, lng: 20.4994, region: 'Centralna Srbija' },
+    'Krnjača': { lat: 44.8844, lng: 20.4994, region: 'Centralna Srbija' },
+    'Ovča': { lat: 44.8741, lng: 20.5186, region: 'Centralna Srbija' },
+    'Kotež': { lat: 44.8744, lng: 20.4886, region: 'Centralna Srbija' },
+    'Mirijevo': { lat: 44.8267, lng: 20.5536, region: 'Centralna Srbija' },
+    'Karaburma': { lat: 44.8244, lng: 20.5261, region: 'Centralna Srbija' },
+    'Višnjica': { lat: 44.8525, lng: 20.5281, region: 'Centralna Srbija' },
+    'Rospi Ćuprija': { lat: 44.8519, lng: 20.5103, region: 'Centralna Srbija' },
+    'Dunavski Venac': { lat: 44.8372, lng: 20.4681, region: 'Centralna Srbija' },
+
+    // Additional Belgrade areas
+    'Centar': { lat: 44.8176, lng: 20.4633, region: 'Centralna Srbija' },
+    'Dorćol': { lat: 44.8236, lng: 20.4686, region: 'Centralna Srbija' },
+    'Skadarlija': { lat: 44.8178, lng: 20.4658, region: 'Centralna Srbija' },
+    'Terazije': { lat: 44.8147, lng: 20.4611, region: 'Centralna Srbija' },
+    'Republika Trg': { lat: 44.8161, lng: 20.4603, region: 'Centralna Srbija' },
+    'Kalemegdan': { lat: 44.8225, lng: 20.4508, region: 'Centralna Srbija' },
+
+    // Novi Beograd blocks and areas
+    'Blok 70': { lat: 44.8089, lng: 20.4039, region: 'Centralna Srbija' },
+    'Blok 45': { lat: 44.8156, lng: 20.3997, region: 'Centralna Srbija' },
+    'Blok 61': { lat: 44.8025, lng: 20.4147, region: 'Centralna Srbija' },
+    'Blok 62': { lat: 44.7994, lng: 20.4197, region: 'Centralna Srbija' },
+    'Blok 63': { lat: 44.7964, lng: 20.4247, region: 'Centralna Srbija' },
+    'Blok 64': { lat: 44.7933, lng: 20.4297, region: 'Centralna Srbija' },
+    'Blok 65': { lat: 44.7903, lng: 20.4347, region: 'Centralna Srbija' },
+    'Blok 19': { lat: 44.8219, lng: 20.4075, region: 'Centralna Srbija' },
+    'Blok 28': { lat: 44.8108, lng: 20.4247, region: 'Centralna Srbija' },
+    'Blok 37': { lat: 44.8039, lng: 20.4397, region: 'Centralna Srbija' },
+
+    // Zemun areas
+    'Zemun Polje': { lat: 44.8694, lng: 20.3575, region: 'Centralna Srbija' },
+    'Batajnica': { lat: 44.8958, lng: 20.3044, region: 'Centralna Srbija' },
+    'Ugrinovci': { lat: 44.8506, lng: 20.3161, region: 'Centralna Srbija' },
+    'Altina': { lat: 44.8825, lng: 20.3797, region: 'Centralna Srbija' },
+
+    // Zvezdara areas
+    'Vukov Spomenik': { lat: 44.8011, lng: 20.4892, region: 'Centralna Srbija' },
+    'Đeram': { lat: 44.7950, lng: 20.5158, region: 'Centralna Srbija' },
+    'Mali Mokri Lug': { lat: 44.8119, lng: 20.5494, region: 'Centralna Srbija' },
+    'Veliki Mokri Lug': { lat: 44.8186, lng: 20.5647, region: 'Centralna Srbija' },
+
+    // Other Belgrade areas
+    'Banjica': { lat: 44.7522, lng: 20.4608, region: 'Centralna Srbija' },
+    'Voždovo': { lat: 44.7644, lng: 20.4750, region: 'Centralna Srbija' },
+    'Autokomanda': { lat: 44.7661, lng: 20.4697, region: 'Centralna Srbija' },
+    'Kumodraž': { lat: 44.7256, lng: 20.5156, region: 'Centralna Srbija' },
+    'Medaković': { lat: 44.7347, lng: 20.4889, region: 'Centralna Srbija' },
+    'Jajinci': { lat: 44.7050, lng: 20.4525, region: 'Centralna Srbija' },
+    'Petlovo Brdo': { lat: 44.7458, lng: 20.4269, region: 'Centralna Srbija' },
+    'Banovo Brdo': { lat: 44.7572, lng: 20.4092, region: 'Centralna Srbija' },
+    'Košutnjak': { lat: 44.7500, lng: 20.4250, region: 'Centralna Srbija' },
+    'Topčider': { lat: 44.7653, lng: 20.4489, region: 'Centralna Srbija' }
   };
 
   // Process map data for visualization
