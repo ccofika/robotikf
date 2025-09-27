@@ -109,7 +109,7 @@ const Logs = () => {
         dateFrom: '', // No date filter
         dateTo: '', // No date filter
         page: 1,
-        limit: 5000 // Higher limit to get all historical data
+        limit: 100 // Reduced limit for better performance
       };
 
       const response = await logsAPI.getTechnicianLogs(params);
@@ -127,7 +127,7 @@ const Logs = () => {
         dateFrom: '', // No date filter
         dateTo: '', // No date filter
         page: 1,
-        limit: 5000 // Higher limit to get all historical data
+        limit: 100 // Reduced limit for better performance
       };
 
       const response = await logsAPI.getUserLogs(params);
@@ -554,7 +554,7 @@ const Logs = () => {
                     className="h-9 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:bg-slate-50"
                   />
                 </div>
-                
+
                 {/* Action Filter */}
                 <div className="relative">
                   <select
@@ -594,20 +594,20 @@ const Logs = () => {
                   <CalendarIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                 </div>
               </div>
-              
+
               {/* Action buttons */}
               <div className="flex items-center space-x-3">
-                <Button 
-                  type="secondary" 
-                  size="medium" 
+                <Button
+                  type="secondary"
+                  size="medium"
                   prefix={<SearchIcon size={16} />}
                   onClick={handleSearch}
                 >
                   Pretraži
                 </Button>
-                <Button 
-                  type="primary" 
-                  size="medium" 
+                <Button
+                  type="primary"
+                  size="medium"
                   prefix={<RefreshIcon size={16} />}
                   onClick={handleReset}
                 >

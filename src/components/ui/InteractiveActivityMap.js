@@ -74,11 +74,11 @@ const InteractiveActivityMap = ({
   const [densityThreshold, setDensityThreshold] = useState('all');
 
   // Helper functions - must be defined before useMemo
-  const getDensityLevel = (activities, total) => {
-    const percentage = (activities / total) * 100;
-    if (percentage >= 10) return 'high';
-    if (percentage >= 5) return 'medium';
-    if (percentage >= 1) return 'low';
+  const getDensityLevel = (activities, totalActivities) => {
+    // Use absolute thresholds based on activity count
+    if (activities >= 100) return 'high';
+    if (activities >= 50) return 'medium';
+    if (activities >= 10) return 'low';
     return 'minimal';
   };
 
@@ -140,14 +140,18 @@ const InteractiveActivityMap = ({
                   density === 'medium' ? '#f59e0b' :
                   density === 'low' ? '#22c55e' : '#6b7280';
 
-    const size = Math.max(20, Math.min(40, count / 50));
+    const size = Math.max(25, Math.min(60, 25 + (count / 5))); // More visible size scaling
+
+    // Debug log for icon creation
+    console.log(`🎯 Creating icon: density=${density}, count=${count}, size=${size}, color=${color}`);
+
 
     return new Icon({
       iconUrl: `data:image/svg+xml;base64,${btoa(`
-        <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="2"/>
-          <circle cx="12" cy="12" r="6" fill="white" fill-opacity="0.8"/>
-          <text x="12" y="16" text-anchor="middle" font-size="8" font-weight="bold" fill="${color}">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="${size/2}" cy="${size/2}" r="${(size-4)/2}" fill="${color}" stroke="white" stroke-width="2"/>
+          <circle cx="${size/2}" cy="${size/2}" r="${(size-12)/2}" fill="white" fill-opacity="0.8"/>
+          <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" font-size="${Math.max(8, size/4)}" font-weight="bold" fill="${color}">
             ${count > 999 ? '999+' : count}
           </text>
         </svg>
@@ -163,11 +167,13 @@ const InteractiveActivityMap = ({
   const [geocodingLoading, setGeocodingLoading] = useState(false);
   const [geocodingError, setGeocodingError] = useState(null);
 
-  // Fetch municipality coordinates when data changes
+  // Fetch municipality coordinates when data changes (DEBOUNCED)
   useEffect(() => {
     console.log('🗺️ InteractiveActivityMap useEffect triggered. Data length:', data?.length);
 
-    const fetchMunicipalityCoordinates = async () => {
+    // Debounce to prevent React StrictMode double calls and rapid re-renders
+    const timeoutId = setTimeout(async () => {
+      const fetchMunicipalityCoordinates = async () => {
       if (!data || data.length === 0) {
         // Only reset coordinates if they're not already empty
         if (Object.keys(municipalityCoordinates).length > 0) {
@@ -176,10 +182,15 @@ const InteractiveActivityMap = ({
         return;
       }
 
-      // Extract unique municipalities from data
+      // Extract unique municipalities from data (handle both old and new API formats)
       const uniqueMunicipalities = [...new Set(
         data
-          .map(activity => activity.municipality || activity.location)
+          .map(item =>
+            // New API format: municipality data with '_id' field
+            item._id || item.municipality ||
+            // Old API format: activity data with 'municipality' field
+            item.location
+          )
           .filter(Boolean)
       )];
 
@@ -207,10 +218,14 @@ const InteractiveActivityMap = ({
 
         if (result.coordinatesMap) {
           // Merge new coordinates with existing ones
-          setMunicipalityCoordinates(prev => ({
-            ...prev,
-            ...result.coordinatesMap
-          }));
+          setMunicipalityCoordinates(prev => {
+            const newCoordinates = {
+              ...prev,
+              ...result.coordinatesMap
+            };
+            console.log(`🗺️ DEBUG: Updated coordinates, now have:`, Object.keys(newCoordinates));
+            return newCoordinates;
+          });
 
           console.log(`🗺️ Successfully geocoded ${Object.keys(result.coordinatesMap).length} municipalities`);
 
@@ -221,16 +236,75 @@ const InteractiveActivityMap = ({
 
       } catch (error) {
         console.error('❌ Error geocoding municipalities:', error);
-        setGeocodingError(`Failed to geocode municipalities: ${error.message}`);
 
-        // Set fallback coordinates for failed municipalities
+        // Check if it's a network error (backend not running)
+        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+          console.log('🔧 Backend server not running - using static coordinates');
+          setGeocodingError('Backend server not available - using static coordinates');
+        } else {
+          setGeocodingError(`Failed to geocode municipalities: ${error.message}`);
+        }
+
+        // Use static coordinates for Serbian municipalities (OPTIMIZED FALLBACK)
+        const staticCoordinates = {
+          'Beograd': {
+            lat: 44.7866,
+            lng: 20.4489,
+            region: 'Centralna Srbija',
+            displayName: 'Beograd, Serbia',
+            type: 'static',
+            class: 'city'
+          },
+          'Novi Sad': {
+            lat: 45.2671,
+            lng: 19.8335,
+            region: 'Vojvodina',
+            displayName: 'Novi Sad, Serbia',
+            type: 'static',
+            class: 'city'
+          },
+          'Niš': {
+            lat: 43.3209,
+            lng: 21.8958,
+            region: 'Južna Srbija',
+            displayName: 'Niš, Serbia',
+            type: 'static',
+            class: 'city'
+          },
+          'Kragujevac': {
+            lat: 44.0165,
+            lng: 20.9114,
+            region: 'Centralna Srbija',
+            displayName: 'Kragujevac, Serbia',
+            type: 'static',
+            class: 'city'
+          },
+          'Subotica': {
+            lat: 46.1008,
+            lng: 19.6677,
+            region: 'Vojvodina',
+            displayName: 'Subotica, Serbia',
+            type: 'static',
+            class: 'city'
+          },
+          'Zrenjanin': {
+            lat: 45.3833,
+            lng: 20.3833,
+            region: 'Vojvodina',
+            displayName: 'Zrenjanin, Serbia',
+            type: 'static',
+            class: 'city'
+          }
+        };
+
+        // Set static coordinates for missing municipalities
         const fallbackCoordinates = {};
         missingMunicipalities.forEach(municipality => {
-          fallbackCoordinates[municipality] = {
-            lat: 44.7866, // Belgrade center
+          fallbackCoordinates[municipality] = staticCoordinates[municipality] || {
+            lat: 44.7866, // Belgrade center as default
             lng: 20.4489,
-            region: 'Nepoznat region (fallback)',
-            displayName: `${municipality}, Serbia (fallback)`,
+            region: 'Nepoznat region',
+            displayName: `${municipality}, Serbia`,
             type: 'fallback',
             class: 'fallback'
           };
@@ -240,16 +314,30 @@ const InteractiveActivityMap = ({
           ...prev,
           ...fallbackCoordinates
         }));
+
+        console.log(`🗺️ Applied static coordinates for ${missingMunicipalities.length} municipalities`);
+
+        // Mark that we tried geocoding so we don't retry immediately
+        missingMunicipalities.forEach(municipality => {
+          fallbackCoordinates[municipality].geocodingAttempted = true;
+        });
       } finally {
         setGeocodingLoading(false);
       }
     };
 
-    fetchMunicipalityCoordinates();
+      fetchMunicipalityCoordinates();
+    }, 200); // 200ms debounce
+
+    // Cleanup timeout on unmount or dependency change
+    return () => clearTimeout(timeoutId);
   }, [data]); // Re-run when data changes
 
   // Process map data for visualization
   const mapAnalysis = useMemo(() => {
+    console.log(`🗺️ DEBUG: useMemo executing - Available coordinates:`, Object.keys(municipalityCoordinates));
+    console.log(`🗺️ DEBUG: useMemo executing - Data length:`, data?.length || 0);
+
     if (!data.length) return {
       municipalityData: [],
       activityTypes: [],
@@ -265,14 +353,16 @@ const InteractiveActivityMap = ({
 
     // Municipality groups will be created dynamically from data
 
-    // Initialize municipality groups for all municipalities found in data
+    // First, extract all unique municipalities from data for geocoding
     const discoveredMunicipalities = new Set();
-    data.forEach(activity => {
-      const municipality = activity.municipality || activity.location;
+    data.forEach(municipalityData => {
+      const municipality = municipalityData._id || municipalityData.municipality;
       if (municipality) {
         discoveredMunicipalities.add(municipality);
       }
     });
+
+    console.log(`🗺️ DEBUG: Found ${discoveredMunicipalities.size} unique municipalities:`, Array.from(discoveredMunicipalities));
 
     // Create municipality groups with coordinates from geocoding service
     discoveredMunicipalities.forEach(municipality => {
@@ -281,6 +371,8 @@ const InteractiveActivityMap = ({
         lng: 20.4489,
         region: 'Nepoznat region'
       };
+
+      console.log(`🗺️ DEBUG: Creating group for ${municipality} with coordinates:`, coordinates);
 
       municipalityGroups[municipality] = {
         municipality,
@@ -294,8 +386,28 @@ const InteractiveActivityMap = ({
         recentActivities: [],
         urgentActivities: 0,
         completedActivities: 0,
-        trend: 0
+        trend: 0,
+        uniqueAddresses: 0,
+        uniqueTechnicians: 0
       };
+    });
+
+    // Now populate municipality groups with data from backend (NEW API FORMAT)
+    data.forEach(municipalityData => {
+      const municipality = municipalityData._id || municipalityData.municipality;
+      if (!municipality || !municipalityGroups[municipality]) return;
+
+      const group = municipalityGroups[municipality];
+
+      // Populate with backend aggregated data
+      group.totalActivities = municipalityData.activities || 0;
+      group.technicians = new Set(municipalityData.technicianList || []);
+      group.activities = municipalityData.sampleWorkOrders || [];
+      group.activityTypes = { 'completed': municipalityData.completed || 0 };
+      group.recentActivities = municipalityData.sampleWorkOrders || [];
+      group.completedActivities = municipalityData.completed || 0;
+      group.uniqueAddresses = municipalityData.uniqueAddresses || 0;
+      group.uniqueTechnicians = municipalityData.uniqueTechnicians || 0;
     });
 
     // Initialize region groups
@@ -310,61 +422,36 @@ const InteractiveActivityMap = ({
       };
     });
 
-    // Process each activity
-    data.forEach(activity => {
-      const municipality = activity.municipality || activity.location;
-      if (!municipality || !municipalityGroups[municipality]) return;
-
-      const group = municipalityGroups[municipality];
+    // Update region data from municipality groups (NEW API FORMAT)
+    Object.values(municipalityGroups).forEach(group => {
       const region = group.coordinates.region;
 
-      // Update municipality data
-      group.totalActivities++;
-      group.technicians.add(activity.technician);
-      group.activities.push(activity);
-
-      // Track activity types
-      const activityType = activity.action || activity.activityType || 'General';
-      group.activityTypes[activityType] = (group.activityTypes[activityType] || 0) + 1;
-
-      // Track response time
-      const responseTime = activity.responseTime || Math.random() * 120 + 30;
-      group.totalResponseTime += responseTime;
-
-      // Track recent activities (last 7 days)
-      const activityDate = new Date(activity.timestamp);
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      if (activityDate >= sevenDaysAgo) {
-        group.recentActivities.push(activity);
+      if (!regionGroups[region]) {
+        regionGroups[region] = {
+          region,
+          totalActivities: 0,
+          municipalities: [],
+          technicians: new Set(),
+          averageResponseTime: 0
+        };
       }
 
-      // Track urgent and completed activities
-      if (activity.priority === 'high' || activity.priority === 'urgent' || activity.urgent) {
-        group.urgentActivities++;
-      }
-      if (activity.status === 'zavrsen' || activity.status === 'completed' || activity.status === 'done') {
-        group.completedActivities++;
-      }
-
-      // Update region data
-      if (regionGroups[region]) {
-        regionGroups[region].totalActivities++;
-        regionGroups[region].technicians.add(activity.technician);
+      regionGroups[region].totalActivities += group.totalActivities;
+      group.technicians.forEach(tech => regionGroups[region].technicians.add(tech));
+      if (!regionGroups[region].municipalities.includes(group.municipality)) {
+        regionGroups[region].municipalities.push(group.municipality);
       }
 
       // Update activity type groups
-      if (!activityTypeGroups[activityType]) {
-        activityTypeGroups[activityType] = {
-          type: activityType,
-          count: 0,
-          municipalities: new Set()
-        };
-      }
-      activityTypeGroups[activityType].count++;
-      activityTypeGroups[activityType].municipalities.add(municipality);
+      activityTypeGroups['completed'] = {
+        type: 'completed',
+        count: (activityTypeGroups['completed']?.count || 0) + group.completedActivities,
+        municipalities: (activityTypeGroups['completed']?.municipalities || new Set()).add(group.municipality)
+      };
     });
+
+    console.log(`🗺️ DEBUG: Created ${Object.keys(municipalityGroups).length} municipality groups:`, Object.keys(municipalityGroups));
+    console.log(`🗺️ DEBUG: Coordinates available for:`, Object.keys(municipalityCoordinates));
 
     // Calculate averages and finalize data
     const municipalityData = Object.values(municipalityGroups).map(group => ({
@@ -374,11 +461,19 @@ const InteractiveActivityMap = ({
       completionRate: group.totalActivities > 0 ? (group.completedActivities / group.totalActivities) * 100 : 0,
       urgencyRate: group.totalActivities > 0 ? (group.urgentActivities / group.totalActivities) * 100 : 0,
       trend: group.recentActivities.length / Math.max(group.totalActivities - group.recentActivities.length, 1) - 1,
-      density: getDensityLevel(group.totalActivities, data.length)
-    })).filter(group => group.totalActivities > 0);
+      density: getDensityLevel(group.totalActivities)
+    }));
+
+    console.log(`🗺️ DEBUG: Before filter municipalityData count: ${municipalityData.length}`);
+    console.log(`🗺️ DEBUG: Before filter activities:`, municipalityData.map(m => ({ name: m.municipality, activities: m.totalActivities })));
+
+    const filteredMunicipalityData = municipalityData.filter(group => group.totalActivities > 0);
+
+    console.log(`🗺️ DEBUG: After filter municipalityData count: ${filteredMunicipalityData.length}`);
+    console.log(`🗺️ DEBUG: municipalityData:`, municipalityData.map(m => ({ name: m.municipality, activities: m.totalActivities, coords: m.coordinates })));
 
     // Create heatmap data
-    const heatmapData = municipalityData.map(municipality => ({
+    const heatmapData = filteredMunicipalityData.map(municipality => ({
       lat: municipality.coordinates.lat,
       lng: municipality.coordinates.lng,
       weight: municipality.totalActivities,
@@ -396,30 +491,38 @@ const InteractiveActivityMap = ({
       region.averageResponseTime = totalActivities > 0 ? totalResponseTime / totalActivities : 0;
     });
 
-    // Calculate statistics
-    const totalActivities = data.length;
-    const activeMunicipalities = municipalityData.length;
+    // Calculate statistics (NEW API FORMAT)
+    const totalActivities = data.reduce((sum, municipality) => sum + (municipality.activities || 0), 0);
+    const activeMunicipalities = filteredMunicipalityData.length;
     const averageActivitiesPerMunicipality = activeMunicipalities > 0 ? totalActivities / activeMunicipalities : 0;
-    const mostActiveMunicipality = municipalityData.reduce((max, current) =>
-      current.totalActivities > max.totalActivities ? current : max, municipalityData[0] || {});
+    const mostActiveMunicipality = filteredMunicipalityData.reduce((max, current) =>
+      current.totalActivities > max.totalActivities ? current : max, filteredMunicipalityData[0] || {});
+
+    // Calculate unique technicians from all municipalities
+    const allTechnicians = new Set();
+    filteredMunicipalityData.forEach(municipality => {
+      if (municipality.technicians && Array.isArray(municipality.technicians)) {
+        municipality.technicians.forEach(tech => allTechnicians.add(tech));
+      }
+    });
 
     const statistics = {
       totalActivities,
       activeMunicipalities,
       averageActivitiesPerMunicipality,
       mostActiveMunicipality: mostActiveMunicipality.municipality || 'N/A',
-      totalTechnicians: new Set(data.map(d => d.technician)).size,
-      averageResponseTime: municipalityData.reduce((sum, m) => sum + m.averageResponseTime, 0) / municipalityData.length || 0
+      totalTechnicians: allTechnicians.size,
+      averageResponseTime: filteredMunicipalityData.reduce((sum, m) => sum + m.averageResponseTime, 0) / filteredMunicipalityData.length || 0
     };
 
     return {
-      municipalityData: applyFilters(municipalityData),
+      municipalityData: applyFilters(filteredMunicipalityData),
       activityTypes: Object.values(activityTypeGroups).sort((a, b) => b.count - a.count),
       heatmapData: applyFilters(heatmapData),
       statistics,
       regionData: Object.values(regionGroups)
     };
-  }, [data, selectedMunicipality, searchTerm, selectedActivityType, densityThreshold]);
+  }, [data, selectedMunicipality, searchTerm, selectedActivityType, densityThreshold, municipalityCoordinates]);
 
   const handleLocationClick = useCallback((municipality) => {
     if (onLocationClick) {
@@ -428,7 +531,11 @@ const InteractiveActivityMap = ({
         coordinates: municipality.coordinates,
         activities: municipality.totalActivities,
         technicians: municipality.technicians,
-        responseTime: municipality.averageResponseTime
+        responseTime: municipality.averageResponseTime,
+        sampleWorkOrders: municipality.activities || [], // Pass the actual work orders
+        uniqueAddresses: municipality.uniqueAddresses,
+        uniqueTechnicians: municipality.uniqueTechnicians,
+        completed: municipality.completedActivities || municipality.totalActivities // All activities are completed since we filter by 'zavrsen'
       });
     }
   }, [onLocationClick]);
@@ -661,11 +768,17 @@ const InteractiveActivityMap = ({
                 />
 
                 {/* Render markers based on map view */}
-                {mapView === 'heatmap' && mapAnalysis.municipalityData.map((municipality, index) => (
+                {console.log(`🗺️ DEBUG: Rendering ${mapAnalysis.municipalityData.length} markers in ${mapView} mode`)}
+                {mapView === 'heatmap' && mapAnalysis.municipalityData.map((municipality, index) => {
+                  // Smaller radius calculation: scale based on activities (6-25 range)
+                  const calculatedRadius = Math.max(6, Math.min(25, 6 + (municipality.totalActivities / 8)));
+                  console.log(`🎯 Circle for ${municipality.municipality}: activities=${municipality.totalActivities}, radius=${calculatedRadius}`);
+
+                  return (
                   <CircleMarker
                     key={index}
                     center={[municipality.coordinates.lat, municipality.coordinates.lng]}
-                    radius={Math.max(5, Math.min(20, municipality.totalActivities / 50))}
+                    radius={calculatedRadius}
                     fillColor={
                       municipality.density === 'high' ? '#ef4444' :
                       municipality.density === 'medium' ? '#f59e0b' :
@@ -693,7 +806,8 @@ const InteractiveActivityMap = ({
                       </div>
                     </Popup>
                   </CircleMarker>
-                ))}
+                  );
+                })}
 
                 {mapView === 'pins' && mapAnalysis.municipalityData.map((municipality, index) => (
                   <Marker
@@ -736,11 +850,14 @@ const InteractiveActivityMap = ({
                     [region.municipalities[0].coordinates.lat, region.municipalities[0].coordinates.lng] :
                     [44.2619, 20.5819];
 
+                  const regionRadius = Math.max(8, Math.min(20, 8 + (region.totalActivities / 15)));
+                  console.log(`🎯 Region circle for ${region.region}: activities=${region.totalActivities}, radius=${regionRadius}`);
+
                   return (
                     <CircleMarker
                       key={index}
                       center={regionCenter}
-                      radius={Math.max(10, Math.min(30, region.totalActivities / 100))}
+                      radius={regionRadius}
                       fillColor="#3b82f6"
                       color="#1d4ed8"
                       weight={3}

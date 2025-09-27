@@ -18,33 +18,6 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
   // KPI configuration with proper icons and descriptions
   const kpiConfig = [
     {
-      id: 'kpi',
-      title: 'Key Performance Indicators',
-      icon: TrendingUpIcon,
-      description: 'Osnovni KPI pokazatelji performansi',
-      color: 'bg-blue-500',
-      data: kpiData?.kpi || null,
-      metrics: ['totalActions', 'completedWorkOrders', 'activeTechniciansCount', 'avgResponseTime']
-    },
-    {
-      id: 'charts',
-      title: 'Analytics Charts',
-      icon: BarChartIcon,
-      description: 'Grafikoni i distribucije aktivnosti',
-      color: 'bg-green-500',
-      data: kpiData?.charts || null,
-      metrics: ['actionsDistribution', 'statusBreakdown', 'technicianProductivity', 'activityTimeline']
-    },
-    {
-      id: 'tables',
-      title: 'Data Tables',
-      icon: PieChartIcon,
-      description: 'Tabele sa detaljnim podacima',
-      color: 'bg-purple-500',
-      data: kpiData?.tables || null,
-      metrics: ['topTechnicians', 'recentActions', 'problematicWorkOrders']
-    },
-    {
       id: 'map',
       title: 'Interactive Map',
       icon: MapPinIcon,
@@ -140,17 +113,30 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
               {config.description}
             </p>
 
-            {/* Status */}
+            {/* Status and Stats */}
             <div className="kpi-card-status">
               {hasData ? (
-                <span style={{color: '#22c55e', fontWeight: '500'}}>Data Loaded</span>
+                <div>
+                  {config.data.isStatsOnly ? (
+                    <div>
+                      <span style={{color: '#3b82f6', fontWeight: '500', fontSize: '14px'}}>
+                        {config.data.total} stavki
+                      </span>
+                      <span style={{color: '#6b7280', fontSize: '12px', display: 'block'}}>
+                        Kliknite za detalje
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span style={{color: '#22c55e', fontWeight: '500'}}>Data Loaded</span>
+                      <span style={{color: '#374151', fontSize: '12px', display: 'block'}}>
+                        Ready
+                      </span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <span style={{color: '#6b7280'}}>Click to load</span>
-              )}
-              {hasData && (
-                <span style={{color: '#374151', fontSize: '12px'}}>
-                  Ready
-                </span>
               )}
             </div>
 

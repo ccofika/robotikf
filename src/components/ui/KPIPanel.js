@@ -32,21 +32,6 @@ const KPIPanel = ({
 
   // Panel configuration for each KPI type
   const panelConfig = {
-    kpi: {
-      title: 'Key Performance Indicators',
-      component: KPITrendCards,
-      props: { data: kpiData?.kpi, filters }
-    },
-    charts: {
-      title: 'Analytics Charts',
-      component: TotalSalesChart,
-      props: { data: kpiData?.charts, filters }
-    },
-    tables: {
-      title: 'Data Tables',
-      component: TrendChart,
-      props: { data: kpiData?.tables, filters }
-    },
     map: {
       title: 'Interactive Map',
       component: InteractiveActivityMap,

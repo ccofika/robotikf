@@ -47,9 +47,61 @@ const DefectiveEquipment = () => {
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   useEffect(() => {
-    fetchDefectiveEquipment();
-    fetchUsers();
+    fetchInitialData();
   }, []);
+
+  // Optimized initial data loading - use statsOnly for performance
+  const fetchInitialData = async () => {
+    setLoading(true);
+    try {
+      console.log('DefectiveEquipment: Fetching optimized initial data...');
+      const startTime = Date.now();
+
+      // Load in parallel with performance optimization
+      const [defectiveRes, usersRes, userEquipmentRes] = await Promise.all([
+        // Use statsOnly for initial dashboard-like overview
+        axios.get(`${apiUrl}/api/defective-equipment?statsOnly=true`),
+        axios.get(`${apiUrl}/api/users?statsOnly=true`),
+        axios.get(`${apiUrl}/api/user-equipment?statsOnly=true`)
+      ]);
+
+      const endTime = Date.now();
+      console.log(`DefectiveEquipment: Initial stats fetched in ${endTime - startTime}ms`);
+
+      // Set the stats for dashboard view
+      if (defectiveRes.data.success) {
+        setStats(defectiveRes.data.stats);
+      }
+
+      // Load full data only when needed
+      fetchFullDefectiveEquipment();
+      fetchUsers();
+    } catch (error) {
+      console.error('❌ Error fetching initial data:', error);
+      toast.error('Greška pri učitavanju početnih podataka');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Full defective equipment data loading
+  const fetchFullDefectiveEquipment = async () => {
+    try {
+      console.log('🔄 Fetching full defective equipment data...');
+      const startTime = Date.now();
+      const response = await axios.get(`${apiUrl}/api/defective-equipment`);
+
+      if (response.data.success) {
+        setEquipment(response.data.data);
+        setStats(response.data.stats);
+        const endTime = Date.now();
+        console.log(`✅ Full defective equipment loaded in ${endTime - startTime}ms:`, response.data.data.length);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching full defective equipment:', error);
+      setError('Greška pri učitavanju neispravne opreme. Pokušajte ponovo.');
+    }
+  };
 
   // When users are loaded, create a map for faster lookups
   useEffect(() => {
@@ -64,30 +116,6 @@ const DefectiveEquipment = () => {
       fetchUserEquipment();
     }
   }, [users]);
-  
-  const fetchDefectiveEquipment = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      console.log('🔄 Fetching defective equipment...');
-      const response = await axios.get(`${apiUrl}/api/defective-equipment`);
-      
-      if (response.data.success) {
-        setEquipment(response.data.data);
-        setStats(response.data.stats);
-        console.log('✅ Defective equipment loaded:', response.data.data.length);
-      } else {
-        throw new Error(response.data.message || 'Greška pri učitavanju');
-      }
-    } catch (error) {
-      console.error('❌ Error fetching defective equipment:', error);
-      setError('Greška pri učitavanju neispravne opreme. Pokušajte ponovo.');
-      toast.error('Neuspešno učitavanje neispravne opreme!');
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Fetch all users
   const fetchUsers = async () => {
@@ -476,7 +504,7 @@ const DefectiveEquipment = () => {
                 type="primary" 
                 size="medium" 
                 prefix={<RefreshIcon size={16} />}
-                onClick={fetchDefectiveEquipment}
+                onClick={fetchFullDefectiveEquipment}
               >
                 Osveži
               </Button>
@@ -505,7 +533,7 @@ const DefectiveEquipment = () => {
               <Button 
                 type="primary" 
                 size="medium" 
-                onClick={fetchDefectiveEquipment}
+                onClick={fetchFullDefectiveEquipment}
               >
                 Pokušaj ponovo
               </Button>

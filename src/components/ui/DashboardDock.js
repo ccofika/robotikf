@@ -19,24 +19,6 @@ const DashboardDock = ({ onKPISelect, activeKPI, kpiData }) => {
   // KPI dock items configuration
   const dockItems = [
     {
-      icon: TrendingUpIcon,
-      label: 'KPI Indicators',
-      id: 'kpi',
-      hasData: !!kpiData?.kpi
-    },
-    {
-      icon: BarChartIcon,
-      label: 'Analytics Charts',
-      id: 'charts',
-      hasData: !!kpiData?.charts
-    },
-    {
-      icon: PieChartIcon,
-      label: 'Data Tables',
-      id: 'tables',
-      hasData: !!kpiData?.tables
-    },
-    {
       icon: MapPinIcon,
       label: 'Interactive Map',
       id: 'map',

@@ -80,8 +80,9 @@ export const Button = ({
   onClick,
   ref,
   className,
+  asChild,
   ...rest
-}: ButtonProps) => {
+}: ButtonProps & { asChild?: boolean }) => {
   return (
     <button
       ref={ref}

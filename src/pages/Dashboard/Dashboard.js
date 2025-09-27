@@ -25,23 +25,29 @@ const Dashboard = () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-      // Prikupljanje podataka sa različitih endpointa
+      console.log('Dashboard: Fetching optimized data...');
+      const startTime = Date.now();
+
+      // Optimizovano - koristimo statsOnly za brže učitavanje
       const [equipment, materials, technicians, workOrderStats] = await Promise.all([
-        axios.get(`${apiUrl}/api/equipment`),
-        axios.get(`${apiUrl}/api/materials`),
-        axios.get(`${apiUrl}/api/technicians`),
+        axios.get(`${apiUrl}/api/equipment?statsOnly=true`),
+        axios.get(`${apiUrl}/api/materials?statsOnly=true`),
+        axios.get(`${apiUrl}/api/technicians?statsOnly=true`),
         axios.get(`${apiUrl}/api/workorders/statistics/summary`)
       ]);
 
+      const endTime = Date.now();
+      console.log(`Dashboard: Data fetched in ${endTime - startTime}ms`);
+
       setStats({
-        equipment: equipment.data.length,
-        materials: materials.data.length,
-        technicians: technicians.data.length,
+        equipment: equipment.data.total || equipment.data.length || 0,
+        materials: materials.data.total || materials.data.length || 0,
+        technicians: technicians.data.total || technicians.data.length || 0,
         workOrders: {
-          total: workOrderStats.data.total,
-          completed: workOrderStats.data.completed,
-          pending: workOrderStats.data.pending,
-          postponed: workOrderStats.data.postponed
+          total: workOrderStats.data.total || 0,
+          completed: workOrderStats.data.completed || 0,
+          pending: workOrderStats.data.pending || 0,
+          postponed: workOrderStats.data.postponed || 0
         }
       });
     } catch (error) {

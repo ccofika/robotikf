@@ -13,6 +13,14 @@ const VehicleFleet = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 50,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [showServiceHistoryModal, setShowServiceHistoryModal] = useState(false);
@@ -81,9 +89,19 @@ const VehicleFleet = () => {
   });
 
   useEffect(() => {
-    fetchVehicles();
-    fetchStats();
+    fetchDashboardData();
   }, []);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== '' || statusFilter !== 'all') {
+        fetchVehicles(1); // Reset to page 1 when searching
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, statusFilter]);
 
   useEffect(() => {
     if (vehicles.length > 0) {
@@ -91,12 +109,63 @@ const VehicleFleet = () => {
     }
   }, [vehicles]);
 
-  const fetchVehicles = async () => {
+  // Optimized initial data fetch for dashboard stats
+  const fetchDashboardData = async () => {
     setLoading(true);
+    try {
+      console.log('VehicleFleet: Fetching optimized dashboard data...');
+      const startTime = Date.now();
+
+      // Fetch only stats first for quick dashboard load
+      const [vehicleStatsResponse] = await Promise.all([
+        vehiclesAPI.getStats()
+      ]);
+
+      const endTime = Date.now();
+      console.log(`VehicleFleet: Dashboard stats fetched in ${endTime - startTime}ms`);
+
+      setStats(vehicleStatsResponse.data);
+
+      // Then fetch full vehicle list asynchronously
+      fetchVehicles(1);
+
+    } catch (error) {
+      console.error('Greška pri učitavanju dashboard podataka:', error);
+      setError('Greška pri učitavanju podataka. Pokušajte ponovo.');
+      setLoading(false);
+    }
+  };
+
+  // Server-side paginated vehicle fetch
+  const fetchVehicles = async (page = 1) => {
+    if (page === 1) setLoading(true);
     setError('');
     try {
-      const response = await vehiclesAPI.getAllWithStatus();
-      setVehicles(response.data);
+      console.log(`VehicleFleet: Fetching vehicles page ${page}...`);
+      const startTime = Date.now();
+
+      const params = {
+        page,
+        limit: pagination.limit,
+        search: searchTerm,
+        statusFilter: statusFilter === 'all' ? '' : statusFilter
+      };
+
+      const response = await vehiclesAPI.getAllWithStatus(params);
+
+      const endTime = Date.now();
+      console.log(`VehicleFleet: Vehicles page ${page} fetched in ${endTime - startTime}ms`);
+
+      if (response.data.data) {
+        // Server-side pagination response
+        setVehicles(response.data.data);
+        setPagination(response.data.pagination);
+      } else {
+        // Fallback for old API response format
+        setVehicles(response.data);
+        setPagination(prev => ({ ...prev, currentPage: page, totalCount: response.data.length }));
+      }
+
     } catch (error) {
       console.error('Greška pri učitavanju vozila:', error);
       setError('Greška pri učitavanju vozila. Pokušajte ponovo.');
@@ -107,26 +176,22 @@ const VehicleFleet = () => {
 
   const fetchStats = async () => {
     try {
+      console.log('VehicleFleet: Fetching vehicle statistics...');
+      const startTime = Date.now();
+
       const response = await vehiclesAPI.getStats();
+
+      const endTime = Date.now();
+      console.log(`VehicleFleet: Statistics fetched in ${endTime - startTime}ms`);
+
       setStats(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju statistika:', error);
     }
   };
 
-  const filteredVehicles = useMemo(() => {
-    return vehicles.filter(vehicle => {
-      const matchesSearch = searchTerm === '' || 
-        vehicle.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (vehicle.licensePlate && vehicle.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (vehicle.brand && vehicle.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (vehicle.model && vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesStatus = statusFilter === 'all' || vehicle.status === statusFilter;
-      
-      return matchesSearch && matchesStatus;
-    });
-  }, [vehicles, searchTerm, statusFilter]);
+  // Remove client-side filtering since we now use server-side filtering
+  const filteredVehicles = vehicles; // Server already filters the data
 
   const handleAddVehicle = async (e) => {
     e.preventDefault();
@@ -157,8 +222,9 @@ const VehicleFleet = () => {
         assignedTo: '',
         notes: ''
       });
-      
-      fetchVehicles();
+
+      // Refresh current page and stats
+      fetchVehicles(pagination.currentPage);
       fetchStats();
       setError('');
     } catch (error) {
@@ -192,8 +258,9 @@ const VehicleFleet = () => {
         nextServiceDue: '',
         mileage: ''
       });
-      
-      fetchVehicles();
+
+      // Refresh current page and stats
+      fetchVehicles(pagination.currentPage);
       fetchStats();
       setError('');
     } catch (error) {
@@ -209,7 +276,8 @@ const VehicleFleet = () => {
 
     try {
       await vehiclesAPI.delete(vehicleId);
-      fetchVehicles();
+      // Refresh current page and stats
+      fetchVehicles(pagination.currentPage);
       fetchStats();
     } catch (error) {
       console.error('Greška pri brisanju vozila:', error);
@@ -288,8 +356,9 @@ const VehicleFleet = () => {
       setShowEditRegistrationModal(false);
       setSelectedVehicle(null);
       setNewRegistrationDate('');
-      
-      fetchVehicles();
+
+      // Refresh current page and stats
+      fetchVehicles(pagination.currentPage);
       fetchStats();
       setError('');
     } catch (error) {
@@ -336,11 +405,11 @@ const VehicleFleet = () => {
         nextServiceDue: '',
         mileage: ''
       });
-      
+
       // Osvezi servise u modalu
       await fetchVehicleServices(selectedVehicle._id);
       // Osvezi glavnu listu vozila
-      fetchVehicles();
+      fetchVehicles(pagination.currentPage);
       fetchStats();
       setError('');
     } catch (error) {
@@ -356,11 +425,11 @@ const VehicleFleet = () => {
 
     try {
       await vehiclesAPI.deleteService(selectedVehicle._id, serviceId);
-      
+
       // Osvezi servise u modalu
       await fetchVehicleServices(selectedVehicle._id);
       // Osvezi glavnu listu vozila
-      fetchVehicles();
+      fetchVehicles(pagination.currentPage);
       fetchStats();
     } catch (error) {
       console.error('Greška pri brisanju servisa:', error);
@@ -514,8 +583,9 @@ const VehicleFleet = () => {
         assignedTo: '',
         notes: ''
       });
-      
-      fetchVehicles();
+
+      // Refresh current page and stats
+      fetchVehicles(pagination.currentPage);
       fetchStats();
       setError('');
     } catch (error) {
@@ -564,9 +634,12 @@ const VehicleFleet = () => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Button 
+            <Button
               variant="outline"
-              onClick={fetchVehicles}
+              onClick={() => {
+                fetchVehicles(pagination.currentPage);
+                fetchStats();
+              }}
               disabled={loading}
             >
               <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
@@ -735,7 +808,10 @@ const VehicleFleet = () => {
                   type="text"
                   placeholder="Pretraži po nazivu, registraciji, brendu..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPagination(prev => ({ ...prev, currentPage: 1 }));
+                  }}
                   className="pl-10"
                 />
               </div>
@@ -743,7 +819,10 @@ const VehicleFleet = () => {
               <div className="relative">
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPagination(prev => ({ ...prev, currentPage: 1 }));
+                  }}
                   className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
                 >
                   <option value="all">Svi statusi</option>
@@ -764,7 +843,8 @@ const VehicleFleet = () => {
         <CardHeader>
           <CardTitle>Lista vozila</CardTitle>
           <CardDescription>
-            Prikazano {filteredVehicles.length} od {vehicles.length} vozila
+            Prikazano {vehicles.length} od {pagination.totalCount} vozila
+            {pagination.totalPages > 1 && ` (strana ${pagination.currentPage} od ${pagination.totalPages})`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -890,6 +970,35 @@ const VehicleFleet = () => {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Controls */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">
+                  Strana {pagination.currentPage} od {pagination.totalPages}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchVehicles(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrevPage || loading}
+                >
+                  Prethodna
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchVehicles(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNextPage || loading}
+                >
+                  Sledeća
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

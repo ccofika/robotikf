@@ -26,12 +26,18 @@ const ExportSpecification = () => {
 
   const fetchStats = async () => {
     try {
+      console.log('ExportSpecification: Fetching evidence preview stats...');
+      const startTime = Date.now();
+
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const response = await fetch(`${apiUrl}/api/export/evidence-preview?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         setStats(data);
+
+        const endTime = Date.now();
+        console.log(`ExportSpecification: Stats fetched in ${endTime - startTime}ms`);
       }
     } catch (error) {
       console.error('Greška pri učitavanju statistika:', error);
@@ -57,6 +63,9 @@ const ExportSpecification = () => {
     }
 
     setLoading(true);
+
+    console.log('ExportSpecification: Starting Excel export...');
+    const exportStartTime = Date.now();
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -93,6 +102,9 @@ const ExportSpecification = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+
+      const exportEndTime = Date.now();
+      console.log(`ExportSpecification: Excel export completed in ${exportEndTime - exportStartTime}ms`);
 
       toast.success('Excel evidencija je uspešno kreirana i preuzeta!');
     } catch (error) {

@@ -169,13 +169,14 @@ export const exportAPI = {
 
 // Vehicles API
 export const vehiclesAPI = {
-  getAll: () => api.get('/api/vehicles'),
-  getAllWithStatus: () => api.get('/api/vehicles/with-status'),
+  getAll: (params) => api.get('/api/vehicles', { params }),
+  getAllWithStatus: (params) => api.get('/api/vehicles/with-status', { params }),
   getExpiringRegistrations: (days) => api.get(`/api/vehicles/expiring-registrations/${days || 30}`),
   getOne: (id) => api.get(`/api/vehicles/${id}`),
   getServices: (id) => api.get(`/api/vehicles/${id}/services`),
   create: (data) => api.post('/api/vehicles', data),
   update: (id, data) => api.put(`/api/vehicles/${id}`, data),
+  updateRegistration: (id, data) => api.put(`/api/vehicles/${id}`, data),
   delete: (id) => api.delete(`/api/vehicles/${id}`),
   addService: (id, data) => api.post(`/api/vehicles/${id}/services`, data),
   updateService: (id, serviceId, data) => api.put(`/api/vehicles/${id}/services/${serviceId}`, data),
@@ -297,10 +298,11 @@ api.interceptors.response.use(
 export const financesAPI = {
   getSettings: () => api.get('/api/finances/settings'),
   saveSettings: (data) => api.post('/api/finances/settings', data),
-  getMunicipalities: () => api.get('/api/finances/municipalities'),
+  getMunicipalities: (statsOnly = false) => api.get('/api/finances/municipalities', { params: statsOnly ? { statsOnly: 'true' } : {} }),
   getCustomerStatusOptions: () => api.get('/api/finances/customer-status-options'),
-  getTechnicians: () => api.get('/api/finances/technicians'),
+  getTechnicians: (statsOnly = false) => api.get('/api/finances/technicians', { params: statsOnly ? { statsOnly: 'true' } : {} }),
   getReports: (params) => api.get('/api/finances/reports', { params }),
+  getReportsStats: (params) => api.get('/api/finances/reports', { params: { ...params, statsOnly: 'true' } }),
   getFailedTransactions: () => api.get('/api/finances/failed-transactions'),
   retryFailedTransaction: (workOrderId) => api.post(`/api/finances/retry-failed-transaction/${workOrderId}`),
   dismissFailedTransaction: (workOrderId) => api.delete(`/api/finances/failed-transaction/${workOrderId}`),

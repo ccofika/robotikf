@@ -244,6 +244,7 @@ export const useGlobalDashboardFilters = (onFiltersChange) => {
       municipalityCount: effectiveMunicipalities.length,
       regions: filters.selectedRegions,
       serviceType: filters.serviceType,
+      timeRange: filters.dateMode, // Add timeRange field mapping to dateMode
       actionType: filters.actionType,
       status: filters.status,
       priority: filters.priority,

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon } from '../../components/icons/SvgIcons';
+import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import axios from 'axios';
 import { toast } from '../../utils/toast';
@@ -8,21 +8,35 @@ import { equipmentAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 const EquipmentList = () => {
+  // Server-side pagination state
   const [equipment, setEquipment] = useState([]);
-  const [recentEquipment, setRecentEquipment] = useState([]); // Najskorije dodata oprema
-  const [olderEquipment, setOlderEquipment] = useState([]); // Starija oprema
-  const [dashboardStats, setDashboardStats] = useState(null); // Dashboard statistike
-  const [availableCategories, setAvailableCategories] = useState([]); // Kategorije
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 50,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
+  const [performance, setPerformance] = useState({ queryTime: 0, resultsPerPage: 0 });
+  const [dashboardStats, setDashboardStats] = useState({ total: 0, inWarehouse: 0, assigned: 0 });
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [categoryCounts, setCategoryCounts] = useState({});
+  const [allLocations, setAllLocations] = useState([]);
 
-  const [loading, setLoading] = useState(false);
+  // Loading states
+  const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [recentLoading, setRecentLoading] = useState(true);
-  const [olderLoading, setOlderLoading] = useState(true);
 
-  const [error, setError] = useState('');
+  // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [error, setError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // UI states
   const [visibleColumns, setVisibleColumns] = useState({
     description: true,
     serialNumber: true,
@@ -43,29 +57,29 @@ const EquipmentList = () => {
     newCategoryName: ''
   });
   
-  // Paginacija
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
-  
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
-  // Prioritetno učitavanje podataka
+  // Debounce search input
   useEffect(() => {
-    // Prvo prioritet: Dashboard statistike i kategorije
-    fetchDashboardAndCategories();
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-    // Tehničare učitavamo odmah jer nisu kritični za UI
+  // Fetch data when pagination, search, or filters change
+  useEffect(() => {
+    fetchEquipment();
+    fetchDashboardStats(selectedCategory); // Update dashboard stats for new category
+  }, [pagination.currentPage, debouncedSearchTerm, locationFilter, selectedCategory]);
+
+  // Initial load
+  useEffect(() => {
+    fetchDashboardStats('all'); // Start with all categories
+    fetchCategories();
     fetchTechnicians();
-
-    // Drugi prioritet: Najskorija oprema (poslednja 2 dana)
-    setTimeout(() => {
-      fetchRecentEquipment();
-    }, 500); // Kratka pauza da dashboard statistike stignu prve
-
-    // Treći prioritet: Starija oprema u pozadini
-    setTimeout(() => {
-      fetchOlderEquipment();
-    }, 2000); // Učitava tek nakon što se sve ostalo učita
+    fetchAllLocations(); // Load all possible locations
+    fetchEquipment();
   }, []);
   
   // Close column menu when clicking outside
@@ -82,121 +96,67 @@ const EquipmentList = () => {
     };
   }, [showColumnMenu]);
   
-  // PRIORITET 1: Dashboard statistike i kategorije (najbrže učitavanje)
-  const fetchDashboardAndCategories = async () => {
+  // Fetch dashboard stats for current category
+  const fetchDashboardStats = async (category = selectedCategory) => {
     setDashboardLoading(true);
     try {
-      const response = await equipmentAPI.getDisplay();
-      const filteredData = response.data.filter(item =>
-        item.location === 'magacin' ||
-        (item.location && item.location.startsWith('tehnicar-'))
-      );
-
-      // Izvlačimo samo kategorije za dashboard
-      const categories = [...new Set(filteredData.map(item => item.category))];
-      setAvailableCategories(categories);
-
-      // Osnovne statistike za dashboard
-      const stats = {
-        total: filteredData.length,
-        inWarehouse: filteredData.filter(item => item.location === 'magacin').length,
-        assigned: filteredData.filter(item => item.location !== 'magacin').length
+      const params = {
+        statsOnly: 'true'
       };
-      setDashboardStats(stats);
+      if (category && category !== 'all') {
+        params.category = category;
+      }
 
+      const response = await axios.get(`${apiUrl}/api/equipment/display`, { params });
+      setDashboardStats(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju dashboard podataka:', error);
-      setError('Greška pri učitavanju osnovnih podataka.');
     } finally {
       setDashboardLoading(false);
     }
   };
 
-  // PRIORITET 2: Najskorije dodata oprema (poslednja 2 dana)
-  const fetchRecentEquipment = async () => {
-    setRecentLoading(true);
+  // Fetch categories with counts
+  const fetchCategories = async () => {
     try {
-      const response = await equipmentAPI.getDisplay();
-      const filteredData = response.data.filter(item =>
-        item.location === 'magacin' ||
-        (item.location && item.location.startsWith('tehnicar-'))
-      );
+      const [categoriesResponse, countsResponse] = await Promise.all([
+        axios.get(`${apiUrl}/api/equipment/categories`),
+        axios.get(`${apiUrl}/api/equipment/categories?withCounts=true`)
+      ]);
 
-      // Filtriramo opremu dodatu u poslednja 2 dana
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-
-      const recentData = filteredData.filter(item => {
-        if (item.createdAt) {
-          const createdDate = new Date(item.createdAt);
-          return createdDate >= twoDaysAgo;
-        }
-        // Ako nema createdAt, uzimamo poslednje dodane po ID-u
-        return false;
-      });
-
-      // Ako nema podataka o datumu kreiranja, uzimamo poslednje dodane
-      const sortedRecent = recentData.length > 0 ? recentData : filteredData.slice(-20);
-
-      setRecentEquipment(sortedRecent);
-
-      // Odmah kombinujemo sa dashboard podacima za osnovni prikaz
-      setEquipment(sortedRecent);
-
+      setAvailableCategories(categoriesResponse.data);
+      setCategoryCounts(countsResponse.data);
     } catch (error) {
-      console.error('Greška pri učitavanju najskorije opreme:', error);
-    } finally {
-      setRecentLoading(false);
+      console.error('Greška pri učitavanju kategorija:', error);
     }
   };
 
-  // PRIORITET 3: Starija oprema (učitava u pozadini)
-  const fetchOlderEquipment = async () => {
-    setOlderLoading(true);
-    try {
-      const response = await equipmentAPI.getDisplay();
-      const filteredData = response.data.filter(item =>
-        item.location === 'magacin' ||
-        (item.location && item.location.startsWith('tehnicar-'))
-      );
-
-      // Filtriramo stariju opremu (stariju od 2 dana)
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-
-      const olderData = filteredData.filter(item => {
-        if (item.createdAt) {
-          const createdDate = new Date(item.createdAt);
-          return createdDate < twoDaysAgo;
-        }
-        // Ako nema createdAt, uzimamo sve osim poslednih 20
-        return true;
-      });
-
-      setOlderEquipment(olderData);
-
-      // Sada kombinujemo svu opremu (najskorija + starija)
-      setEquipment([...recentEquipment, ...olderData]);
-
-    } catch (error) {
-      console.error('Greška pri učitavanju starije opreme:', error);
-    } finally {
-      setOlderLoading(false);
-    }
-  };
-
-  // Zadržavam staru funkciju za refresh dugme
-  const fetchEquipment = async () => {
+  // Main fetch function with server-side pagination
+  const fetchEquipment = async (page = pagination.currentPage) => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await equipmentAPI.getDisplay();
-      const filteredData = response.data.filter(item =>
-        item.location === 'magacin' ||
-        (item.location && item.location.startsWith('tehnicar-'))
-      );
-      setEquipment(filteredData);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString(),
+        search: debouncedSearchTerm,
+        category: selectedCategory === 'all' ? '' : selectedCategory,
+        location: locationFilter
+      });
+
+      const response = await axios.get(`${apiUrl}/api/equipment/display?${params.toString()}`);
+      const { data: equipmentData, pagination: paginationData, performance: performanceData } = response.data;
+
+      setEquipment(equipmentData);
+      setPagination(paginationData);
+      setPerformance(performanceData);
+
+      // Update current page in state if different
+      if (paginationData.currentPage !== pagination.currentPage) {
+        setPagination(prev => ({ ...prev, currentPage: paginationData.currentPage }));
+      }
+
     } catch (error) {
       console.error('Greška pri učitavanju opreme:', error);
       setError('Greška pri učitavanju opreme. Pokušajte ponovo.');
@@ -215,55 +175,71 @@ const EquipmentList = () => {
     }
   };
 
-  
-  // Filtriranje i pretraga opreme
-  const filteredEquipment = useMemo(() => {
-    return equipment.filter(item => {
-      const categoryMatch = selectedCategory === 'all' || item.category === selectedCategory;
-      const searchMatch = searchTerm === '' || 
-                         item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const locationMatch = locationFilter === '' || item.location === locationFilter;
-      
-      return categoryMatch && searchMatch && locationMatch;
-    });
-  }, [equipment, searchTerm, locationFilter, selectedCategory]);
-  
-  // Dobijanje jedinstvenih vrednosti za filtere - koristi dashboard podatke kad su dostupni
-  const categories = useMemo(() => {
-    if (availableCategories.length > 0) {
-      return availableCategories;
+  // Fetch all possible locations for filter dropdown
+  const fetchAllLocations = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/api/equipment/locations`);
+      setAllLocations(response.data);
+    } catch (error) {
+      console.error('Greška pri učitavanju lokacija:', error);
     }
-    return [...new Set(equipment.map(item => item.category))];
-  }, [equipment, availableCategories]);
+  };
+
   
-  // Dobijanje broja elemenata po kategoriji
-  const getCategoryCount = (category) => {
-    if (category === 'all') {
-      return equipment.length;
+  // Handle pagination
+  const handlePageChange = useCallback((newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, currentPage: newPage }));
     }
-    return equipment.filter(item => item.category === category).length;
+  }, [pagination.totalPages]);
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      fetchDashboardStats(selectedCategory),
+      fetchCategories(),
+      fetchAllLocations(),
+      fetchEquipment(pagination.currentPage)
+    ]);
+    setIsRefreshing(false);
+    toast.success('Podaci su osveženi!');
+  };
+
+  // Reset filters and search
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setDebouncedSearchTerm('');
+    setLocationFilter('');
+    setSelectedCategory('all');
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  // Handle search
+  const handleSearch = (e) => {
+    const { value } = e.target;
+    setSearchTerm(value);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
   
-  const uniqueLocations = useMemo(() => {
-    // Filtriramo lokacije da prikažemo samo magacin i tehničare
-    const locations = [...new Set(equipment.map(item => item.location))]
-      .filter(location => 
-        location === 'magacin' || 
-        (location && location.startsWith('tehnicar-'))
-      );
-    return ['', ...locations];
-  }, [equipment]);
+  // Categories for filters
+  const categories = availableCategories;
+
+  // Get category count from backend data
+  const getCategoryCount = (category) => {
+    if (category === 'all') {
+      return categoryCounts.all || dashboardStats.total || pagination.totalCount;
+    }
+    return categoryCounts[category] || 0;
+  };
   
-  // Paginacija
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredEquipment.slice(indexOfFirstItem, indexOfLastItem);
-  
-  const totalPages = Math.ceil(filteredEquipment.length / itemsPerPage);
-  
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  // All locations for filter dropdown (magacin + all technicians)
+  const locationOptions = useMemo(() => {
+    return [
+      { value: '', label: 'Sve lokacije' },
+      ...allLocations
+    ];
+  }, [allLocations]);
   
   // Lokalizacija lokacije
   const translateLocation = (location) => {
@@ -343,8 +319,11 @@ const EquipmentList = () => {
         newCategoryName: ''
       });
       
-      // Osvežavanje liste opreme
-      fetchEquipment();
+      // Osvežavanje liste opreme i kategorija
+      await Promise.all([
+        handleRefresh(),
+        fetchCategories() // Ponovo učitaj kategorije jer se možda dodala nova
+      ]);
     } catch (error) {
       console.error('Greška pri dodavanju opreme:', error);
       toast.error(error.response?.data?.error || 'Greška pri dodavanju opreme!');
@@ -362,11 +341,20 @@ const EquipmentList = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Pregled opreme</h1>
-              <p className="text-slate-600 mt-1">Upravljanje inventarom opreme</p>
+              <p className="text-slate-600 mt-1">Server-side pagination - {pagination.totalCount} komada opreme</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Button 
+            <Button
+              type="secondary"
+              size="medium"
+              onClick={handleRefresh}
+              disabled={isRefreshing || dashboardLoading || loading}
+              prefix={<RefreshIcon size={16} className={(isRefreshing || dashboardLoading || loading) ? 'animate-spin' : ''} />}
+            >
+              Osveži
+            </Button>
+            <Button
               type="secondary"
               size="medium"
               onClick={() => setShowAddModal(true)}
@@ -375,7 +363,7 @@ const EquipmentList = () => {
               Dodaj opremu
             </Button>
             <Link to="/equipment/upload">
-              <Button 
+              <Button
                 type="primary"
                 size="medium"
                 prefix={<UploadIcon size={16} />}
@@ -437,8 +425,16 @@ const EquipmentList = () => {
                 <BoxIcon size={20} className="text-blue-600" />
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Ukupno u kategoriji</p>
-                <h3 className="text-lg font-bold text-slate-900">{filteredEquipment.length}</h3>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                  {selectedCategory === 'all' ? 'Ukupno opreme' : `${formatCategoryName(selectedCategory)}`}
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {dashboardLoading ? (
+                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
+                  ) : (
+                    dashboardStats.total
+                  )}
+                </h3>
               </div>
             </div>
           </div>
@@ -446,13 +442,21 @@ const EquipmentList = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-10 h-10 bg-green-100 text-green-700 rounded-lg font-bold">
-                {filteredEquipment.filter(item => item.location === 'magacin').length}
+                {dashboardLoading ? (
+                  <span className="animate-pulse bg-slate-200 rounded w-6 h-6 inline-block"></span>
+                ) : (
+                  dashboardStats.inWarehouse
+                )}
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">U magacinu</p>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {filteredEquipment.length ? 
-                    Math.round(filteredEquipment.filter(item => item.location === 'magacin').length / filteredEquipment.length * 100) : 0}%
+                  {dashboardLoading ? (
+                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
+                  ) : (
+                    dashboardStats.total > 0 ?
+                      Math.round(dashboardStats.inWarehouse / dashboardStats.total * 100) : 0
+                  )}%
                 </h3>
               </div>
             </div>
@@ -461,13 +465,21 @@ const EquipmentList = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-700 rounded-lg font-bold">
-                {filteredEquipment.filter(item => item.location !== 'magacin').length}
+                {dashboardLoading ? (
+                  <span className="animate-pulse bg-slate-200 rounded w-6 h-6 inline-block"></span>
+                ) : (
+                  dashboardStats.assigned
+                )}
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Zaduženo</p>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {filteredEquipment.length ? 
-                    Math.round(filteredEquipment.filter(item => item.location !== 'magacin').length / filteredEquipment.length * 100) : 0}%
+                  {dashboardLoading ? (
+                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
+                  ) : (
+                    dashboardStats.total > 0 ?
+                      Math.round(dashboardStats.assigned / dashboardStats.total * 100) : 0
+                  )}%
                 </h3>
               </div>
             </div>
@@ -488,22 +500,35 @@ const EquipmentList = () => {
                   type="text"
                   placeholder="Pretraži po serijskom broju ili opisu..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
+                  onChange={handleSearch}
+                  className="h-9 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setDebouncedSearchTerm('');
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <CloseIcon size={16} />
+                  </button>
+                )}
               </div>
               
               {/* Location Filter */}
               <div className="relative">
                 <select
                   value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                  className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
+                  onChange={(e) => {
+                    setLocationFilter(e.target.value);
+                    setPagination(prev => ({ ...prev, currentPage: 1 }));
+                  }}
+                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
                 >
-                  <option value="">Sve lokacije</option>
-                  {uniqueLocations.filter(loc => loc).map((location, idx) => (
-                    <option key={idx} value={location}>
-                      {translateLocation(location)}
+                  {locationOptions.map((location, idx) => (
+                    <option key={idx} value={location.value}>
+                      {location.label}
                     </option>
                   ))}
                 </select>
@@ -512,6 +537,17 @@ const EquipmentList = () => {
             </div>
             
             <div className="flex items-center space-x-3">
+              {/* Clear Filters */}
+              {(searchTerm || locationFilter || selectedCategory !== 'all') && (
+                <Button
+                  type="tertiary"
+                  size="small"
+                  onClick={clearAllFilters}
+                >
+                  Obriši filtere
+                </Button>
+              )}
+
               {/* Column Visibility Toggle */}
               <div className="relative">
                 <Button
@@ -549,16 +585,6 @@ const EquipmentList = () => {
                 )}
               </div>
               
-              {/* Refresh Button */}
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={fetchEquipment}
-                loading={loading}
-                prefix={<RefreshIcon size={16} />}
-              >
-                Osveži
-              </Button>
             </div>
           </div>
         </div>
@@ -600,19 +626,28 @@ const EquipmentList = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {currentItems.length === 0 ? (
+                  {equipment.length === 0 ? (
                     <tr>
                       <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center space-y-2">
                           <BoxIcon size={48} className="text-slate-300" />
                           <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
-                          <p className="text-xs">Promenite filtere za pristup opremi</p>
+                          {(searchTerm || locationFilter || selectedCategory !== 'all') && (
+                            <Button
+                              type="tertiary"
+                              size="small"
+                              onClick={clearAllFilters}
+                              className="mt-3"
+                            >
+                              Obriši filtere
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    currentItems.map((item, index) => (
-                      <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
+                    equipment.map((item, index) => (
+                      <tr key={item._id} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
                         {visibleColumns.description && (
                           <td className="px-6 py-4 text-sm font-medium text-slate-900">
                             {item.description}
@@ -654,63 +689,66 @@ const EquipmentList = () => {
               </table>
             </div>
             
-            {/* Modern Pagination */}
-            {filteredEquipment.length > itemsPerPage && (
+            {/* Server-side Pagination */}
+            {pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-slate-200">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-slate-600">
-                    Prikazano {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredEquipment.length)} od {filteredEquipment.length} rezultata
+                    Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount} rezultata
+                    {performance.queryTime && (
+                      <span className="ml-2 text-slate-400">({performance.queryTime}ms)</span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button
                       type="tertiary"
                       size="small"
-                      onClick={() => paginate(1)}
-                      disabled={currentPage === 1}
+                      onClick={() => handlePageChange(1)}
+                      disabled={!pagination.hasPreviousPage}
                     >
                       &laquo;
                     </Button>
                     <Button
                       type="tertiary"
                       size="small"
-                      onClick={() => paginate(currentPage - 1)}
-                      disabled={currentPage === 1}
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                      disabled={!pagination.hasPreviousPage}
                     >
                       &lsaquo;
                     </Button>
-                    
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
                       .filter(number => {
                         return (
                           number === 1 ||
-                          number === totalPages ||
-                          Math.abs(number - currentPage) <= 1
+                          number === pagination.totalPages ||
+                          Math.abs(number - pagination.currentPage) <= 1
                         );
                       })
                       .map(number => (
                         <Button
                           key={number}
-                          type={currentPage === number ? "primary" : "tertiary"}
+                          type={pagination.currentPage === number ? "primary" : "tertiary"}
                           size="small"
-                          onClick={() => paginate(number)}
+                          onClick={() => handlePageChange(number)}
                         >
                           {number}
                         </Button>
                       ))}
-                      
+
                     <Button
                       type="tertiary"
                       size="small"
-                      onClick={() => paginate(currentPage + 1)}
-                      disabled={currentPage === totalPages}
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                      disabled={!pagination.hasNextPage}
                     >
                       &rsaquo;
                     </Button>
                     <Button
                       type="tertiary"
                       size="small"
-                      onClick={() => paginate(totalPages)}
-                      disabled={currentPage === totalPages}
+                      onClick={() => handlePageChange(pagination.totalPages)}
+                      disabled={!pagination.hasNextPage}
                     >
                       &raquo;
                     </Button>

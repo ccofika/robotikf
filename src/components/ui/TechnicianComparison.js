@@ -240,6 +240,14 @@ const TechnicianComparison = ({
     // Check if data is already structured (from API) or needs processing (from logs)
     const isStructuredData = data.length > 0 && data[0].hasOwnProperty('successRate');
 
+    console.log('🔍 TechnicianComparison data analysis:', {
+      dataLength: data.length,
+      isStructuredData,
+      firstItem: data[0],
+      hasSuccessRate: data[0]?.hasOwnProperty('successRate'),
+      hasTotalEarnings: data[0]?.hasOwnProperty('totalEarnings')
+    });
+
     let metrics;
     if (isStructuredData) {
       // Use data directly from API (already structured)
@@ -252,11 +260,11 @@ const TechnicianComparison = ({
         completedUrgentOrders: technician.completedUrgentWorkOrders || 0,
         totalResponseTime: technician.totalResponseTime || 0,
         totalWorkTime: technician.avgResponseTime || 0,
-        totalRevenue: technician.totalEarnings || 0,
-        totalCost: technician.totalEarnings ? technician.totalEarnings * 0.4 : 0, // Estimate cost
+        totalRevenue: technician.totalRevenue || 0,
+        totalCost: technician.totalCost || 0,
         customerRatings: [],
         serviceTypes: new Set(Object.keys(technician.serviceTypes || {})),
-        locations: new Set(Object.keys(technician.municipalities || {})),
+        locations: new Set(Array.isArray(technician.municipalities) ? technician.municipalities : Object.keys(technician.municipalities || {})),
         workDays: new Set(technician.workDays || []),
         firstOrderDate: technician.firstActivity ? new Date(technician.firstActivity) : null,
         lastOrderDate: technician.lastActivity ? new Date(technician.lastActivity) : null,
@@ -266,7 +274,7 @@ const TechnicianComparison = ({
         // Performance metrics - use API calculated values
         speedScore: technician.avgResponseTime > 0 ? Math.max(0, 100 - technician.avgResponseTime / 2) : 50,
         satisfactionScore: Math.random() * 30 + 70, // Mock satisfaction since we don't have this data
-        profitPerOrder: technician.totalTransactions > 0 ? technician.totalEarnings / technician.totalTransactions : 0,
+        profitPerOrder: technician.totalTransactions > 0 ? technician.totalProfit / technician.totalTransactions : 0,
         overallScore: technician.performanceScore || 0,
 
         // Additional calculated fields
@@ -277,11 +285,14 @@ const TechnicianComparison = ({
         // Fix cancel rate calculation
         cancelRate: technician.totalWorkOrders > 0 ? (technician.cancelledWorkOrders / technician.totalWorkOrders) * 100 : 0,
 
-        // Fix profit and efficiency calculations
-        totalProfit: (technician.totalEarnings || 0) - (technician.totalEarnings ? technician.totalEarnings * 0.4 : 0),
-        profitPerOrder: technician.totalTransactions > 0 ? (technician.totalEarnings || 0) / technician.totalTransactions : 0,
+        // Use backend calculated values for profit and efficiency
+        totalProfit: technician.totalProfit || 0, // Backend sends technician's actual earnings as their profit
+        profitPerOrder: technician.totalTransactions > 0 ? (technician.totalProfit || 0) / technician.totalTransactions : 0,
         efficiency: (technician.avgResponseTime && technician.avgResponseTime > 0) ?
-          ((technician.totalEarnings || 0) / (technician.avgResponseTime / 60)) : 0,
+          ((technician.totalProfit || 0) / technician.avgResponseTime) : 0, // Profit per hour (avgResponseTime is in hours)
+
+        // Also calculate minutes per order for display
+        avgMinutesPerOrder: technician.avgResponseTimeInMinutes || 0,
 
         // Trend and ranking
         trend: technician.trend || 'stable',
@@ -401,6 +412,7 @@ const TechnicianComparison = ({
                 <option value="30d">Poslednja 30 dana</option>
                 <option value="90d">Poslednja 3 meseca</option>
                 <option value="180d">Poslednja 6 meseci</option>
+                <option value="365d">Poslednja godina</option>
               </select>
             )}
 
@@ -517,7 +529,7 @@ const TechnicianComparison = ({
               <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Ukupan profit</p>
+                    <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Ukupni troškovi radnika</p>
                     <h3 className="text-2xl font-bold text-slate-900">
                       {formatCurrency(technicianMetrics.reduce((sum, t) => sum + t.totalProfit, 0))}
                     </h3>
@@ -616,7 +628,7 @@ const TechnicianComparison = ({
                     {(selectedMetric === 'all' || selectedMetric === 'financial') && (
                       <>
                         <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupan profit</p>
+                          <p className="text-xs text-slate-500 uppercase tracking-wider">Deo profita kompanije</p>
                           <p className="text-lg font-semibold text-purple-600">
                             {formatCurrency(technician.totalProfit)}
                           </p>

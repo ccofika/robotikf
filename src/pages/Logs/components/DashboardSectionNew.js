@@ -71,9 +71,6 @@ const DashboardSection = ({
   // New dock system state
   const [activeKPI, setActiveKPI] = useState(null);
   const [kpiData, setKpiData] = useState({
-    kpi: null,
-    charts: null,
-    tables: null,
     map: null,
     cancellation: null,
     hourly: null,
@@ -82,26 +79,15 @@ const DashboardSection = ({
   });
   const [kpiLoading, setKpiLoading] = useState({});
 
+  // Municipality modal state
+  const [municipalityModal, setMunicipalityModal] = useState({
+    isOpen: false,
+    municipalityData: null,
+    workOrders: []
+  });
+
   // Dashboard data state for initial title cards
   const [dashboardTitles, setDashboardTitles] = useState([
-    {
-      id: 'kpi',
-      title: 'Key Performance Indicators',
-      description: 'Osnovni KPI pokazatelji performansi',
-      loaded: false
-    },
-    {
-      id: 'charts',
-      title: 'Analytics Charts',
-      description: 'Grafikoni i distribucije aktivnosti',
-      loaded: false
-    },
-    {
-      id: 'tables',
-      title: 'Data Tables',
-      description: 'Tabele sa detaljnim podacima',
-      loaded: false
-    },
     {
       id: 'map',
       title: 'Interactive Map',
@@ -209,52 +195,48 @@ const DashboardSection = ({
     'Administrativno'
   ];
 
-  // API fetch functions for each KPI type
-  const fetchKPIData = async (kpiType, filterData = null) => {
+  // API fetch functions for each KPI type (OPTIMIZED)
+  const fetchKPIData = async (kpiType, filterData = null, statsOnlyMode = false) => {
     setKpiLoading(prev => ({ ...prev, [kpiType]: true }));
 
     try {
       const params = new URLSearchParams();
 
-      // Add time range and filters
-      if (filterData) {
-        if (filterData.startDate) params.append('period', '30d'); // Default to 30d
-        if (filterData.technician && filterData.technician !== 'all') {
-          params.append('technician', filterData.technician);
-        }
-        if (filterData.municipalities && filterData.municipalities.length > 0) {
-          params.append('municipalities', filterData.municipalities.join(','));
-        }
-        if (filterData.actionType && filterData.actionType !== 'all') {
-          params.append('action', filterData.actionType);
+      // For dashboard initial load, use statsOnly for faster loading
+      if (statsOnlyMode) {
+        params.append('statsOnly', 'true');
+      } else {
+        // Add time range and filters for full data
+        if (filterData) {
+          if (filterData.startDate) params.append('period', '30d'); // Default to 30d
+          if (filterData.technician && filterData.technician !== 'all') {
+            params.append('technician', filterData.technician);
+          }
+          if (filterData.municipalities && filterData.municipalities.length > 0) {
+            params.append('municipalities', filterData.municipalities.join(','));
+          }
+          if (filterData.actionType && filterData.actionType !== 'all') {
+            params.append('action', filterData.actionType);
+          }
         }
       }
 
       let endpoint = '';
       switch (kpiType) {
-        case 'kpi':
-          endpoint = '/api/logs/dashboard/kpi';
-          break;
-        case 'charts':
-          endpoint = '/api/logs/dashboard/charts';
-          break;
-        case 'tables':
-          endpoint = '/api/logs/dashboard/tables';
-          break;
         case 'map':
-          endpoint = '/api/logs/dashboard/interactive-map';
+          endpoint = '/api/logs/dashboard/interactive-map-optimized';
           break;
         case 'cancellation':
-          endpoint = '/api/logs/dashboard/cancellation-analysis';
+          endpoint = '/api/logs/dashboard/cancellation-analysis-optimized';
           break;
         case 'hourly':
-          endpoint = '/api/logs/dashboard/hourly-activity-distribution';
+          endpoint = '/api/logs/dashboard/hourly-activity-distribution-optimized';
           break;
         case 'financial':
-          endpoint = '/api/logs/dashboard/financial-analysis';
+          endpoint = '/api/logs/dashboard/financial-analysis-optimized';
           break;
         case 'technician':
-          endpoint = '/api/logs/dashboard/technician-comparison';
+          endpoint = '/api/logs/dashboard/technician-comparison-optimized';
           break;
         default:
           throw new Error(`Unknown KPI type: ${kpiType}`);
@@ -270,25 +252,30 @@ const DashboardSection = ({
 
       const response_data = await response.json();
 
-      // Extract the actual data array based on KPI type
+      // Handle statsOnly vs full data response
       let extractedData;
-      switch (kpiType) {
-        case 'charts':
-          // For charts, use processed activity data from logs instead of API
-          extractedData = processActivityData(technicianLogs, userLogs, 'all');
-          break;
-        case 'technician':
-          extractedData = response_data.technicians || [];
-          break;
-        case 'financial':
-        case 'cancellation':
-        case 'hourly':
-        case 'map':
-        case 'tables':
-        case 'kpi':
-        default:
-          extractedData = response_data.data || [];
-          break;
+      if (statsOnlyMode) {
+        // For statsOnly, just save the basic count/info
+        extractedData = {
+          total: response_data.total || 0,
+          isStatsOnly: true
+        };
+        console.log(`⚡ Loaded ${kpiType} stats (optimized):`, extractedData);
+      } else {
+        // Extract the actual data array based on KPI type
+        switch (kpiType) {
+          case 'technician':
+            extractedData = response_data.data || [];
+            break;
+          case 'financial':
+          case 'cancellation':
+          case 'hourly':
+          case 'map':
+          default:
+            extractedData = response_data.data || [];
+            break;
+        }
+        console.log(`✅ Loaded ${kpiType} full data:`, extractedData);
       }
 
       // Update KPI data with the extracted array
@@ -301,39 +288,50 @@ const DashboardSection = ({
       setDashboardTitles(prev =>
         prev.map(title =>
           title.id === kpiType
-            ? { ...title, loaded: true }
+            ? { ...title, loaded: !statsOnlyMode } // Only mark as fully loaded if not statsOnly
             : title
         )
       );
 
-      console.log(`✅ Loaded ${kpiType} data:`, extractedData);
-
     } catch (error) {
       console.error(`❌ Error fetching ${kpiType} data:`, error);
 
-      // Generate fallback mock data for each KPI type
-      let mockData = [];
-      switch (kpiType) {
-        case 'charts':
-          mockData = processActivityData(technicianLogs, userLogs, 'all');
-          break;
-        case 'financial':
-          mockData = generateMockFinancialData();
-          break;
-        case 'technician':
-          mockData = generateMockTechnicianData();
-          break;
-        case 'cancellation':
-          mockData = generateMockCancellationData();
-          break;
-        case 'hourly':
-          mockData = generateMockHourlyData();
-          break;
-        case 'map':
-          mockData = generateMockMapData();
-          break;
-        default:
-          mockData = [];
+      // Check if it's a network error (backend not running)
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        console.log(`🔧 Backend server not running - using mock data for ${kpiType}`);
+      }
+
+      // Handle statsOnly vs full data for fallback
+      let mockData;
+      if (statsOnlyMode) {
+        // Return basic stats for statsOnly mode
+        mockData = {
+          total: getRandomCount(kpiType),
+          isStatsOnly: true
+        };
+        console.log(`📊 Using mock stats for ${kpiType}:`, mockData);
+      } else {
+        // Generate fallback mock data for each KPI type
+        switch (kpiType) {
+          case 'financial':
+            mockData = generateMockFinancialData();
+            break;
+          case 'technician':
+            mockData = generateMockTechnicianData();
+            break;
+          case 'cancellation':
+            mockData = generateMockCancellationData();
+            break;
+          case 'hourly':
+            mockData = generateMockHourlyData();
+            break;
+          case 'map':
+            mockData = generateMockMapData();
+            break;
+          default:
+            mockData = [];
+        }
+        console.log(`📊 Using mock data for ${kpiType}:`, mockData.length || 'object');
       }
 
       setKpiData(prev => ({
@@ -345,8 +343,8 @@ const DashboardSection = ({
     }
   };
 
-  // Handle KPI selection from dock
-  const handleKPISelect = (kpiType) => {
+  // Handle KPI selection from dock (OPTIMIZED)
+  const handleKPISelect = async (kpiType) => {
     if (activeKPI === kpiType) {
       // Close if already open
       setActiveKPI(null);
@@ -355,8 +353,12 @@ const DashboardSection = ({
       setActiveKPI(kpiType);
 
       // Load data if not already loaded
-      if (!kpiData[kpiType]) {
-        fetchKPIData(kpiType, filterSummary);
+      const currentData = kpiData[kpiType];
+      if (!currentData || currentData.isStatsOnly) {
+        console.log(`🚀 Loading full ${kpiType} data...`);
+
+        // Load full data directly (no more statsOnly step)
+        await fetchKPIData(kpiType, filterSummary, false);
       }
     }
   };
@@ -371,15 +373,93 @@ const DashboardSection = ({
     await fetchKPIData(kpiType, filterSummary);
   };
 
+  // Handle time range change for specific KPI
+  const handleTimeRangeChange = async (kpiType, newTimeRange) => {
+    console.log(`⏰ Time range changed for ${kpiType}: ${newTimeRange}`);
+
+    // Update the global filter state to persist the time range (using dateMode)
+    updateFilter('dateMode', newTimeRange);
+
+    // Update filter summary with new time range
+    const updatedFilters = {
+      ...filterSummary,
+      timeRange: newTimeRange
+    };
+
+    // Reload data for this KPI with new time range
+    await fetchKPIData(kpiType, updatedFilters);
+  };
+
   // Handle card click from title cards
   const handleCardClick = (kpiType) => {
     handleKPISelect(kpiType);
   };
 
+  // Handle municipality click from map
+  const handleMunicipalityClick = async (municipalityData) => {
+    console.log('🏛️ Municipality clicked:', municipalityData);
+
+    // First try to use sample work orders from the municipality data if available
+    const sampleWorkOrders = municipalityData.sampleWorkOrders || municipalityData.activities || [];
+
+    if (sampleWorkOrders.length > 0) {
+      console.log('📋 Using sample work orders from municipality data:', sampleWorkOrders.length);
+      setMunicipalityModal({
+        isOpen: true,
+        municipalityData: municipalityData,
+        workOrders: sampleWorkOrders
+      });
+      return;
+    }
+
+    // Fallback to API call if no sample data is available
+    try {
+      console.log('🔍 Fetching work orders from API for municipality:', municipalityData.municipality);
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/workorders?municipality=${municipalityData.municipality}&status=zavrsen&limit=50`
+      );
+
+      if (response.ok) {
+        const workOrdersData = await response.json();
+
+        setMunicipalityModal({
+          isOpen: true,
+          municipalityData: municipalityData,
+          workOrders: workOrdersData.data || workOrdersData || []
+        });
+      } else {
+        console.error('Failed to fetch work orders for municipality');
+        // Show modal with basic data even if work orders fail
+        setMunicipalityModal({
+          isOpen: true,
+          municipalityData: municipalityData,
+          workOrders: []
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching municipality work orders:', error);
+      // Show modal with basic data even if API fails
+      setMunicipalityModal({
+        isOpen: true,
+        municipalityData: municipalityData,
+        workOrders: []
+      });
+    }
+  };
+
+  // Close municipality modal
+  const closeMunicipalityModal = () => {
+    setMunicipalityModal({
+      isOpen: false,
+      municipalityData: null,
+      workOrders: []
+    });
+  };
+
   // Memoize KPI data to prevent unnecessary re-renders
   const memoizedKpiData = useMemo(() => kpiData, [JSON.stringify(kpiData)]);
 
-  // Render KPI content inline
+  // Render KPI content inline (OPTIMIZED)
   const renderKPIContent = (kpiType) => {
     if (!kpiType || !memoizedKpiData[kpiType]) {
       return (
@@ -391,39 +471,34 @@ const DashboardSection = ({
 
     const data = memoizedKpiData[kpiType];
 
+    // Show loading message if we only have stats and are loading full data
+    if (data.isStatsOnly) {
+      return (
+        <div className="text-center py-8">
+          <div className="mb-4">
+            <div className="inline-flex items-center px-4 py-2 bg-blue-50 rounded-lg">
+              <span className="text-lg font-semibold text-blue-600 mr-2">
+                {data.total}
+              </span>
+              <span className="text-sm text-gray-600">ukupno stavki</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-center">
+            <RefreshIcon className="w-6 h-6 text-blue-500 animate-spin mr-2" />
+            <p className="text-gray-600">Učitavanje detaljnih podataka...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (kpiType) {
-      case 'kpi':
-        return (
-          <KPITrendCards
-            data={data}
-            filters={filterSummary}
-            className="w-full"
-          />
-        );
-      case 'charts':
-        return (
-          <TotalSalesChart
-            data={data}
-            title="Dnevne aktivnosti"
-            description="Pregled aktivnosti na aplikaciji po danima"
-            filters={filterSummary}
-            className="w-full"
-          />
-        );
-      case 'tables':
-        return (
-          <TrendChart
-            data={data}
-            filters={filterSummary}
-            className="w-full"
-          />
-        );
       case 'map':
         return (
           <InteractiveActivityMap
             data={data}
             filters={filterSummary}
             loading={kpiLoading[kpiType]}
+            onLocationClick={handleMunicipalityClick}
             className="w-full"
           />
         );
@@ -463,6 +538,8 @@ const DashboardSection = ({
             data={data}
             loading={kpiLoading[kpiType]}
             filters={filterSummary}
+            timeRange={filterSummary.timeRange || '30d'}
+            onTimeRangeChange={(newTimeRange) => handleTimeRangeChange(kpiType, newTimeRange)}
             onRefresh={() => handleKPIRefresh(kpiType)}
             className="w-full"
           />
@@ -473,6 +550,24 @@ const DashboardSection = ({
             <p className="text-gray-600">Nepoznat tip KPI-a: {kpiType}</p>
           </div>
         );
+    }
+  };
+
+  // Helper function to generate random counts for statsOnly mode
+  const getRandomCount = (kpiType) => {
+    switch (kpiType) {
+      case 'map':
+        return Math.floor(Math.random() * 500) + 800; // 800-1300
+      case 'cancellation':
+        return Math.floor(Math.random() * 50) + 50; // 50-100
+      case 'hourly':
+        return Math.floor(Math.random() * 1000) + 4000; // 4000-5000
+      case 'financial':
+        return Math.floor(Math.random() * 200) + 250; // 250-450
+      case 'technician':
+        return Math.floor(Math.random() * 8) + 8; // 8-16
+      default:
+        return Math.floor(Math.random() * 100) + 50; // Default range
     }
   };
 
@@ -547,42 +642,18 @@ const DashboardSection = ({
     }));
   };
 
-  // Apply filters effect
+  // NOTE: Removed automatic API calls on page load - only load when user clicks on KPI
+
+  // Apply filters effect - only refresh when filters change, not when KPI changes
   useEffect(() => {
     // Refresh active KPI when filters change
     if (activeKPI && filters) {
-      fetchKPIData(activeKPI, filterSummary);
+      fetchKPIData(activeKPI, filterSummary, false); // Always load full data when filters change
     }
-  }, [filterSummary, activeKPI]);
+  }, [filterSummary]); // Removed activeKPI from dependencies to prevent double loading
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Global Dashboard Filters */}
-      <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
-        <GlobalDashboardFilters
-          filters={filters}
-          loading={filtersLoading}
-          error={filtersError}
-          filterSummary={filterSummary}
-          filterOptions={filterOptions}
-          onUpdateFilter={updateFilter}
-          onUpdateFilters={updateFilters}
-          onUpdateMunicipalities={updateMunicipalities}
-          onToggleRegion={toggleRegion}
-          onApplyFilters={applyFilters}
-          onResetFilters={resetFilters}
-          onToggleComparison={toggleComparison}
-          onToggleTrends={toggleTrends}
-          DATE_PRESETS={DATE_PRESETS}
-          SERBIA_REGIONS={SERBIA_REGIONS}
-          SERVICE_TYPES={SERVICE_TYPES}
-          ACTION_TYPES={ACTION_TYPES}
-          STATUS_TYPES={STATUS_TYPES}
-          PRIORITY_LEVELS={PRIORITY_LEVELS}
-          WORK_ORDER_TYPES={WORK_ORDER_TYPES}
-          ISSUE_CATEGORIES={ISSUE_CATEGORIES}
-        />
-      </div>
 
       {/* Main Content Area */}
       <div className="p-6 pb-32"> {/* Extra bottom padding for dock */}
@@ -687,6 +758,98 @@ const DashboardSection = ({
         title={selectedChartData?.title || 'Detaljni pregled'}
         subtitle={selectedChartData?.subtitle}
       />
+
+      {/* Municipality Modal */}
+      {municipalityModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {municipalityModal.municipalityData?.municipality || 'Opština'}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeMunicipalityModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <CloseIcon className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {municipalityModal.municipalityData && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-blue-600 font-medium">Aktivnosti</p>
+                    <p className="text-lg font-bold text-blue-900">
+                      {municipalityModal.municipalityData.activities || 0}
+                    </p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <p className="text-sm text-green-600 font-medium">Adrese</p>
+                    <p className="text-lg font-bold text-green-900">
+                      {municipalityModal.municipalityData.uniqueAddresses || 0}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-sm text-purple-600 font-medium">Tehničari</p>
+                    <p className="text-lg font-bold text-purple-900">
+                      {municipalityModal.municipalityData.uniqueTechnicians || 0}
+                    </p>
+                  </div>
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <p className="text-sm text-yellow-600 font-medium">Završeno</p>
+                    <p className="text-lg font-bold text-yellow-900">
+                      {municipalityModal.municipalityData.completed || 0}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Radni nalozi (prikazano {municipalityModal.workOrders.length} od {municipalityModal.municipalityData?.activities || 0})
+              </h3>
+
+              {municipalityModal.workOrders.length > 0 ? (
+                <div className="space-y-3">
+                  {municipalityModal.workOrders.slice(0, 20).map((wo, index) => (
+                    <div key={wo._id || index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-900">
+                          {wo.workOrderId || wo._id}
+                        </span>
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                          Završen
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p><strong>Adresa:</strong> {wo.address}</p>
+                        <p><strong>Korisnik:</strong> {wo.userName}</p>
+                        <p><strong>Tehničar:</strong> {wo.primaryTechnician || wo.technician || 'N/A'}</p>
+                        <p><strong>Tip:</strong> {wo.type}</p>
+                        <p><strong>Datum:</strong> {new Date(wo.date).toLocaleDateString('sr-RS')}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {municipalityModal.workOrders.length > 20 && (
+                    <p className="text-center text-gray-500 mt-4">
+                      Prikazano prvih 20 od {municipalityModal.workOrders.length} radnih naloga
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">
+                  Nema dostupnih radnih naloga za ovu opštinu
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

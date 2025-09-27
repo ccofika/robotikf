@@ -49,13 +49,19 @@ const Finances = () => {
     transactionsTable: false
   });
 
-  // State za tabelu finansijskih transakcija
+  // State za tabelu finansijskih transakcija (server-side pagination)
   const [transactions, setTransactions] = useState([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTechnicianFilter, setSelectedTechnicianFilter] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 10,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
   const [visibleColumns, setVisibleColumns] = useState({
     tisJobId: true,
     municipality: true,
@@ -84,15 +90,21 @@ const Finances = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      console.log('Fetching initial data...');
+      console.log('Finances: Fetching optimized initial data...');
+      const startTime = Date.now();
+
+      // Optimizovano - koristimo statsOnly za osnovne statistike gde je moguće
       const [settingsRes, statusOptionsRes, municipalitiesRes, techniciansRes, reportsRes, failedRes] = await Promise.all([
         financesAPI.getSettings(),
         financesAPI.getCustomerStatusOptions(),
-        financesAPI.getMunicipalities(),
-        financesAPI.getTechnicians(),
-        financesAPI.getReports(),
+        financesAPI.getMunicipalities(), // Lista opština se koristi u dropdownu
+        financesAPI.getTechnicians(), // Lista tehničara se koristi u dropdownu
+        financesAPI.getReports(), // Finansijski izveštaji sa optimizovanim aggregation
         financesAPI.getFailedTransactions()
       ]);
+
+      const endTime = Date.now();
+      console.log(`Finances: Initial data fetched in ${endTime - startTime}ms`);
 
       console.log('Technicians response:', techniciansRes);
       console.log('Technicians response data:', techniciansRes.data);
@@ -226,17 +238,47 @@ const Finances = () => {
     setTechnicianPrices(updatedTechnicianPrices);
   };
 
-  const fetchReportsWithFilter = async () => {
+  // Server-side paginated fetch with filters
+  const fetchReportsWithFilter = async (page = 1, overrideSearch = null, overrideTechnician = null) => {
     try {
       setTransactionsLoading(true);
-      const params = {};
+      console.log('Finances: Fetching filtered reports...');
+      const startTime = Date.now();
+
+      const currentTechnician = overrideTechnician !== undefined ? overrideTechnician : selectedTechnicianFilter;
+
+      const params = {
+        page,
+        limit: pagination.limit,
+        search: overrideSearch !== null ? overrideSearch : searchTerm,
+        technicianFilter: currentTechnician?._id || 'all'
+      };
+
+      console.log('📊 Selected technician filter state:', selectedTechnicianFilter);
+      console.log('📊 Finances API params:', params);
+
       if (startDate) params.dateFrom = startDate.toISOString().split('T')[0];
       if (endDate) params.dateTo = endDate.toISOString().split('T')[0];
 
       const response = await financesAPI.getReports(params);
-      setFinancialReports(response.data);
+
+      const endTime = Date.now();
+      console.log(`Finances: Filtered reports fetched in ${endTime - startTime}ms`);
+
+      // Update financial reports (summary & stats) only on first page
+      if (page === 1 && response.data.summary) {
+        setFinancialReports({
+          summary: response.data.summary,
+          technicianStats: response.data.technicianStats || []
+        });
+      }
+
       setTransactions(response.data.transactions || []);
-      toast.success('Izveštaj je ažuriran');
+      setPagination(response.data.pagination || pagination);
+
+      if (page === 1) {
+        toast.success('Izveštaj je ažuriran');
+      }
     } catch (error) {
       console.error('Greška pri učitavanju izveštaja:', error);
       toast.error('Greška pri učitavanju izveštaja');
@@ -358,48 +400,125 @@ const Finances = () => {
     return amount.toLocaleString('sr-RS') + ' RSD';
   };
 
-  // Filtriranje i paginacija za tabelu
-  const filteredTransactions = transactions.filter(transaction => {
-    // Filter by search term
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = (
-        // TIS Job ID search - check both direct field and workOrderId field
-        transaction.tisJobId?.toLowerCase().includes(searchLower) ||
-        transaction.workOrderId?.tisJobId?.toLowerCase().includes(searchLower) ||
-        // Municipality search
-        transaction.municipality?.toLowerCase().includes(searchLower) ||
-        // Customer status search (both full name and short name)
-        transaction.customerStatus?.toLowerCase().includes(searchLower) ||
-        getCustomerStatusShortName(transaction.customerStatus).toLowerCase().includes(searchLower) ||
-        // Technicians search
-        transaction.technicians?.some(tech =>
-          tech.name?.toLowerCase().includes(searchLower) ||
-          tech.technicianId?.name?.toLowerCase().includes(searchLower)
-        )
-      );
-      if (!matchesSearch) return false;
-    }
+  // Handle search/filter changes with server-side pagination
+  const handleSearchChange = (newSearchTerm) => {
+    console.log('💬 Search changed to:', newSearchTerm);
+    setSearchTerm(newSearchTerm);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    // Debounce search to avoid too many API calls
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
+      console.log('💬 Executing debounced search for:', newSearchTerm);
+      fetchReportsWithFilter(1, newSearchTerm);
+    }, 500);
+  };
 
-    // Filter by selected technician
-    if (selectedTechnicianFilter) {
-      const hasSelectedTechnician = transaction.technicians?.some(
-        tech => {
-          const techId = tech.technicianId?._id || tech.technicianId;
-          return techId === selectedTechnicianFilter._id ||
-                 (typeof techId === 'object' && techId.toString() === selectedTechnicianFilter._id) ||
-                 techId?.toString() === selectedTechnicianFilter._id;
-        }
-      );
-      if (!hasSelectedTechnician) return false;
-    }
+  const handleTechnicianFilterChange = (technician) => {
+    console.log('👤 Technician filter changed to:', technician);
+    setSelectedTechnicianFilter(technician);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    // Explicitly pass technician (including null for "Svi tehničari")
+    fetchReportsWithFilter(1, searchTerm, technician);
+  };
 
-    return true;
-  });
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }));
+    fetchReportsWithFilter(newPage);
+  };
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+  // Server-side filtering means we use transactions directly
+  const currentTransactions = transactions;
+
+  // Pagination component (same as UsersList.js)
+  const PaginationComponent = () => {
+    if (pagination.totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const current = pagination.currentPage;
+      const total = pagination.totalPages;
+      const delta = 2;
+
+      let pages = [];
+
+      // Always show first page
+      if (current > delta + 1) {
+        pages.push(1);
+        if (current > delta + 2) pages.push('...');
+      }
+
+      // Show pages around current
+      for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
+        pages.push(i);
+      }
+
+      // Always show last page
+      if (current < total - delta) {
+        if (current < total - delta - 1) pages.push('...');
+        pages.push(total);
+      }
+
+      return pages;
+    };
+
+    return (
+      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+        <div className="text-sm text-slate-600">
+          Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount} rezultata
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            type="tertiary"
+            size="small"
+            onClick={() => handlePageChange(1)}
+            disabled={pagination.currentPage === 1}
+          >
+            &laquo;
+          </Button>
+          <Button
+            type="tertiary"
+            size="small"
+            onClick={() => handlePageChange(pagination.currentPage - 1)}
+            disabled={pagination.currentPage === 1}
+          >
+            &lsaquo;
+          </Button>
+
+          {getVisiblePages().map((page, index) => (
+            <Button
+              key={index}
+              type={page === pagination.currentPage ? "primary" : "tertiary"}
+              size="small"
+              onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+              disabled={page === '...'}
+              className={page === pagination.currentPage ?
+                "!bg-blue-600 !text-white !hover:bg-blue-700" :
+                "hover:bg-gray-100"
+              }
+            >
+              {page}
+            </Button>
+          ))}
+
+          <Button
+            type="tertiary"
+            size="small"
+            onClick={() => handlePageChange(pagination.currentPage + 1)}
+            disabled={!pagination.hasNextPage}
+          >
+            &rsaquo;
+          </Button>
+          <Button
+            type="tertiary"
+            size="small"
+            onClick={() => handlePageChange(pagination.totalPages)}
+            disabled={pagination.currentPage === pagination.totalPages}
+          >
+            &raquo;
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -1041,18 +1160,12 @@ const Finances = () => {
                       type="text"
                       placeholder="Pretraži po TIS Job ID, opštini, tipu usluge ili tehničaru..."
                       value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1); // Reset to first page on search
-                      }}
+                      onChange={(e) => handleSearchChange(e.target.value)}
                       className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
                     />
                     {searchTerm && (
                       <button
-                        onClick={() => {
-                          setSearchTerm('');
-                          setCurrentPage(1);
-                        }}
+                        onClick={() => handleSearchChange('')}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       >
                         <XIcon size={16} />
@@ -1075,10 +1188,7 @@ const Finances = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56 max-h-60 overflow-auto">
                         <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedTechnicianFilter(null);
-                            setCurrentPage(1); // Reset to first page on filter change
-                          }}
+                          onClick={() => handleTechnicianFilterChange(null)}
                           className="cursor-pointer"
                         >
                           <div className="flex items-center space-x-2">
@@ -1091,10 +1201,7 @@ const Finances = () => {
                         {technicians && technicians.length > 0 && technicians.map((technician) => (
                           <DropdownMenuItem
                             key={technician._id}
-                            onClick={() => {
-                              setSelectedTechnicianFilter(technician);
-                              setCurrentPage(1); // Reset to first page on filter change
-                            }}
+                            onClick={() => handleTechnicianFilterChange(technician)}
                             className="cursor-pointer"
                           >
                             <div className="flex items-center space-x-2">
@@ -1331,94 +1438,8 @@ const Finances = () => {
                   </table>
                 </div>
 
-                {/* Modern Pagination - Enhanced like UsersList */}
-                {filteredTransactions.length > itemsPerPage && (
-                  <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
-                    <div className="text-sm text-slate-600">
-                      Prikazano {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredTransactions.length)} od {filteredTransactions.length} rezultata
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => setCurrentPage(1)}
-                        disabled={currentPage === 1}
-                      >
-                        &laquo;
-                      </Button>
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                      >
-                        &lsaquo;
-                      </Button>
-
-                      {(() => {
-                        const getVisiblePages = () => {
-                          const current = currentPage;
-                          const total = totalPages;
-                          const delta = 2;
-
-                          let pages = [];
-
-                          // Always show first page
-                          if (current > delta + 1) {
-                            pages.push(1);
-                            if (current > delta + 2) pages.push('...');
-                          }
-
-                          // Show pages around current
-                          for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
-                            pages.push(i);
-                          }
-
-                          // Always show last page
-                          if (current < total - delta) {
-                            if (current < total - delta - 1) pages.push('...');
-                            pages.push(total);
-                          }
-
-                          return pages;
-                        };
-
-                        return getVisiblePages().map((page, index) => (
-                          <Button
-                            key={index}
-                            type={page === currentPage ? "primary" : "tertiary"}
-                            size="small"
-                            onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
-                            disabled={page === '...'}
-                            className={page === currentPage ?
-                              "!bg-blue-600 !text-white !hover:bg-blue-700" :
-                              "hover:bg-gray-100"
-                            }
-                          >
-                            {page}
-                          </Button>
-                        ));
-                      })()}
-
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                      >
-                        &rsaquo;
-                      </Button>
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => setCurrentPage(totalPages)}
-                        disabled={currentPage === totalPages}
-                      >
-                        &raquo;
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                {/* Server-side Pagination */}
+                <PaginationComponent />
               </>
             )}
           </div>
