@@ -18,6 +18,7 @@ import {
   TrendingUpIcon
 } from '../icons/SvgIcons';
 import { Button } from './button-1';
+import { logsAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 // Custom CSS for Leaflet popups to ensure proper z-index
@@ -164,9 +165,14 @@ const InteractiveActivityMap = ({
 
   // Fetch municipality coordinates when data changes
   useEffect(() => {
+    console.log('🗺️ InteractiveActivityMap useEffect triggered. Data length:', data?.length);
+
     const fetchMunicipalityCoordinates = async () => {
       if (!data || data.length === 0) {
-        setMunicipalityCoordinates({});
+        // Only reset coordinates if they're not already empty
+        if (Object.keys(municipalityCoordinates).length > 0) {
+          setMunicipalityCoordinates({});
+        }
         return;
       }
 
@@ -196,21 +202,8 @@ const InteractiveActivityMap = ({
       setGeocodingError(null);
 
       try {
-        const response = await fetch('/api/logs/geocode/municipalities', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            municipalities: missingMunicipalities
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const response = await logsAPI.geocodeMunicipalities(missingMunicipalities);
+        const result = response.data;
 
         if (result.coordinatesMap) {
           // Merge new coordinates with existing ones

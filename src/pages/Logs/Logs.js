@@ -25,7 +25,7 @@ import { Button } from '../../components/ui/button-1';
 import { cn } from '../../utils/cn';
 
 // Import the component sections
-import DashboardSection from './components/DashboardSection';
+import DashboardSection from './components/DashboardSectionNew';
 import TechnicianLogsSection from './components/TechnicianLogsSection';
 import UserLogsSection from './components/UserLogsSection';
 

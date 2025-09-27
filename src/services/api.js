@@ -131,6 +131,13 @@ export const logsAPI = {
   dismissWorkOrder: (workOrderId) => api.post('/api/logs/dashboard/dismiss-work-order', { workOrderId }),
   getDismissedWorkOrders: () => api.get('/api/logs/dashboard/dismissed-work-orders'),
   readdWorkOrder: (workOrderId) => api.delete(`/api/logs/dashboard/dismiss-work-order/${workOrderId}`),
+  // Geocoding API functions
+  geocodeMunicipalities: (municipalities) => api.post('/api/logs/geocode/municipalities', { municipalities }),
+  geocodeMunicipality: (municipality) => api.get(`/api/logs/geocode/municipality/${municipality}`),
+  discoverMunicipalities: () => api.get('/api/logs/geocode/discover-municipalities'),
+  geocodeAllMunicipalities: () => api.post('/api/logs/geocode/all-municipalities'),
+  getGeocodeStats: () => api.get('/api/logs/geocode/cache/stats'),
+  clearGeocodeCache: () => api.delete('/api/logs/geocode/cache'),
 };
 
 export const userEquipmentAPI = {

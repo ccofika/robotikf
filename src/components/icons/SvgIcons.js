@@ -495,6 +495,18 @@ export const ArrowDownIcon = ({ size = 16, color = 'currentColor', className = '
   </svg>
 );
 
+export const MinimizeIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
+  </svg>
+);
+
+export const ExpandIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+  </svg>
+);
+
 export const SunIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="5"/>
@@ -597,5 +609,7 @@ export default {
   AwardIcon,
   StarIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  MinimizeIcon,
+  ExpandIcon
 }; 
