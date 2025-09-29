@@ -11,6 +11,7 @@ const EquipmentUpload = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [parseResults, setParseResults] = useState(null);
   const navigate = useNavigate();
   
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -45,6 +46,7 @@ const EquipmentUpload = () => {
     setLoading(true);
     setError('');
     setSuccessMessage('');
+    setParseResults(null);
     
     const formData = new FormData();
     formData.append('file', file);
@@ -59,8 +61,17 @@ const EquipmentUpload = () => {
           }
         }
       );
-      
-      setSuccessMessage(`${response.data.message}${response.data.ignoredItems > 0 ? ` (${response.data.ignoredItems} duplikata ignorisano)` : ''}`);
+
+      const { message, addedCount, duplicates, errors } = response.data;
+
+      setParseResults({
+        equipmentAdded: addedCount || 0,
+        duplicates: duplicates || [],
+        errors: errors || []
+      });
+
+      const duplicateMessage = duplicates?.length > 0 ? ` (${duplicates.length} duplikat${duplicates.length === 1 ? '' : 'a'} preskočen${duplicates.length === 1 ? '' : 'o'})` : '';
+      setSuccessMessage(`${message}${duplicateMessage}`);
       toast.success('Uspešno dodavanje opreme!');
       setFile(null);
       
@@ -80,9 +91,13 @@ const EquipmentUpload = () => {
   };
   
   const downloadTemplate = () => {
-    // Kreiranje primera Excel uzorka za download
-    // U pravoj implementaciji, ovo bi bio unapred pripremljen fajl
-    toast.info('Preuzimanje šablona će uskoro biti omogućeno');
+    // Kreiranje Excel šablona za download
+    const link = document.createElement('a');
+    link.href = `${apiUrl}/api/equipment/template`;
+    link.download = 'oprema-sablon.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
   
   return (
@@ -202,7 +217,7 @@ const EquipmentUpload = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Submit Button */}
             <div className="flex justify-end">
               <Button 
@@ -217,6 +232,89 @@ const EquipmentUpload = () => {
               </Button>
             </div>
           </form>
+
+          {/* Parse Results */}
+          {parseResults && (
+            <div className="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Rezultat obrade</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white p-4 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600">Dodato opreme</span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.equipmentAdded}</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600">Duplikati pronađeni</span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.duplicates.length}</p>
+                </div>
+              </div>
+
+              {parseResults.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-red-800 mb-2">Greške prilikom obrade:</h4>
+                  <ul className="space-y-1">
+                    {parseResults.errors.map((err, index) => (
+                      <li key={index} className="text-sm text-red-700 flex items-start space-x-2">
+                        <div className="w-1 h-1 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <span>{err}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {parseResults.duplicates.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-orange-800 mb-2">Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
+                  <p className="text-sm text-orange-700 mb-3">Sledeća oprema već postoji u sistemu i nije dodana:</p>
+                  <div className="space-y-3">
+                    {parseResults.duplicates.map((duplicate, index) => (
+                      <div key={index} className="bg-white border border-orange-200 rounded-lg p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium text-slate-700">Kategorija:</span>
+                            <p className="text-slate-600">{duplicate.category || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Model:</span>
+                            <p className="text-slate-600">{duplicate.model || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Serijski broj:</span>
+                            <p className="text-slate-600">{duplicate.serialNumber || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Status:</span>
+                            <p className="text-slate-600">{duplicate.status || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Lokacija:</span>
+                            <p className="text-slate-600">{duplicate.location || 'N/A'}</p>
+                          </div>
+                          {(duplicate.assignedTo || duplicate.assignedToUser) && (
+                            <div>
+                              <span className="font-medium text-slate-700">Dodeljena:</span>
+                              <p className="text-slate-600">{duplicate.assignedToUser || duplicate.assignedTo || 'N/A'}</p>
+                            </div>
+                          )}
+                        </div>
+                        {duplicate.reason && (
+                          <div className="mt-2 pt-2 border-t border-orange-100">
+                            <span className="text-xs text-orange-700">{duplicate.reason}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

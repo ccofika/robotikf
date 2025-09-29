@@ -586,7 +586,16 @@ const TechnicianWorkOrderDetail = () => {
             console.log(`🎯 Kompresija: ${compressionRatio}%`);
             
             // Kreiranje novog File objekta sa kompresovanom slikom
-            const compressedFile = new File([blob], file.name, {
+            // Za HEIC/HEIF fajlove, promeni ekstenziju u .jpg jer su već konvertovani u JPEG
+            const originalExtension = file.name.toLowerCase().split('.').pop();
+            let fileName = file.name;
+            if (originalExtension === 'heic' || originalExtension === 'heif') {
+              const nameWithoutExtension = file.name.split('.').slice(0, -1).join('.');
+              fileName = nameWithoutExtension + '.jpg';
+              console.log(`🔄 HEIC/HEIF fajl konvertovan: ${file.name} → ${fileName}`);
+            }
+
+            const compressedFile = new File([blob], fileName, {
               type: 'image/jpeg',
               lastModified: Date.now()
             });
@@ -777,7 +786,7 @@ const TechnicianWorkOrderDetail = () => {
     });
     
     // Validacija tipa fajla i veličine
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/heic', 'image/heif'];
     const maxSize = 30 * 1024 * 1024; // 30MB
     const maxFiles = 10; // Maksimalno 10 slika odjednom
     
@@ -794,8 +803,12 @@ const TechnicianWorkOrderDetail = () => {
     const existingFilenames = images.map(imageItem => extractOriginalFilename(imageItem));
     
     files.forEach((file, index) => {
-      // Validacija tipa fajla
-      if (!validTypes.includes(file.type)) {
+      // Validacija tipa fajla - proverava i MIME tip i ekstenziju
+      const fileExtension = file.name.toLowerCase().split('.').pop();
+      const validExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
+      const isValidType = validTypes.includes(file.type) || validExtensions.includes(fileExtension);
+
+      if (!isValidType) {
         invalidFiles.push(`${file.name} - neispravna ekstenzija`);
         return;
       }
@@ -1815,7 +1828,7 @@ const TechnicianWorkOrderDetail = () => {
                   type="file"
                   id="image-upload"
                   onChange={handleImageChange}
-                  accept="image/jpeg,image/png"
+                  accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
                   multiple
                   disabled={uploadingImages || isWorkOrderCompleted}
                   className="sr-only"
