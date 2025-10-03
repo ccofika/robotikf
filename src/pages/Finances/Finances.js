@@ -28,6 +28,10 @@ const Finances = () => {
   const [technicians, setTechnicians] = useState([]);
   const [selectedTechnician, setSelectedTechnician] = useState(null);
 
+  // State za tip plaćanja tehničara
+  const [technicianPaymentType, setTechnicianPaymentType] = useState('po_statusu'); // 'po_statusu' ili 'plata'
+  const [technicianMonthlySalary, setTechnicianMonthlySalary] = useState(0);
+
   // State za finansijski pregled
   const [financialReports, setFinancialReports] = useState({
     summary: { totalRevenue: 0, totalPayouts: 0, totalProfit: 0 },
@@ -93,13 +97,18 @@ const Finances = () => {
       console.log('Finances: Fetching optimized initial data...');
       const startTime = Date.now();
 
+      // Pripremi parametre za datume
+      const params = {};
+      if (startDate) params.dateFrom = startDate.toISOString().split('T')[0];
+      if (endDate) params.dateTo = endDate.toISOString().split('T')[0];
+
       // Optimizovano - koristimo statsOnly za osnovne statistike gde je moguće
       const [settingsRes, statusOptionsRes, municipalitiesRes, techniciansRes, reportsRes, failedRes] = await Promise.all([
         financesAPI.getSettings(),
         financesAPI.getCustomerStatusOptions(),
         financesAPI.getMunicipalities(), // Lista opština se koristi u dropdownu
         financesAPI.getTechnicians(), // Lista tehničara se koristi u dropdownu
-        financesAPI.getReports(), // Finansijski izveštaji sa optimizovanim aggregation
+        financesAPI.getReports(params), // Finansijski izveštaji sa datumskim filterom
         financesAPI.getFailedTransactions()
       ]);
 
@@ -169,6 +178,13 @@ const Finances = () => {
     }
   };
 
+  const handleTechnicianSelect = (technician) => {
+    setSelectedTechnician(technician);
+    // Učitaj tip plaćanja i platu
+    setTechnicianPaymentType(technician.paymentType || 'po_statusu');
+    setTechnicianMonthlySalary(technician.monthlySalary || 0);
+  };
+
   const saveTechnicianPrices = async () => {
     if (!selectedTechnician) {
       toast.error('Molimo izaberite tehničara');
@@ -204,6 +220,50 @@ const Finances = () => {
     } catch (error) {
       console.error('Greška pri čuvanju cena tehničara:', error);
       toast.error('Greška pri čuvanju cena tehničara');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const saveTechnicianPaymentSettings = async () => {
+    if (!selectedTechnician) {
+      toast.error('Molimo izaberite tehničara');
+      return;
+    }
+
+    // Validacija: ako je tip plaćanja "plata", mesečna plata mora biti > 0
+    if (technicianPaymentType === 'plata' && (!technicianMonthlySalary || technicianMonthlySalary <= 0)) {
+      toast.error('Mesečna plata mora biti veća od 0');
+      return;
+    }
+
+    setSaveLoading(true);
+    try {
+      await financesAPI.saveTechnicianPaymentSettings({
+        technicianId: selectedTechnician._id,
+        paymentType: technicianPaymentType,
+        monthlySalary: technicianMonthlySalary
+      });
+
+      // Ažuriraj lokalnu listu tehničara
+      const updatedTechnicians = technicians.map(t =>
+        t._id === selectedTechnician._id
+          ? { ...t, paymentType: technicianPaymentType, monthlySalary: technicianMonthlySalary }
+          : t
+      );
+      setTechnicians(updatedTechnicians);
+
+      // Ažuriraj selectedTechnician
+      setSelectedTechnician({
+        ...selectedTechnician,
+        paymentType: technicianPaymentType,
+        monthlySalary: technicianMonthlySalary
+      });
+
+      toast.success(`Podešavanja plaćanja za ${selectedTechnician.name} su sačuvana`);
+    } catch (error) {
+      console.error('Greška pri čuvanju podešavanja plaćanja:', error);
+      toast.error('Greška pri čuvanju podešavanja plaćanja');
     } finally {
       setSaveLoading(false);
     }
@@ -274,7 +334,7 @@ const Finances = () => {
       }
 
       setTransactions(response.data.transactions || []);
-      setPagination(response.data.pagination || pagination);
+      setPagination(prev => response.data.pagination || prev);
 
       if (page === 1) {
         toast.success('Izveštaj je ažuriran');
@@ -286,6 +346,20 @@ const Finances = () => {
       setTransactionsLoading(false);
     }
   };
+
+  // Automatski osvežava finansijski pregled kada se promene datumi
+  useEffect(() => {
+    // Ne osvežavaj na početnom učitavanju (kada su oba datuma null/undefined)
+    if (startDate || endDate) {
+      // Debounce - čekaj 500ms pre nego što osvežiš
+      const timer = setTimeout(() => {
+        fetchReportsWithFilter();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
 
   const retryFailedTransaction = async (workOrderId) => {
     setRetryLoading(prev => ({ ...prev, [workOrderId]: true }));
@@ -881,7 +955,7 @@ const Finances = () => {
                           technicians.map((technician) => (
                             <DropdownMenuItem
                               key={technician._id}
-                              onClick={() => setSelectedTechnician(technician)}
+                              onClick={() => handleTechnicianSelect(technician)}
                               className="cursor-pointer"
                             >
                               <div className="flex items-center space-x-2">
@@ -905,43 +979,107 @@ const Finances = () => {
                   {selectedTechnician && (
                     <div className="space-y-4 p-4 bg-purple-50/30 rounded-lg border border-purple-100">
                       <div className="text-sm text-purple-800 font-medium mb-3">
-                        Cene za: {selectedTechnician.name}
+                        Podešavanja za: {selectedTechnician.name}
                       </div>
-                      <div className="space-y-3">
-                        {customerStatusOptions.map((option) => {
-                          const currentPrices = getCurrentTechnicianPrices();
-                          return (
-                            <div key={option.value} className="space-y-1">
-                              <label className="text-xs font-medium text-slate-600 block">
-                                {option.label}
-                              </label>
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  placeholder="0"
-                                  value={currentPrices[option.value] || ''}
-                                  onChange={(e) => updateTechnicianPrice(option.value, e.target.value)}
-                                  className="pr-12 bg-white border-slate-200 focus:border-purple-400 focus:ring-purple-400/20"
-                                />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
-                                  RSD
+
+                      {/* Navbar menu za izbor tipa plaćanja */}
+                      <div className="flex space-x-2 mb-4 bg-slate-100 p-1 rounded-lg">
+                        <button
+                          onClick={() => setTechnicianPaymentType('po_statusu')}
+                          className={cn(
+                            'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
+                            technicianPaymentType === 'po_statusu'
+                              ? 'bg-white text-purple-700 shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900'
+                          )}
+                        >
+                          Po Statusu Naloga
+                        </button>
+                        <button
+                          onClick={() => setTechnicianPaymentType('plata')}
+                          className={cn(
+                            'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
+                            technicianPaymentType === 'plata'
+                              ? 'bg-white text-purple-700 shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900'
+                          )}
+                        >
+                          Plata
+                        </button>
+                      </div>
+
+                      {/* Prikaz različitih input-a u zavisnosti od tipa plaćanja */}
+                      {technicianPaymentType === 'po_statusu' ? (
+                        <div className="space-y-3">
+                          {customerStatusOptions.map((option) => {
+                            const currentPrices = getCurrentTechnicianPrices();
+                            return (
+                              <div key={option.value} className="space-y-1">
+                                <label className="text-xs font-medium text-slate-600 block">
+                                  {option.label}
+                                </label>
+                                <div className="relative">
+                                  <Input
+                                    type="number"
+                                    placeholder="0"
+                                    value={currentPrices[option.value] || ''}
+                                    onChange={(e) => updateTechnicianPrice(option.value, e.target.value)}
+                                    className="pr-12 bg-white border-slate-200 focus:border-purple-400 focus:ring-purple-400/20"
+                                  />
+                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
+                                    RSD
+                                  </div>
                                 </div>
                               </div>
+                            );
+                          })}
+                          <Button
+                            type="primary"
+                            size="medium"
+                            onClick={saveTechnicianPrices}
+                            disabled={saveLoading}
+                            loading={saveLoading}
+                            prefix={<SaveIcon size={16} />}
+                            className="w-full"
+                          >
+                            Sačuvaj Cene za {selectedTechnician.name}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-slate-600 block">
+                              Mesečna plata (od 1og do poslednjeg dana u mesecu)
+                            </label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                placeholder="Unesite mesečnu platu"
+                                value={technicianMonthlySalary}
+                                onChange={(e) => setTechnicianMonthlySalary(parseFloat(e.target.value) || 0)}
+                                className="pr-12 bg-white border-slate-200 focus:border-purple-400 focus:ring-purple-400/20"
+                              />
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
+                                RSD
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        type="primary"
-                        size="medium"
-                        onClick={saveTechnicianPrices}
-                        disabled={saveLoading}
-                        loading={saveLoading}
-                        prefix={<SaveIcon size={16} />}
-                        className="w-full"
-                      >
-                        Sačuvaj Cene za {selectedTechnician.name}
-                      </Button>
+                          </div>
+                          <div className="text-xs text-slate-600 bg-blue-50 p-3 rounded-md border border-blue-200">
+                            <strong>Napomena:</strong> Tehničar sa platom zarađuje iz radnih naloga dok ne dostigne svoju mesečnu platu. Nakon toga, sav višak ide direktno u profit.
+                          </div>
+                          <Button
+                            type="primary"
+                            size="medium"
+                            onClick={saveTechnicianPaymentSettings}
+                            disabled={saveLoading}
+                            loading={saveLoading}
+                            prefix={<SaveIcon size={16} />}
+                            className="w-full"
+                          >
+                            Sačuvaj Platu za {selectedTechnician.name}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -953,33 +1091,53 @@ const Finances = () => {
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {technicians && technicians.length > 0 ? technicians.map((technician) => {
                       const techPrices = technicianPrices.find(tp => tp.technicianId === technician._id);
+                      const paymentType = technician.paymentType || 'po_statusu';
                       return (
                         <div key={technician._id} className="p-4 bg-white/60 rounded-lg border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-slate-800">{technician.name}</h4>
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-medium text-slate-800">{technician.name}</h4>
+                              <span className={cn(
+                                "text-xs px-2 py-0.5 rounded-full",
+                                paymentType === 'plata'
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-blue-100 text-blue-700"
+                              )}>
+                                {paymentType === 'plata' ? 'Plata' : 'Po Statusu'}
+                              </span>
+                            </div>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setSelectedTechnician(technician)}
+                              onClick={() => handleTechnicianSelect(technician)}
                               className="text-xs"
                             >
                               Uredi
                             </Button>
                           </div>
-                          {techPrices ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                              {customerStatusOptions.map((option) => {
-                                const price = techPrices.pricesByCustomerStatus[option.value];
-                                return price ? (
-                                  <div key={option.value} className="flex justify-between">
-                                    <span className="text-slate-600 truncate">{option.label}:</span>
-                                    <span className="font-medium text-slate-800">{price.toLocaleString()} RSD</span>
-                                  </div>
-                                ) : null;
-                              })}
-                            </div>
+                          {paymentType === 'po_statusu' ? (
+                            techPrices ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                {customerStatusOptions.map((option) => {
+                                  const price = techPrices.pricesByCustomerStatus[option.value];
+                                  return price ? (
+                                    <div key={option.value} className="flex justify-between">
+                                      <span className="text-slate-600 truncate">{option.label}:</span>
+                                      <span className="font-medium text-slate-800">{price.toLocaleString()} RSD</span>
+                                    </div>
+                                  ) : null;
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-500 italic">Nisu postavljene cene</p>
+                            )
                           ) : (
-                            <p className="text-xs text-slate-500 italic">Nisu postavljene cene</p>
+                            <div className="text-xs">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-600">Mesečna plata:</span>
+                                <span className="font-medium text-green-700">{technician.monthlySalary?.toLocaleString() || 0} RSD</span>
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
@@ -1091,22 +1249,67 @@ const Finances = () => {
                       <h3 className="text-base font-semibold text-gray-900 mb-4">Isplate po tehničarima</h3>
                       {financialReports.technicianStats && financialReports.technicianStats.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {financialReports.technicianStats.map((tech) => (
-                            <div key={tech.technicianId} className="bg-slate-50 p-4 rounded-lg">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-slate-900 truncate">{tech.name}</h4>
-                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                  {tech.workOrdersCount} {tech.workOrdersCount === 1 ? 'nalog' : 'naloga'}
-                                </span>
+                          {financialReports.technicianStats.map((tech) => {
+                            const isOnSalary = tech.paymentType === 'plata';
+                            const monthlySalary = tech.monthlySalary || 0;
+                            const earnedTowardsSalary = tech.totalEarnings;
+                            const percentageEarned = monthlySalary > 0 ? Math.min((earnedTowardsSalary / monthlySalary) * 100, 100) : 0;
+                            const hasExceededSalary = earnedTowardsSalary >= monthlySalary;
+
+                            return (
+                              <div key={tech.technicianId} className="bg-slate-50 p-4 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-2">
+                                    <h4 className="font-medium text-slate-900 truncate">{tech.name}</h4>
+                                    {isOnSalary && (
+                                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                        Plata
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                    {tech.workOrdersCount} {tech.workOrdersCount === 1 ? 'nalog' : 'naloga'}
+                                  </span>
+                                </div>
+
+                                {isOnSalary ? (
+                                  <>
+                                    <div className="text-lg font-bold text-green-700 mb-1">
+                                      {earnedTowardsSalary.toLocaleString()} RSD
+                                      <span className="text-sm font-normal text-slate-500 ml-1">
+                                        ({monthlySalary.toLocaleString()} RSD)
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-slate-600 mb-2">
+                                      {hasExceededSalary
+                                        ? 'Plata dostignuta - višak ide u profit'
+                                        : `Trenutno dostignuto: ${percentageEarned.toFixed(0)}%`
+                                      }
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                      <div
+                                        className={cn(
+                                          "h-full rounded-full transition-all duration-300",
+                                          hasExceededSalary ? "bg-blue-500" : "bg-green-500"
+                                        )}
+                                        style={{ width: `${percentageEarned}%` }}
+                                      />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="text-lg font-bold text-green-700">
+                                      {tech.totalEarnings.toLocaleString()} RSD
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      Prosek: {Math.round(tech.totalEarnings / tech.workOrdersCount).toLocaleString()} RSD
+                                    </div>
+                                  </>
+                                )}
                               </div>
-                              <div className="text-lg font-bold text-green-700">
-                                {tech.totalEarnings.toLocaleString()} RSD
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                Prosek: {Math.round(tech.totalEarnings / tech.workOrdersCount).toLocaleString()} RSD
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-slate-500">

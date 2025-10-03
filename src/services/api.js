@@ -308,6 +308,7 @@ export const financesAPI = {
   dismissFailedTransaction: (workOrderId) => api.delete(`/api/finances/failed-transaction/${workOrderId}`),
   excludeFromFinances: (workOrderId) => api.post(`/api/finances/exclude-from-finances/${workOrderId}`),
   confirmDiscount: (data) => api.post('/api/finances/confirm-discount', data),
+  saveTechnicianPaymentSettings: (data) => api.post('/api/finances/technician-payment-settings', data),
 };
 
 export default api;

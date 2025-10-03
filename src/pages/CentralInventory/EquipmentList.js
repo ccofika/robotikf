@@ -46,6 +46,7 @@ const EquipmentList = () => {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   const [technicians, setTechnicians] = useState([]);
+  const [equipmentByDescription, setEquipmentByDescription] = useState([]);
 
   // Modalni prozor za dodavanje pojedinačne opreme
   const [showAddModal, setShowAddModal] = useState(false);
@@ -71,6 +72,13 @@ const EquipmentList = () => {
   useEffect(() => {
     fetchEquipment();
     fetchDashboardStats(selectedCategory); // Update dashboard stats for new category
+
+    // Fetch equipment grouped by description if technician is selected
+    if (locationFilter && locationFilter.startsWith('tehnicar-')) {
+      fetchEquipmentByDescription(locationFilter);
+    } else {
+      setEquipmentByDescription([]);
+    }
   }, [pagination.currentPage, debouncedSearchTerm, locationFilter, selectedCategory]);
 
   // Initial load
@@ -182,6 +190,22 @@ const EquipmentList = () => {
       setAllLocations(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju lokacija:', error);
+    }
+  };
+
+  // Fetch equipment grouped by description for selected technician
+  const fetchEquipmentByDescription = async (location) => {
+    try {
+      const params = new URLSearchParams({
+        location: location,
+        groupBy: 'description'
+      });
+
+      const response = await axios.get(`${apiUrl}/api/equipment/grouped?${params.toString()}`);
+      setEquipmentByDescription(response.data);
+    } catch (error) {
+      console.error('Greška pri učitavanju grupisane opreme:', error);
+      setEquipmentByDescription([]);
     }
   };
 
@@ -486,7 +510,61 @@ const EquipmentList = () => {
           </div>
         </div>
       </div>
-      
+
+      {/* Equipment by Description Table - shown when technician is selected */}
+      {locationFilter && locationFilter.startsWith('tehnicar-') && equipmentByDescription.length > 0 && (
+        <div className="mb-6 bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-4 border-b border-slate-200">
+            <h3 className="text-lg font-semibold text-slate-900">Oprema po tipu</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-[35%]">
+                    Opis opreme
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider w-[15%]">
+                    Broj
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-[35%]">
+                    Opis opreme
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider w-[15%]">
+                    Broj
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {equipmentByDescription.reduce((rows, item, index) => {
+                  if (index % 2 === 0) {
+                    rows.push([item]);
+                  } else {
+                    rows[rows.length - 1].push(item);
+                  }
+                  return rows;
+                }, []).map((row, rowIndex) => (
+                  <tr key={rowIndex} className={`hover:bg-slate-50 transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
+                    <td className="px-6 py-3 text-sm font-medium text-slate-900">
+                      {row[0]?.description}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-700 text-right font-semibold">
+                      {row[0]?.count}
+                    </td>
+                    <td className="px-6 py-3 text-sm font-medium text-slate-900">
+                      {row[1]?.description || ''}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-700 text-right font-semibold">
+                      {row[1]?.count || ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Modern Table Card */}
       <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
         {/* Table Controls */}
