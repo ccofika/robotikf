@@ -616,23 +616,20 @@ const TechnicianWorkOrderDetail = () => {
     });
   };
 
-  // Funkcija za kompresovanje više slika odjednom
+  // Funkcija za kompresovanje više slika odjednom (paralelno za brže procesovanje)
   const compressMultipleImages = async (files) => {
-    console.log(`🚀 Početak kompresovanja ${files.length} slika`);
+    console.log(`🚀 Početak kompresovanja ${files.length} slika (paralelno)`);
     const startTime = Date.now();
-    
-    const compressedFiles = [];
-    const failedCompressions = [];
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      console.log(`\n📸 Kompresovanje slike ${i + 1}/${files.length}: ${file.name}`);
-      
+
+    // Paralelno kompresovanje svih slika odjednom
+    const compressionPromises = files.map(async (file, index) => {
+      console.log(`\n📸 Kompresovanje slike ${index + 1}/${files.length}: ${file.name}`);
+
       try {
         // Dinamički kvalitet na osnovu veličine fajla
         let quality = 0.8;
         const fileSizeMB = file.size / 1024 / 1024;
-        
+
         if (fileSizeMB > 10) {
           quality = 0.6; // Veća kompresija za veće fajlove (10-20MB)
         } else if (fileSizeMB > 20) {
@@ -640,39 +637,44 @@ const TechnicianWorkOrderDetail = () => {
         } else if (fileSizeMB > 25) {
           quality = 0.3; // Maksimalna kompresija za ekstremno velike fajlove (25-30MB)
         }
-        
+
         console.log(`🎛️ Primenjeni kvalitet kompresije: ${(quality * 100)}%`);
-        
+
         const compressedFile = await compressImage(file, quality);
-        compressedFiles.push(compressedFile);
-        
+        return { success: true, file: compressedFile, originalName: file.name };
+
       } catch (error) {
         console.error(`❌ Neuspešno kompresovanje: ${file.name}`, error);
-        failedCompressions.push(file.name);
-        // Dodaj originalnu sliku ako kompresovanje ne uspe
-        compressedFiles.push(file);
+        // Vrati originalnu sliku ako kompresovanje ne uspe
+        return { success: false, file: file, originalName: file.name };
       }
-    }
-    
+    });
+
+    const results = await Promise.all(compressionPromises);
+
     const endTime = Date.now();
     const totalTime = ((endTime - startTime) / 1000).toFixed(2);
-    
+
+    const compressedFiles = results.map(r => r.file);
+    const successCount = results.filter(r => r.success).length;
+    const failedCompressions = results.filter(r => !r.success).map(r => r.originalName);
+
     console.log(`\n🏁 Kompresovanje završeno za ${totalTime}s`);
-    console.log(`✅ Uspešno kompresovano: ${compressedFiles.length - failedCompressions.length}/${files.length}`);
-    
+    console.log(`✅ Uspešno kompresovano: ${successCount}/${files.length}`);
+
     if (failedCompressions.length > 0) {
       console.log(`⚠️ Neuspešno kompresovano: ${failedCompressions.join(', ')}`);
     }
-    
+
     // Kalkulacija ukupne uštede
     const originalTotalSize = files.reduce((sum, file) => sum + file.size, 0);
     const compressedTotalSize = compressedFiles.reduce((sum, file) => sum + file.size, 0);
     const totalSavings = ((originalTotalSize - compressedTotalSize) / originalTotalSize * 100).toFixed(1);
-    
+
     console.log(`💾 Ukupna ušteda prostora: ${totalSavings}%`);
     console.log(`📊 Originalna ukupna veličina: ${(originalTotalSize / 1024 / 1024).toFixed(2)} MB`);
     console.log(`📊 Kompresovana ukupna veličina: ${(compressedTotalSize / 1024 / 1024).toFixed(2)} MB`);
-    
+
     return compressedFiles;
   };
 
@@ -1039,37 +1041,37 @@ const TechnicianWorkOrderDetail = () => {
       toast.error('Molimo izaberite slike');
       return;
     }
-    
+
     console.log('\n🚀========== POČETAK UPLOAD PROCESA ==========🚀');
     console.log(`📋 Ukupno slika za upload: ${imageFiles.length}`);
-    
+
     setUploadingImages(true);
-    
+
     // Osveži listu slika pre upload-a da se uverim da je najnovija
     try {
       const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
       const currentImages = response.data.images || [];
       setImages(currentImages);
-      
+
       // Ponovo proverava duplikate sa najnovijom listom
       const existingFilenames = currentImages.map(imageItem => extractOriginalFilename(imageItem));
-      
+
       const duplicateFiles = [];
       imageFiles.forEach(file => {
         const filename = file.name.toLowerCase();
         const filenameWithoutExtension = filename.split('.')[0];
-        
-        const isDuplicate = existingFilenames.some(existingName => 
-          existingName === filenameWithoutExtension || 
+
+        const isDuplicate = existingFilenames.some(existingName =>
+          existingName === filenameWithoutExtension ||
           existingName === filename ||
           existingName.includes(filenameWithoutExtension)
         );
-        
+
         if (isDuplicate) {
           duplicateFiles.push(file.name);
         }
       });
-      
+
       if (duplicateFiles.length > 0) {
         toast.error(`Sledeće slike već postoje: ${duplicateFiles.join(', ')}`);
         setUploadingImages(false);
@@ -1078,102 +1080,146 @@ const TechnicianWorkOrderDetail = () => {
     } catch (error) {
       console.error('Greška pri proveri duplikata:', error);
     }
-    
+
     // KORAK 1: Slike su već kompresovane pri izboru
     console.log('\n📤========== KORAK 1: PRIPREMA ZA UPLOAD ==========📤');
     const compressedFiles = imageFiles; // Već kompresovane slike
     console.log('✅ Koriste se već kompresovane slike');
-    
+
     // Inicijalizacija progress tracking-a
     const progressArray = compressedFiles.map(() => 0);
     setUploadProgress(progressArray);
 
-    // KORAK 2: Upload kompresovanih slika
-    console.log('\n📤========== KORAK 2: UPLOAD NA CLOUDINARY ==========📤');
+    // KORAK 2: Paralelni upload kompresovanih slika
+    console.log('\n📤========== KORAK 2: PARALELNI UPLOAD NA CLOUDINARY ==========📤');
     const successfulUploads = [];
     const failedUploads = [];
-    
-    try {
-      // Upload slika jedna po jedna da možemo pratiti progress
-      for (let i = 0; i < compressedFiles.length; i++) {
-        const file = compressedFiles[i];
-        const originalFileName = imageFiles[i].name; // Zadržavam originalno ime za logove
-        
-        console.log(`\n📤 Upload slike ${i + 1}/${compressedFiles.length}: ${originalFileName}`);
-        console.log(`📊 Veličina za upload: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-        
+
+    // Funkcija za upload pojedinačne slike sa retry logikom
+    const uploadSingleImage = async (file, index, retries = 2) => {
+      const originalFileName = imageFiles[index].name;
+
+      for (let attempt = 0; attempt <= retries; attempt++) {
         try {
+          if (attempt > 0) {
+            console.log(`🔄 Retry ${attempt}/${retries} za sliku: ${originalFileName}`);
+          }
+
+          console.log(`\n📤 Upload slike ${index + 1}/${compressedFiles.length}: ${originalFileName}`);
+          console.log(`📊 Veličina za upload: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+
           const formData = new FormData();
           formData.append('image', file);
           formData.append('technicianId', user._id);
-          
+
           // Ažuriraj progress za trenutnu sliku - početak upload-a
-          const newProgress = [...progressArray];
-          newProgress[i] = 25; // Kompresija završena, početak upload-a
-          setUploadProgress(newProgress);
-          
+          setUploadProgress(prev => {
+            const newProgress = [...prev];
+            newProgress[index] = 25;
+            return newProgress;
+          });
+
           console.log('🌐 Slanje na server...');
           const uploadStartTime = Date.now();
-          
+
           const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
             headers: {
               'Content-Type': 'multipart/form-data'
-            }
+            },
+            timeout: 60000 // 60s timeout
           });
-          
+
           const uploadTime = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
           console.log(`✅ Upload završen za ${uploadTime}s: ${originalFileName}`);
           console.log(`🔗 URL: ${response.data?.url || 'N/A'}`);
-          
-          // Uspešan upload
-          successfulUploads.push(originalFileName);
-          
+
           // Završetak upload-a
-          newProgress[i] = 100;
-          setUploadProgress(newProgress);
-          
+          setUploadProgress(prev => {
+            const newProgress = [...prev];
+            newProgress[index] = 100;
+            return newProgress;
+          });
+
+          return { success: true, fileName: originalFileName, url: response.data?.url };
+
         } catch (error) {
-          console.error(`❌ Greška pri upload-u slike ${originalFileName}:`, error);
-          console.error('📋 Error details:', error.response?.data);
-          failedUploads.push(originalFileName);
-          
-          // Označava neuspešan upload
-          const newProgress = [...progressArray];
-          newProgress[i] = -1; // -1 označava grešku
-          setUploadProgress(newProgress);
+          console.error(`❌ Greška pri upload-u (pokušaj ${attempt + 1}/${retries + 1}): ${originalFileName}`, error.message);
+
+          // Ako je poslednji pokušaj, označi kao neuspešan
+          if (attempt === retries) {
+            console.error('📋 Error details:', error.response?.data);
+            setUploadProgress(prev => {
+              const newProgress = [...prev];
+              newProgress[index] = -1;
+              return newProgress;
+            });
+            return { success: false, fileName: originalFileName, error: error.message };
+          }
+
+          // Sačekaj malo pre sledećeg pokušaja
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         }
       }
-      
+    };
+
+    try {
+      // Batch paralelni upload - 4 slike odjednom za optimalan balans
+      const BATCH_SIZE = 4;
+      const uploadedUrls = [];
+
+      for (let i = 0; i < compressedFiles.length; i += BATCH_SIZE) {
+        const batch = compressedFiles.slice(i, i + BATCH_SIZE);
+        const batchIndices = Array.from({ length: batch.length }, (_, idx) => i + idx);
+
+        console.log(`\n🔄 Upload batch-a ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(compressedFiles.length / BATCH_SIZE)}`);
+
+        const batchResults = await Promise.allSettled(
+          batch.map((file, batchIdx) => uploadSingleImage(file, batchIndices[batchIdx]))
+        );
+
+        batchResults.forEach((result, batchIdx) => {
+          if (result.status === 'fulfilled' && result.value.success) {
+            successfulUploads.push(result.value.fileName);
+            if (result.value.url) uploadedUrls.push(result.value.url);
+          } else {
+            const fileName = result.value?.fileName || imageFiles[batchIndices[batchIdx]].name;
+            failedUploads.push(fileName);
+          }
+        });
+      }
+
       // KORAK 3: Finalizacija i izveštavanje
       console.log('\n📊========== KORAK 3: FINALNI IZVEŠTAJ ==========📊');
       console.log(`✅ Uspešno uploadovano: ${successfulUploads.length}/${compressedFiles.length}`);
       console.log(`❌ Neuspešno uploadovano: ${failedUploads.length}/${compressedFiles.length}`);
-      
+
       if (successfulUploads.length > 0) {
         console.log(`🎉 Uspešni upload-i: ${successfulUploads.join(', ')}`);
         toast.success(`Uspešno uploadovano ${successfulUploads.length} slika`);
+
+        // Osveži listu slika samo ako ima uspešnih uploada
+        console.log('🔄 Osvežavanje liste slika...');
+        const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+        const updatedImages = response.data.images || [];
+        setImages(updatedImages);
+        console.log(`📋 Nova lista slika: ${updatedImages.length} ukupno`);
       }
-      
+
       if (failedUploads.length > 0) {
         console.log(`💥 Neuspešni upload-i: ${failedUploads.join(', ')}`);
         toast.error(`Neuspešan upload za ${failedUploads.length} slika: ${failedUploads.join(', ')}`);
       }
-      
-      // Osveži listu slika
-      console.log('🔄 Osvežavanje liste slika...');
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
-      const updatedImages = response.data.images || [];
-      setImages(updatedImages);
-      console.log(`📋 Nova lista slika: ${updatedImages.length} ukupno`);
-      
-      // Reset polja za slike
-      setImageFiles([]);
-      setImagePreviews([]);
-      document.getElementById('image-upload').value = '';
-      console.log('🧹 Polja za slike su obrisana');
-      
+
+      // Reset polja za slike samo ako su sve slike uspešno uploadovane
+      if (failedUploads.length === 0) {
+        setImageFiles([]);
+        setImagePreviews([]);
+        document.getElementById('image-upload').value = '';
+        console.log('🧹 Polja za slike su obrisana');
+      }
+
       console.log('🏁========== UPLOAD PROCES ZAVRŠEN ==========🏁\n');
-      
+
     } catch (error) {
       console.error('💥 Opšta greška pri upload-u slika:', error);
       console.error('📋 Error stack:', error.stack);
