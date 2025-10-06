@@ -61,7 +61,7 @@ const VehicleFleet = () => {
     price: '',
     comment: '',
     serviceType: 'regular',
-    nextServiceDue: '',
+    nextServiceMileage: '',
     mileage: ''
   });
 
@@ -70,7 +70,7 @@ const VehicleFleet = () => {
     price: '',
     comment: '',
     serviceType: 'regular',
-    nextServiceDue: '',
+    nextServiceMileage: '',
     mileage: ''
   });
 
@@ -255,7 +255,7 @@ const VehicleFleet = () => {
         price: '',
         comment: '',
         serviceType: 'regular',
-        nextServiceDue: '',
+        nextServiceMileage: '',
         mileage: ''
       });
 
@@ -374,7 +374,7 @@ const VehicleFleet = () => {
       price: service.price?.toString() || '',
       comment: service.comment || '',
       serviceType: service.serviceType || 'regular',
-      nextServiceDue: service.nextServiceDue ? service.nextServiceDue.split('T')[0] : '',
+      nextServiceMileage: service.nextServiceMileage?.toString() || '',
       mileage: service.mileage?.toString() || ''
     });
     setShowEditServiceModal(true);
@@ -402,7 +402,7 @@ const VehicleFleet = () => {
         price: '',
         comment: '',
         serviceType: 'regular',
-        nextServiceDue: '',
+        nextServiceMileage: '',
         mileage: ''
       });
 
@@ -1109,28 +1109,6 @@ const VehicleFleet = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Datum isteka osiguranja
-                    </label>
-                    <Input
-                      type="date"
-                      value={newVehicle.insuranceExpiry}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, insuranceExpiry: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Datum isteka tehničkog pregleda
-                    </label>
-                    <Input
-                      type="date"
-                      value={newVehicle.inspectionExpiry}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, inspectionExpiry: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
                       Zaduženo korisniku
                     </label>
                     <Input
@@ -1254,12 +1232,14 @@ const VehicleFleet = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Sledeći servis
+                    Sledeći servis (kilometraža)
                   </label>
                   <Input
-                    type="date"
-                    value={newService.nextServiceDue}
-                    onChange={(e) => setNewService(prev => ({ ...prev, nextServiceDue: e.target.value }))}
+                    type="number"
+                    value={newService.nextServiceMileage}
+                    onChange={(e) => setNewService(prev => ({ ...prev, nextServiceMileage: e.target.value }))}
+                    placeholder="Kilometraža sledećeg servisa"
+                    min="0"
                   />
                 </div>
                 
@@ -1369,7 +1349,7 @@ const VehicleFleet = () => {
                             </TableCell>
                             <TableCell>
                               {service.mileage ? (
-                                <span className="text-sm">{service.mileage.toLocaleString()} km</span>
+                                <span className="text-sm">{service.mileage} km</span>
                               ) : (
                                 <span className="text-sm text-muted-foreground">N/A</span>
                               )}
@@ -1380,8 +1360,8 @@ const VehicleFleet = () => {
                               </span>
                             </TableCell>
                             <TableCell>
-                              {service.nextServiceDue ? (
-                                <span className="text-sm">{formatDate(service.nextServiceDue)}</span>
+                              {service.nextServiceMileage ? (
+                                <span className="text-sm">{service.nextServiceMileage} km</span>
                               ) : (
                                 <span className="text-sm text-muted-foreground">N/A</span>
                               )}
@@ -1502,7 +1482,7 @@ const VehicleFleet = () => {
                     price: '',
                     comment: '',
                     serviceType: 'regular',
-                    nextServiceDue: '',
+                    nextServiceMileage: '',
                     mileage: ''
                   });
                 }}
@@ -1572,12 +1552,14 @@ const VehicleFleet = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Sledeći servis
+                    Sledeći servis (kilometraža)
                   </label>
                   <Input
-                    type="date"
-                    value={editService.nextServiceDue}
-                    onChange={(e) => setEditService(prev => ({ ...prev, nextServiceDue: e.target.value }))}
+                    type="number"
+                    value={editService.nextServiceMileage}
+                    onChange={(e) => setEditService(prev => ({ ...prev, nextServiceMileage: e.target.value }))}
+                    placeholder="Kilometraža sledećeg servisa"
+                    min="0"
                   />
                 </div>
                 
@@ -1606,7 +1588,7 @@ const VehicleFleet = () => {
                         price: '',
                         comment: '',
                         serviceType: 'regular',
-                        nextServiceDue: '',
+                        nextServiceMileage: '',
                         mileage: ''
                       });
                     }}
@@ -1743,28 +1725,6 @@ const VehicleFleet = () => {
                       value={editVehicle.registrationExpiry}
                       onChange={(e) => setEditVehicle(prev => ({ ...prev, registrationExpiry: e.target.value }))}
                       required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Datum isteka osiguranja
-                    </label>
-                    <Input
-                      type="date"
-                      value={editVehicle.insuranceExpiry}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, insuranceExpiry: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Datum isteka tehničkog pregleda
-                    </label>
-                    <Input
-                      type="date"
-                      value={editVehicle.inspectionExpiry}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, inspectionExpiry: e.target.value }))}
                     />
                   </div>
                   

@@ -17,6 +17,7 @@ const BasicEquipmentManager = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({
     type: '',
+    serialNumber: '',
     quantity: 0
   });
 
@@ -35,6 +36,7 @@ const BasicEquipmentManager = () => {
   const [viewMode, setViewMode] = useState('inventory'); // 'inventory', 'technicians', 'assign'
   const [visibleColumns, setVisibleColumns] = useState({
     type: true,
+    serialNumber: true,
     quantity: true,
     actions: true
   });
@@ -179,7 +181,7 @@ const BasicEquipmentManager = () => {
   };
 
   const resetForm = () => {
-    setFormData({ type: '', quantity: 0 });
+    setFormData({ type: '', serialNumber: '', quantity: 0 });
     setEditingItem(null);
     setShowAddForm(false);
   };
@@ -198,6 +200,7 @@ const BasicEquipmentManager = () => {
     setEditingItem(item);
     setFormData({
       type: item.type,
+      serialNumber: item.serialNumber || '',
       quantity: item.quantity
     });
     setShowAddForm(true);
@@ -381,7 +384,7 @@ const BasicEquipmentManager = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label htmlFor="type" className="block text-sm font-medium text-slate-700">
                       Vrsta osnovne opreme:
@@ -395,6 +398,21 @@ const BasicEquipmentManager = () => {
                       disabled={loading}
                       autoFocus
                       required
+                      className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="serialNumber" className="block text-sm font-medium text-slate-700">
+                      Serijski broj (S/N):
+                    </label>
+                    <input
+                      type="text"
+                      id="serialNumber"
+                      value={formData.serialNumber}
+                      onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+                      placeholder="Unesite serijski broj"
+                      disabled={loading}
                       className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
@@ -484,6 +502,7 @@ const BasicEquipmentManager = () => {
                           <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Prikaži kolone</div>
                           {Object.entries({
                             type: 'Vrsta osnovne opreme',
+                            serialNumber: 'Serijski broj',
                             quantity: 'Količina',
                             actions: 'Akcije'
                           }).map(([key, label]) => (
@@ -535,6 +554,11 @@ const BasicEquipmentManager = () => {
                             Vrsta osnovne opreme
                           </th>
                         )}
+                        {visibleColumns.serialNumber && (
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            Serijski broj
+                          </th>
+                        )}
                         {visibleColumns.quantity && (
                           <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
                             Količina
@@ -550,7 +574,7 @@ const BasicEquipmentManager = () => {
                     <tbody className="divide-y divide-slate-200">
                       {currentItems.length === 0 ? (
                         <tr>
-                          <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
                             <div className="flex flex-col items-center space-y-2">
                               <ToolsIcon size={48} className="text-slate-300" />
                               <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
@@ -564,6 +588,11 @@ const BasicEquipmentManager = () => {
                             {visibleColumns.type && (
                               <td className="px-6 py-4 text-sm font-medium text-slate-900">
                                 {item.type}
+                              </td>
+                            )}
+                            {visibleColumns.serialNumber && (
+                              <td className="px-6 py-4 text-sm text-slate-700">
+                                {item.serialNumber || '-'}
                               </td>
                             )}
                             {visibleColumns.quantity && (
