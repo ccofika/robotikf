@@ -341,6 +341,13 @@ export const TrendingUpIcon = ({ size = 16, color = 'currentColor', className = 
   </svg>
 );
 
+export const TrendingDownIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="23,18 13.5,8.5 8.5,13.5 1,6"/>
+    <polyline points="17,18 23,18 23,12"/>
+  </svg>
+);
+
 export const BarChartIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <line x1="12" y1="20" x2="12" y2="10"/>
@@ -545,6 +552,31 @@ export const ZoomOutIcon = ({ size = 16, color = 'currentColor', className = '' 
   </svg>
 );
 
+export const ActivityIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+  </svg>
+);
+
+export const PlayIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="5,3 19,12 5,21"/>
+  </svg>
+);
+
+export const PauseIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="6" y="4" width="4" height="16"/>
+    <rect x="14" y="4" width="4" height="16"/>
+  </svg>
+);
+
+export const ZapIcon = ({ size = 16, color = 'currentColor', className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
+  </svg>
+);
+
 export default {
   PlusIcon,
   SearchIcon,
@@ -582,13 +614,17 @@ export default {
   SpinnerIcon,
   TableIcon,
   CloseIcon,
+  CrossIcon,
+  AlertTriangleIcon,
   UserSlashIcon,
   ChartIcon,
   HardHatIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronDownIcon,
+  ChevronUpIcon,
   TrendingUpIcon,
+  TrendingDownIcon,
   BarChartIcon,
   RefreshIcon,
   MaterialIcon,
@@ -611,5 +647,14 @@ export default {
   ArrowUpIcon,
   ArrowDownIcon,
   MinimizeIcon,
-  ExpandIcon
+  ExpandIcon,
+  SunIcon,
+  MoonIcon,
+  LayersIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  ActivityIcon,
+  PlayIcon,
+  PauseIcon,
+  ZapIcon
 }; 

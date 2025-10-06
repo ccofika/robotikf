@@ -73,8 +73,8 @@ const EquipmentList = () => {
     fetchEquipment();
     fetchDashboardStats(selectedCategory); // Update dashboard stats for new category
 
-    // Fetch equipment grouped by description if technician is selected
-    if (locationFilter && locationFilter.startsWith('tehnicar-')) {
+    // Fetch equipment grouped by description if technician or warehouse is selected
+    if (locationFilter && (locationFilter.startsWith('tehnicar-') || locationFilter === 'magacin')) {
       fetchEquipmentByDescription(locationFilter);
     } else {
       setEquipmentByDescription([]);
@@ -511,8 +511,8 @@ const EquipmentList = () => {
         </div>
       </div>
 
-      {/* Equipment by Description Table - shown when technician is selected */}
-      {locationFilter && locationFilter.startsWith('tehnicar-') && equipmentByDescription.length > 0 && (
+      {/* Equipment by Description Table - shown when technician or warehouse is selected */}
+      {locationFilter && (locationFilter.startsWith('tehnicar-') || locationFilter === 'magacin') && equipmentByDescription.length > 0 && (
         <div className="mb-6 bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
           <div className="p-4 border-b border-slate-200">
             <h3 className="text-lg font-semibold text-slate-900">Oprema po tipu</h3>
