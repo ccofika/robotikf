@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import AIVerificationModal from '../../components/AIVerificationModal';
 
 const WorkOrderDetail = () => {
   const { id } = useParams();
@@ -45,7 +46,12 @@ const WorkOrderDetail = () => {
   const [adminComment, setAdminComment] = useState('');
   const [orderStatuses, setOrderStatuses] = useState({});
   const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
-  
+
+  // AI Verification states
+  const [loadingAIVerification, setLoadingAIVerification] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiVerificationResult, setAIVerificationResult] = useState(null);
+
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 
@@ -321,6 +327,99 @@ const WorkOrderDetail = () => {
     if (status?.includes('montažnim radovima')) return 'bg-yellow-100 text-yellow-800';
     if (status?.includes('bez montažnih radova')) return 'bg-purple-100 text-purple-800';
     return 'bg-gray-100 text-gray-800';
+  };
+
+  // AI Verification handler
+  const handleAIVerify = async () => {
+    if (!workOrder) return;
+
+    setLoadingAIVerification(true);
+    setAIVerificationResult(null);
+    setShowAIModal(true);
+
+    try {
+      console.log('Starting AI analysis for order:', workOrder._id);
+
+      const result = await axios.post(`${apiUrl}/api/workorders/${workOrder._id}/ai-verify`);
+
+      console.log('AI analysis result:', result.data);
+
+      setAIVerificationResult({
+        orderId: workOrder._id,
+        verified: result.data.verified,
+        customerStatus: result.data.customerStatus,
+        reason: result.data.reason,
+        checkedItems: result.data.checkedItems,
+        confidence: result.data.confidence
+      });
+
+    } catch (error) {
+      console.error('Error during AI analysis:', error);
+      setShowAIModal(false);
+      toast.error(error.response?.data?.error || 'Greška pri AI analizi');
+    } finally {
+      setLoadingAIVerification(false);
+    }
+  };
+
+  // Accept AI recommendation (verify work order)
+  const handleAcceptAI = async () => {
+    if (!aiVerificationResult) return;
+
+    try {
+      const orderId = aiVerificationResult.orderId;
+
+      // 1. Postavi customerStatus
+      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+        customerStatus: aiVerificationResult.customerStatus
+      });
+
+      // 2. Verifikuj radni nalog
+      await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`);
+
+      toast.success('Radni nalog je uspešno verifikovan!');
+
+      // Refresh work order data
+      const response = await workOrdersAPI.getOne(id);
+      setWorkOrder(response.data);
+
+      // Zatvori modal
+      setShowAIModal(false);
+      setAIVerificationResult(null);
+
+    } catch (error) {
+      console.error('Error accepting AI recommendation:', error);
+      toast.error('Greška pri verifikaciji radnog naloga');
+    }
+  };
+
+  // Reject AI recommendation (return to technician)
+  const handleRejectAI = async () => {
+    if (!aiVerificationResult) return;
+
+    try {
+      const orderId = aiVerificationResult.orderId;
+
+      // Vrati nalog tehničaru sa AI komentarom
+      await axios.put(`${apiUrl}/api/workorders/${orderId}/return-incorrect`, {
+        adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
+      });
+
+      toast.info('Radni nalog je vraćen tehničaru');
+
+      // Refresh work order data
+      const response = await workOrdersAPI.getOne(id);
+      setWorkOrder(response.data);
+      setFormData(prev => ({ ...prev, status: response.data.status }));
+
+      // Zatvori modal
+      setShowAIModal(false);
+      setAIVerificationResult(null);
+
+    } catch (error) {
+      console.error('Error rejecting AI recommendation:', error);
+      toast.error('Greška pri vraćanju radnog naloga');
+    }
   };
 
   // Funkcija za generisanje PDF-a
@@ -781,6 +880,19 @@ const WorkOrderDetail = () => {
                     disabled={verifying}
                   >
                     Neispravno popunjen
+                  </Button>
+                  <Button
+                    type="success"
+                    size="small"
+                    prefix={loadingAIVerification ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <CheckIcon size={16} />
+                    )}
+                    onClick={handleAIVerify}
+                    disabled={loadingAIVerification || verifying}
+                  >
+                    {loadingAIVerification ? 'AI Verifikuje...' : 'Verifikuj sa AI'}
                   </Button>
                 </>
               )}
@@ -1616,6 +1728,19 @@ const WorkOrderDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Verification Modal */}
+      <AIVerificationModal
+        isOpen={showAIModal}
+        onClose={() => {
+          setShowAIModal(false);
+          setAIVerificationResult(null);
+        }}
+        result={aiVerificationResult}
+        loading={loadingAIVerification}
+        onAccept={handleAcceptAI}
+        onReject={handleRejectAI}
+      />
     </div>
   );
 };
