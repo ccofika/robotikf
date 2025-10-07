@@ -394,6 +394,23 @@ const UserLogsSection = ({
 
                   {/* Actions */}
                   <div className="col-span-2 flex items-center justify-end space-x-2">
+                    {hasWorkOrders && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const firstLogWithWO = group.logs.find(log => log.workOrderId);
+                          if (firstLogWithWO) {
+                            const workOrderId = typeof firstLogWithWO.workOrderId === 'object'
+                              ? firstLogWithWO.workOrderId._id
+                              : firstLogWithWO.workOrderId;
+                            window.open(`/work-orders/${workOrderId}`, '_blank');
+                          }
+                        }}
+                        className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
+                      >
+                        WO
+                      </button>
+                    )}
                     <button
                       onClick={() => toggleGroup(groupKey)}
                       className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md transition-colors font-medium"
@@ -557,12 +574,6 @@ const UserLogsSection = ({
 
                       {/* Status badges */}
                       <div className="flex flex-wrap gap-2">
-                        {hasWorkOrders && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
-                            <CheckIcon size={12} className="mr-1" />
-                            WO
-                          </span>
-                        )}
                         {hasServiceInfo && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
                             <TableIcon size={12} className="mr-1" />
@@ -578,12 +589,31 @@ const UserLogsSection = ({
                       </div>
                     </div>
 
-                    {/* Right side - expand icon */}
-                    <div className={cn(
-                      "p-2 bg-slate-100 rounded-lg transition-all duration-200 ml-4",
-                      expandedGroups?.has(groupKey) ? "rotate-90 bg-slate-200" : ""
-                    )}>
-                      <ChevronRightIcon size={20} className="text-slate-600" />
+                    {/* Right side - quick actions */}
+                    <div className="flex items-center space-x-2 ml-4">
+                      {hasWorkOrders && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const firstLogWithWO = group.logs.find(log => log.workOrderId);
+                            if (firstLogWithWO) {
+                              const workOrderId = typeof firstLogWithWO.workOrderId === 'object'
+                                ? firstLogWithWO.workOrderId._id
+                                : firstLogWithWO.workOrderId;
+                              window.open(`/work-orders/${workOrderId}`, '_blank');
+                            }
+                          }}
+                          className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
+                        >
+                          WO
+                        </button>
+                      )}
+                      <div className={cn(
+                        "p-2 bg-slate-100 rounded-lg transition-all duration-200",
+                        expandedGroups?.has(groupKey) ? "rotate-90 bg-slate-200" : ""
+                      )}>
+                        <ChevronRightIcon size={20} className="text-slate-600" />
+                      </div>
                     </div>
                   </div>
                 </div>

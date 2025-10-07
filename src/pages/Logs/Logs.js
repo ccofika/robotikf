@@ -544,7 +544,8 @@ const Logs = () => {
     loadActions();
     loadStatistics();
     loadFilterOptions();
-  }, [fetchDashboardStats, loadActions, loadStatistics, loadFilterOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
   // Handle navigation state from notifications
   useEffect(() => {

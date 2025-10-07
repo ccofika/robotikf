@@ -604,23 +604,24 @@ const TechnicianLogsSection = ({
 
                   {/* Akcije */}
                   <div className="col-span-3 flex items-center justify-end space-x-2">
+                    {group.workOrderId && group.workOrderId !== 'general' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const woId = group.workOrderInfo?._id || group.workOrderId;
+                          window.open(`/work-orders/${woId}`, '_blank');
+                        }}
+                        className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
+                      >
+                        WO
+                      </button>
+                    )}
                     <button
                       onClick={() => toggleGroup(groupKey)}
                       className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md transition-colors font-medium"
                     >
                       {isExpanded ? 'Zatvori' : 'Detalji'}
                     </button>
-                    {group.workOrderInfo && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(`/work-orders/${group.workOrderInfo._id}`, '_blank');
-                        }}
-                        className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
-                      >
-                        WO →
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -811,17 +812,17 @@ const TechnicianLogsSection = ({
 
                     {/* Right side - quick actions */}
                     <div className="flex items-center space-x-2 ml-4">
-                      {group.workOrderInfo && (
-                        <Button
-                          type="primary"
-                          size="small"
+                      {group.workOrderId && group.workOrderId !== 'general' && (
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.open(`/work-orders/${group.workOrderInfo._id}`, '_blank');
+                            const woId = group.workOrderInfo?._id || group.workOrderId;
+                            window.open(`/work-orders/${woId}`, '_blank');
                           }}
+                          className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
                         >
-                          Otvori WO →
-                        </Button>
+                          WO
+                        </button>
                       )}
                       <div className={cn(
                         "p-2 bg-slate-100 rounded-lg transition-all duration-200",

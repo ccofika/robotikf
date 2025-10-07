@@ -85,10 +85,20 @@ const Finances = () => {
       console.log('Finances: Fetching optimized initial data...');
       const startTime = Date.now();
 
-      // Pripremi parametre za datume
+      // Pripremi parametre za datume - koristi lokalni datum bez UTC konverzije
       const params = {};
-      if (startDate) params.dateFrom = startDate.toISOString().split('T')[0];
-      if (endDate) params.dateTo = endDate.toISOString().split('T')[0];
+      if (startDate) {
+        const year = startDate.getFullYear();
+        const month = String(startDate.getMonth() + 1).padStart(2, '0');
+        const day = String(startDate.getDate()).padStart(2, '0');
+        params.dateFrom = `${year}-${month}-${day}`;
+      }
+      if (endDate) {
+        const year = endDate.getFullYear();
+        const month = String(endDate.getMonth() + 1).padStart(2, '0');
+        const day = String(endDate.getDate()).padStart(2, '0');
+        params.dateTo = `${year}-${month}-${day}`;
+      }
 
       // Optimizovano - koristimo statsOnly za osnovne statistike gde je moguće
       const [settingsRes, statusOptionsRes, municipalitiesRes, techniciansRes, reportsRes, failedRes] = await Promise.all([
@@ -295,8 +305,19 @@ const Finances = () => {
       console.log('📊 Selected technician filter state:', selectedTechnicianFilter);
       console.log('📊 Finances API params:', params);
 
-      if (startDate) params.dateFrom = startDate.toISOString().split('T')[0];
-      if (endDate) params.dateTo = endDate.toISOString().split('T')[0];
+      // Koristi lokalni datum bez UTC konverzije
+      if (startDate) {
+        const year = startDate.getFullYear();
+        const month = String(startDate.getMonth() + 1).padStart(2, '0');
+        const day = String(startDate.getDate()).padStart(2, '0');
+        params.dateFrom = `${year}-${month}-${day}`;
+      }
+      if (endDate) {
+        const year = endDate.getFullYear();
+        const month = String(endDate.getMonth() + 1).padStart(2, '0');
+        const day = String(endDate.getDate()).padStart(2, '0');
+        params.dateTo = `${year}-${month}-${day}`;
+      }
 
       const response = await financesAPI.getReports(params);
 
