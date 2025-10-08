@@ -506,8 +506,20 @@ const BackendLogs = () => {
                                   </div>
                                 )}
 
-                                {/* Single item add/edit */}
-                                {activity.details?.after && !['bulk_created', 'bulk_assigned', 'bulk_unassigned'].includes(activity.details?.action) && (
+                                {/* Updated item with changes list */}
+                                {activity.details?.action === 'updated' && activity.details?.changes && activity.details.changes.length > 0 && (
+                                  <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                                    <div className="font-semibold text-blue-700 mb-1">Promene ({activity.details.changeCount}):</div>
+                                    <ul className="text-xs space-y-0.5 list-disc list-inside">
+                                      {activity.details.changes.map((change, idx) => (
+                                        <li key={idx} className="text-blue-800">{change}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Single item add/edit (fallback for old logs without changes) */}
+                                {activity.details?.after && !['bulk_created', 'bulk_assigned', 'bulk_unassigned', 'updated'].includes(activity.details?.action) && (
                                   <div className="bg-green-50 p-2 rounded border border-green-200">
                                     <span className="font-semibold text-green-700">
                                       {activity.details.action === 'created' ? 'Dodato: ' : 'Izmenjeno: '}
@@ -529,7 +541,7 @@ const BackendLogs = () => {
                                   </div>
                                 )}
 
-                                {!activity.details?.before && !activity.details?.after && !activity.details?.summary && '-'}
+                                {!activity.details?.before && !activity.details?.after && !activity.details?.summary && !activity.details?.changes && '-'}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm text-slate-600">
                                 {activity.metadata?.requestDuration ? `${activity.metadata.requestDuration}ms` : '-'}

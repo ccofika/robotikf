@@ -292,7 +292,7 @@ const PrivateRoute = ({ children }) => {
                   isAdminLike(user?.role) ? <Logs /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/backend-logs" element={
-                  user?.role === 'supervisor' ? <BackendLogs /> : <Navigate to="/access-denied" />
+                  (user?.role === 'supervisor' || user?.role === 'superadmin') ? <BackendLogs /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/vehicles" element={
                   isAdminLike(user?.role) ? <VehicleFleet /> : <Navigate to="/access-denied" />

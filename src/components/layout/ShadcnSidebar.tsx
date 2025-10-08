@@ -275,16 +275,16 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       href: "/finances",
       icon: DollarSignIcon
     },
-  ]
-
-  // Supervisor ima sve superadmin stranice + Backend Logs
-  const supervisorMenuItems = [
-    ...superAdminMenuItems,
     {
       title: "Backend Logs",
       href: "/backend-logs",
       icon: ActivityIcon
     },
+  ]
+
+  // Supervisor ima sve superadmin stranice
+  const supervisorMenuItems = [
+    ...superAdminMenuItems,
   ]
 
   const menuItems = user?.role === 'supervisor' ? supervisorMenuItems : ((user?.role === 'superadmin') ? superAdminMenuItems : (user?.role === 'admin' ? adminMenuItems : technicianMenuItems))

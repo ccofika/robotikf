@@ -242,7 +242,7 @@ const WorkOrderDetail = () => {
         return;
       }
 
-      await axios.put(`${apiUrl}/api/workorders/${workOrder._id}/verify`, {});
+      await workOrdersAPI.verify(workOrder._id);
       toast.success('Radni nalog je uspešno verifikovan!');
 
       // Refresh work order data
@@ -265,7 +265,7 @@ const WorkOrderDetail = () => {
     try {
       setVerifying(true);
 
-      await axios.put(`${apiUrl}/api/workorders/${workOrder._id}/return-incorrect`, {
+      await workOrdersAPI.returnIncorrect(workOrder._id, {
         adminComment: adminComment.trim()
       });
 
@@ -303,7 +303,7 @@ const WorkOrderDetail = () => {
   // Handle customer status change
   const handleCustomerStatusChange = async (orderId, newStatus) => {
     try {
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+      await workOrdersAPI.updateCustomerStatus(orderId, {
         customerStatus: newStatus
       });
 
@@ -370,12 +370,12 @@ const WorkOrderDetail = () => {
       const orderId = aiVerificationResult.orderId;
 
       // 1. Postavi customerStatus
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+      await workOrdersAPI.updateCustomerStatus(orderId, {
         customerStatus: aiVerificationResult.customerStatus
       });
 
       // 2. Verifikuj radni nalog
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`);
+      await workOrdersAPI.verify(orderId);
 
       toast.success('Radni nalog je uspešno verifikovan!');
 
