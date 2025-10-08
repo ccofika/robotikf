@@ -19,6 +19,7 @@ import { Button } from '../../components/ui/button-1';
 import axios from 'axios';
 import { cn } from '../../utils/cn';
 import { AuthContext } from '../../context/AuthContext';
+import AIAnalysisCard from '../../components/dashboard/AIAnalysisCard';
 
 // Helper functions for log icon and color mapping
 const getIconForAction = (action) => {
@@ -787,6 +788,13 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Analysis Section - Only for admin/supervisor - AT THE BOTTOM */}
+      {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'supervisor') && (
+        <div className="mt-4">
+          <AIAnalysisCard />
+        </div>
+      )}
     </div>
   );
 };

@@ -8,11 +8,11 @@ import {
   LightbulbIcon,
   SettingsIcon,
   ClockIcon,
-  CheckIcon
+  CheckIcon,
+  ZapIcon
 } from '../../../components/icons/SvgIcons';
 import { Button } from '../../../components/ui/button-1';
 import { toast } from '../../../components/ui/toast';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -145,116 +145,50 @@ const AIAnalysisSection = () => {
     });
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
-            <BrainIcon className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">AI Analiza Sistema</h2>
-            <p className="text-sm text-gray-500">
-              Automatska analiza aktivnosti i preporuke za unapređenje
-            </p>
-          </div>
-        </div>
-        <Button
-          onClick={handleShowHistory}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <ClockIcon className="w-4 h-4" />
-          {showHistory ? 'Sakrij istoriju' : 'Prikaži istoriju'}
-        </Button>
-      </div>
+  const formatPeriod = (start, end) => {
+    const startDate = new Date(start).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' });
+    const endDate = new Date(end).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return `${startDate} - ${endDate}`;
+  };
 
-      {/* History List */}
-      {showHistory && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Istorija AI Analiza</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {analysisHistory.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Nema dostupnih analiza</p>
-            ) : (
-              <div className="space-y-2">
-                {analysisHistory.map((analysis) => (
-                  <button
-                    key={analysis._id}
-                    onClick={() => handleSelectAnalysis(analysis._id)}
-                    className={`w-full text-left p-4 rounded-lg border transition-all hover:shadow-md ${
-                      selectedAnalysis?._id === analysis._id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-indigo-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {formatDate(analysis.analysisDate)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Period: {formatDate(analysis.periodStart)} - {formatDate(analysis.periodEnd)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            analysis.analysisType === 'scheduled'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-green-100 text-green-700'
-                          }`}
-                        >
-                          {analysis.analysisType === 'scheduled' ? 'Automatska' : 'Manuelna'}
-                        </span>
-                        {selectedAnalysis?._id === analysis._id && (
-                          <CheckIcon className="w-5 h-5 text-indigo-600" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+  if (!selectedAnalysis && !loading) {
+    return (
+      <div className="space-y-6">
+        {/* Manual Analysis Trigger */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-slate-100 rounded-lg">
+              <CalendarIcon size={22} className="text-slate-700" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Manuelna AI Analiza</h3>
+              <p className="text-sm text-slate-500">Pokrenite analizu za specifičan period</p>
+            </div>
+          </div>
 
-      {/* Manual Analysis Trigger */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5" />
-            Manuelna AI Analiza
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   Početni datum i vreme
                 </label>
                 <input
                   type="datetime-local"
                   value={customPeriodStart}
                   onChange={(e) => setCustomPeriodStart(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   Krajnji datum i vreme
                 </label>
                 <input
                   type="datetime-local"
                   value={customPeriodEnd}
                   onChange={(e) => setCustomPeriodEnd(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
                 />
               </div>
@@ -262,7 +196,7 @@ const AIAnalysisSection = () => {
             <Button
               onClick={triggerManualAnalysis}
               disabled={loading || !customPeriodStart || !customPeriodEnd}
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
               {loading ? (
                 <>
@@ -277,180 +211,291 @@ const AIAnalysisSection = () => {
               )}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Analysis Results */}
-      {selectedAnalysis && (
-        <div className="space-y-4">
-          {/* Header Info */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Datum analize</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(selectedAnalysis.analysisDate)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Analizirani period</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(selectedAnalysis.periodStart)} - {formatDate(selectedAnalysis.periodEnd)}
-                  </p>
-                </div>
-                <div>
-                  <span
-                    className={`px-4 py-2 rounded-full text-sm font-medium ${
-                      selectedAnalysis.analysisType === 'scheduled'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-green-100 text-green-700'
-                    }`}
-                  >
-                    {selectedAnalysis.analysisType === 'scheduled' ? 'Automatska analiza' : 'Manuelna analiza'}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Empty State */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <BrainIcon size={48} className="text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-900 mb-2">
+            Nema dostupnih AI analiza
+          </h3>
+          <p className="text-slate-500">
+            Pokrenite manuelnu analizu ili sačekajte automatsku analizu u 12:00
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-          {/* Summary */}
-          {selectedAnalysis.analysis.summary && (
-            <Card className="border-l-4 border-l-indigo-500">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BrainIcon className="w-5 h-5 text-indigo-600" />
-                  Kratak Pregled
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-700 leading-relaxed">{selectedAnalysis.analysis.summary}</p>
-              </CardContent>
-            </Card>
-          )}
+  return (
+    <div className="space-y-6">
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Manual Analysis Trigger */}
+        <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <CalendarIcon size={18} className="text-slate-700" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-900">Manuelna Analiza</h3>
+          </div>
 
-          {/* Trends */}
-          <Card className="border-l-4 border-l-blue-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUpIcon className="w-5 h-5 text-blue-600" />
-                Uočeni Trendovi
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {selectedAnalysis.analysis.trends}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="datetime-local"
+                value={customPeriodStart}
+                onChange={(e) => setCustomPeriodStart(e.target.value)}
+                className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading}
+              />
+              <input
+                type="datetime-local"
+                value={customPeriodEnd}
+                onChange={(e) => setCustomPeriodEnd(e.target.value)}
+                className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading}
+              />
+            </div>
+            <button
+              onClick={triggerManualAnalysis}
+              disabled={loading || !customPeriodStart || !customPeriodEnd}
+              className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshIcon size={14} className="animate-spin" />
+                  <span>Analiza u toku...</span>
+                </>
+              ) : (
+                <>
+                  <BrainIcon size={14} />
+                  <span>Pokreni Analizu</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
 
-          {/* Patterns */}
-          <Card className="border-l-4 border-l-amber-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <RefreshIcon className="w-5 h-5 text-amber-600" />
-                Ponavljajući Obrasci
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {selectedAnalysis.analysis.patterns}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* History Button */}
+        <div className="sm:w-48 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <button
+            onClick={handleShowHistory}
+            className="w-full h-full flex flex-col items-center justify-center gap-2 hover:bg-slate-50 rounded-lg transition-colors"
+          >
+            <ClockIcon size={20} className="text-slate-600" />
+            <span className="text-sm font-medium text-slate-900">
+              {showHistory ? 'Sakrij Istoriju' : 'Prikaži Istoriju'}
+            </span>
+          </button>
+        </div>
+      </div>
 
-          {/* Automation Suggestions */}
-          <Card className="border-l-4 border-l-green-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SettingsIcon className="w-5 h-5 text-green-600" />
-                Predlozi za Automatizaciju
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {selectedAnalysis.analysis.automationSuggestions}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Improvement Ideas */}
-          <Card className="border-l-4 border-l-purple-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LightbulbIcon className="w-5 h-5 text-purple-600" />
-                Ideje za Unapređenje
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {selectedAnalysis.analysis.improvementIdeas}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Statistics */}
-          {selectedAnalysis.statistics && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Statistika Analiziranih Podataka</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500">Ukupno logova</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {selectedAnalysis.statistics.totalLogs || 0}
-                    </p>
+      {/* History List */}
+      {showHistory && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Istorija AI Analiza</h3>
+          {analysisHistory.length === 0 ? (
+            <p className="text-slate-500 text-center py-8">Nema dostupnih analiza</p>
+          ) : (
+            <div className="space-y-2">
+              {analysisHistory.map((analysis) => (
+                <button
+                  key={analysis._id}
+                  onClick={() => handleSelectAnalysis(analysis._id)}
+                  className={`w-full text-left p-4 rounded-lg border transition-all hover:shadow-md ${
+                    selectedAnalysis?._id === analysis._id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {formatDate(analysis.analysisDate)}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Period: {formatDate(analysis.periodStart)} - {formatDate(analysis.periodEnd)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          analysis.analysisType === 'scheduled'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}
+                      >
+                        {analysis.analysisType === 'scheduled' ? 'Automatska' : 'Manuelna'}
+                      </span>
+                      {selectedAnalysis?._id === analysis._id && (
+                        <CheckIcon size={20} className="text-blue-600" />
+                      )}
+                    </div>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-600">Admin aktivnosti</p>
-                    <p className="text-2xl font-bold text-blue-900">
-                      {selectedAnalysis.statistics.adminActivities || 0}
-                    </p>
-                  </div>
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <p className="text-sm text-red-600">Greške</p>
-                    <p className="text-2xl font-bold text-red-900">
-                      {selectedAnalysis.statistics.errorLogs || 0}
-                    </p>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm text-green-600">Prosečno vreme</p>
-                    <p className="text-2xl font-bold text-green-900">
-                      {selectedAnalysis.statistics.avgResponseTime?.toFixed(0) || 0}ms
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}
 
-      {/* Empty State */}
-      {!selectedAnalysis && !loading && (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <BrainIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Nema dostupnih AI analiza
-              </h3>
-              <p className="text-gray-500 mb-6">
-                Pokrenite manuelnu analizu ili sačekajte automatsku analizu u 12:00
-              </p>
+      {/* Analysis Results - Always Expanded */}
+      {selectedAnalysis && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-slate-200">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 bg-slate-100 rounded-lg">
+                  <BrainIcon size={22} className="text-slate-700" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">AI Analiza Sistema</h3>
+                  <p className="text-sm text-slate-500">
+                    {formatPeriod(selectedAnalysis.periodStart, selectedAnalysis.periodEnd)} • Generisano {formatDate(selectedAnalysis.analysisDate)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={fetchLatestAnalysis}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Osveži"
+              >
+                <RefreshIcon size={18} className="text-slate-600" />
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Stats Bar */}
+          {selectedAnalysis.statistics && (
+            <div className="bg-slate-50 px-6 py-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg p-4 border border-slate-200 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Ukupno Logova</p>
+                  <p className="text-2xl font-bold text-slate-900">{selectedAnalysis.statistics.totalLogs || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-slate-200 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Admin Aktivnosti</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedAnalysis.statistics.adminActivities || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-slate-200 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Greške</p>
+                  <p className="text-2xl font-bold text-red-600">{selectedAnalysis.statistics.errorLogs || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-slate-200 text-center">
+                  <p className="text-xs text-slate-500 mb-1">Prosečno Vreme</p>
+                  <p className="text-2xl font-bold text-green-600">{selectedAnalysis.statistics.avgResponseTime?.toFixed(0) || 0}ms</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="p-6">
+            {/* Summary */}
+            {selectedAnalysis.analysis.summary && (
+              <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-l-4 border-blue-500">
+                <div className="flex items-start gap-3">
+                  <ZapIcon size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-bold text-blue-900 mb-2">Kratak Pregled</h4>
+                    <p className="text-sm text-blue-800 leading-relaxed">
+                      {selectedAnalysis.analysis.summary}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Main Analysis Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Trends */}
+              {selectedAnalysis.analysis.trends && (
+                <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <TrendingUpIcon size={20} className="text-blue-600" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900">Uočeni Trendovi</h4>
+                  </div>
+                  <div
+                    className="text-sm text-slate-700 leading-relaxed whitespace-pre-line"
+                    style={{
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    {selectedAnalysis.analysis.trends}
+                  </div>
+                </div>
+              )}
+
+              {/* Patterns */}
+              {selectedAnalysis.analysis.patterns && (
+                <div className="bg-amber-50 rounded-xl p-5 border border-amber-200">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <RefreshIcon size={20} className="text-amber-600" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900">Ponavljajući Obrasci</h4>
+                  </div>
+                  <div
+                    className="text-sm text-slate-700 leading-relaxed whitespace-pre-line"
+                    style={{
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    {selectedAnalysis.analysis.patterns}
+                  </div>
+                </div>
+              )}
+
+              {/* Automation Suggestions */}
+              {selectedAnalysis.analysis.automationSuggestions && (
+                <div className="bg-green-50 rounded-xl p-5 border border-green-200">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <SettingsIcon size={20} className="text-green-600" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900">Predlozi za Automatizaciju</h4>
+                  </div>
+                  <div
+                    className="text-sm text-slate-700 leading-relaxed whitespace-pre-line"
+                    style={{
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    {selectedAnalysis.analysis.automationSuggestions}
+                  </div>
+                </div>
+              )}
+
+              {/* Improvement Ideas */}
+              {selectedAnalysis.analysis.improvementIdeas && (
+                <div className="bg-purple-50 rounded-xl p-5 border border-purple-200">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <LightbulbIcon size={20} className="text-purple-600" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900">Ideje za Unapređenje</h4>
+                  </div>
+                  <div
+                    className="text-sm text-slate-700 leading-relaxed whitespace-pre-line"
+                    style={{
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      lineHeight: '1.6'
+                    }}
+                  >
+                    {selectedAnalysis.analysis.improvementIdeas}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

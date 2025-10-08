@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
   ActivityIcon,
@@ -27,7 +28,13 @@ import AIAnalysisSection from './components/AIAnalysisSection';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const BackendLogs = () => {
-  const [activeTab, setActiveTab] = useState('activities'); // activities | errors | performance | ai-analysis
+  const location = useLocation();
+
+  // Check for tab query parameter
+  const queryParams = new URLSearchParams(location.search);
+  const tabParam = queryParams.get('tab');
+
+  const [activeTab, setActiveTab] = useState(tabParam || 'activities'); // activities | errors | performance | ai-analysis
   const [loading, setLoading] = useState(false);
 
   // State za Admin Activities
@@ -97,6 +104,12 @@ const BackendLogs = () => {
         `${API_URL}/api/backend-logs/activities?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      console.log('📥 [Frontend] Fetched activities:', {
+        count: response.data.activities?.length,
+        firstActivityWithBulk: response.data.activities?.find(a => a.details?.action === 'bulk_assigned'),
+        sampleActivity: response.data.activities?.[0]
+      });
 
       setActivities(response.data.activities);
     } catch (error) {
@@ -430,6 +443,12 @@ const BackendLogs = () => {
                                     </div>
                                     <button
                                       onClick={() => {
+                                        console.log('🔍 [Frontend] Opening bulk modal with details:', {
+                                          action: activity.details?.action,
+                                          summaryAssignedCount: activity.details?.summary?.assignedCount,
+                                          assignedItemsLength: activity.details?.assignedItems?.length,
+                                          fullDetails: activity.details
+                                        });
                                         setBulkDetails(activity.details);
                                         setShowBulkModal(true);
                                       }}
@@ -450,6 +469,12 @@ const BackendLogs = () => {
                                     </div>
                                     <button
                                       onClick={() => {
+                                        console.log('🔍 [Frontend] Opening unassign modal with details:', {
+                                          action: activity.details?.action,
+                                          summaryUnassignedCount: activity.details?.summary?.unassignedCount,
+                                          assignedItemsLength: activity.details?.assignedItems?.length,
+                                          fullDetails: activity.details
+                                        });
                                         setBulkDetails(activity.details);
                                         setShowBulkModal(true);
                                       }}
