@@ -14,7 +14,8 @@ import {
   TrendingUpIcon,
   TrendingDownIcon,
   ClockIcon,
-  BrainIcon
+  BrainIcon,
+  HardHatIcon
 } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { Input } from '../../components/ui/input';
@@ -24,6 +25,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/ca
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import AIAnalysisSection from './components/AIAnalysisSection';
+import AITechnicianAnalysisSection from './components/AITechnicianAnalysisSection';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -34,7 +36,7 @@ const BackendLogs = () => {
   const queryParams = new URLSearchParams(location.search);
   const tabParam = queryParams.get('tab');
 
-  const [activeTab, setActiveTab] = useState(tabParam || 'activities'); // activities | errors | performance | ai-analysis
+  const [activeTab, setActiveTab] = useState(tabParam || 'activities'); // activities | errors | performance | ai-analysis | tech-analysis
   const [loading, setLoading] = useState(false);
 
   // State za Admin Activities
@@ -316,7 +318,7 @@ const BackendLogs = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
           <TabsTrigger value="activities" className="flex items-center space-x-2">
             <ActivityIcon size={16} />
             <span>Admin Aktivnosti</span>
@@ -332,6 +334,10 @@ const BackendLogs = () => {
           <TabsTrigger value="ai-analysis" className="flex items-center space-x-2">
             <BrainIcon size={16} />
             <span>AI Analiza</span>
+          </TabsTrigger>
+          <TabsTrigger value="tech-analysis" className="flex items-center space-x-2">
+            <HardHatIcon size={16} />
+            <span>AI Tehničari</span>
           </TabsTrigger>
         </TabsList>
 
@@ -737,6 +743,11 @@ const BackendLogs = () => {
             {/* AI Analysis Tab */}
             <TabsContent value="ai-analysis">
               <AIAnalysisSection />
+            </TabsContent>
+
+            {/* AI Technician Analysis Tab */}
+            <TabsContent value="tech-analysis">
+              <AITechnicianAnalysisSection />
             </TabsContent>
           </>
         )}
