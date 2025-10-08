@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UploadIcon, BackIcon, ExcelIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
 import { toast } from '../../utils/toast';
+import { equipmentAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 const EquipmentUpload = () => {
@@ -13,8 +13,6 @@ const EquipmentUpload = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [parseResults, setParseResults] = useState(null);
   const navigate = useNavigate();
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -50,17 +48,9 @@ const EquipmentUpload = () => {
     
     const formData = new FormData();
     formData.append('file', file);
-    
+
     try {
-      const response = await axios.post(
-        `${apiUrl}/api/equipment/upload`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
+      const response = await equipmentAPI.uploadExcel(formData);
 
       const { message, addedCount, duplicates, errors } = response.data;
 
@@ -92,8 +82,9 @@ const EquipmentUpload = () => {
   
   const downloadTemplate = () => {
     // Kreiranje Excel šablona za download
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     const link = document.createElement('a');
-    link.href = `${apiUrl}/api/equipment/template`;
+    link.href = `${API_URL}/api/equipment/template`;
     link.download = 'oprema-sablon.xlsx';
     document.body.appendChild(link);
     link.click();

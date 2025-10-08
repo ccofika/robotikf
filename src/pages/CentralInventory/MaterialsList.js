@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PlusIcon, SearchIcon, EditIcon, DeleteIcon, RefreshIcon, EyeIcon, FilterIcon, BoxIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
+import { materialsAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 
@@ -31,9 +31,7 @@ const MaterialsList = () => {
 
   // Kombinovani materijali - koristi sve materijale ako su učitani, inače osnovne
   const materials = allLoading ? recentMaterials : allMaterials;
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
+
   useEffect(() => {
     // Prvi prioritet: Učitaj dashboard statistike
     fetchDashboardStats();
@@ -70,7 +68,7 @@ const MaterialsList = () => {
 
     try {
       // Učitaj samo osnovne informacije za statistike
-      const response = await axios.get(`${apiUrl}/api/materials?stats=true`);
+      const response = await materialsAPI.getAll();
       const materials = response.data;
 
       const stats = {
@@ -94,7 +92,7 @@ const MaterialsList = () => {
 
     try {
       // Učitaj samo prvu stranicu materijala
-      const response = await axios.get(`${apiUrl}/api/materials?limit=40`);
+      const response = await materialsAPI.getAll();
       setRecentMaterials(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju osnovnih materijala:', error);
@@ -110,7 +108,7 @@ const MaterialsList = () => {
     setAllLoading(true);
 
     try {
-      const response = await axios.get(`${apiUrl}/api/materials`);
+      const response = await materialsAPI.getAll();
       setAllMaterials(response.data);
 
       // Ažuriraj statistike sa kompletnim podacima
@@ -153,7 +151,7 @@ const MaterialsList = () => {
       setAllMaterials(prev => prev.filter(mat => mat._id !== id));
 
       try {
-        await axios.delete(`${apiUrl}/api/materials/${id}`);
+        await materialsAPI.delete(id);
         toast.success('Materijal je uspešno obrisan!');
         // Success - optimistic update already done
       } catch (error) {

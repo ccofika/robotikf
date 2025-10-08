@@ -31,7 +31,8 @@ import {
   DollarSignIcon,
   LogoutIcon,
   UserIcon,
-  BellIcon
+  BellIcon,
+  ActivityIcon
 } from '../icons/SvgIcons'
 import AccountModal from '../AccountModal'
 import TechnicianAccountModal from '../TechnicianAccountModal'
@@ -276,7 +277,17 @@ export function ShadcnSidebar({ className }: SidebarProps) {
     },
   ]
 
-  const menuItems = user?.role === 'superadmin' ? superAdminMenuItems : (user?.role === 'admin' ? adminMenuItems : technicianMenuItems)
+  // Supervisor ima sve superadmin stranice + Backend Logs
+  const supervisorMenuItems = [
+    ...superAdminMenuItems,
+    {
+      title: "Backend Logs",
+      href: "/backend-logs",
+      icon: ActivityIcon
+    },
+  ]
+
+  const menuItems = user?.role === 'supervisor' ? supervisorMenuItems : ((user?.role === 'superadmin') ? superAdminMenuItems : (user?.role === 'admin' ? adminMenuItems : technicianMenuItems))
 
   const getUserInitials = (name: string) => {
     return name
@@ -285,6 +296,21 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       .join('')
       .toUpperCase()
       .slice(0, 2)
+  }
+
+  const getRoleDisplayName = (role: string) => {
+    switch(role) {
+      case 'superadmin':
+        return 'Super Administrator'
+      case 'supervisor':
+        return 'Supervisor'
+      case 'admin':
+        return 'Administrator'
+      case 'technician':
+        return 'Tehničar'
+      default:
+        return 'Korisnik'
+    }
   }
 
   if (isMobile) {
@@ -401,7 +427,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                     <div className="flex flex-col items-start min-w-0 flex-1 ml-2">
                       <p className="text-sm font-medium truncate">{user?.name || 'Korisnik'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {user?.role === 'admin' ? 'Administrator' : 'Tehničar'}
+                        {getRoleDisplayName(user?.role || 'technician')}
                       </p>
                     </div>
                   </Button>
@@ -579,7 +605,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
                     <motion.div variants={variants} className="flex flex-col items-start min-w-0 flex-1 ml-2 overflow-hidden">
                       <p className="text-sm font-medium truncate whitespace-nowrap">{user?.name || 'Korisnik'}</p>
                       <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        {user?.role === 'admin' ? 'Administrator' : 'Tehničar'}
+                        {getRoleDisplayName(user?.role || 'technician')}
                       </p>
                     </motion.div>
                   )}
@@ -619,7 +645,7 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       />
 
       {/* Account Modal */}
-      {showAccountModal && user?.role === 'admin' && (
+      {showAccountModal && (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'supervisor') && (
         <AccountModal onClose={() => setShowAccountModal(false)} />
       )}
       {showAccountModal && user?.role === 'technician' && (

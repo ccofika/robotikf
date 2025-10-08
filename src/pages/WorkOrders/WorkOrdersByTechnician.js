@@ -4,7 +4,7 @@ import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, 
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
-import axios from 'axios';
+import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import AIVerificationModal from '../../components/AIVerificationModal';
 
 const WorkOrdersByTechnician = () => {
@@ -50,8 +50,6 @@ const WorkOrdersByTechnician = () => {
   const [technicianCurrentPages, setTechnicianCurrentPages] = useState({});
   const itemsPerPage = 20;
   
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
   useEffect(() => {
     fetchDashboardAndTechnicians();
   }, []);
@@ -93,7 +91,7 @@ const WorkOrdersByTechnician = () => {
     setError('');
 
     try {
-      const techniciansResponse = await axios.get(`${apiUrl}/api/technicians`);
+      const techniciansResponse = await techniciansAPI.getAll();
       const techniciansData = techniciansResponse.data;
 
       setTechnicians(techniciansData);
@@ -126,8 +124,8 @@ const WorkOrdersByTechnician = () => {
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       const [workOrdersResponse, unassignedResponse] = await Promise.all([
-        axios.get(`${apiUrl}/api/workorders?recent=3`),
-        axios.get(`${apiUrl}/api/workorders/unassigned?recent=3`)
+        workOrdersAPI.getAll(),
+        workOrdersAPI.getUnassigned()
       ]);
 
       const workOrdersData = workOrdersResponse.data;
@@ -170,8 +168,8 @@ const WorkOrdersByTechnician = () => {
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       const [workOrdersResponse, unassignedResponse] = await Promise.all([
-        axios.get(`${apiUrl}/api/workorders`),
-        axios.get(`${apiUrl}/api/workorders/unassigned`)
+        workOrdersAPI.getAll(),
+        workOrdersAPI.getUnassigned()
       ]);
 
       const workOrdersData = workOrdersResponse.data;
@@ -207,7 +205,7 @@ const WorkOrdersByTechnician = () => {
     setVerificationLoading(true);
 
     try {
-      const verificationResponse = await axios.get(`${apiUrl}/api/workorders/verification`);
+      const verificationResponse = await workOrdersAPI.getVerification();
       const verificationData = verificationResponse.data;
 
       setVerificationOrders(verificationData);
@@ -235,7 +233,7 @@ const WorkOrdersByTechnician = () => {
   
   const loadCustomerStatus = async (orderId) => {
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/${orderId}/evidence`);
+      const response = await workOrdersAPI.getEvidence(orderId);
       const status = response.data.customerStatus || 'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)';
       setOrderStatuses(prev => ({
         ...prev,
@@ -267,7 +265,7 @@ const WorkOrdersByTechnician = () => {
         return;
       }
 
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`, {});
+      await workOrdersAPI.verify(orderId, {});
       toast.success('Radni nalog je uspešno verifikovan!');
       
       setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
@@ -303,16 +301,16 @@ const WorkOrdersByTechnician = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Da li ste sigurni da želite da obrišete ovaj radni nalog?')) {
       try {
-        await axios.delete(`${apiUrl}/api/workorders/${id}`);
+        await workOrdersAPI.delete(id);
         toast.success('Radni nalog je uspešno obrisan!');
-        
+
         // Update both recent and older work orders
         setRecentWorkOrders(prev => prev.filter(order => order._id !== id));
         setOlderWorkOrders(prev => prev.filter(order => order._id !== id));
         setRecentUnassigned(prev => prev.filter(order => order._id !== id));
         setOlderUnassigned(prev => prev.filter(order => order._id !== id));
         setVerificationOrders(prev => prev.filter(order => order._id !== id));
-        
+
       } catch (error) {
         console.error('Greška pri brisanju:', error);
         toast.error('Neuspešno brisanje radnog naloga!');
@@ -489,15 +487,15 @@ const WorkOrdersByTechnician = () => {
   
   const handleCustomerStatusChange = async (orderId, newStatus) => {
     try {
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+      await workOrdersAPI.updateCustomerStatus(orderId, {
         customerStatus: newStatus
       });
-      
+
       setOrderStatuses(prev => ({
         ...prev,
         [orderId]: newStatus
       }));
-      
+
       toast.success('Status korisnika je uspešno ažuriran!');
       closeCustomerStatusModal();
     } catch (error) {
@@ -523,7 +521,7 @@ const WorkOrdersByTechnician = () => {
     try {
       console.log('Starting AI analysis for order:', orderId);
 
-      const result = await axios.post(`${apiUrl}/api/workorders/${orderId}/ai-verify`);
+      const result = await workOrdersAPI.aiVerify(orderId);
 
       console.log('AI analysis result:', result.data);
 
@@ -553,12 +551,12 @@ const WorkOrdersByTechnician = () => {
       const orderId = aiVerificationResult.orderId;
 
       // 1. Postavi customerStatus
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/customer-status`, {
+      await workOrdersAPI.updateCustomerStatus(orderId, {
         customerStatus: aiVerificationResult.customerStatus
       });
 
       // 2. Verifikuj radni nalog
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/verify`);
+      await workOrdersAPI.verify(orderId, {});
 
       toast.success('Radni nalog je uspešno verifikovan!');
 
@@ -604,7 +602,7 @@ const WorkOrdersByTechnician = () => {
       const orderId = aiVerificationResult.orderId;
 
       // Vrati nalog tehničaru sa AI komentarom
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/return-incorrect`, {
+      await workOrdersAPI.returnIncorrect(orderId, {
         adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
       });
 

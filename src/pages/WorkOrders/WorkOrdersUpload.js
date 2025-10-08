@@ -4,7 +4,7 @@ import { BackIcon, UploadIcon, ExcelIcon, DownloadIcon } from '../../components/
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
-import axios from 'axios'; 
+import { workOrdersAPI, exportAPI } from '../../services/api'; 
 
 const WorkOrdersUpload = () => {
   const [file, setFile] = useState(null);
@@ -13,9 +13,7 @@ const WorkOrdersUpload = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [parseResults, setParseResults] = useState(null);
   const navigate = useNavigate();
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     
@@ -50,18 +48,10 @@ const WorkOrdersUpload = () => {
     
     const formData = new FormData();
     formData.append('file', file);
-    
+
     try {
-      const response = await axios.post(
-        `${apiUrl}/api/workorders/upload`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-      
+      const response = await workOrdersAPI.createBulk(formData);
+
       const { newWorkOrders, newUsers, existingUsers, errors, duplicates } = response.data;
 
       setParseResults({
@@ -92,14 +82,24 @@ const WorkOrdersUpload = () => {
     }
   };
   
-  const downloadTemplate = () => {
-    // Kreiranje Excel šablona za download
-    const link = document.createElement('a');
-    link.href = `${apiUrl}/api/workorders/template`;
-    link.download = 'radni-nalozi-sablon.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadTemplate = async () => {
+    try {
+      const response = await exportAPI.exportTemplate();
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'radni-nalozi-sablon.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Greška pri preuzimanju šablona:', error);
+      toast.error('Greška pri preuzimanju šablona');
+    }
   };
   
   return (

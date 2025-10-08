@@ -42,8 +42,12 @@ export const authAPI = {
 // Equipment API
 export const equipmentAPI = {
   getAll: () => api.get('/api/equipment'),
-  getDisplay: () => api.get('/api/equipment/display'),
+  getDisplay: (params) => api.get('/api/equipment/display', { params }),
+  getCategories: (params) => api.get('/api/equipment/categories', { params }),
+  getLocations: () => api.get('/api/equipment/locations'),
+  getGrouped: (params) => api.get('/api/equipment/grouped', { params }),
   getOne: (serialNumber) => api.get(`/api/equipment/${serialNumber}`),
+  create: (data) => api.post('/api/equipment', data),
   uploadExcel: (formData) => api.post('/api/equipment/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
@@ -99,6 +103,12 @@ export const workOrdersAPI = {
   getTechnicianWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}`),
   getTechnicianOverdueWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}/overdue`),
   getUnassigned: () => api.get('/api/workorders/unassigned'),
+  getVerification: () => api.get('/api/workorders/verification'),
+  getEvidence: (id) => api.get(`/api/workorders/${id}/evidence`),
+  verify: (id, data) => api.put(`/api/workorders/${id}/verify`, data),
+  returnIncorrect: (id, data) => api.put(`/api/workorders/${id}/return-incorrect`, data),
+  updateCustomerStatus: (id, data) => api.put(`/api/workorders/${id}/customer-status`, data),
+  aiVerify: (id) => api.post(`/api/workorders/${id}/ai-verify`),
   createBulk: (formData) => api.post('/api/workorders/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),

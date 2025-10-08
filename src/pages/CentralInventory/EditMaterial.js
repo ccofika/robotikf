@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BackIcon, SaveIcon, DeleteIcon, BoxIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
+import { materialsAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 
 const EditMaterial = () => {
@@ -15,17 +15,15 @@ const EditMaterial = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
   useEffect(() => {
     fetchMaterialData();
   }, [id]);
-  
+
   const fetchMaterialData = async () => {
     setLoading(true);
-    
+
     try {
-      const response = await axios.get(`${apiUrl}/api/materials/${id}`);
+      const response = await materialsAPI.getOne(id);
       setFormData({
         type: response.data.type,
         quantity: response.data.quantity
@@ -64,9 +62,9 @@ const EditMaterial = () => {
     
     setLoading(true);
     setError('');
-    
+
     try {
-      await axios.put(`${apiUrl}/api/materials/${id}`, formData);
+      await materialsAPI.update(id, formData);
       toast.success('Materijal je uspešno ažuriran!');
       navigate('/materials');
     } catch (error) {
@@ -81,9 +79,9 @@ const EditMaterial = () => {
   const handleDelete = async () => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete materijal "${formData.type}"?`)) {
       setLoading(true);
-      
+
       try {
-        await axios.delete(`${apiUrl}/api/materials/${id}`);
+        await materialsAPI.delete(id);
         toast.success('Materijal je uspešno obrisan!');
         navigate('/materials');
       } catch (error) {

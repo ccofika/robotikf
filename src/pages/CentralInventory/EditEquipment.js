@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { BackIcon, SaveIcon, EditIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
 import { toast } from '../../utils/toast';
-import { equipmentAPI } from '../../services/api';
+import { equipmentAPI, techniciansAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 const EditEquipment = () => {
@@ -33,8 +32,8 @@ const EditEquipment = () => {
         // OPTIMIZACIJA: Paralelni pozivi umesto sekvencijalnih
         const [equipmentResponse, techniciansResponse, categoriesResponse] = await Promise.all([
           equipmentAPI.getOne(id),
-          axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/technicians`),
-          axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/equipment/categories`) // Koristi optimizovani endpoint
+          techniciansAPI.getAll(),
+          equipmentAPI.getCategories()
         ]);
 
         const equipmentData = equipmentResponse.data;

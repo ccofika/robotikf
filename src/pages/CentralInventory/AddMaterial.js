@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, BoxIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
+import { materialsAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 
 const AddMaterial = () => {
@@ -13,9 +13,7 @@ const AddMaterial = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -41,9 +39,9 @@ const AddMaterial = () => {
     
     setLoading(true);
     setError('');
-    
+
     try {
-      await axios.post(`${apiUrl}/api/materials`, formData);
+      await materialsAPI.create(formData);
       toast.success('Materijal je uspešno dodat!');
       navigate('/materials');
     } catch (error) {

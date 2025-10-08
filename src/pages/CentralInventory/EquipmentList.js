@@ -2,9 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
 import { toast } from '../../utils/toast';
-import { equipmentAPI } from '../../services/api';
+import { equipmentAPI, techniciansAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 const EquipmentList = () => {
@@ -57,8 +56,6 @@ const EquipmentList = () => {
     isNewCategory: false,
     newCategoryName: ''
   });
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   
   // Debounce search input
   useEffect(() => {
@@ -115,7 +112,7 @@ const EquipmentList = () => {
         params.category = category;
       }
 
-      const response = await axios.get(`${apiUrl}/api/equipment/display`, { params });
+      const response = await equipmentAPI.getDisplay(params);
       setDashboardStats(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju dashboard podataka:', error);
@@ -128,8 +125,8 @@ const EquipmentList = () => {
   const fetchCategories = async () => {
     try {
       const [categoriesResponse, countsResponse] = await Promise.all([
-        axios.get(`${apiUrl}/api/equipment/categories`),
-        axios.get(`${apiUrl}/api/equipment/categories?withCounts=true`)
+        equipmentAPI.getCategories(),
+        equipmentAPI.getCategories({ withCounts: 'true' })
       ]);
 
       setAvailableCategories(categoriesResponse.data);
@@ -145,15 +142,15 @@ const EquipmentList = () => {
     setError('');
 
     try {
-      const params = new URLSearchParams({
+      const params = {
         page: page.toString(),
         limit: pagination.limit.toString(),
         search: debouncedSearchTerm,
         category: selectedCategory === 'all' ? '' : selectedCategory,
         location: locationFilter
-      });
+      };
 
-      const response = await axios.get(`${apiUrl}/api/equipment/display?${params.toString()}`);
+      const response = await equipmentAPI.getDisplay(params);
       const { data: equipmentData, pagination: paginationData, performance: performanceData } = response.data;
 
       setEquipment(equipmentData);
@@ -176,7 +173,7 @@ const EquipmentList = () => {
 
   const fetchTechnicians = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/api/technicians`);
+      const response = await techniciansAPI.getAll();
       setTechnicians(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju tehničara:', error);
@@ -186,7 +183,7 @@ const EquipmentList = () => {
   // Fetch all possible locations for filter dropdown
   const fetchAllLocations = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/api/equipment/locations`);
+      const response = await equipmentAPI.getLocations();
       setAllLocations(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju lokacija:', error);
@@ -196,12 +193,12 @@ const EquipmentList = () => {
   // Fetch equipment grouped by description for selected technician
   const fetchEquipmentByDescription = async (location) => {
     try {
-      const params = new URLSearchParams({
+      const params = {
         location: location,
         groupBy: 'description'
-      });
+      };
 
-      const response = await axios.get(`${apiUrl}/api/equipment/grouped?${params.toString()}`);
+      const response = await equipmentAPI.getGrouped(params);
       setEquipmentByDescription(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju grupisane opreme:', error);
@@ -329,8 +326,8 @@ const EquipmentList = () => {
         description: newEquipment.description,
         serialNumber: newEquipment.serialNumber
       };
-      
-      await axios.post(`${apiUrl}/api/equipment`, equipmentToAdd);
+
+      await equipmentAPI.create(equipmentToAdd);
       toast.success('Oprema uspešno dodata!');
       setShowAddModal(false);
       
