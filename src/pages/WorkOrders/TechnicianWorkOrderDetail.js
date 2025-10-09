@@ -7,7 +7,6 @@ import { toast } from '../../utils/toast';
 import { userEquipmentAPI, materialsAPI, workOrdersAPI, techniciansAPI } from '../../services/api';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { useOverdueWorkOrders } from '../../context/OverdueWorkOrdersContext';
 import EquipmentSelectionModal from './components/EquipmentSelectionModal';
@@ -81,9 +80,7 @@ const TechnicianWorkOrderDetail = () => {
   const selectedMaterialRef = useRef('');
   const materialQuantityRef = useRef(''); // Početna vrednost prazna
   const [materialModalKey, setMaterialModalKey] = useState(0); // Za forsirano re-render
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  
+
   // Dodajemo pull-to-refresh funkcionalnost
   useEffect(() => {
     const handleTouchStart = (e) => {
@@ -133,7 +130,7 @@ const TechnicianWorkOrderDetail = () => {
     
     setLoading(true);
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const response = await workOrdersAPI.getOne(id);
       
       // Proveriti da li radni nalog pripada ovom tehničaru (prvom ili drugom)
       const technicianId = response.data.technicianId?._id || response.data.technicianId;
@@ -160,7 +157,7 @@ const TechnicianWorkOrderDetail = () => {
       const fetchUserEquipment = async () => {
         try {
           // Dohvati opremu trenutno instaliranu kod korisnika
-          const userEqResponse = await axios.get(`${apiUrl}/api/workorders/${id}/user-equipment`);
+          const userEqResponse = await workOrdersAPI.getUserEquipment(id);
           setUserEquipment(userEqResponse.data);
 
           // Dohvati uklonjenu opremu za ovaj radni nalog
@@ -169,7 +166,7 @@ const TechnicianWorkOrderDetail = () => {
 
           // Dohvati opremu tehničara
           if (user?._id) {
-            const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
+            const techEqResponse = await techniciansAPI.getEquipment(user._id);
             setTechnicianEquipment(techEqResponse.data);
           }
 
@@ -229,13 +226,13 @@ const TechnicianWorkOrderDetail = () => {
       
       // Ažuriraj prikaz opreme
       console.log('Fetching updated user equipment...');
-      const userEqResponse = await axios.get(`${apiUrl}/api/workorders/${id}/user-equipment`);
+      const userEqResponse = await workOrdersAPI.getUserEquipment(id);
       console.log('Updated user equipment:', userEqResponse.data);
       setUserEquipment(userEqResponse.data);
       
       // Ažuriraj opremu tehničara
       console.log('Fetching updated technician equipment...');
-      const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
+      const techEqResponse = await techniciansAPI.getEquipment(user._id);
       console.log('Updated technician equipment:', techEqResponse.data);
       setTechnicianEquipment(techEqResponse.data);
       
@@ -401,7 +398,7 @@ const TechnicianWorkOrderDetail = () => {
     try {
       // Fetch fresh equipment data
       console.log('Fetching equipment for technician:', user._id);
-      const techEqResponse = await axios.get(`${apiUrl}/api/technicians/${user._id}/equipment`);
+      const techEqResponse = await techniciansAPI.getEquipment(user._id);
       const freshEquipment = techEqResponse.data;
       
       console.log('Raw equipment data from API:', freshEquipment);
@@ -930,7 +927,7 @@ const TechnicianWorkOrderDetail = () => {
         }
       }
       
-      const response = await axios.put(`${apiUrl}/api/workorders/${id}/technician-update`, updatedData);
+      const response = await workOrdersAPI.updateByTechnician(id, updatedData);
       setWorkOrder(response.data);
       
       if (updatedData.status === 'odlozen') {
@@ -1002,7 +999,7 @@ const TechnicianWorkOrderDetail = () => {
         technicianId: user._id
       };
       
-      const response = await axios.put(`${apiUrl}/api/workorders/${id}/technician-update`, updatedData);
+      const response = await workOrdersAPI.updateByTechnician(id, updatedData);
       setWorkOrder(response.data);
       toast.success(`Status radnog naloga je promenjen na "${
         status === 'zavrsen' ? 'Završen' : 
@@ -1049,7 +1046,7 @@ const TechnicianWorkOrderDetail = () => {
 
     // Osveži listu slika pre upload-a da se uverim da je najnovija
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const response = await workOrdersAPI.getOne(id);
       const currentImages = response.data.images || [];
       setImages(currentImages);
 
@@ -1122,12 +1119,7 @@ const TechnicianWorkOrderDetail = () => {
           console.log('🌐 Slanje na server...');
           const uploadStartTime = Date.now();
 
-          const response = await axios.post(`${apiUrl}/api/workorders/${id}/images`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            },
-            timeout: 60000 // 60s timeout
-          });
+          const response = await workOrdersAPI.uploadImage(id, formData);
 
           const uploadTime = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
           console.log(`✅ Upload završen za ${uploadTime}s: ${originalFileName}`);
@@ -1199,7 +1191,7 @@ const TechnicianWorkOrderDetail = () => {
 
         // Osveži listu slika samo ako ima uspešnih uploada
         console.log('🔄 Osvežavanje liste slika...');
-        const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+        const response = await workOrdersAPI.getOne(id);
         const updatedImages = response.data.images || [];
         setImages(updatedImages);
         console.log(`📋 Nova lista slika: ${updatedImages.length} ukupno`);
@@ -1244,9 +1236,7 @@ const TechnicianWorkOrderDetail = () => {
     }
 
     try {
-      await axios.delete(`${apiUrl}/api/workorders/${id}/images`, {
-        data: { imageUrl, technicianId: user._id }
-      });
+      await workOrdersAPI.deleteImage(id, { imageUrl, technicianId: user._id });
 
       toast.success('Slika je uspešno obrisana!');
       
@@ -1351,7 +1341,7 @@ const TechnicianWorkOrderDetail = () => {
       await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData, technicianId: user._id });
       
       // Osvežavanje podataka iz baze
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const response = await workOrdersAPI.getOne(id);
       setUsedMaterials(response.data.materials || []);
       
       // Osveži listu dostupnih materijala
@@ -1369,7 +1359,7 @@ const TechnicianWorkOrderDetail = () => {
       toast.error(error.response?.data?.error || 'Greška pri dodavanju materijala');
       
       // Vraćamo na prethodnu listu u slučaju greške
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const response = await workOrdersAPI.getOne(id);
       setUsedMaterials(response.data.materials || []);
       
       // Osveži listu dostupnih materijala
@@ -1405,7 +1395,7 @@ const TechnicianWorkOrderDetail = () => {
       await workOrdersAPI.updateUsedMaterials(id, { materials: materialsData, technicianId: user._id });
       
       // Osvežavanje podataka iz baze
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const response = await workOrdersAPI.getOne(id);
       setUsedMaterials(response.data.materials || []);
       
       // Osveži listu dostupnih materijala
@@ -1422,7 +1412,7 @@ const TechnicianWorkOrderDetail = () => {
       toast.error(error.response?.data?.error || 'Greška pri uklanjanju materijala');
       
       // Vraćamo na prethodnu listu u slučaju greške
-      const response = await axios.get(`${apiUrl}/api/workorders/${id}`);
+      const response = await workOrdersAPI.getOne(id);
       setUsedMaterials(response.data.materials || []);
       
       // Osveži listu dostupnih materijala
