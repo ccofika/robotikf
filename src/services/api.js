@@ -121,6 +121,11 @@ export const workOrdersAPI = {
   delete: (id) => api.delete(`/api/workorders/${id}`),
   getStatistics: () => api.get('/api/workorders/statistics/summary'),
   getUserEquipment: (id) => api.get(`/api/workorders/${id}/user-equipment`),
+  uploadImage: (id, formData) => api.post(`/api/workorders/${id}/images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000
+  }),
+  deleteImage: (id, data) => api.delete(`/api/workorders/${id}/images`, { data }),
 };
 
 // Logs API
