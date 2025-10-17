@@ -759,24 +759,32 @@ const Finances = () => {
           </div>
 
           {/* Failed Transactions Compact Alert */}
-          {failedTransactions && failedTransactions.length > 0 && (
-            <div className="mb-6">
-              <div className="rounded-lg bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 shadow-sm">
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        <AlertTriangleIcon size={20} className="text-red-600" />
+          {failedTransactions && failedTransactions.length > 0 && (() => {
+            // Filtriranje samo validnih failed transakcija koje imaju workOrderId
+            const validFailedTransactions = failedTransactions.filter(
+              failed => failed.workOrderId && failed.workOrderId._id
+            );
+
+            if (validFailedTransactions.length === 0) return null;
+
+            return (
+              <div className="mb-6">
+                <div className="rounded-lg bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 shadow-sm">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-red-100 rounded-lg">
+                          <AlertTriangleIcon size={20} className="text-red-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-semibold text-red-900">
+                            Neuspešni finansijski obračuni ({validFailedTransactions.length})
+                          </h3>
+                          <p className="text-sm text-red-700">
+                            Neki radni nalozi nisu mogli biti obračunati zbog nedostajućih podataka
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-red-900">
-                          Neuspešni finansijski obračuni ({failedTransactions.length})
-                        </h3>
-                        <p className="text-sm text-red-700">
-                          Neki radni nalozi nisu mogli biti obračunati zbog nedostajućih podataka
-                        </p>
-                      </div>
-                    </div>
                     <Button
                       type="tertiary"
                       size="small"
@@ -789,133 +797,141 @@ const Finances = () => {
 
                   {failedTransactionsExpanded && (
                     <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
-                      {failedTransactions.map((failed) => (
-                        <div
-                          key={failed._id}
-                          className="bg-white/70 p-4 rounded-lg border border-red-100 shadow-sm"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <span className="font-semibold text-slate-800">
-                                  {failed.workOrderDetails.tisJobId || 'N/A'}
-                                </span>
-                                <span className="text-sm text-slate-600">
-                                  {failed.workOrderDetails.address}
-                                </span>
-                                <span className="text-xs bg-slate-100 px-2 py-1 rounded">
-                                  {failed.workOrderDetails.technicianNames.join(', ') || 'Bez tehničara'}
-                                </span>
-                              </div>
-                              <div className="text-sm text-red-700 mb-2">
-                                <strong>Problem:</strong> {failed.failureMessage}
-                              </div>
-                              {failed.missingFields && failed.missingFields.length > 0 && (
-                                <div className="text-xs text-slate-600">
-                                  <strong>Potrebno je:</strong>
-                                  <ul className="list-disc list-inside mt-1 space-y-1">
-                                    {failed.missingFields.map((field, index) => (
-                                      <li key={index}>{field.description}</li>
-                                    ))}
-                                  </ul>
+                      {failedTransactions.map((failed) => {
+                        // Provera da li postoji workOrderId
+                        if (!failed.workOrderId || !failed.workOrderId._id) {
+                          return null;
+                        }
+
+                        return (
+                          <div
+                            key={failed._id}
+                            className="bg-white/70 p-4 rounded-lg border border-red-100 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <span className="font-semibold text-slate-800">
+                                    {failed.workOrderDetails?.tisJobId || 'N/A'}
+                                  </span>
+                                  <span className="text-sm text-slate-600">
+                                    {failed.workOrderDetails?.address || 'N/A'}
+                                  </span>
+                                  <span className="text-xs bg-slate-100 px-2 py-1 rounded">
+                                    {failed.workOrderDetails?.technicianNames?.join(', ') || 'Bez tehničara'}
+                                  </span>
                                 </div>
-                              )}
-                              <div className="text-xs text-slate-500 mt-2">
-                                Pokušaj #{failed.attemptCount} •
-                                Poslednji pokušaj: {new Date(failed.lastAttemptAt).toLocaleString('sr-RS')}
+                                <div className="text-sm text-red-700 mb-2">
+                                  <strong>Problem:</strong> {failed.failureMessage}
+                                </div>
+                                {failed.missingFields && failed.missingFields.length > 0 && (
+                                  <div className="text-xs text-slate-600">
+                                    <strong>Potrebno je:</strong>
+                                    <ul className="list-disc list-inside mt-1 space-y-1">
+                                      {failed.missingFields.map((field, index) => (
+                                        <li key={index}>{field.description}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                <div className="text-xs text-slate-500 mt-2">
+                                  Pokušaj #{failed.attemptCount} •
+                                  Poslednji pokušaj: {new Date(failed.lastAttemptAt).toLocaleString('sr-RS')}
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center space-x-2 ml-4">
-                              {failed.failureReason === 'PENDING_DISCOUNT_CONFIRMATION' && failed.pendingDiscountConfirmation ? (
-                                <>
-                                  <Button
-                                    type="primary"
-                                    size="small"
-                                    onClick={() => confirmDiscount(
-                                      failed.pendingDiscountConfirmation.municipality,
-                                      failed.pendingDiscountConfirmation.suggestedDiscount,
-                                      [failed.workOrderId._id]
-                                    )}
-                                    disabled={retryLoading[failed.workOrderId._id]}
-                                    prefix={retryLoading[failed.workOrderId._id] ? (
-                                      <RefreshIcon className="animate-spin" size={14} />
-                                    ) : (
-                                      <CheckIcon size={14} />
-                                    )}
-                                    className="text-xs"
-                                  >
-                                    Potvrdi {failed.pendingDiscountConfirmation.suggestedDiscount}% popust
-                                  </Button>
-                                  <Button
-                                    type="secondary"
-                                    size="small"
-                                    onClick={() => retryFailedTransaction(failed.workOrderId._id)}
-                                    disabled={retryLoading[failed.workOrderId._id]}
-                                    prefix={retryLoading[failed.workOrderId._id] ? (
-                                      <RefreshIcon className="animate-spin" size={14} />
-                                    ) : (
-                                      <RefreshIcon size={14} />
-                                    )}
-                                    className="text-xs"
-                                  >
-                                    Pokušaj ponovo
-                                  </Button>
-                                  <Button
-                                    type="danger"
-                                    size="small"
-                                    onClick={() => excludeFromFinances(failed.workOrderId._id)}
-                                    prefix={<XIcon size={14} />}
-                                    className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
-                                  >
-                                    Ne računaj
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button
-                                    type="secondary"
-                                    size="small"
-                                    onClick={() => retryFailedTransaction(failed.workOrderId._id)}
-                                    disabled={retryLoading[failed.workOrderId._id]}
-                                    prefix={retryLoading[failed.workOrderId._id] ? (
-                                      <RefreshIcon className="animate-spin" size={14} />
-                                    ) : (
-                                      <RefreshIcon size={14} />
-                                    )}
-                                    className="text-xs"
-                                  >
-                                    Obračunaj ponovo
-                                  </Button>
-                                  <Button
-                                    type="tertiary"
-                                    size="small"
-                                    onClick={() => dismissFailedTransaction(failed.workOrderId._id)}
-                                    prefix={<XIcon size={14} />}
-                                    className="text-xs"
-                                  >
-                                    Zanemari
-                                  </Button>
-                                  <Button
-                                    type="danger"
-                                    size="small"
-                                    onClick={() => excludeFromFinances(failed.workOrderId._id)}
-                                    prefix={<XIcon size={14} />}
-                                    className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
-                                  >
-                                    Ne računaj
-                                  </Button>
-                                </>
-                              )}
+                              <div className="flex items-center space-x-2 ml-4">
+                                {failed.failureReason === 'PENDING_DISCOUNT_CONFIRMATION' && failed.pendingDiscountConfirmation ? (
+                                  <>
+                                    <Button
+                                      type="primary"
+                                      size="small"
+                                      onClick={() => confirmDiscount(
+                                        failed.pendingDiscountConfirmation.municipality,
+                                        failed.pendingDiscountConfirmation.suggestedDiscount,
+                                        [failed.workOrderId._id]
+                                      )}
+                                      disabled={retryLoading[failed.workOrderId._id]}
+                                      prefix={retryLoading[failed.workOrderId._id] ? (
+                                        <RefreshIcon className="animate-spin" size={14} />
+                                      ) : (
+                                        <CheckIcon size={14} />
+                                      )}
+                                      className="text-xs"
+                                    >
+                                      Potvrdi {failed.pendingDiscountConfirmation.suggestedDiscount}% popust
+                                    </Button>
+                                    <Button
+                                      type="secondary"
+                                      size="small"
+                                      onClick={() => retryFailedTransaction(failed.workOrderId._id)}
+                                      disabled={retryLoading[failed.workOrderId._id]}
+                                      prefix={retryLoading[failed.workOrderId._id] ? (
+                                        <RefreshIcon className="animate-spin" size={14} />
+                                      ) : (
+                                        <RefreshIcon size={14} />
+                                      )}
+                                      className="text-xs"
+                                    >
+                                      Pokušaj ponovo
+                                    </Button>
+                                    <Button
+                                      type="danger"
+                                      size="small"
+                                      onClick={() => excludeFromFinances(failed.workOrderId._id)}
+                                      prefix={<XIcon size={14} />}
+                                      className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
+                                    >
+                                      Ne računaj
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      type="secondary"
+                                      size="small"
+                                      onClick={() => retryFailedTransaction(failed.workOrderId._id)}
+                                      disabled={retryLoading[failed.workOrderId._id]}
+                                      prefix={retryLoading[failed.workOrderId._id] ? (
+                                        <RefreshIcon className="animate-spin" size={14} />
+                                      ) : (
+                                        <RefreshIcon size={14} />
+                                      )}
+                                      className="text-xs"
+                                    >
+                                      Obračunaj ponovo
+                                    </Button>
+                                    <Button
+                                      type="tertiary"
+                                      size="small"
+                                      onClick={() => dismissFailedTransaction(failed.workOrderId._id)}
+                                      prefix={<XIcon size={14} />}
+                                      className="text-xs"
+                                    >
+                                      Zanemari
+                                    </Button>
+                                    <Button
+                                      type="danger"
+                                      size="small"
+                                      onClick={() => excludeFromFinances(failed.workOrderId._id)}
+                                      prefix={<XIcon size={14} />}
+                                      className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
+                                    >
+                                      Ne računaj
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-          )}
+          );
+          })()}
 
           {/* Technician Stats Grid */}
           <div className="mb-6">
