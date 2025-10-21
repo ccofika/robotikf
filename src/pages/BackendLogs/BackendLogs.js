@@ -42,14 +42,38 @@ const BackendLogs = () => {
   // State za Admin Activities
   const [activities, setActivities] = useState([]);
   const [activityStats, setActivityStats] = useState(null);
+  const [activitiesPagination, setActivitiesPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 50,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
 
   // State za Errors
   const [errors, setErrors] = useState([]);
   const [errorStats, setErrorStats] = useState(null);
+  const [errorsPagination, setErrorsPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 50,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
 
   // State za Performance
   const [performanceLogs, setPerformanceLogs] = useState([]);
   const [performanceStats, setPerformanceStats] = useState(null);
+  const [performancePagination, setPerformancePagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 50,
+    hasNextPage: false,
+    hasPreviousPage: false
+  });
 
   // Dashboard stats
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -68,6 +92,13 @@ const BackendLogs = () => {
     fetchDashboardStats();
   }, []);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setActivitiesPagination(prev => ({ ...prev, currentPage: 1 }));
+    setErrorsPagination(prev => ({ ...prev, currentPage: 1 }));
+    setPerformancePagination(prev => ({ ...prev, currentPage: 1 }));
+  }, [dateFrom, dateTo, category, action]);
+
   useEffect(() => {
     if (activeTab === 'activities') {
       fetchActivities();
@@ -76,7 +107,7 @@ const BackendLogs = () => {
     } else if (activeTab === 'performance') {
       fetchPerformance();
     }
-  }, [activeTab, dateFrom, dateTo, category, action]);
+  }, [activeTab, activitiesPagination.currentPage, errorsPagination.currentPage, performancePagination.currentPage, dateFrom, dateTo, category, action]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -96,11 +127,12 @@ const BackendLogs = () => {
       const token = localStorage.getItem('token');
 
       const params = new URLSearchParams();
+      params.append('page', activitiesPagination.currentPage);
+      params.append('limit', activitiesPagination.limit);
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
       if (category !== 'all') params.append('category', category);
       if (action !== 'all') params.append('action', action);
-      params.append('limit', 50);
 
       const response = await axios.get(
         `${API_URL}/api/backend-logs/activities?${params.toString()}`,
@@ -109,11 +141,13 @@ const BackendLogs = () => {
 
       console.log('📥 [Frontend] Fetched activities:', {
         count: response.data.activities?.length,
+        pagination: response.data.pagination,
         firstActivityWithBulk: response.data.activities?.find(a => a.details?.action === 'bulk_assigned'),
         sampleActivity: response.data.activities?.[0]
       });
 
       setActivities(response.data.activities);
+      setActivitiesPagination(response.data.pagination);
     } catch (error) {
       console.error('Error fetching activities:', error);
     } finally {
@@ -127,9 +161,10 @@ const BackendLogs = () => {
       const token = localStorage.getItem('token');
 
       const params = new URLSearchParams();
+      params.append('page', errorsPagination.currentPage);
+      params.append('limit', errorsPagination.limit);
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
-      params.append('limit', 50);
 
       const response = await axios.get(
         `${API_URL}/api/backend-logs/errors?${params.toString()}`,
@@ -137,6 +172,7 @@ const BackendLogs = () => {
       );
 
       setErrors(response.data.errors);
+      setErrorsPagination(response.data.pagination);
     } catch (error) {
       console.error('Error fetching errors:', error);
     } finally {
@@ -150,9 +186,10 @@ const BackendLogs = () => {
       const token = localStorage.getItem('token');
 
       const params = new URLSearchParams();
+      params.append('page', performancePagination.currentPage);
+      params.append('limit', performancePagination.limit);
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
-      params.append('limit', 50);
 
       const response = await axios.get(
         `${API_URL}/api/backend-logs/performance?${params.toString()}`,
@@ -160,6 +197,7 @@ const BackendLogs = () => {
       );
 
       setPerformanceLogs(response.data.performanceLogs);
+      setPerformancePagination(response.data.pagination);
     } catch (error) {
       console.error('Error fetching performance logs:', error);
     } finally {
@@ -177,6 +215,36 @@ const BackendLogs = () => {
       minute: '2-digit',
       second: '2-digit'
     });
+  };
+
+  // Pagination handlers
+  const handleActivitiesPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= activitiesPagination.totalPages) {
+      setActivitiesPagination(prev => ({ ...prev, currentPage: newPage }));
+    }
+  };
+
+  const handleErrorsPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= errorsPagination.totalPages) {
+      setErrorsPagination(prev => ({ ...prev, currentPage: newPage }));
+    }
+  };
+
+  const handlePerformancePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= performancePagination.totalPages) {
+      setPerformancePagination(prev => ({ ...prev, currentPage: newPage }));
+    }
+  };
+
+  // Reset filters and pagination
+  const resetFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setCategory('all');
+    setAction('all');
+    setActivitiesPagination(prev => ({ ...prev, currentPage: 1 }));
+    setErrorsPagination(prev => ({ ...prev, currentPage: 1 }));
+    setPerformancePagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
   return (
@@ -262,12 +330,7 @@ const BackendLogs = () => {
             <Button
               type="secondary"
               size="small"
-              onClick={() => {
-                setDateFrom('');
-                setDateTo('');
-                setCategory('all');
-                setAction('all');
-              }}
+              onClick={resetFilters}
               prefix={<XIcon size={16} />}
             >
               Resetuj
@@ -357,7 +420,7 @@ const BackendLogs = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg font-semibold text-slate-900">
-                      Admin Aktivnosti ({activities.length})
+                      Admin Aktivnosti ({activitiesPagination.totalCount})
                     </CardTitle>
                     <Button
                       type="secondary"
@@ -558,6 +621,71 @@ const BackendLogs = () => {
                       </Table>
                     </div>
                   )}
+
+                  {/* Activities Pagination */}
+                  {activitiesPagination.totalPages > 1 && (
+                    <div className="mt-6 px-6 py-4 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-slate-600">
+                          Prikazano {((activitiesPagination.currentPage - 1) * activitiesPagination.limit) + 1} - {Math.min(activitiesPagination.currentPage * activitiesPagination.limit, activitiesPagination.totalCount)} od {activitiesPagination.totalCount} rezultata
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleActivitiesPageChange(1)}
+                            disabled={!activitiesPagination.hasPreviousPage}
+                          >
+                            &laquo;
+                          </Button>
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleActivitiesPageChange(activitiesPagination.currentPage - 1)}
+                            disabled={!activitiesPagination.hasPreviousPage}
+                          >
+                            &lsaquo;
+                          </Button>
+
+                          {Array.from({ length: activitiesPagination.totalPages }, (_, i) => i + 1)
+                            .filter(number => {
+                              return (
+                                number === 1 ||
+                                number === activitiesPagination.totalPages ||
+                                Math.abs(number - activitiesPagination.currentPage) <= 1
+                              );
+                            })
+                            .map(number => (
+                              <Button
+                                key={number}
+                                type={activitiesPagination.currentPage === number ? "primary" : "tertiary"}
+                                size="small"
+                                onClick={() => handleActivitiesPageChange(number)}
+                              >
+                                {number}
+                              </Button>
+                            ))}
+
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleActivitiesPageChange(activitiesPagination.currentPage + 1)}
+                            disabled={!activitiesPagination.hasNextPage}
+                          >
+                            &rsaquo;
+                          </Button>
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleActivitiesPageChange(activitiesPagination.totalPages)}
+                            disabled={!activitiesPagination.hasNextPage}
+                          >
+                            &raquo;
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -568,7 +696,7 @@ const BackendLogs = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg font-semibold text-slate-900">
-                      Greške ({errors.length})
+                      Greške ({errorsPagination.totalCount})
                     </CardTitle>
                     <Button
                       type="secondary"
@@ -644,6 +772,71 @@ const BackendLogs = () => {
                       </Table>
                     </div>
                   )}
+
+                  {/* Errors Pagination */}
+                  {errorsPagination.totalPages > 1 && (
+                    <div className="mt-6 px-6 py-4 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-slate-600">
+                          Prikazano {((errorsPagination.currentPage - 1) * errorsPagination.limit) + 1} - {Math.min(errorsPagination.currentPage * errorsPagination.limit, errorsPagination.totalCount)} od {errorsPagination.totalCount} rezultata
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleErrorsPageChange(1)}
+                            disabled={!errorsPagination.hasPreviousPage}
+                          >
+                            &laquo;
+                          </Button>
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleErrorsPageChange(errorsPagination.currentPage - 1)}
+                            disabled={!errorsPagination.hasPreviousPage}
+                          >
+                            &lsaquo;
+                          </Button>
+
+                          {Array.from({ length: errorsPagination.totalPages }, (_, i) => i + 1)
+                            .filter(number => {
+                              return (
+                                number === 1 ||
+                                number === errorsPagination.totalPages ||
+                                Math.abs(number - errorsPagination.currentPage) <= 1
+                              );
+                            })
+                            .map(number => (
+                              <Button
+                                key={number}
+                                type={errorsPagination.currentPage === number ? "primary" : "tertiary"}
+                                size="small"
+                                onClick={() => handleErrorsPageChange(number)}
+                              >
+                                {number}
+                              </Button>
+                            ))}
+
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleErrorsPageChange(errorsPagination.currentPage + 1)}
+                            disabled={!errorsPagination.hasNextPage}
+                          >
+                            &rsaquo;
+                          </Button>
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handleErrorsPageChange(errorsPagination.totalPages)}
+                            disabled={!errorsPagination.hasNextPage}
+                          >
+                            &raquo;
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -654,7 +847,7 @@ const BackendLogs = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg font-semibold text-slate-900">
-                      Performance Logs ({performanceLogs.length})
+                      Performance Logs ({performancePagination.totalCount})
                     </CardTitle>
                     <Button
                       type="secondary"
@@ -734,6 +927,71 @@ const BackendLogs = () => {
                           ))}
                         </TableBody>
                       </Table>
+                    </div>
+                  )}
+
+                  {/* Performance Pagination */}
+                  {performancePagination.totalPages > 1 && (
+                    <div className="mt-6 px-6 py-4 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-slate-600">
+                          Prikazano {((performancePagination.currentPage - 1) * performancePagination.limit) + 1} - {Math.min(performancePagination.currentPage * performancePagination.limit, performancePagination.totalCount)} od {performancePagination.totalCount} rezultata
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handlePerformancePageChange(1)}
+                            disabled={!performancePagination.hasPreviousPage}
+                          >
+                            &laquo;
+                          </Button>
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handlePerformancePageChange(performancePagination.currentPage - 1)}
+                            disabled={!performancePagination.hasPreviousPage}
+                          >
+                            &lsaquo;
+                          </Button>
+
+                          {Array.from({ length: performancePagination.totalPages }, (_, i) => i + 1)
+                            .filter(number => {
+                              return (
+                                number === 1 ||
+                                number === performancePagination.totalPages ||
+                                Math.abs(number - performancePagination.currentPage) <= 1
+                              );
+                            })
+                            .map(number => (
+                              <Button
+                                key={number}
+                                type={performancePagination.currentPage === number ? "primary" : "tertiary"}
+                                size="small"
+                                onClick={() => handlePerformancePageChange(number)}
+                              >
+                                {number}
+                              </Button>
+                            ))}
+
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handlePerformancePageChange(performancePagination.currentPage + 1)}
+                            disabled={!performancePagination.hasNextPage}
+                          >
+                            &rsaquo;
+                          </Button>
+                          <Button
+                            type="tertiary"
+                            size="small"
+                            onClick={() => handlePerformancePageChange(performancePagination.totalPages)}
+                            disabled={!performancePagination.hasNextPage}
+                          >
+                            &raquo;
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </CardContent>
