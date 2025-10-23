@@ -8,6 +8,7 @@ import { toast } from '../../utils/toast';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
+import TechnicianAPKDownload from '../../components/TechnicianAPKDownload';
 
 const TechnicianWorkOrders = () => {
   const { user } = useContext(AuthContext);
@@ -456,7 +457,12 @@ const TechnicianWorkOrders = () => {
           </div>
         </div>
       </div>
-      
+
+      {/* APK Download Section - Only for Technicians */}
+      <div className="mb-4 sm:mb-6">
+        <TechnicianAPKDownload />
+      </div>
+
       {/* Main Content Card - Mobile Optimized */}
       <Card className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
         {/* Mobile Filter Panel - Toggleable */}
