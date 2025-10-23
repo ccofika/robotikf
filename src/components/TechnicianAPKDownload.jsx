@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, Smartphone, CheckCircle, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const TechnicianAPKDownload = ({ className = '' }) => {
   const [apkInfo, setApkInfo] = useState(null);
@@ -18,7 +18,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get(`${API_URL}/apk/latest`);
+      const response = await axios.get(`${API_URL}/api/apk/latest`);
       setApkInfo(response.data);
     } catch (err) {
       console.error('Error fetching APK info:', err);
