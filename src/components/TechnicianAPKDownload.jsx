@@ -87,7 +87,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-semibold text-gray-900">
-              Robotik Mobile App
+              Robotik Mobile App - NIJE JOS SPREMNA ZA KORISCENJE NE DOWNLOAD-UJTE
             </h3>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
               v{apkInfo.version}

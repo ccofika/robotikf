@@ -458,10 +458,7 @@ const TechnicianWorkOrders = () => {
         </div>
       </div>
 
-      {/* APK Download Section - Only for Technicians */}
-      <div className="mb-4 sm:mb-6">
-        <TechnicianAPKDownload />
-      </div>
+      
 
       {/* Main Content Card - Mobile Optimized */}
       <Card className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
@@ -930,8 +927,15 @@ const TechnicianWorkOrders = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* APK Download Section - Only for Technicians */}
+      <div className="mb-4 sm:mb-6 mt-10">
+        <TechnicianAPKDownload />
+      </div>
     </div>
   );
+
+  
 };
 
 export default TechnicianWorkOrders;
