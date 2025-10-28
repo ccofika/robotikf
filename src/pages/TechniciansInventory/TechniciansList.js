@@ -17,12 +17,18 @@ const TechniciansList = () => {
     actions: true
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
-  
+  const [currentUser, setCurrentUser] = useState(null);
+
   // Paginacija
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   
   useEffect(() => {
+    // Preuzmi trenutnog korisnika iz localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
     fetchTechnicians();
   }, []);
   
@@ -77,19 +83,46 @@ const TechniciansList = () => {
     }
   };
   
-  // Filtriranje tehničara - isključuj admin korisnike
-  const filteredTechnicians = useMemo(() => {
-    return technicians.filter(technician => {
-      // Sakrij admin korisnike
-      if (technician.isAdmin) {
-        return false;
+  // Helper funkcije za proveru role-a
+  const isAdminRole = (role) => ['admin', 'superadmin', 'supervisor'].includes(role);
+  const isSupervisorLike = (role) => ['superadmin', 'supervisor'].includes(role);
+
+  // Separisanje korisnika na adminske i tehničare
+  const { adminUsers, technicianUsers } = useMemo(() => {
+    const admins = [];
+    const techs = [];
+
+    technicians.forEach(tech => {
+      if (isAdminRole(tech.role)) {
+        admins.push(tech);
+      } else {
+        techs.push(tech);
       }
-      const searchMatch = searchTerm === '' || 
+    });
+
+    return { adminUsers: admins, technicianUsers: techs };
+  }, [technicians]);
+
+  // Filtriranje tehničara za tabelu
+  const filteredTechnicians = useMemo(() => {
+    return technicianUsers.filter(technician => {
+      const searchMatch = searchTerm === '' ||
                          technician.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       return searchMatch;
     });
-  }, [technicians, searchTerm]);
+  }, [technicianUsers, searchTerm]);
+
+  // Filtriranje admin korisnika - vidljivi samo za superadmin i supervisor
+  const visibleAdminUsers = useMemo(() => {
+    if (!currentUser) return [];
+    if (isSupervisorLike(currentUser.role)) {
+      return adminUsers.filter(admin =>
+        searchTerm === '' || admin.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return [];
+  }, [adminUsers, currentUser, searchTerm]);
   
   // Paginacija
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -148,35 +181,91 @@ const TechniciansList = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-10 h-10 bg-green-100 text-green-700 rounded-lg font-bold">
                 {technicians.length}
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Svi tehničari</p>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Svi korisnici</p>
                 <h3 className="text-lg font-bold text-slate-900">100%</h3>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
             <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-orange-100 text-orange-700 rounded-lg font-bold">
-                {searchTerm ? filteredTechnicians.length : technicians.length}
+              <div className="flex items-center justify-center w-10 h-10 bg-purple-100 text-purple-700 rounded-lg font-bold">
+                {visibleAdminUsers.length}
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">{searchTerm ? 'Rezultati pretrage' : 'Aktivni'}</p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {searchTerm && technicians.length > 0 ? 
-                    Math.round(filteredTechnicians.length / technicians.length * 100) : 100}%
-                </h3>
+                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Administratori</p>
+                <h3 className="text-lg font-bold text-slate-900">{visibleAdminUsers.length}</h3>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Admin Users Cards - Visible only for superadmin and supervisor */}
+      {visibleAdminUsers.length > 0 && (
+        <div className="mb-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Administratorski nalozi</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {visibleAdminUsers.map((admin) => (
+                <div
+                  key={admin._id}
+                  className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <UserIcon size={20} className="text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{admin.name}</h3>
+                        <span className={cn(
+                          "inline-block text-xs font-medium px-2 py-1 rounded-full",
+                          admin.role === 'superadmin'
+                            ? "bg-red-100 text-red-700"
+                            : admin.role === 'supervisor'
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-purple-100 text-purple-700"
+                        )}>
+                          {admin.role === 'superadmin' ? 'Super Admin' :
+                           admin.role === 'supervisor' ? 'Supervisor' : 'Admin'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-3">
+                    <p className="text-xs text-slate-600">
+                      <span className="font-medium">ID:</span> {admin._id}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      <span className="font-medium">Kreiran:</span> {new Date(admin.createdAt).toLocaleDateString('sr-RS')}
+                    </p>
+                  </div>
+                  <div className="flex justify-end">
+                    <Link to={`/technicians/${admin._id}`}>
+                      <Button
+                        type="tertiary"
+                        size="small"
+                        prefix={<ViewIcon size={14} />}
+                        title="Detalji korisnika"
+                      >
+                        Detalji
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Modern Table Card */}
       <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">

@@ -126,6 +126,10 @@ export const workOrdersAPI = {
     timeout: 60000
   }),
   deleteImage: (id, data) => api.delete(`/api/workorders/${id}/images`, { data }),
+  // Edit page endpoints
+  addEquipmentToWorkOrder: (data) => api.post(`/api/workorders/${data.workOrderId}/edit/add-equipment`, data),
+  removeEquipmentFromWorkOrder: (workOrderId, equipmentId, data) => api.delete(`/api/workorders/${workOrderId}/equipment/${equipmentId}`, { data }),
+  getRemovedEquipment: (workOrderId) => api.get(`/api/workorders/${workOrderId}/removed-equipment`),
 };
 
 // Logs API
