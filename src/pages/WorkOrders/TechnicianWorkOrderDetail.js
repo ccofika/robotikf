@@ -61,8 +61,8 @@ const TechnicianWorkOrderDetail = () => {
 
   // State za uklanjanje opreme
   const [removalEquipmentName, setRemovalEquipmentName] = useState('');
+  const [removalEquipmentDescription, setRemovalEquipmentDescription] = useState('');
   const [removalSerialNumber, setRemovalSerialNumber] = useState('');
-  const [removalCondition, setRemovalCondition] = useState('ispravna');
   const [loadingRemoval, setLoadingRemoval] = useState(false);
 
   // Dodaj state za provjeru da li je radni nalog završen
@@ -488,8 +488,8 @@ const TechnicianWorkOrderDetail = () => {
 
   // Funkcija za uklanjanje opreme sa novim formom
   const handleEquipmentRemoval = async () => {
-    if (!removalEquipmentName.trim() || !removalSerialNumber.trim()) {
-      toast.error('Morate popuniti naziv opreme i serijski broj');
+    if (!removalEquipmentName.trim() || !removalEquipmentDescription.trim() || !removalSerialNumber.trim()) {
+      toast.error('Morate popuniti naziv opreme, opis i serijski broj');
       return;
     }
 
@@ -501,8 +501,8 @@ const TechnicianWorkOrderDetail = () => {
         workOrderId: id,
         technicianId: user._id,
         equipmentName: removalEquipmentName,
-        serialNumber: removalSerialNumber,
-        condition: removalCondition
+        equipmentDescription: removalEquipmentDescription,
+        serialNumber: removalSerialNumber
       });
 
       if (response.data && response.data.success) {
@@ -510,8 +510,8 @@ const TechnicianWorkOrderDetail = () => {
 
         // Resetuj formu
         setRemovalEquipmentName('');
+        setRemovalEquipmentDescription('');
         setRemovalSerialNumber('');
-        setRemovalCondition('ispravna');
 
         // Osvezi podatke odmah
         fetchData();
@@ -1718,6 +1718,22 @@ const TechnicianWorkOrderDetail = () => {
                     />
                   </div>
 
+                  {/* Equipment Description Field */}
+                  <div>
+                    <label htmlFor="removalEquipmentDescription" className="block text-xs font-medium text-slate-700 mb-1">
+                      Opis opreme: <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="removalEquipmentDescription"
+                      value={removalEquipmentDescription}
+                      onChange={(e) => setRemovalEquipmentDescription(e.target.value)}
+                      placeholder="Unesite opis opreme"
+                      disabled={loadingRemoval || isWorkOrderCompleted}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    />
+                  </div>
+
                   {/* Serial Number Field */}
                   <div>
                     <label htmlFor="removalSerialNumber" className="block text-xs font-medium text-slate-700 mb-1">
@@ -1734,51 +1750,12 @@ const TechnicianWorkOrderDetail = () => {
                     />
                   </div>
 
-                  {/* Equipment Condition Radio Buttons */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-2">
-                      Stanje opreme: <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="removalCondition"
-                          value="ispravna"
-                          checked={removalCondition === 'ispravna'}
-                          onChange={(e) => setRemovalCondition(e.target.value)}
-                          disabled={loadingRemoval || isWorkOrderCompleted}
-                          className="sr-only"
-                        />
-                        <div className={`w-4 h-4 rounded-full border-2 mr-2 ${
-                          removalCondition === 'ispravna' ? 'bg-green-500 border-green-500' : 'border-slate-300'
-                        }`}></div>
-                        <span className="text-xs text-slate-700">Ispravna</span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="removalCondition"
-                          value="neispravna"
-                          checked={removalCondition === 'neispravna'}
-                          onChange={(e) => setRemovalCondition(e.target.value)}
-                          disabled={loadingRemoval || isWorkOrderCompleted}
-                          className="sr-only"
-                        />
-                        <div className={`w-4 h-4 rounded-full border-2 mr-2 ${
-                          removalCondition === 'neispravna' ? 'bg-red-500 border-red-500' : 'border-slate-300'
-                        }`}></div>
-                        <span className="text-xs text-slate-700">Neispravna</span>
-                      </label>
-                    </div>
-                  </div>
-
                   {/* Remove Button */}
                   <Button
                     type="primary"
                     size="medium"
                     onClick={handleEquipmentRemoval}
-                    disabled={!removalEquipmentName.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}
+                    disabled={!removalEquipmentName.trim() || !removalEquipmentDescription.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}
                     loading={loadingRemoval}
                     className="w-full sm:w-auto bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
                   >

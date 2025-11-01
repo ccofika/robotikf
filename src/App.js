@@ -34,6 +34,9 @@ import WorkOrdersUpload from './pages/WorkOrders/WorkOrdersUpload';
 import AddWorkOrder from './pages/WorkOrders/AddWorkOrder';
 import WorkOrderDetail from './pages/WorkOrders/WorkOrderDetail';
 import WorkOrdersByTechnician from './pages/WorkOrders/WorkOrdersByTechnician';
+// Edit radni nalozi stranice - za admin/superadmin/supervisor
+import EditWorkOrders from './pages/WorkOrders/EditWorkOrders';
+import EditWorkOrderDetail from './pages/WorkOrders/EditWorkOrderDetail';
 // Tehnicar radni nalozi stranice
 import TechnicianWorkOrders from './pages/WorkOrders/TechnicianWorkOrders';
 import TechnicianWorkOrderDetail from './pages/WorkOrders/TechnicianWorkOrderDetail';
@@ -283,6 +286,14 @@ const PrivateRoute = ({ children }) => {
                 } />
                 <Route path="/work-orders/:id" element={
                   isAdminLike(user?.role) ? <WorkOrderDetail /> : <Navigate to="/access-denied" />
+                } />
+
+                {/* Edit radni nalozi rute za admina/superadmina/supervisora */}
+                <Route path="/edit-work-orders" element={
+                  isAdminLike(user?.role) ? <EditWorkOrders /> : <Navigate to="/access-denied" />
+                } />
+                <Route path="/edit-work-orders/:id" element={
+                  isAdminLike(user?.role) ? <EditWorkOrderDetail /> : <Navigate to="/access-denied" />
                 } />
 
                 {/* Korisnici ruta za admina */}

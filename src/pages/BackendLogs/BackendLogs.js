@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import AIAnalysisSection from './components/AIAnalysisSection';
 import AITechnicianAnalysisSection from './components/AITechnicianAnalysisSection';
+import DateTimePicker from '../../components/ui/DateTimePicker';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -88,9 +89,34 @@ const BackendLogs = () => {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkDetails, setBulkDetails] = useState(null);
 
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFilters, setExportFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    category: 'all',
+    subcategory: 'all',
+    entityFilter: ''
+  });
+  const [exportLoading, setExportLoading] = useState(false);
+  const [technicians, setTechnicians] = useState([]);
+
   useEffect(() => {
     fetchDashboardStats();
+    fetchTechnicians();
   }, []);
+
+  const fetchTechnicians = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/api/technicians`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTechnicians(response.data);
+    } catch (error) {
+      console.error('Error fetching technicians:', error);
+    }
+  };
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -145,6 +171,20 @@ const BackendLogs = () => {
         firstActivityWithBulk: response.data.activities?.find(a => a.details?.action === 'bulk_assigned'),
         sampleActivity: response.data.activities?.[0]
       });
+
+      // Debug edit activities
+      const editActivities = response.data.activities?.filter(a => a.category === 'edit');
+      if (editActivities && editActivities.length > 0) {
+        console.log('✏️ [Frontend] Found edit activities:', editActivities.map(a => ({
+          action: a.action,
+          category: a.category,
+          hasEquipment: !!a.details?.equipment,
+          hasMaterial: !!a.details?.material,
+          equipment: a.details?.equipment,
+          material: a.details?.material,
+          details: a.details
+        })));
+      }
 
       setActivities(response.data.activities);
       setActivitiesPagination(response.data.pagination);
@@ -247,6 +287,160 @@ const BackendLogs = () => {
     setPerformancePagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
+  // Mapiranje kategorija na podkategorije (akcije)
+  // VAŽNO: equipment_assign_to_tech i equipment_unassign_from_tech imaju category='technicians' u bazi!
+  const subcategoryMap = {
+    equipment: [
+      { value: 'all', label: 'Sve' },
+      { value: 'equipment_add', label: 'Dodavanje opreme (pojedinačno)' },
+      { value: 'equipment_bulk_add', label: 'Dodavanje opreme (bulk)' },
+      { value: 'equipment_edit', label: 'Izmena opreme' },
+      { value: 'equipment_delete', label: 'Brisanje opreme' },
+      { value: 'basic_equipment_add', label: 'Dodavanje osnovne opreme' },
+      { value: 'basic_equipment_edit', label: 'Izmena osnovne opreme' },
+      { value: 'basic_equipment_delete', label: 'Brisanje osnovne opreme' }
+    ],
+    materials: [
+      { value: 'all', label: 'Sve' },
+      { value: 'material_add', label: 'Dodavanje materijala' },
+      { value: 'material_assign_to_tech', label: 'Zaduženje materijala' },
+      { value: 'material_edit', label: 'Izmena materijala' },
+      { value: 'material_delete', label: 'Brisanje materijala' }
+    ],
+    technicians: [
+      { value: 'all', label: 'Sve' },
+      { value: 'equipment_assign_to_tech', label: 'Zaduženje opreme' },
+      { value: 'equipment_unassign_from_tech', label: 'Razduženje opreme' },
+      { value: 'material_assign_to_tech', label: 'Zaduženje materijala' },
+      { value: 'basic_equipment_assign_to_tech', label: 'Zaduženje osnovne opreme' },
+      { value: 'technician_add', label: 'Dodavanje tehničara' },
+      { value: 'technician_edit', label: 'Izmena tehničara' },
+      { value: 'technician_delete', label: 'Brisanje tehničara' }
+    ],
+    workorders: [
+      { value: 'all', label: 'Sve' },
+      { value: 'workorder_add', label: 'Dodavanje radnog naloga' },
+      { value: 'workorder_bulk_add', label: 'Bulk dodavanje radnih naloga' },
+      { value: 'workorder_edit', label: 'Izmena radnog naloga' },
+      { value: 'workorder_delete', label: 'Brisanje radnog naloga' }
+    ],
+    users: [
+      { value: 'all', label: 'Sve' },
+      { value: 'user_add', label: 'Dodavanje korisnika' },
+      { value: 'user_edit', label: 'Izmena korisnika' },
+      { value: 'user_delete', label: 'Brisanje korisnika' }
+    ],
+    vehicles: [
+      { value: 'all', label: 'Sve' },
+      { value: 'vehicle_add', label: 'Dodavanje vozila' },
+      { value: 'vehicle_edit', label: 'Izmena vozila' },
+      { value: 'vehicle_delete', label: 'Brisanje vozila' }
+    ],
+    settings: [
+      { value: 'all', label: 'Sve' },
+      { value: 'finance_settings_update', label: 'Izmena finansijskih postavki' },
+      { value: 'technician_payment_settings_update', label: 'Izmena postavki plata tehničara' }
+    ],
+    edit: [
+      { value: 'all', label: 'Sve' },
+      { value: 'edit_equipment_add', label: 'Dodavanje opreme (Edit)' },
+      { value: 'edit_equipment_remove', label: 'Uklanjanje opreme (Edit)' },
+      { value: 'edit_material_add', label: 'Dodavanje materijala (Edit)' },
+      { value: 'edit_material_remove', label: 'Uklanjanje materijala (Edit)' }
+    ]
+  };
+
+  // Get subcategories based on selected category
+  const getSubcategories = () => {
+    if (exportFilters.category === 'all') {
+      return [{ value: 'all', label: 'Sve' }];
+    }
+    return subcategoryMap[exportFilters.category] || [{ value: 'all', label: 'Sve' }];
+  };
+
+  // Check if entity filter should be shown
+  const shouldShowEntityFilter = () => {
+    const { category, subcategory } = exportFilters;
+
+    // Za zaduženje/razduženje opreme i materijala (category=technicians) - prikaži dropdown sa tehničarima
+    if (category === 'technicians' && (subcategory === 'equipment_assign_to_tech' || subcategory === 'equipment_unassign_from_tech' || subcategory === 'material_assign_to_tech' || subcategory === 'basic_equipment_assign_to_tech')) {
+      return 'technician';
+    }
+    // Za opremu - dodavanje/izmena/brisanje - prikaži input za serijski broj
+    if (category === 'equipment' && (subcategory === 'equipment_add' || subcategory === 'equipment_edit' || subcategory === 'equipment_delete' || subcategory === 'equipment_bulk_add' || subcategory === 'all')) {
+      return 'serialNumber';
+    }
+    // Za materijale - prikaži input za tip materijala
+    if (category === 'materials' && (subcategory === 'material_add' || subcategory === 'material_edit' || subcategory === 'material_delete' || subcategory === 'all')) {
+      return 'materialType';
+    }
+    // Za tehničare - samo CRUD operacije - prikaži input za ime tehničara
+    if (category === 'technicians' && (subcategory === 'technician_add' || subcategory === 'technician_edit' || subcategory === 'technician_delete')) {
+      return 'technicianName';
+    }
+    // Za radne naloge - prikaži input za TIS Job ID
+    if (category === 'workorders') {
+      return 'tisJobId';
+    }
+    // Za korisnike - prikaži input za ime korisnika
+    if (category === 'users') {
+      return 'userName';
+    }
+
+    return null;
+  };
+
+  // Handle export
+  const handleExport = async () => {
+    try {
+      setExportLoading(true);
+
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+
+      if (exportFilters.dateFrom) params.append('dateFrom', exportFilters.dateFrom);
+      if (exportFilters.dateTo) params.append('dateTo', exportFilters.dateTo);
+      if (exportFilters.category !== 'all') params.append('category', exportFilters.category);
+      if (exportFilters.subcategory !== 'all') params.append('subcategory', exportFilters.subcategory);
+      if (exportFilters.entityFilter) params.append('entityFilter', exportFilters.entityFilter);
+
+      console.log('📊 [Frontend] Export params:', {
+        dateFrom: exportFilters.dateFrom,
+        dateTo: exportFilters.dateTo,
+        category: exportFilters.category,
+        subcategory: exportFilters.subcategory,
+        entityFilter: exportFilters.entityFilter,
+        url: `${API_URL}/api/backend-logs/export-activities?${params.toString()}`
+      });
+
+      const response = await axios.get(
+        `${API_URL}/api/backend-logs/export-activities?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob' // Važno za preuzimanje fajla
+        }
+      );
+
+      // Kreiranje blob URL-a i automatsko preuzimanje
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `admin-aktivnosti-${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success('Excel fajl je uspešno preuzet!');
+
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('Error exporting activities:', error);
+      toast.error('Greška pri exportovanju aktivnosti.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       {/* Header */}
@@ -339,24 +533,16 @@ const BackendLogs = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Od:</label>
-              <input
-                type="datetime-local"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Do:</label>
-              <input
-                type="datetime-local"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-              />
-            </div>
+            <DateTimePicker
+              label="Od:"
+              value={dateFrom}
+              onChange={setDateFrom}
+            />
+            <DateTimePicker
+              label="Do:"
+              value={dateTo}
+              onChange={setDateTo}
+            />
             {activeTab === 'activities' && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Kategorija:</label>
@@ -372,6 +558,7 @@ const BackendLogs = () => {
                   <option value="workorders">Radni Nalozi</option>
                   <option value="users">Korisnici</option>
                   <option value="settings">Podešavanja</option>
+                  <option value="edit">Edit (Admin)</option>
                 </select>
               </div>
             )}
@@ -422,14 +609,25 @@ const BackendLogs = () => {
                     <CardTitle className="text-lg font-semibold text-slate-900">
                       Admin Aktivnosti ({activitiesPagination.totalCount})
                     </CardTitle>
-                    <Button
-                      type="secondary"
-                      size="small"
-                      onClick={fetchActivities}
-                      prefix={<RefreshIcon size={16} />}
-                    >
-                      Osveži
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setShowExportModal(true)}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Export u Excel
+                      </button>
+                      <Button
+                        type="secondary"
+                        size="small"
+                        onClick={fetchActivities}
+                        prefix={<RefreshIcon size={16} />}
+                      >
+                        Osveži
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -472,7 +670,8 @@ const BackendLogs = () => {
                                   activity.category === 'technicians' && "bg-purple-100 text-purple-800",
                                   activity.category === 'workorders' && "bg-orange-100 text-orange-800",
                                   activity.category === 'users' && "bg-pink-100 text-pink-800",
-                                  activity.category === 'settings' && "bg-gray-100 text-gray-800"
+                                  activity.category === 'settings' && "bg-gray-100 text-gray-800",
+                                  activity.category === 'edit' && "bg-yellow-100 text-yellow-800"
                                 )}>
                                   {activity.category}
                                 </span>
@@ -588,7 +787,7 @@ const BackendLogs = () => {
                                 )}
 
                                 {/* Single item add/edit (fallback for old logs without changes) */}
-                                {activity.details?.after && !['bulk_created', 'bulk_assigned', 'bulk_unassigned', 'updated'].includes(activity.details?.action) && (
+                                {activity.details?.after && !['bulk_created', 'bulk_assigned', 'bulk_unassigned', 'updated', 'added', 'removed'].includes(activity.details?.action) && (
                                   <div className="bg-green-50 p-2 rounded border border-green-200">
                                     <span className="font-semibold text-green-700">
                                       {activity.details.action === 'created' ? 'Dodato: ' : 'Izmenjeno: '}
@@ -610,7 +809,73 @@ const BackendLogs = () => {
                                   </div>
                                 )}
 
-                                {!activity.details?.before && !activity.details?.after && !activity.details?.summary && !activity.details?.changes && '-'}
+                                {/* Edit actions - Equipment added/removed */}
+                                {activity.category === 'edit' && (activity.action === 'edit_equipment_add' || activity.action === 'edit_equipment_remove') && (
+                                  <div className={cn(
+                                    "p-2 rounded border",
+                                    activity.action === 'edit_equipment_add' ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+                                  )}>
+                                    <div className={cn(
+                                      "font-semibold mb-1",
+                                      activity.action === 'edit_equipment_add' ? "text-green-700" : "text-red-700"
+                                    )}>
+                                      Oprema {activity.action === 'edit_equipment_add' ? 'dodata' : 'uklonjena'}:
+                                    </div>
+                                    <div className="text-xs space-y-0.5">
+                                      {activity.details?.equipment ? (
+                                        <>
+                                          <div><strong>Kategorija:</strong> {activity.details.equipment.category}</div>
+                                          <div><strong>Opis:</strong> {activity.details.equipment.description}</div>
+                                          <div><strong>S/N:</strong> {activity.details.equipment.serialNumber}</div>
+                                        </>
+                                      ) : (
+                                        <div className="text-red-500">Podaci o opremi nisu dostupni</div>
+                                      )}
+                                      {activity.details?.workOrder && (
+                                        <div className="mt-1 pt-1 border-t border-gray-200">
+                                          <strong>Radni nalog:</strong> {activity.details.workOrder.tisId}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Edit actions - Material added/removed */}
+                                {activity.category === 'edit' && (activity.action === 'edit_material_add' || activity.action === 'edit_material_remove') && (
+                                  <div className={cn(
+                                    "p-2 rounded border",
+                                    activity.action === 'edit_material_add' ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+                                  )}>
+                                    <div className={cn(
+                                      "font-semibold mb-1",
+                                      activity.action === 'edit_material_add' ? "text-green-700" : "text-red-700"
+                                    )}>
+                                      Materijal {activity.action === 'edit_material_add' ? 'dodat' : 'uklonjen'}:
+                                    </div>
+                                    <div className="text-xs space-y-0.5">
+                                      {activity.details?.material ? (
+                                        <>
+                                          <div><strong>Tip:</strong> {activity.details.material.type}</div>
+                                          <div><strong>Količina:</strong> {activity.details.material.quantity}</div>
+                                        </>
+                                      ) : (
+                                        <div className="text-red-500">Podaci o materijalu nisu dostupni</div>
+                                      )}
+                                      {activity.details?.workOrder && (
+                                        <div className="mt-1 pt-1 border-t border-gray-200">
+                                          <strong>Radni nalog:</strong> {activity.details.workOrder.tisId}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {!activity.details?.before && !activity.details?.after && !activity.details?.summary && !activity.details?.changes && !activity.details?.equipment && !activity.details?.material && activity.category !== 'edit' && '-'}
+                                {activity.category === 'edit' && !activity.details?.equipment && !activity.details?.material && (
+                                  <div className="text-orange-600 text-xs">
+                                    Debug: Edit activity bez detalja (action: {activity.action})
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm text-slate-600">
                                 {activity.metadata?.requestDuration ? `${activity.metadata.requestDuration}ms` : '-'}
@@ -1010,6 +1275,243 @@ const BackendLogs = () => {
           </>
         )}
       </Tabs>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="border-b border-slate-200 p-6 bg-gradient-to-r from-green-50 to-emerald-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-600 rounded-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Export Admin Aktivnosti</h2>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      Izaberite filtere za export u Excel format
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+                >
+                  <XIcon size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                {/* Date Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker
+                    label="Datum od:"
+                    value={exportFilters.dateFrom}
+                    onChange={(value) => setExportFilters({ ...exportFilters, dateFrom: value })}
+                  />
+                  <DateTimePicker
+                    label="Datum do:"
+                    value={exportFilters.dateTo}
+                    onChange={(value) => setExportFilters({ ...exportFilters, dateTo: value })}
+                  />
+                </div>
+
+                {/* Category */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 flex items-center">
+                    <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Kategorija
+                  </label>
+                  <select
+                    value={exportFilters.category}
+                    onChange={(e) => setExportFilters({ ...exportFilters, category: e.target.value, subcategory: 'all', entityFilter: '' })}
+                    className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400"
+                  >
+                    <option value="all">Sve kategorije</option>
+                    <option value="equipment">📦 Oprema</option>
+                    <option value="materials">🔧 Materijali</option>
+                    <option value="technicians">👷 Tehničari</option>
+                    <option value="workorders">📋 Radni Nalozi</option>
+                    <option value="users">👤 Korisnici</option>
+                    <option value="vehicles">🚗 Vozila</option>
+                    <option value="settings">⚙️ Podešavanja</option>
+                    <option value="edit">✏️ Edit (Admin)</option>
+                  </select>
+                </div>
+
+                {/* Subcategory */}
+                {exportFilters.category !== 'all' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      Podkategorija
+                    </label>
+                    <select
+                      value={exportFilters.subcategory}
+                      onChange={(e) => setExportFilters({ ...exportFilters, subcategory: e.target.value, entityFilter: '' })}
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400"
+                    >
+                      {getSubcategories().map(sub => (
+                        <option key={sub.value} value={sub.value}>{sub.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Entity Filter */}
+                {shouldShowEntityFilter() === 'technician' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Tehničar (opciono)
+                    </label>
+                    <select
+                      value={exportFilters.entityFilter}
+                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400"
+                    >
+                      <option value="">Svi tehničari</option>
+                      {technicians.map(tech => (
+                        <option key={tech._id} value={tech.name}>{tech.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {shouldShowEntityFilter() === 'serialNumber' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                      Serijski Broj (opciono)
+                    </label>
+                    <input
+                      type="text"
+                      value={exportFilters.entityFilter}
+                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                      placeholder="Unesite serijski broj..."
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400 placeholder:text-slate-400"
+                    />
+                  </div>
+                )}
+
+                {shouldShowEntityFilter() === 'materialType' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Tip Materijala (opciono):</label>
+                    <input
+                      type="text"
+                      value={exportFilters.entityFilter}
+                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                      placeholder="Unesite tip materijala..."
+                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                )}
+
+                {shouldShowEntityFilter() === 'technicianName' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Ime Tehničara (opciono):</label>
+                    <input
+                      type="text"
+                      value={exportFilters.entityFilter}
+                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                      placeholder="Unesite ime tehničara..."
+                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                )}
+
+                {shouldShowEntityFilter() === 'tisJobId' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">TIS Job ID (opciono):</label>
+                    <input
+                      type="text"
+                      value={exportFilters.entityFilter}
+                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                      placeholder="Unesite TIS Job ID..."
+                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                )}
+
+                {shouldShowEntityFilter() === 'userName' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Ime Korisnika (opciono):</label>
+                    <input
+                      type="text"
+                      value={exportFilters.entityFilter}
+                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                      placeholder="Unesite ime korisnika..."
+                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                )}
+
+                {/* Info Message */}
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4 mt-6">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 mb-1">Napomena o exportu</p>
+                      <p className="text-sm text-blue-700">
+                        Excel fajl će sadržati svaki komad opreme u posebnom redu za lakše filtriranje i analizu podataka.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 bg-slate-50 border-t flex justify-end space-x-3">
+              <button
+                onClick={() => setShowExportModal(false)}
+                disabled={exportLoading}
+                className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-6 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Otkaži
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exportLoading}
+                className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-6 bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exportLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Exportovanje...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export u Excel
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Upload Details Modal */}
       {showBulkModal && bulkDetails && (

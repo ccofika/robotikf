@@ -187,15 +187,15 @@ export function ShadcnSidebar({ className }: SidebarProps) {
   // }, [user])
 
   const adminMenuItems = [
-    { 
-      title: "Dashboard", 
-      href: "/", 
-      icon: ChartIcon 
+    {
+      title: "Dashboard",
+      href: "/",
+      icon: ChartIcon
     },
-    { 
-      title: "Oprema", 
-      href: "/equipment", 
-      icon: BoxIcon 
+    {
+      title: "Oprema",
+      href: "/equipment",
+      icon: BoxIcon
     },
     {
       title: "Materijali",
@@ -207,35 +207,40 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       href: "/basic-equipment",
       icon: BoxIcon
     },
-    { 
-      title: "Tehničari", 
-      href: "/technicians", 
-      icon: HardHatIcon 
+    {
+      title: "Tehničari",
+      href: "/technicians",
+      icon: HardHatIcon
     },
-    { 
-      title: "Radni nalozi", 
-      href: "/work-orders", 
-      icon: ClipboardIcon 
+    {
+      title: "Radni nalozi",
+      href: "/work-orders",
+      icon: ClipboardIcon
     },
-    { 
-      title: "Korisnici", 
-      href: "/users", 
-      icon: UsersIcon 
+    {
+      title: "Edit",
+      href: "/edit-work-orders",
+      icon: ClipboardIcon
     },
-    { 
-      title: "Logovi", 
-      href: "/logs", 
-      icon: HistoryIcon 
+    {
+      title: "Korisnici",
+      href: "/users",
+      icon: UsersIcon
     },
-    { 
-      title: "Vozni park", 
-      href: "/vehicles", 
-      icon: CarIcon 
+    {
+      title: "Logovi",
+      href: "/logs",
+      icon: HistoryIcon
     },
-    { 
-      title: "Neispravna oprema", 
-      href: "/defective-equipment", 
-      icon: AlertTriangleIcon 
+    {
+      title: "Vozni park",
+      href: "/vehicles",
+      icon: CarIcon
+    },
+    {
+      title: "Neispravna oprema",
+      href: "/defective-equipment",
+      icon: AlertTriangleIcon
     },
   ]
 

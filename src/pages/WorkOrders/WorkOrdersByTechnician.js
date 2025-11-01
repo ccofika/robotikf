@@ -31,6 +31,8 @@ const WorkOrdersByTechnician = () => {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [technicianFilter, setTechnicianFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [timeSortOrder, setTimeSortOrder] = useState('asc'); // 'asc' = oldest first, 'desc' = newest first
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'technicians');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
   const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
@@ -360,16 +362,24 @@ const WorkOrdersByTechnician = () => {
   const filterOrders = (orders) => {
     return orders.filter(order => {
       const matchesStatus = !statusFilter || order.status === statusFilter;
-      const matchesTechnician = !technicianFilter || 
-        order.technicianId?._id === technicianFilter || 
+      const matchesTechnician = !technicianFilter ||
+        order.technicianId?._id === technicianFilter ||
         order.technicianId === technicianFilter ||
-        order.technician2Id?._id === technicianFilter || 
+        order.technician2Id?._id === technicianFilter ||
         order.technician2Id === technicianFilter;
-      
+
+      // Date filter - check if order date matches selected date
+      let matchesDate = true;
+      if (dateFilter) {
+        const orderDate = new Date(order.date);
+        const filterDate = new Date(dateFilter);
+        matchesDate = orderDate.toDateString() === filterDate.toDateString();
+      }
+
       let matchesSearch = true;
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
-        matchesSearch = 
+        matchesSearch =
           order.municipality?.toLowerCase().includes(searchLower) ||
           order.address?.toLowerCase().includes(searchLower) ||
           order.tisId?.toString().includes(searchTerm) ||
@@ -382,24 +392,47 @@ const WorkOrdersByTechnician = () => {
           order.technicianId?.name?.toLowerCase().includes(searchLower) ||
           order.technician2Id?.name?.toLowerCase().includes(searchLower) ||
           // Search by equipment serial numbers (last 4 digits or full)
-          order.equipment?.some(eq => 
+          order.equipment?.some(eq =>
             eq.serialNumber?.toLowerCase().includes(searchLower) ||
             eq.serialNumber?.slice(-4).includes(searchTerm)
           ) ||
           // Search by material names
-          order.materials?.some(mat => 
+          order.materials?.some(mat =>
             mat.name?.toLowerCase().includes(searchLower)
           );
       }
-      
-      return matchesStatus && matchesTechnician && matchesSearch;
+
+      return matchesStatus && matchesTechnician && matchesDate && matchesSearch;
     });
   };
   
   // Filtrirani podaci sa paginacijom
-  const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, searchTerm]);
-  const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, searchTerm]);
-  const filteredAllOrders = useMemo(() => filterOrders(getAllWorkOrders()), [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, searchTerm]);
+  const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, dateFilter, searchTerm]);
+  const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, dateFilter, searchTerm]);
+  const filteredAllOrders = useMemo(() => {
+    const filtered = filterOrders(getAllWorkOrders());
+    // Sort by time if date filter is active
+    if (dateFilter) {
+      return [...filtered].sort((a, b) => {
+        // Combine date and time for proper sorting
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+
+        // Parse time strings (format: "HH:MM")
+        const [hoursA, minutesA] = (a.time || '00:00').split(':').map(Number);
+        const [hoursB, minutesB] = (b.time || '00:00').split(':').map(Number);
+
+        dateA.setHours(hoursA, minutesA, 0, 0);
+        dateB.setHours(hoursB, minutesB, 0, 0);
+
+        const timeA = dateA.getTime();
+        const timeB = dateB.getTime();
+
+        return timeSortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+      });
+    }
+    return filtered;
+  }, [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, dateFilter, timeSortOrder, searchTerm]);
   
   // Paginacija za nedodeljene naloge
   const indexOfLastUnassigned = currentPageUnassigned * itemsPerPage;
@@ -467,6 +500,8 @@ const WorkOrdersByTechnician = () => {
     setSearchTerm('');
     setStatusFilter('');
     setTechnicianFilter('');
+    setDateFilter('');
+    setTimeSortOrder('asc');
     setCurrentPageUnassigned(1);
     setCurrentPageVerification(1);
     setCurrentPageAllOrders(1);
@@ -915,6 +950,41 @@ const WorkOrdersByTechnician = () => {
                   </select>
                   <UserIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                 </div>
+              )}
+
+              {/* Date Filter - Only for "all" tab */}
+              {activeTab === 'all' && (
+                <>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => {
+                        setDateFilter(e.target.value);
+                        setCurrentPageAllOrders(1);
+                      }}
+                      className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
+                    />
+                  </div>
+
+                  {/* Time Sort Order - Only show when date filter is active */}
+                  {dateFilter && (
+                    <div className="relative">
+                      <select
+                        value={timeSortOrder}
+                        onChange={(e) => {
+                          setTimeSortOrder(e.target.value);
+                          setCurrentPageAllOrders(1);
+                        }}
+                        className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
+                      >
+                        <option value="asc">Najstarije → Najnovije</option>
+                        <option value="desc">Najnovije → Najstarije</option>
+                      </select>
+                      <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
             
@@ -1419,6 +1489,7 @@ const WorkOrdersByTechnician = () => {
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Vreme</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
@@ -1429,13 +1500,14 @@ const WorkOrdersByTechnician = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
-                          {sortByDate(currentAllOrdersItems).map((order) => (
-                            <tr 
+                          {(dateFilter ? currentAllOrdersItems : sortByDate(currentAllOrdersItems)).map((order) => (
+                            <tr
                               key={order._id}
                               onClick={(e) => navigateToOrderDetails(order._id, e)}
                               className="hover:bg-slate-50 transition-colors cursor-pointer"
                             >
                               <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600">{order.time || '-'}</td>
                               <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
                               <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
                               <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
@@ -1469,9 +1541,9 @@ const WorkOrdersByTechnician = () => {
                                       Detalji
                                     </Link>
                                   </Button>
-                                  <Button 
-                                    type="error" 
-                                    size="tiny" 
+                                  <Button
+                                    type="error"
+                                    size="tiny"
                                     prefix={<DeleteIcon size={14} />}
                                     onClick={(e) => {
                                       e.stopPropagation();
