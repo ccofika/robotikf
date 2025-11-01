@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
@@ -7,6 +7,8 @@ import { equipmentAPI, techniciansAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 const EquipmentList = () => {
+  const navigate = useNavigate();
+
   // Server-side pagination state
   const [equipment, setEquipment] = useState([]);
   const [pagination, setPagination] = useState({
@@ -374,6 +376,14 @@ const EquipmentList = () => {
               prefix={<RefreshIcon size={16} className={(isRefreshing || dashboardLoading || loading) ? 'animate-spin' : ''} />}
             >
               Osveži
+            </Button>
+            <Button
+              type="secondary"
+              size="medium"
+              onClick={() => navigate('/virtual-warehouse')}
+              prefix={<BoxIcon size={16} />}
+            >
+              Virtuelni magacin
             </Button>
             <Button
               type="secondary"

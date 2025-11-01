@@ -16,6 +16,7 @@ import Logout from './pages/Auth/Logout';
 import Dashboard from './pages/Dashboard/Dashboard';
 // Admin inventar stranice
 import EquipmentList from './pages/CentralInventory/EquipmentList';
+import VirtualWarehouse from './pages/CentralInventory/VirtualWarehouse';
 import EquipmentUpload from './pages/CentralInventory/EquipmentUpload';
 import EditEquipment from './pages/CentralInventory/EditEquipment';
 import MaterialsList from './pages/CentralInventory/MaterialsList';
@@ -229,6 +230,9 @@ const PrivateRoute = ({ children }) => {
                 {/* Inventar rute */}
                 <Route path="/equipment" element={
                   isAdminLike(user?.role) ? <EquipmentList /> : <Navigate to="/access-denied" />
+                } />
+                <Route path="/virtual-warehouse" element={
+                  isAdminLike(user?.role) ? <VirtualWarehouse /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/equipment/upload" element={
                   isAdminLike(user?.role) ? <EquipmentUpload /> : <Navigate to="/access-denied" />
