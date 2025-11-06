@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
@@ -41,6 +41,7 @@ const WorkOrderDetail = () => {
   const [showFullImage, setShowFullImage] = useState(null);
   const [deletingImage, setDeletingImage] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [voiceRecordings, setVoiceRecordings] = useState([]);
   const [verifying, setVerifying] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [adminComment, setAdminComment] = useState('');
@@ -82,6 +83,7 @@ const WorkOrderDetail = () => {
         // Postavi slike i materijale
         setImages(workOrderRes.data.images || []);
         setMaterials(workOrderRes.data.materials || []);
+        setVoiceRecordings(workOrderRes.data.voiceRecordings || []);
 
         // Load customer status if this is a finished work order that needs verification
         if (workOrderRes.data.status === 'zavrsen' && !workOrderRes.data.verified && workOrderRes.data.technicianId) {
@@ -1461,6 +1463,77 @@ const WorkOrderDetail = () => {
         </div>
       </div>
 
+      {/* Voice Recordings Section - Only for Supervisor and SuperAdmin */}
+      {(() => {
+        const storedUser = localStorage.getItem('user');
+        const userRole = storedUser ? JSON.parse(storedUser).role : null;
+        const canViewRecordings = userRole === 'supervisor' || userRole === 'superadmin';
+
+        return canViewRecordings && (
+          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
+                <PhoneIcon size={20} />
+                <span>Snimci poziva</span>
+              </h3>
+            </div>
+            <div className="p-6">
+              {voiceRecordings.length === 0 ? (
+                <p className="text-slate-600 text-center py-8">Nema snimljenih poziva za ovaj radni nalog</p>
+              ) : (
+                <div className="space-y-4">
+                  {voiceRecordings.map((recording, index) => (
+                    <div key={recording._id || index} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-blue-500 text-white rounded-full p-2">
+                            <PhoneIcon size={18} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">
+                              {recording.phoneNumber}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {new Date(recording.recordedAt).toLocaleString('sr-RS')}
+                            </p>
+                          </div>
+                        </div>
+                        {recording.duration && (
+                          <span className="text-xs font-medium text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
+                            {Math.floor(recording.duration / 60)}:{String(recording.duration % 60).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Audio Player */}
+                      <audio
+                        controls
+                        className="w-full h-10 rounded-lg"
+                        preload="metadata"
+                        style={{
+                          filter: 'hue-rotate(200deg)',
+                          accentColor: '#3b82f6'
+                        }}
+                      >
+                        <source src={recording.url} type="audio/mpeg" />
+                        <source src={recording.url} type="audio/mp4" />
+                        Vaš pretraživač ne podržava audio reprodukciju.
+                      </audio>
+
+                      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span className="truncate max-w-xs">{recording.fileName}</span>
+                        {recording.fileSize && (
+                          <span>{(recording.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Postpone History */}
       {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (

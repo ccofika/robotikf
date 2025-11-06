@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon, PhoneIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { techniciansAPI } from '../../services/api';
@@ -14,6 +14,8 @@ const TechnicianDetail = () => {
   const [confirmedPassword, setConfirmedPassword] = useState('');
   const [showGmailModal, setShowGmailModal] = useState(false);
   const [newGmail, setNewGmail] = useState('');
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const { id } = useParams();
   
   // Pagination for equipment
@@ -76,7 +78,7 @@ const TechnicianDetail = () => {
       toast.error('Unesite validnu Gmail adresu!');
       return;
     }
-    
+
     try {
       await techniciansAPI.update(id, { gmail: newGmail });
       toast.success('Gmail adresa je uspešno ažurirana!');
@@ -87,6 +89,37 @@ const TechnicianDetail = () => {
     } catch (error) {
       console.error('Greška pri ažuriranju Gmail adrese:', error);
       toast.error('Neuspešno ažuriranje Gmail adrese. Pokušajte ponovo.');
+    }
+  };
+
+  const handleUpdatePhoneNumber = async () => {
+    // Validacija phone number formata (opciono, može biti prazan)
+    if (newPhoneNumber) {
+      // Proveri da li sadrži samo brojeve, +, -, (, ), razmake
+      const phoneRegex = /^[\d\+\-\(\)\s]+$/;
+      if (!phoneRegex.test(newPhoneNumber)) {
+        toast.error('Unesite validan broj telefona!');
+        return;
+      }
+
+      // Proveri minimalno 9 cifara (bez non-digit karaktera)
+      const digitsOnly = newPhoneNumber.replace(/\D/g, '');
+      if (digitsOnly.length < 9) {
+        toast.error('Broj telefona mora imati najmanje 9 cifara!');
+        return;
+      }
+    }
+
+    try {
+      await techniciansAPI.update(id, { phoneNumber: newPhoneNumber });
+      toast.success('Broj telefona je uspešno ažuriran!');
+      setShowPhoneModal(false);
+      setNewPhoneNumber('');
+      // Refresh technician data to show updated phone number
+      await fetchTechnicianData();
+    } catch (error) {
+      console.error('Greška pri ažuriranju broja telefona:', error);
+      toast.error('Neuspešno ažuriranje broja telefona. Pokušajte ponovo.');
     }
   };
   
@@ -179,11 +212,12 @@ const TechnicianDetail = () => {
               <div className="space-y-1 text-sm text-slate-600">
                 <p><span className="font-medium">ID:</span> {technician.id}</p>
                 <p><span className="font-medium">Gmail:</span> {technician.gmail || 'Nije uneto'}</p>
+                <p><span className="font-medium">Broj telefona:</span> {technician.phoneNumber || 'Nije uneto'}</p>
                 <p><span className="font-medium">Dodat:</span> {new Date(technician.createdAt).toLocaleDateString('sr-RS')}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button 
+            <div className="flex flex-col space-y-2">
+              <Button
                 type="tertiary"
                 size="medium"
                 onClick={() => {
@@ -194,7 +228,18 @@ const TechnicianDetail = () => {
               >
                 Uredi Gmail
               </Button>
-              <Button 
+              <Button
+                type="tertiary"
+                size="medium"
+                onClick={() => {
+                  setNewPhoneNumber(technician.phoneNumber || '');
+                  setShowPhoneModal(true);
+                }}
+                prefix={<PhoneIcon size={16} />}
+              >
+                Uredi telefon
+              </Button>
+              <Button
                 type="tertiary"
                 size="medium"
                 onClick={() => setShowPasswordModal(true)}
@@ -627,10 +672,73 @@ const TechnicianDetail = () => {
                 >
                   Odustani
                 </Button>
-                <Button 
+                <Button
                   type="primary"
                   size="medium"
                   onClick={handleUpdateGmail}
+                  prefix={<CheckIcon size={16} />}
+                >
+                  Sačuvaj
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phone Number Change Modal */}
+      {showPhoneModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-xl font-bold text-slate-900">Uredi broj telefona za {technician.name}</h2>
+              <Button
+                type="tertiary"
+                size="small"
+                onClick={() => {
+                  setShowPhoneModal(false);
+                  setNewPhoneNumber('');
+                }}
+                className="!p-2"
+              >
+                <span className="text-lg leading-none">&times;</span>
+              </Button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="newPhoneNumber" className="block text-sm font-medium text-slate-700 mb-2">
+                    Broj telefona:
+                  </label>
+                  <input
+                    type="tel"
+                    id="newPhoneNumber"
+                    value={newPhoneNumber}
+                    onChange={(e) => setNewPhoneNumber(e.target.value)}
+                    placeholder="Unesite broj telefona (npr. +381641234567 ili 0641234567)"
+                    className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
+                  />
+                  <p className="text-xs text-slate-500 mt-2">
+                    Broj telefona se koristi za automatsko povezivanje snimljenih poziva sa radnim nalozima.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
+                <Button
+                  type="secondary"
+                  size="medium"
+                  onClick={() => {
+                    setShowPhoneModal(false);
+                    setNewPhoneNumber('');
+                  }}
+                >
+                  Odustani
+                </Button>
+                <Button
+                  type="primary"
+                  size="medium"
+                  onClick={handleUpdatePhoneNumber}
                   prefix={<CheckIcon size={16} />}
                 >
                   Sačuvaj
