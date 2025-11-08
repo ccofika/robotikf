@@ -28,6 +28,7 @@ const TechnicianDetail = () => {
   
   useEffect(() => {
     fetchTechnicianData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   
   const fetchTechnicianData = async () => {
@@ -96,6 +97,7 @@ const TechnicianDetail = () => {
     // Validacija phone number formata (opciono, može biti prazan)
     if (newPhoneNumber) {
       // Proveri da li sadrži samo brojeve, +, -, (, ), razmake
+      // eslint-disable-next-line no-useless-escape
       const phoneRegex = /^[\d\+\-\(\)\s]+$/;
       if (!phoneRegex.test(newPhoneNumber)) {
         toast.error('Unesite validan broj telefona!');

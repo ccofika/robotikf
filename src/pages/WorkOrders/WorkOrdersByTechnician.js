@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon, ClipboardIcon, PlusIcon, UserCheckIcon, XIcon, TableIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
@@ -522,6 +522,7 @@ const WorkOrdersByTechnician = () => {
   const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, dateFilter, searchTerm]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, dateFilter, searchTerm]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredAllOrders = useMemo(() => {
     const filtered = filterOrders(getAllWorkOrders());
@@ -546,6 +547,7 @@ const WorkOrdersByTechnician = () => {
       });
     }
     return filtered;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, dateFilter, timeSortOrder, searchTerm]);
   
   // Paginacija za nedodeljene naloge

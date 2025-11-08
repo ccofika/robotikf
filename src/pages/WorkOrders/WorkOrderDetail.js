@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// eslint-disable-next-line no-unused-vars
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
@@ -7,6 +9,7 @@ import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/
 import { cn } from '../../utils/cn';
 import axios from 'axios';
 import jsPDF from 'jspdf';
+// eslint-disable-next-line no-unused-vars
 import html2canvas from 'html2canvas';
 import AIVerificationModal from '../../components/AIVerificationModal';
 
@@ -122,8 +125,9 @@ const WorkOrderDetail = () => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   
   const handleChange = (e) => {
