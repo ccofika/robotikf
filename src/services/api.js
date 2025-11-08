@@ -204,6 +204,7 @@ export const vehiclesAPI = {
 };
 
 // Token utility funkcije
+// eslint-disable-next-line no-unused-vars
 const isTokenExpired = (token) => {
   if (!token) return true;
   try {

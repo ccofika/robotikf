@@ -192,9 +192,7 @@ const WorkOrderDetail = () => {
     }
   };
   
-  const handleUnassign = (field) => {
-    setFormData(prev => ({ ...prev, [field]: '' }));
-  };
+  // Removed unused function - handleUnassign
 
   // Function to check if work order needs verification
   const needsVerification = () => {
@@ -471,6 +469,7 @@ const WorkOrderDetail = () => {
         }
 
         // Ukloni sve nelatinske karaktere
+        // eslint-disable-next-line no-control-regex
         normalized = normalized.replace(/[^\x00-\x7F]/g, '');
 
         // Kompresuj razmake

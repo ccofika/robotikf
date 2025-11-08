@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { BackIcon, UploadIcon, ExcelIcon, DownloadIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
-import { cn } from '../../utils/cn';
 import { workOrdersAPI, exportAPI } from '../../services/api'; 
 
 const WorkOrdersUpload = () => {
@@ -12,7 +11,7 @@ const WorkOrdersUpload = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [parseResults, setParseResults] = useState(null);
-  const navigate = useNavigate();
+  // Removed unused hook - navigate
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];

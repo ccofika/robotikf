@@ -18,7 +18,7 @@ const WorkOrdersByTechnician = () => {
   const [recentUnassigned, setRecentUnassigned] = useState([]);
   const [olderUnassigned, setOlderUnassigned] = useState([]);
   const [verificationOrders, setVerificationOrders] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState({});
+  // Removed unused state - dashboardStats
 
 
   // Loading states
@@ -67,7 +67,7 @@ const WorkOrdersByTechnician = () => {
   const [fancyTableSearch, setFancyTableSearch] = useState('');
   const [fancyTableRefreshing, setFancyTableRefreshing] = useState(false);
 
-  const navigate = useNavigate();
+  // Removed unused hook - navigate
   
   // Paginacija
   const [currentPageUnassigned, setCurrentPageUnassigned] = useState(1);
@@ -78,6 +78,7 @@ const WorkOrdersByTechnician = () => {
   
   useEffect(() => {
     fetchDashboardAndTechnicians();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Prati promene u URL parametrima i automatski postavlja tab i search
@@ -99,6 +100,7 @@ const WorkOrdersByTechnician = () => {
     if (search) {
       setSearchTerm(search);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, verificationDataLoaded]);
 
   // Handle tab changes and lazy loading
@@ -197,6 +199,7 @@ const WorkOrdersByTechnician = () => {
     if (activeTab === 'pregled') {
       fetchFancyTableData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fancyTablePagination?.currentPage, fancyTableSearch, fancyTableFilters]);
   
   // Priority 1: Load dashboard stats and technicians (fastest)
@@ -209,10 +212,6 @@ const WorkOrdersByTechnician = () => {
       const techniciansData = techniciansResponse.data;
 
       setTechnicians(techniciansData);
-      setDashboardStats({
-        totalTechnicians: techniciansData.length,
-        loadedAt: new Date().toISOString()
-      });
 
 
       // Start loading recent data
@@ -519,8 +518,11 @@ const WorkOrdersByTechnician = () => {
   };
   
   // Filtrirani podaci sa paginacijom
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, dateFilter, searchTerm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, dateFilter, searchTerm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredAllOrders = useMemo(() => {
     const filtered = filterOrders(getAllWorkOrders());
     // Sort by time if date filter is active
