@@ -29,9 +29,8 @@ const TechnicianAPKDownload = ({ className = '' }) => {
   };
 
   const handleDownload = () => {
-    if (!apkInfo) return;
-
-    const downloadUrl = `${API_URL}${apkInfo.downloadUrl}`;
+    // Google Drive direktan download link za APK
+    const downloadUrl = 'https://drive.usercontent.google.com/download?id=10-fdok_dyhaIGJvcbNxOC93BUlcHOlHb&export=download&authuser=0';
     window.open(downloadUrl, '_blank');
   };
 
