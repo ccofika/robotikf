@@ -84,7 +84,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-3">
             <h3 className="text-lg font-semibold text-gray-900">
               Robotik Mobile App
             </h3>
@@ -92,10 +92,6 @@ const TechnicianAPKDownload = ({ className = '' }) => {
               v1.0.4
             </span>
           </div>
-
-          <p className="text-sm text-gray-600 mb-3">
-            {apkInfo.changelog}
-          </p>
 
           <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
             <div className="flex items-center gap-1">
