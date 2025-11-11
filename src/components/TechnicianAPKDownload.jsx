@@ -30,7 +30,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
 
   const handleDownload = () => {
     // Google Drive direktan download link za APK
-    const downloadUrl = 'https://drive.usercontent.google.com/download?id=10-fdok_dyhaIGJvcbNxOC93BUlcHOlHb&export=download&authuser=0';
+    const downloadUrl = 'https://drive.google.com/file/d/1tAK_g-TIUT5vaePyz1u5yYJYOLKbpkb9/view?usp=sharing';
     window.open(downloadUrl, '_blank');
   };
 
@@ -86,10 +86,10 @@ const TechnicianAPKDownload = ({ className = '' }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-semibold text-gray-900">
-              Robotik Mobile App - NIJE JOS SPREMNA ZA KORISCENJE NE DOWNLOAD-UJTE
+              Robotik Mobile App
             </h3>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-              v{apkInfo.version}
+              v1.0.4
             </span>
           </div>
 
@@ -122,12 +122,6 @@ const TechnicianAPKDownload = ({ className = '' }) => {
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-purple-200">
-        <p className="text-xs text-gray-500">
-          💡 <span className="font-medium">Napomena:</span> Nakon preuzimanja, instaliraj APK fajl na svoj Android uređaj.
-          Aplikacija će automatski proveravati nove verzije i obavestiti te kada je dostupno ažuriranje.
-        </p>
-      </div>
     </div>
   );
 };
