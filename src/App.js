@@ -58,6 +58,8 @@ import Finances from './pages/Finances/Finances';
 
 import UserEquipmentReport from './pages/Reports/UserEquipmentReport';
 import VehicleFleet from './pages/VehicleFleet/VehicleFleet';
+// New Design Page
+import NewDesign from './pages/NewDesign/NewDesign';
 // API Services
 import { techniciansAPI } from './services/api';
 
@@ -342,7 +344,12 @@ const PrivateRoute = ({ children }) => {
                     <UserEquipmentReport />
                   </PrivateRoute>
                 } />
-                
+
+                {/* New Design Page - Dostupna svim ulogovanim korisnicima */}
+                <Route path="/new-design" element={
+                  user ? <NewDesign /> : <Navigate to="/login" />
+                } />
+
                 {/* Fallback ruta */}
                 <Route path="*" element={
                   <Navigate to={user ? (isAdminLike(user.role) ? '/' : '/my-work-orders') : '/login'} />

@@ -287,9 +287,14 @@ export function ShadcnSidebar({ className }: SidebarProps) {
     },
   ]
 
-  // Supervisor ima sve superadmin stranice
+  // Supervisor ima sve superadmin stranice + New Design
   const supervisorMenuItems = [
     ...superAdminMenuItems,
+    {
+      title: "New Design",
+      href: "/new-design",
+      icon: BoxIcon
+    },
   ]
 
   const menuItems = user?.role === 'supervisor' ? supervisorMenuItems : ((user?.role === 'superadmin') ? superAdminMenuItems : (user?.role === 'admin' ? adminMenuItems : technicianMenuItems))
