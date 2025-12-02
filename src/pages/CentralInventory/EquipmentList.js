@@ -54,9 +54,7 @@ const EquipmentList = () => {
   const [newEquipment, setNewEquipment] = useState({
     category: '',
     description: '',
-    serialNumber: '',
-    isNewCategory: false,
-    newCategoryName: ''
+    serialNumber: ''
   });
   
   // Debounce search input
@@ -276,18 +274,40 @@ const EquipmentList = () => {
     return location;
   };
   
-  // Formatiranje naziva kategorija
+  // Lista svih validnih kategorija za dropdown pri dodavanju opreme
+  const ALL_VALID_CATEGORIES = [
+    'STB', 'Cam Modul', 'Hybrid', 'OTT tv po tvom', 'Smart Card',
+    'HFC Modem', 'GPON Modem', 'ATV', 'PON',
+    'M-Cam Modul', 'M-Smart Card', 'M-HFC Modem', 'M-GPON Modem',
+    'M-ATV', 'M-STB', 'M-OTT tv po tvom', 'M-Hybrid', 'M-PON'
+  ];
+
+  // Formatiranje naziva kategorija - kategorije su sada standardizovane
   const formatCategoryName = (category) => {
+    // Kategorije su već u ispravnom formatu nakon migracije
+    // Ova funkcija služi samo za eventualno prilagođavanje prikaza
     const categoryNames = {
-      'cam': 'CAM',
-      'modem': 'Modem',
-      'stb': 'STB',
-      'fiksni telefon': 'Fiksni telefon',
-      'mini nod': 'Mini nod',
-      'hybrid': 'Hybrid'
+      'STB': 'STB',
+      'Cam Modul': 'Cam Modul',
+      'Hybrid': 'Hybrid',
+      'OTT tv po tvom': 'OTT tv po tvom',
+      'Smart Card': 'Smart Card',
+      'HFC Modem': 'HFC Modem',
+      'GPON Modem': 'GPON Modem',
+      'ATV': 'ATV',
+      'PON': 'PON',
+      'M-Cam Modul': 'M-Cam Modul',
+      'M-Smart Card': 'M-Smart Card',
+      'M-HFC Modem': 'M-HFC Modem',
+      'M-GPON Modem': 'M-GPON Modem',
+      'M-ATV': 'M-ATV',
+      'M-STB': 'M-STB',
+      'M-OTT tv po tvom': 'M-OTT tv po tvom',
+      'M-Hybrid': 'M-Hybrid',
+      'M-PON': 'M-PON'
     };
-    
-    return categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1);
+
+    return categoryNames[category] || category;
   };
   
   // Handling za dodavanje pojedinačne opreme
@@ -298,33 +318,24 @@ const EquipmentList = () => {
   
   const handleCategoryChange = (e) => {
     const value = e.target.value;
-    if (value === 'new') {
-      setNewEquipment(prev => ({ ...prev, isNewCategory: true, category: '' }));
-    } else {
-      setNewEquipment(prev => ({ 
-        ...prev, 
-        isNewCategory: false, 
-        category: value,
-        newCategoryName: ''
-      }));
-    }
+    setNewEquipment(prev => ({
+      ...prev,
+      category: value
+    }));
   };
   
   const handleAddEquipment = async (e) => {
     e.preventDefault();
-    
+
     // Validacije
-    if ((newEquipment.isNewCategory && !newEquipment.newCategoryName) || 
-        (!newEquipment.isNewCategory && !newEquipment.category) || 
-        !newEquipment.description || 
-        !newEquipment.serialNumber) {
+    if (!newEquipment.category || !newEquipment.description || !newEquipment.serialNumber) {
       toast.error('Sva polja su obavezna!');
       return;
     }
-    
+
     try {
       const equipmentToAdd = {
-        category: newEquipment.isNewCategory ? newEquipment.newCategoryName : newEquipment.category,
+        category: newEquipment.category,
         description: newEquipment.description,
         serialNumber: newEquipment.serialNumber
       };
@@ -337,9 +348,7 @@ const EquipmentList = () => {
       setNewEquipment({
         category: '',
         description: '',
-        serialNumber: '',
-        isNewCategory: false,
-        newCategoryName: ''
+        serialNumber: ''
       });
       
       // Osvežavanje liste opreme i kategorija
@@ -865,32 +874,17 @@ const EquipmentList = () => {
               <form onSubmit={handleAddEquipment} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Kategorija:</label>
-                  <select 
+                  <select
                     onChange={handleCategoryChange}
                     defaultValue=""
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="" disabled>Izaberite kategoriju</option>
-                    {categories.map(category => (
+                    {ALL_VALID_CATEGORIES.map(category => (
                       <option key={category} value={category}>{formatCategoryName(category)}</option>
                     ))}
-                    <option value="new">Nova kategorija...</option>
                   </select>
                 </div>
-                
-                {newEquipment.isNewCategory && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Naziv nove kategorije:</label>
-                    <input 
-                      type="text" 
-                      name="newCategoryName"
-                      value={newEquipment.newCategoryName}
-                      onChange={handleInputChange}
-                      placeholder="Unesite naziv nove kategorije"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                )}
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Opis:</label>

@@ -12,6 +12,7 @@ const EquipmentUpload = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [parseResults, setParseResults] = useState(null);
+  const [invalidCategoriesError, setInvalidCategoriesError] = useState(null);
   const navigate = useNavigate();
   
   const handleFileChange = (e) => {
@@ -45,6 +46,7 @@ const EquipmentUpload = () => {
     setError('');
     setSuccessMessage('');
     setParseResults(null);
+    setInvalidCategoriesError(null);
     
     const formData = new FormData();
     formData.append('file', file);
@@ -73,8 +75,20 @@ const EquipmentUpload = () => {
       
     } catch (error) {
       console.error('Greška pri upload-u opreme:', error);
-      setError(error.response?.data?.error || 'Greška pri upload-u opreme. Pokušajte ponovo.');
-      toast.error('Neuspešan upload opreme!');
+
+      // Proveri da li je greška zbog nevalidnih kategorija
+      if (error.response?.data?.invalidCategories) {
+        setInvalidCategoriesError({
+          invalidCategories: error.response.data.invalidCategories,
+          invalidRows: error.response.data.invalidRows || [],
+          validCategories: error.response.data.validCategories || []
+        });
+        setError(error.response.data.error);
+        toast.error('Pronađene nevalidne kategorije!');
+      } else {
+        setError(error.response?.data?.error || 'Greška pri upload-u opreme. Pokušajte ponovo.');
+        toast.error('Neuspešan upload opreme!');
+      }
     } finally {
       setLoading(false);
     }
@@ -161,6 +175,61 @@ const EquipmentUpload = () => {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
+              </div>
+            )}
+
+            {/* Invalid Categories Error Details */}
+            {invalidCategoriesError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h4 className="font-semibold text-red-800 mb-3">⚠️ Pronađene nevalidne kategorije:</h4>
+
+                <div className="mb-4">
+                  <p className="text-sm text-red-700 mb-2">Sledeće kategorije nisu prepoznate:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {invalidCategoriesError.invalidCategories.map((cat, index) => (
+                      <span key={index} className="px-3 py-1 bg-red-200 text-red-800 rounded-full text-sm font-medium">
+                        "{cat}"
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {invalidCategoriesError.invalidRows.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-red-700 mb-2">Redovi sa nevalidnim kategorijama:</p>
+                    <div className="max-h-40 overflow-y-auto bg-white rounded border border-red-200 p-2">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-red-200">
+                            <th className="text-left p-1 text-red-800">Red</th>
+                            <th className="text-left p-1 text-red-800">Kategorija</th>
+                            <th className="text-left p-1 text-red-800">Serijski broj</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invalidCategoriesError.invalidRows.map((row, index) => (
+                            <tr key={index} className="border-b border-red-100 last:border-0">
+                              <td className="p-1 text-red-700">{row.row}</td>
+                              <td className="p-1 text-red-700 font-medium">{row.category}</td>
+                              <td className="p-1 text-red-700">{row.serialNumber}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white rounded border border-red-200 p-3">
+                  <p className="text-sm text-slate-700 mb-2 font-medium">✓ Validne kategorije koje možete koristiti:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {invalidCategoriesError.validCategories.map((cat, index) => (
+                      <span key={index} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
             {successMessage && (
