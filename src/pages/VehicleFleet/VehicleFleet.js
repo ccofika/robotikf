@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Car, Wrench, Calendar, AlertTriangle, Search, Filter, Edit2, Trash2, Eye, RefreshCw, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Plus, Car, Wrench, Calendar, AlertTriangle, Search, Filter, Edit2, Trash2, Eye, RefreshCw, X, Upload, Image } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
@@ -58,21 +58,31 @@ const VehicleFleet = () => {
 
   const [newService, setNewService] = useState({
     date: new Date().toISOString().split('T')[0],
+    partsPrice: '',
+    laborPrice: '',
     price: '',
     comment: '',
     serviceType: 'regular',
-    nextServiceMileage: '',
     mileage: ''
   });
 
   const [editService, setEditService] = useState({
     date: '',
+    partsPrice: '',
+    laborPrice: '',
     price: '',
     comment: '',
     serviceType: 'regular',
-    nextServiceMileage: '',
     mileage: ''
   });
+
+  // Image upload states
+  const [invoiceFile, setInvoiceFile] = useState(null);
+  const [invoicePreview, setInvoicePreview] = useState(null);
+  const [uploadingInvoice, setUploadingInvoice] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const invoiceInputRef = useRef(null);
 
   const [editVehicle, setEditVehicle] = useState({
     name: '',
@@ -235,29 +245,38 @@ const VehicleFleet = () => {
 
   const handleAddService = async (e) => {
     e.preventDefault();
-    
+
     if (!newService.date || !newService.price) {
       setError('Datum i cena servisa su obavezni');
       return;
     }
 
     try {
-      await vehiclesAPI.addService(selectedVehicle._id, {
+      const serviceResponse = await vehiclesAPI.addService(selectedVehicle._id, {
         ...newService,
+        partsPrice: newService.partsPrice ? parseFloat(newService.partsPrice) : 0,
+        laborPrice: newService.laborPrice ? parseFloat(newService.laborPrice) : 0,
         price: parseFloat(newService.price),
         mileage: newService.mileage ? parseInt(newService.mileage) : undefined
       });
-      
+
+      // If there's an invoice file, upload it
+      if (invoiceFile && serviceResponse.data._id) {
+        await handleInvoiceUpload(selectedVehicle._id, serviceResponse.data._id);
+      }
+
       setShowAddServiceModal(false);
       setSelectedVehicle(null);
       setNewService({
         date: new Date().toISOString().split('T')[0],
+        partsPrice: '',
+        laborPrice: '',
         price: '',
         comment: '',
         serviceType: 'regular',
-        nextServiceMileage: '',
         mileage: ''
       });
+      resetInvoiceUpload();
 
       // Refresh current page and stats
       fetchVehicles(pagination.currentPage);
@@ -267,6 +286,80 @@ const VehicleFleet = () => {
       console.error('Greška pri dodavanju servisa:', error);
       setError(error.response?.data?.error || 'Greška pri dodavanju servisa');
     }
+  };
+
+  // Handle invoice file selection
+  const handleInvoiceFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Samo slike su dozvoljene');
+        return;
+      }
+      setInvoiceFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setInvoicePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Reset invoice upload
+  const resetInvoiceUpload = () => {
+    setInvoiceFile(null);
+    setInvoicePreview(null);
+    if (invoiceInputRef.current) {
+      invoiceInputRef.current.value = '';
+    }
+  };
+
+  // Upload invoice to cloudinary
+  const handleInvoiceUpload = async (vehicleId, serviceId) => {
+    if (!invoiceFile) return;
+
+    setUploadingInvoice(true);
+    try {
+      const formData = new FormData();
+      formData.append('invoice', invoiceFile);
+
+      await vehiclesAPI.uploadServiceInvoice(vehicleId, serviceId, formData);
+      console.log('Invoice uploaded successfully');
+    } catch (error) {
+      console.error('Greška pri upload-u fakture:', error);
+      setError('Greška pri upload-u slike fakture');
+    } finally {
+      setUploadingInvoice(false);
+    }
+  };
+
+  // Delete invoice image
+  const handleDeleteInvoice = async (serviceId) => {
+    if (!window.confirm('Da li ste sigurni da želite da obrišete sliku fakture?')) {
+      return;
+    }
+
+    try {
+      await vehiclesAPI.deleteServiceInvoice(selectedVehicle._id, serviceId);
+      // Refresh services
+      await fetchVehicleServices(selectedVehicle._id);
+    } catch (error) {
+      console.error('Greška pri brisanju slike fakture:', error);
+      setError(error.response?.data?.error || 'Greška pri brisanju slike fakture');
+    }
+  };
+
+  // Show image in modal
+  const openImageModal = (imageUrl) => {
+    setSelectedImage(imageUrl);
+    setShowImageModal(true);
+  };
+
+  // Calculate total price when parts or labor price changes
+  const calculateTotalPrice = (parts, labor) => {
+    const partsNum = parseFloat(parts) || 0;
+    const laborNum = parseFloat(labor) || 0;
+    return (partsNum + laborNum).toString();
   };
 
   const handleDeleteVehicle = async (vehicleId) => {
@@ -371,10 +464,11 @@ const VehicleFleet = () => {
     setSelectedService(service);
     setEditService({
       date: service.date ? service.date.split('T')[0] : '',
+      partsPrice: service.partsPrice?.toString() || '',
+      laborPrice: service.laborPrice?.toString() || '',
       price: service.price?.toString() || '',
       comment: service.comment || '',
       serviceType: service.serviceType || 'regular',
-      nextServiceMileage: service.nextServiceMileage?.toString() || '',
       mileage: service.mileage?.toString() || ''
     });
     setShowEditServiceModal(true);
@@ -382,7 +476,7 @@ const VehicleFleet = () => {
 
   const handleUpdateService = async (e) => {
     e.preventDefault();
-    
+
     if (!editService.date || !editService.price) {
       setError('Datum i cena servisa su obavezni');
       return;
@@ -391,18 +485,21 @@ const VehicleFleet = () => {
     try {
       await vehiclesAPI.updateService(selectedVehicle._id, selectedService._id, {
         ...editService,
+        partsPrice: editService.partsPrice ? parseFloat(editService.partsPrice) : 0,
+        laborPrice: editService.laborPrice ? parseFloat(editService.laborPrice) : 0,
         price: parseFloat(editService.price),
         mileage: editService.mileage ? parseInt(editService.mileage) : undefined
       });
-      
+
       setShowEditServiceModal(false);
       setSelectedService(null);
       setEditService({
         date: '',
+        partsPrice: '',
+        laborPrice: '',
         price: '',
         comment: '',
         serviceType: 'regular',
-        nextServiceMileage: '',
         mileage: ''
       });
 
@@ -1154,7 +1251,7 @@ const VehicleFleet = () => {
       {/* Add Service Modal */}
       {showAddServiceModal && selectedVehicle && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-900">
                 Dodaj servis - {selectedVehicle.name}
@@ -1165,6 +1262,7 @@ const VehicleFleet = () => {
                 onClick={() => {
                   setShowAddServiceModal(false);
                   setSelectedVehicle(null);
+                  resetInvoiceUpload();
                 }}
               >
                 ✕
@@ -1183,22 +1281,7 @@ const VehicleFleet = () => {
                     required
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Cena (RSD) *
-                  </label>
-                  <Input
-                    type="number"
-                    value={newService.price}
-                    onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
-                    placeholder="15000"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Tip servisa
@@ -1216,7 +1299,7 @@ const VehicleFleet = () => {
                     <option value="other">Ostalo</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Kilometraža prilikom servisa
@@ -1229,20 +1312,72 @@ const VehicleFleet = () => {
                     min="0"
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Sledeći servis (kilometraža)
-                  </label>
-                  <Input
-                    type="number"
-                    value={newService.nextServiceMileage}
-                    onChange={(e) => setNewService(prev => ({ ...prev, nextServiceMileage: e.target.value }))}
-                    placeholder="Kilometraža sledećeg servisa"
-                    min="0"
-                  />
+
+                {/* Price Section */}
+                <div className="border-t border-slate-200 pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Cene</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Cena delova (RSD)
+                      </label>
+                      <Input
+                        type="number"
+                        value={newService.partsPrice}
+                        onChange={(e) => {
+                          const newPartsPrice = e.target.value;
+                          setNewService(prev => ({
+                            ...prev,
+                            partsPrice: newPartsPrice,
+                            price: calculateTotalPrice(newPartsPrice, prev.laborPrice)
+                          }));
+                        }}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Cena ruku (RSD)
+                      </label>
+                      <Input
+                        type="number"
+                        value={newService.laborPrice}
+                        onChange={(e) => {
+                          const newLaborPrice = e.target.value;
+                          setNewService(prev => ({
+                            ...prev,
+                            laborPrice: newLaborPrice,
+                            price: calculateTotalPrice(prev.partsPrice, newLaborPrice)
+                          }));
+                        }}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Ukupna cena (RSD) *
+                    </label>
+                    <Input
+                      type="number"
+                      value={newService.price}
+                      onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="15000"
+                      min="0"
+                      step="0.01"
+                      required
+                      className="font-semibold"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Automatski se računa ali možete ručno izmeniti
+                    </p>
+                  </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Komentar
@@ -1255,20 +1390,64 @@ const VehicleFleet = () => {
                     rows="3"
                   />
                 </div>
-                
+
+                {/* Invoice Image Upload */}
+                <div className="border-t border-slate-200 pt-4 mt-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Slika fakture
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="file"
+                      ref={invoiceInputRef}
+                      accept="image/*"
+                      onChange={handleInvoiceFileChange}
+                      className="hidden"
+                      id="invoice-upload"
+                    />
+                    <label
+                      htmlFor="invoice-upload"
+                      className="flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Izaberi sliku
+                    </label>
+                    {invoicePreview && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={resetInvoiceUpload}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {invoicePreview && (
+                    <div className="mt-3">
+                      <img
+                        src={invoicePreview}
+                        alt="Pregled fakture"
+                        className="max-h-40 rounded-lg border border-slate-200"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button 
+                  <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
                       setShowAddServiceModal(false);
                       setSelectedVehicle(null);
+                      resetInvoiceUpload();
                     }}
                   >
                     Otkaži
                   </Button>
-                  <Button type="submit">
-                    Dodaj servis
+                  <Button type="submit" disabled={uploadingInvoice}>
+                    {uploadingInvoice ? 'Upload u toku...' : 'Dodaj servis'}
                   </Button>
                 </div>
               </form>
@@ -1280,7 +1459,7 @@ const VehicleFleet = () => {
       {/* Service History Modal */}
       {showServiceHistoryModal && selectedVehicle && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-900">
                 Istorija servisa - {selectedVehicle.name}
@@ -1312,10 +1491,10 @@ const VehicleFleet = () => {
                       <TableRow>
                         <TableHead>Datum</TableHead>
                         <TableHead>Tip servisa</TableHead>
-                        <TableHead>Cena</TableHead>
+                        <TableHead>Cene</TableHead>
                         <TableHead>Kilometraža</TableHead>
                         <TableHead>Komentar</TableHead>
-                        <TableHead>Sledeći servis</TableHead>
+                        <TableHead>Faktura</TableHead>
                         <TableHead className="text-right">Akcije</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1337,7 +1516,7 @@ const VehicleFleet = () => {
                               <span className="font-medium">{formatDate(service.date)}</span>
                             </TableCell>
                             <TableCell>
-                              <span className="capitalize">{service.serviceType === 'regular' ? 'Redovan servis' : 
+                              <span className="capitalize">{service.serviceType === 'regular' ? 'Redovan servis' :
                                 service.serviceType === 'repair' ? 'Popravka' :
                                 service.serviceType === 'inspection' ? 'Pregled' :
                                 service.serviceType === 'oil_change' ? 'Menjanje ulja' :
@@ -1345,11 +1524,19 @@ const VehicleFleet = () => {
                                 service.serviceType}</span>
                             </TableCell>
                             <TableCell>
-                              <span className="font-medium">{formatCurrency(service.price)}</span>
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-900">{formatCurrency(service.price)}</span>
+                                {(service.partsPrice > 0 || service.laborPrice > 0) && (
+                                  <div className="text-xs text-slate-500 mt-1">
+                                    {service.partsPrice > 0 && <div>Delovi: {formatCurrency(service.partsPrice)}</div>}
+                                    {service.laborPrice > 0 && <div>Ruke: {formatCurrency(service.laborPrice)}</div>}
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               {service.mileage ? (
-                                <span className="text-sm">{service.mileage} km</span>
+                                <span className="text-sm">{service.mileage.toLocaleString()} km</span>
                               ) : (
                                 <span className="text-sm text-muted-foreground">N/A</span>
                               )}
@@ -1360,10 +1547,29 @@ const VehicleFleet = () => {
                               </span>
                             </TableCell>
                             <TableCell>
-                              {service.nextServiceMileage ? (
-                                <span className="text-sm">{service.nextServiceMileage} km</span>
+                              {service.invoiceImage ? (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openImageModal(service.invoiceImage)}
+                                    title="Prikaži fakturu"
+                                    className="text-blue-600 hover:text-blue-700"
+                                  >
+                                    <Image className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteInvoice(service._id)}
+                                    title="Obriši fakturu"
+                                    className="text-red-500 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               ) : (
-                                <span className="text-sm text-muted-foreground">N/A</span>
+                                <span className="text-sm text-muted-foreground">-</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -1466,7 +1672,7 @@ const VehicleFleet = () => {
       {/* Edit Service Modal */}
       {showEditServiceModal && selectedService && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-900">
                 Izmeni servis
@@ -1479,10 +1685,11 @@ const VehicleFleet = () => {
                   setSelectedService(null);
                   setEditService({
                     date: '',
+                    partsPrice: '',
+                    laborPrice: '',
                     price: '',
                     comment: '',
                     serviceType: 'regular',
-                    nextServiceMileage: '',
                     mileage: ''
                   });
                 }}
@@ -1503,22 +1710,7 @@ const VehicleFleet = () => {
                     required
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Cena (RSD) *
-                  </label>
-                  <Input
-                    type="number"
-                    value={editService.price}
-                    onChange={(e) => setEditService(prev => ({ ...prev, price: e.target.value }))}
-                    placeholder="15000"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Tip servisa
@@ -1536,7 +1728,7 @@ const VehicleFleet = () => {
                     <option value="other">Ostalo</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Kilometraža prilikom servisa
@@ -1549,20 +1741,72 @@ const VehicleFleet = () => {
                     min="0"
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Sledeći servis (kilometraža)
-                  </label>
-                  <Input
-                    type="number"
-                    value={editService.nextServiceMileage}
-                    onChange={(e) => setEditService(prev => ({ ...prev, nextServiceMileage: e.target.value }))}
-                    placeholder="Kilometraža sledećeg servisa"
-                    min="0"
-                  />
+
+                {/* Price Section */}
+                <div className="border-t border-slate-200 pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Cene</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Cena delova (RSD)
+                      </label>
+                      <Input
+                        type="number"
+                        value={editService.partsPrice}
+                        onChange={(e) => {
+                          const newPartsPrice = e.target.value;
+                          setEditService(prev => ({
+                            ...prev,
+                            partsPrice: newPartsPrice,
+                            price: calculateTotalPrice(newPartsPrice, prev.laborPrice)
+                          }));
+                        }}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Cena ruku (RSD)
+                      </label>
+                      <Input
+                        type="number"
+                        value={editService.laborPrice}
+                        onChange={(e) => {
+                          const newLaborPrice = e.target.value;
+                          setEditService(prev => ({
+                            ...prev,
+                            laborPrice: newLaborPrice,
+                            price: calculateTotalPrice(prev.partsPrice, newLaborPrice)
+                          }));
+                        }}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Ukupna cena (RSD) *
+                    </label>
+                    <Input
+                      type="number"
+                      value={editService.price}
+                      onChange={(e) => setEditService(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="15000"
+                      min="0"
+                      step="0.01"
+                      required
+                      className="font-semibold"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Automatski se računa ali možete ručno izmeniti
+                    </p>
+                  </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Komentar
@@ -1575,9 +1819,9 @@ const VehicleFleet = () => {
                     rows="3"
                   />
                 </div>
-                
+
                 <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button 
+                  <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
@@ -1585,10 +1829,11 @@ const VehicleFleet = () => {
                       setSelectedService(null);
                       setEditService({
                         date: '',
+                        partsPrice: '',
+                        laborPrice: '',
                         price: '',
                         comment: '',
                         serviceType: 'regular',
-                        nextServiceMileage: '',
                         mileage: ''
                       });
                     }}
@@ -1784,6 +2029,38 @@ const VehicleFleet = () => {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {showImageModal && selectedImage && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute -top-10 right-0 text-white hover:bg-white/20"
+              onClick={() => {
+                setShowImageModal(false);
+                setSelectedImage(null);
+              }}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+            <img
+              src={selectedImage}
+              alt="Faktura servisa"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
+            <a
+              href={selectedImage}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Otvori u novom tabu
+            </a>
           </div>
         </div>
       )}

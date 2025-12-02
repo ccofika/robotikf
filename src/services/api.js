@@ -201,6 +201,16 @@ export const vehiclesAPI = {
   updateService: (id, serviceId, data) => api.put(`/api/vehicles/${id}/services/${serviceId}`, data),
   deleteService: (id, serviceId) => api.delete(`/api/vehicles/${id}/services/${serviceId}`),
   getStats: () => api.get('/api/vehicles/stats/overview'),
+  // Upload/delete invoice image for service
+  uploadServiceInvoice: (vehicleId, serviceId, formData) => api.post(
+    `/api/vehicles/${vehicleId}/services/${serviceId}/invoice`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000
+    }
+  ),
+  deleteServiceInvoice: (vehicleId, serviceId) => api.delete(`/api/vehicles/${vehicleId}/services/${serviceId}/invoice`),
 };
 
 // Token utility funkcije
