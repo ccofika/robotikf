@@ -130,6 +130,8 @@ export const workOrdersAPI = {
   addEquipmentToWorkOrder: (data) => api.post(`/api/workorders/${data.workOrderId}/edit/add-equipment`, data),
   removeEquipmentFromWorkOrder: (workOrderId, equipmentId, data) => api.delete(`/api/workorders/${workOrderId}/equipment/${equipmentId}`, { data }),
   getRemovedEquipment: (workOrderId) => api.get(`/api/workorders/${workOrderId}/removed-equipment`),
+  // Voice recordings sync - šalje notifikaciju tehničarima da sinhronizuju snimke
+  triggerSyncRecordings: () => api.post('/api/workorders/voice-recordings/trigger-sync'),
 };
 
 // Logs API

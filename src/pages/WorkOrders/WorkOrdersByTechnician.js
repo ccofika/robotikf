@@ -926,6 +926,33 @@ const WorkOrdersByTechnician = () => {
                 Import
               </Link>
             </Button>
+            {/* Sync snimke button - samo za superadmin i supervisor */}
+            {(() => {
+              const storedUser = localStorage.getItem('user');
+              const userRole = storedUser ? JSON.parse(storedUser).role : null;
+              if (userRole === 'superadmin' || userRole === 'supervisor') {
+                return (
+                  <Button
+                    type="secondary"
+                    size="medium"
+                    prefix={<RefreshIcon size={16} />}
+                    onClick={async () => {
+                      try {
+                        toast.info('Slanje sync notifikacije...');
+                        const response = await workOrdersAPI.triggerSyncRecordings();
+                        toast.success(`Sync notifikacija poslata ${response.data.successCount} tehničarima`);
+                      } catch (error) {
+                        console.error('Sync error:', error);
+                        toast.error(error.response?.data?.error || 'Greška pri slanju sync notifikacije');
+                      }
+                    }}
+                  >
+                    Sync snimke
+                  </Button>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
       </div>
