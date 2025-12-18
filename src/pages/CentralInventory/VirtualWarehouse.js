@@ -11,6 +11,7 @@ const VirtualWarehouse = () => {
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedTechnician, setSelectedTechnician] = useState('all');
   const [visibleColumns, setVisibleColumns] = useState({
     description: true,
     serialNumber: true,
@@ -44,13 +45,24 @@ const VirtualWarehouse = () => {
     return uniqueCategories;
   }, []);
 
-  // Filter equipment based on search and category
+  // Get unique technicians from equipment
+  const technicians = useMemo(() => {
+    const uniqueTechnicians = [...new Set(HARDCODED_EQUIPMENT.map(item => item.location))];
+    return uniqueTechnicians.filter(t => t && t !== 'magacin').sort();
+  }, []);
+
+  // Filter equipment based on search, category and technician
   const filteredEquipment = useMemo(() => {
     let filtered = [...HARDCODED_EQUIPMENT];
 
     // Filter by category
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(item => item.category === selectedCategory);
+    }
+
+    // Filter by technician
+    if (selectedTechnician !== 'all') {
+      filtered = filtered.filter(item => item.location === selectedTechnician);
     }
 
     // Filter by search term
@@ -63,7 +75,7 @@ const VirtualWarehouse = () => {
     }
 
     return filtered;
-  }, [selectedCategory, searchTerm]);
+  }, [selectedCategory, selectedTechnician, searchTerm]);
 
   // Get category counts
   const getCategoryCount = (category) => {
@@ -90,6 +102,15 @@ const VirtualWarehouse = () => {
   const clearAllFilters = () => {
     setSearchTerm('');
     setSelectedCategory('all');
+    setSelectedTechnician('all');
+  };
+
+  // Get technician count
+  const getTechnicianCount = (technician) => {
+    if (technician === 'all') {
+      return HARDCODED_EQUIPMENT.length;
+    }
+    return HARDCODED_EQUIPMENT.filter(item => item.location === technician).length;
   };
 
   // Handle search
@@ -227,11 +248,28 @@ const VirtualWarehouse = () => {
                   </button>
                 )}
               </div>
+
+              {/* Technician Filter */}
+              <div className="relative">
+                <select
+                  value={selectedTechnician}
+                  onChange={(e) => setSelectedTechnician(e.target.value)}
+                  className="h-9 pl-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:bg-slate-50 appearance-none cursor-pointer"
+                >
+                  <option value="all">Svi tehničari ({getTechnicianCount('all')})</option>
+                  {technicians.map(tech => (
+                    <option key={tech} value={tech}>
+                      {tech} ({getTechnicianCount(tech)})
+                    </option>
+                  ))}
+                </select>
+                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              </div>
             </div>
 
             <div className="flex items-center space-x-3">
               {/* Clear Filters */}
-              {(searchTerm || selectedCategory !== 'all') && (
+              {(searchTerm || selectedCategory !== 'all' || selectedTechnician !== 'all') && (
                 <Button
                   type="tertiary"
                   size="small"
@@ -309,7 +347,7 @@ const VirtualWarehouse = () => {
                     <div className="flex flex-col items-center space-y-2">
                       <BoxIcon size={48} className="text-slate-300" />
                       <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
-                      {(searchTerm || selectedCategory !== 'all') && (
+                      {(searchTerm || selectedCategory !== 'all' || selectedTechnician !== 'all') && (
                         <Button
                           type="tertiary"
                           size="small"
