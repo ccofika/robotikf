@@ -437,8 +437,10 @@ const EquipmentList = () => {
               {getCategoryCount('all')}
             </span>
           </button>
-          {categories.map(category => (
-            <button 
+          {categories
+            .filter(category => getCategoryCount(category) > 0)
+            .map(category => (
+            <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               className={cn(
