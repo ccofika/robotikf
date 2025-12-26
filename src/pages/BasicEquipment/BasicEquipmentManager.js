@@ -18,7 +18,8 @@ const BasicEquipmentManager = () => {
   const [formData, setFormData] = useState({
     type: '',
     serialNumber: '',
-    quantity: 0
+    quantity: 0,
+    price: 0
   });
 
   // State za zadužavanje
@@ -38,6 +39,7 @@ const BasicEquipmentManager = () => {
     type: true,
     serialNumber: true,
     quantity: true,
+    price: true,
     actions: true
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
@@ -170,7 +172,8 @@ const BasicEquipmentManager = () => {
       }
 
       fetchAllData();
-      resetAssignForm();
+      // Keep the technician selected for multiple assignments
+      resetAssignForm(true);
     } catch (error) {
       console.error('Greška pri zaduženju/razduženju:', error);
       const errorMessage = error.response?.data?.error || 'Greška pri zaduženju/razduženju osnovne opreme.';
@@ -181,19 +184,30 @@ const BasicEquipmentManager = () => {
   };
 
   const resetForm = () => {
-    setFormData({ type: '', serialNumber: '', quantity: 0 });
+    setFormData({ type: '', serialNumber: '', quantity: 0, price: 0 });
     setEditingItem(null);
     setShowAddForm(false);
   };
 
-  const resetAssignForm = () => {
-    setAssignData({
-      technicianId: '',
-      basicEquipmentId: '',
-      quantity: 1,
-      isReturn: false
-    });
-    setShowAssignForm(false);
+  const resetAssignForm = (keepTechnician = false) => {
+    if (keepTechnician) {
+      // Keep technician selected for consecutive assignments
+      setAssignData(prev => ({
+        technicianId: prev.technicianId,
+        basicEquipmentId: '',
+        quantity: 1,
+        isReturn: prev.isReturn
+      }));
+    } else {
+      // Full reset
+      setAssignData({
+        technicianId: '',
+        basicEquipmentId: '',
+        quantity: 1,
+        isReturn: false
+      });
+      setSelectedTechnician('');
+    }
   };
 
   const startEdit = (item) => {
@@ -201,7 +215,8 @@ const BasicEquipmentManager = () => {
     setFormData({
       type: item.type,
       serialNumber: item.serialNumber || '',
-      quantity: item.quantity
+      quantity: item.quantity,
+      price: item.price || 0
     });
     setShowAddForm(true);
   };
@@ -384,7 +399,7 @@ const BasicEquipmentManager = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="space-y-2">
                     <label htmlFor="type" className="block text-sm font-medium text-slate-700">
                       Vrsta osnovne opreme:
@@ -429,6 +444,23 @@ const BasicEquipmentManager = () => {
                       min="0"
                       disabled={loading}
                       required
+                      className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="price" className="block text-sm font-medium text-slate-700">
+                      Cena (RSD):
+                    </label>
+                    <input
+                      type="number"
+                      id="price"
+                      value={formData.price}
+                      onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                      min="0"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
                       className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
@@ -504,6 +536,7 @@ const BasicEquipmentManager = () => {
                             type: 'Vrsta osnovne opreme',
                             serialNumber: 'Serijski broj',
                             quantity: 'Količina',
+                            price: 'Cena',
                             actions: 'Akcije'
                           }).map(([key, label]) => (
                             <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
@@ -564,6 +597,11 @@ const BasicEquipmentManager = () => {
                             Količina
                           </th>
                         )}
+                        {visibleColumns.price && (
+                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            Cena (RSD)
+                          </th>
+                        )}
                         {visibleColumns.actions && (
                           <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                             Akcije
@@ -574,7 +612,7 @@ const BasicEquipmentManager = () => {
                     <tbody className="divide-y divide-slate-200">
                       {currentItems.length === 0 ? (
                         <tr>
-                          <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                             <div className="flex flex-col items-center space-y-2">
                               <ToolsIcon size={48} className="text-slate-300" />
                               <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
@@ -606,6 +644,11 @@ const BasicEquipmentManager = () => {
                                     {item.quantity}
                                   </Button>
                                 </div>
+                              </td>
+                            )}
+                            {visibleColumns.price && (
+                              <td className="px-6 py-4 text-right text-sm font-medium text-slate-900">
+                                {(item.price || 0).toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                             )}
                             {visibleColumns.actions && (
@@ -735,34 +778,72 @@ const BasicEquipmentManager = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredTechnicians.map(technician => (
-                  <div key={technician._id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="p-2 bg-blue-50 rounded-lg">
-                        <UserIcon size={20} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-900">{technician.name}</h4>
-                        <p className="text-xs text-slate-600">Tehničar</p>
-                      </div>
-                    </div>
+                {filteredTechnicians.map(technician => {
+                  // Calculate total price for this technician
+                  const totalPrice = (technician.basicEquipment || []).reduce((sum, equipment) => {
+                    // Find price from inventory
+                    const inventoryItem = basicEquipment.find(item => item._id === equipment.basicEquipmentId || item._id === equipment.id || item._id === equipment._id);
+                    const price = inventoryItem?.price || equipment.price || 0;
+                    return sum + (price * (equipment.quantity || 0));
+                  }, 0);
 
-                    <div className="space-y-2">
-                      {(technician.basicEquipment || []).map(equipment => (
-                        <div key={equipment._id} className="flex items-center justify-between bg-white rounded-md p-3 border border-slate-200">
-                          <span className="text-sm font-medium text-slate-900">{equipment.type}</span>
-                          <Button
-                            type="secondary"
-                            size="small"
-                            className="text-xs"
-                          >
-                            {equipment.quantity}
-                          </Button>
+                  return (
+                    <div key={technician._id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-50 rounded-lg">
+                            <UserIcon size={20} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-slate-900">{technician.name}</h4>
+                            <p className="text-xs text-slate-600">Tehničar</p>
+                          </div>
                         </div>
-                      ))}
+                        <div className="text-right">
+                          <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupna cena</p>
+                          <p className="text-lg font-bold text-green-600">
+                            {totalPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {(technician.basicEquipment || []).map(equipment => {
+                          const inventoryItem = basicEquipment.find(item => item._id === equipment.basicEquipmentId || item._id === equipment.id || item._id === equipment._id);
+                          const itemPrice = inventoryItem?.price || equipment.price || 0;
+                          const itemTotalPrice = itemPrice * (equipment.quantity || 0);
+
+                          return (
+                            <div key={equipment._id} className="flex items-center justify-between bg-white rounded-md p-3 border border-slate-200">
+                              <div className="flex-1">
+                                <span className="text-sm font-medium text-slate-900">{equipment.type}</span>
+                                {itemPrice > 0 && (
+                                  <p className="text-xs text-slate-500">
+                                    {itemPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD/kom
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                {itemTotalPrice > 0 && (
+                                  <span className="text-sm font-medium text-green-600">
+                                    {itemTotalPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD
+                                  </span>
+                                )}
+                                <Button
+                                  type="secondary"
+                                  size="small"
+                                  className="text-xs"
+                                >
+                                  {equipment.quantity}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
