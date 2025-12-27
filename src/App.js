@@ -28,6 +28,7 @@ import AddTechnician from './pages/TechniciansInventory/AddTechnician';
 import TechnicianDetail from './pages/TechniciansInventory/TechnicianDetail';
 import AssignEquipment from './pages/TechniciansInventory/AssignEquipment';
 import AssignMaterial from './pages/TechniciansInventory/AssignMaterial';
+import TechniciansGPS from './pages/TechniciansInventory/TechniciansGPS';
 // Admin radni nalozi stranice
 import WorkOrdersList from './pages/WorkOrders/WorkOrdersList';
 import WorkOrdersUpload from './pages/WorkOrders/WorkOrdersUpload';
@@ -271,6 +272,9 @@ const PrivateRoute = ({ children }) => {
                 } />
                 <Route path="/technicians/:id/assign-material" element={
                   isAdminLike(user?.role) ? <AssignMaterial /> : <Navigate to="/access-denied" />
+                } />
+                <Route path="/technicians/gps" element={
+                  isAdminLike(user?.role) ? <TechniciansGPS /> : <Navigate to="/access-denied" />
                 } />
 
                 {/* Radni nalozi rute za admina */}

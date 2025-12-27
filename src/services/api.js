@@ -326,6 +326,15 @@ api.interceptors.response.use(
   }
 );
 
+// GPS API
+export const gpsAPI = {
+  requestLocations: () => api.post('/api/gps/request-locations'),
+  getLocations: () => api.get('/api/gps/locations'),
+  getTechnicianLocations: (technicianId, limit = 50) => api.get(`/api/gps/locations/${technicianId}`, { params: { limit } }),
+  getRequestLocations: (requestId) => api.get(`/api/gps/locations/request/${requestId}`),
+  deleteOldLocations: (daysOld = 30) => api.delete('/api/gps/locations/old', { params: { daysOld } }),
+};
+
 // Finances API
 export const financesAPI = {
   getSettings: () => api.get('/api/finances/settings'),
