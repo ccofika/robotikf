@@ -94,6 +94,11 @@ export const techniciansAPI = {
   getPendingEquipment: (id) => api.get(`/api/technicians/${id}/equipment/pending`),
   confirmEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/confirm`, data),
   rejectEquipment: (id, data) => api.post(`/api/technicians/${id}/equipment/reject`, data),
+  // Snimci poziva
+  getRecordings: (id, date, includeWorkOrders = 'true') =>
+    api.get(`/api/technicians/${id}/recordings?date=${date}&includeWorkOrders=${includeWorkOrders}`),
+  getRecordingDates: (id, month, year) =>
+    api.get(`/api/technicians/${id}/recordings/dates?month=${month}&year=${year}`),
 };
 
 // Work Orders API
