@@ -30,7 +30,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
 
   const handleDownload = () => {
     // Google Drive direktan download link za APK
-    const downloadUrl = 'https://drive.google.com/file/d/1iNkG1fZQeIpj2NuGW58o6FfEjJpV1BeH/view?usp=sharing';
+    const downloadUrl = 'https://drive.google.com/file/d/1meWMIv4GF_iRntNPGDOEeB0mtrG3VmXT/view?usp=sharing';
     window.open(downloadUrl, '_blank');
   };
 
