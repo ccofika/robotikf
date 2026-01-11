@@ -67,6 +67,8 @@ const TechnicianDetail = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [playingRecordingId, setPlayingRecordingId] = useState(null);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const audioRef = useRef(null);
   
   // Pagination for equipment
@@ -244,6 +246,8 @@ const TechnicianDetail = () => {
     } else {
       // Play new recording
       if (audioRef.current) {
+        setAudioCurrentTime(0);
+        setAudioDuration(0);
         audioRef.current.src = recording.url;
         audioRef.current.play();
         setPlayingRecordingId(recording._id);
@@ -253,6 +257,38 @@ const TechnicianDetail = () => {
 
   const handleAudioEnded = () => {
     setPlayingRecordingId(null);
+    setAudioCurrentTime(0);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setAudioCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e, recording) => {
+    if (audioRef.current && playingRecordingId === recording._id) {
+      const progressBar = e.currentTarget;
+      const rect = progressBar.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = clickX / rect.width;
+      const newTime = percentage * audioRef.current.duration;
+      audioRef.current.currentTime = newTime;
+      setAudioCurrentTime(newTime);
+    }
+  };
+
+  const formatCurrentTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const formatDuration = (seconds) => {
@@ -1053,7 +1089,12 @@ const TechnicianDetail = () => {
               {/* Right Side - Recordings List */}
               <div className="flex-1 overflow-y-auto p-4">
                 {/* Hidden audio element */}
-                <audio ref={audioRef} onEnded={handleAudioEnded} />
+                <audio
+                  ref={audioRef}
+                  onEnded={handleAudioEnded}
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata}
+                />
 
                 {recordingsLoading ? (
                   <div className="flex items-center justify-center h-full">
@@ -1135,10 +1176,29 @@ const TechnicianDetail = () => {
                                 {new Date(recording.recordedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                               <span>•</span>
-                              <span>{formatDuration(recording.duration)}</span>
+                              <span>
+                                {playingRecordingId === recording._id
+                                  ? `${formatCurrentTime(audioCurrentTime)} / ${formatDuration(recording.duration)}`
+                                  : formatDuration(recording.duration)
+                                }
+                              </span>
                               <span>•</span>
                               <span>{formatFileSize(recording.fileSize)}</span>
                             </div>
+                            {/* Progress Bar */}
+                            {playingRecordingId === recording._id && (
+                              <div
+                                className="mt-2 h-2 bg-slate-200 rounded-full cursor-pointer overflow-hidden"
+                                onClick={(e) => handleSeek(e, recording)}
+                              >
+                                <div
+                                  className="h-full bg-blue-600 rounded-full transition-all duration-100"
+                                  style={{
+                                    width: `${audioDuration > 0 ? (audioCurrentTime / audioDuration) * 100 : 0}%`
+                                  }}
+                                />
+                              </div>
+                            )}
                             {recording.linkedToWorkOrder && recording.workOrderInfo && (
                               <p className="text-xs text-slate-500 mt-1 truncate">
                                 {recording.workOrderInfo.municipality} - {recording.workOrderInfo.address}
