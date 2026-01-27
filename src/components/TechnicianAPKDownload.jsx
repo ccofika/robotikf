@@ -30,7 +30,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
 
   const handleDownload = () => {
     // Google Drive direktan download link za APK
-    const downloadUrl = 'https://drive.google.com/file/d/1meWMIv4GF_iRntNPGDOEeB0mtrG3VmXT/view?usp=sharing';
+    const downloadUrl = 'https://drive.google.com/file/d/1zVl9172T_fQ-fWjChBcCmFKL5edtiexx/view?usp=sharing';
     window.open(downloadUrl, '_blank');
   };
 
@@ -89,7 +89,7 @@ const TechnicianAPKDownload = ({ className = '' }) => {
               Robotik Mobile App
             </h3>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-              v1.0.4
+              v2.0.0
             </span>
           </div>
 
