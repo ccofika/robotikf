@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  AlertTriangleIcon, 
-  SearchIcon, 
-  FilterIcon, 
+import {
+  AlertTriangleIcon,
+  SearchIcon,
+  FilterIcon,
   CalendarIcon,
   UserIcon,
   MapPinIcon,
   ClipboardIcon,
   RefreshIcon,
   EquipmentIcon,
-  ChartIcon
+  ChartIcon,
+  CheckCircleIcon
 } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import axios from 'axios';
@@ -39,6 +40,9 @@ const DefectiveEquipment = () => {
   // Paginacija za defektivnu opremu
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+
+  // Restore equipment state
+  const [restoringEquipmentId, setRestoringEquipmentId] = useState(null);
   
   // Paginacija za korisničku opremu
   const [userEquipmentCurrentPage, setUserEquipmentCurrentPage] = useState(1);
@@ -384,6 +388,40 @@ const DefectiveEquipment = () => {
     return 'Nepoznato';
   };
 
+  // Handle restore equipment from defective to available
+  const handleRestoreEquipment = async (equipmentId, equipmentInfo) => {
+    if (restoringEquipmentId) return; // Prevent multiple clicks
+
+    const confirmRestore = window.confirm(
+      `Da li ste sigurni da želite da vratite opremu "${equipmentInfo.category} - ${equipmentInfo.description}" (${equipmentInfo.serialNumber}) u magacin?`
+    );
+
+    if (!confirmRestore) return;
+
+    setRestoringEquipmentId(equipmentId);
+
+    try {
+      const response = await axios.put(
+        `${apiUrl}/api/defective-equipment/${equipmentId}/restore`,
+        { performedByName: 'Admin' }
+      );
+
+      if (response.data.success) {
+        toast.success(response.data.message || 'Oprema je uspešno vraćena u magacin');
+        // Refresh the equipment list
+        fetchFullDefectiveEquipment();
+      } else {
+        toast.error(response.data.message || 'Greška pri vraćanju opreme');
+      }
+    } catch (error) {
+      console.error('❌ Error restoring equipment:', error);
+      const errorMessage = error.response?.data?.message || 'Greška pri vraćanju opreme';
+      toast.error(errorMessage);
+    } finally {
+      setRestoringEquipmentId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       {/* Header */}
@@ -586,6 +624,9 @@ const DefectiveEquipment = () => {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                         Razlog
                       </th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Akcije
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -655,6 +696,27 @@ const DefectiveEquipment = () => {
                               </span>
                             )}
                           </div>
+                        </td>
+
+                        <td className="px-6 py-4 text-center">
+                          <Button
+                            type="primary"
+                            size="small"
+                            prefix={restoringEquipmentId === item._id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            ) : (
+                              <CheckCircleIcon size={14} />
+                            )}
+                            onClick={() => handleRestoreEquipment(item._id, {
+                              category: item.category,
+                              description: item.description,
+                              serialNumber: item.serialNumber
+                            })}
+                            disabled={restoringEquipmentId !== null}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {restoringEquipmentId === item._id ? 'Vraćanje...' : 'Vrati u opremu'}
+                          </Button>
                         </td>
                       </tr>
                     ))}
