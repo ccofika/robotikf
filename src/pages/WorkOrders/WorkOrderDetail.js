@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon, ChevronLeftIcon, ChevronRightIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
@@ -55,6 +55,10 @@ const WorkOrderDetail = () => {
   const [loadingAIVerification, setLoadingAIVerification] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiVerificationResult, setAIVerificationResult] = useState(null);
+
+  // Verification navigation states
+  const [verificationOrderIds, setVerificationOrderIds] = useState([]);
+  const isFromVerification = new URLSearchParams(location.search).get('fromVerification') === 'true';
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -129,7 +133,46 @@ const WorkOrderDetail = () => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-  
+
+  // Fetch verification order list for prev/next navigation
+  useEffect(() => {
+    if (!isFromVerification) return;
+
+    const fetchVerificationList = async () => {
+      try {
+        const response = await workOrdersAPI.getVerification();
+        const orders = response.data || [];
+        // Sort by date descending (same as sortByDate in WorkOrdersByTechnician)
+        const sorted = [...orders].sort((a, b) => new Date(b.date) - new Date(a.date));
+        setVerificationOrderIds(sorted.map(o => o._id));
+      } catch (err) {
+        console.error('Error fetching verification list:', err);
+      }
+    };
+
+    fetchVerificationList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFromVerification]);
+
+  // Verification navigation helpers
+  const currentVerificationIndex = verificationOrderIds.indexOf(id);
+  const hasPrevVerification = isFromVerification && currentVerificationIndex > 0;
+  const hasNextVerification = isFromVerification && currentVerificationIndex >= 0 && currentVerificationIndex < verificationOrderIds.length - 1;
+
+  const goToPrevVerification = () => {
+    if (hasPrevVerification) {
+      const prevId = verificationOrderIds[currentVerificationIndex - 1];
+      window.location.href = `/work-orders/${prevId}?fromVerification=true`;
+    }
+  };
+
+  const goToNextVerification = () => {
+    if (hasNextVerification) {
+      const nextId = verificationOrderIds[currentVerificationIndex + 1];
+      window.location.href = `/work-orders/${nextId}?fromVerification=true`;
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -296,11 +339,13 @@ const WorkOrderDetail = () => {
     if (!orderStatuses[orderId]) {
       await loadCustomerStatus(orderId);
     }
+    document.body.style.overflow = 'hidden';
     setCustomerStatusModal({ isOpen: true, orderId });
   };
 
   // Close customer status modal
   const closeCustomerStatusModal = () => {
+    document.body.style.overflow = '';
     setCustomerStatusModal({ isOpen: false, orderId: null });
   };
 
@@ -327,9 +372,15 @@ const WorkOrderDetail = () => {
   // Get customer status color
   const getCustomerStatusColor = (status) => {
     if (status?.includes('HFC KDS')) return 'bg-blue-100 text-blue-800';
+    if (status?.includes('GPON tehnologijom')) return 'bg-teal-100 text-teal-800';
     if (status?.includes('GPON')) return 'bg-green-100 text-green-800';
     if (status?.includes('montažnim radovima')) return 'bg-yellow-100 text-yellow-800';
     if (status?.includes('bez montažnih radova')) return 'bg-purple-100 text-purple-800';
+    if (status?.includes('WiFi')) return 'bg-cyan-100 text-cyan-800';
+    if (status?.includes('Dodavanje')) return 'bg-orange-100 text-orange-800';
+    if (status?.includes('Demontaža')) return 'bg-red-100 text-red-800';
+    if (status?.includes('Intervencija')) return 'bg-pink-100 text-pink-800';
+    if (status?.includes('ASTRA')) return 'bg-indigo-100 text-indigo-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -636,41 +687,40 @@ const WorkOrderDetail = () => {
           });
         };
 
-        const imageWidth = (contentWidth - 15) / 4; // 4 slike po redu sa razmakom
-        const imageHeight = 40;
-        let imagesInRow = 0;
-        let rowY = currentY;
-
         for (let i = 0; i < images.length; i++) {
           try {
             const imageUrl = typeof images[i] === 'object' ? images[i].url : images[i];
             const img = await loadImage(imageUrl);
 
-            const x = margin + (imagesInRow * (imageWidth + 5));
+            // Izracunaj visinu slike proporcionalno full width-u
+            const imgAspectRatio = img.naturalHeight / img.naturalWidth;
+            const fullImageWidth = contentWidth;
+            const fullImageHeight = fullImageWidth * imgAspectRatio;
+
+            // Maksimalna visina slike je visina stranice minus margine
+            const maxImageHeight = pageHeight - (2 * margin);
+            const finalImageHeight = Math.min(fullImageHeight, maxImageHeight);
+            const finalImageWidth = fullImageHeight > maxImageHeight
+              ? finalImageHeight / imgAspectRatio
+              : fullImageWidth;
 
             // Proveri da li slika stane na trenutnu stranicu
-            if (rowY + imageHeight > pageHeight - margin) {
+            if (currentY + finalImageHeight > pageHeight - margin) {
               pdf.addPage();
-              rowY = margin;
-              imagesInRow = 0;
+              currentY = margin;
             }
 
             // Canvas za resize slike
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = imageWidth * 3; // 3x resolution za kvalitet
-            canvas.height = imageHeight * 3;
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
 
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const resizedImageData = canvas.toDataURL('image/jpeg', 0.8);
+            const resizedImageData = canvas.toDataURL('image/jpeg', 0.85);
 
-            pdf.addImage(resizedImageData, 'JPEG', x, rowY, imageWidth, imageHeight);
-
-            imagesInRow++;
-            if (imagesInRow === 4) {
-              imagesInRow = 0;
-              rowY += imageHeight + 10;
-            }
+            pdf.addImage(resizedImageData, 'JPEG', margin, currentY, finalImageWidth, finalImageHeight);
+            currentY += finalImageHeight + 10;
 
           } catch (error) {
             console.error('Greška pri učitavanju slike:', error);
@@ -769,25 +819,60 @@ const WorkOrderDetail = () => {
       <div className="p-6 mb-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-900">Detalji radnog naloga</h1>
-          <Button
-            type="secondary"
-            size="small"
-            prefix={<BackIcon size={16} />}
-            onClick={() => {
-              if (location.state?.fromUsersList) {
-                navigate(location.state.previousPath || '/users', {
-                  state: { 
-                    fromWorkOrderDetail: true, 
-                    selectedUserId: location.state.selectedUserId 
-                  }
-                });
-              } else {
-                navigate('/work-orders');
-              }
-            }}
-          >
-            Povratak na listu
-          </Button>
+          <div className="flex items-center gap-3">
+            {isFromVerification && verificationOrderIds.length > 0 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={goToPrevVerification}
+                  disabled={!hasPrevVerification}
+                  className={cn(
+                    "p-2 rounded-lg border transition-all",
+                    hasPrevVerification
+                      ? "border-slate-300 hover:bg-slate-100 hover:border-slate-400 text-slate-700 cursor-pointer"
+                      : "border-slate-200 text-slate-300 cursor-not-allowed"
+                  )}
+                  title="Prethodni nalog"
+                >
+                  <ChevronLeftIcon size={20} />
+                </button>
+                <span className="text-sm text-slate-500 px-1 min-w-[3rem] text-center">
+                  {currentVerificationIndex + 1} / {verificationOrderIds.length}
+                </span>
+                <button
+                  onClick={goToNextVerification}
+                  disabled={!hasNextVerification}
+                  className={cn(
+                    "p-2 rounded-lg border transition-all",
+                    hasNextVerification
+                      ? "border-slate-300 hover:bg-slate-100 hover:border-slate-400 text-slate-700 cursor-pointer"
+                      : "border-slate-200 text-slate-300 cursor-not-allowed"
+                  )}
+                  title="Sledeći nalog"
+                >
+                  <ChevronRightIcon size={20} />
+                </button>
+              </div>
+            )}
+            <Button
+              type="secondary"
+              size="small"
+              prefix={<BackIcon size={16} />}
+              onClick={() => {
+                if (location.state?.fromUsersList) {
+                  navigate(location.state.previousPath || '/users', {
+                    state: {
+                      fromWorkOrderDetail: true,
+                      selectedUserId: location.state.selectedUserId
+                    }
+                  });
+                } else {
+                  navigate('/work-orders');
+                }
+              }}
+            >
+              Povratak na listu
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -1171,6 +1256,72 @@ const WorkOrderDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Admin Edit Log Section - Only for SuperAdmin */}
+      {(() => {
+        const storedUserForEditLog = localStorage.getItem('user');
+        const editLogRole = storedUserForEditLog ? JSON.parse(storedUserForEditLog).role : null;
+        const canViewEditLog = editLogRole === 'superadmin';
+
+        return canViewEditLog && workOrder?.adminEditLog && workOrder.adminEditLog.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-md border border-amber-200/50 rounded-2xl shadow-lg overflow-hidden mb-6">
+            <div className="p-6 border-b border-amber-200" style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' }}>
+              <h3 className="text-lg font-semibold text-amber-900 flex items-center space-x-2">
+                <HistoryIcon size={20} />
+                <span>Izmene opreme (Admin Edit)</span>
+              </h3>
+            </div>
+            <div className="p-6 space-y-3">
+              {workOrder.adminEditLog.map((log, index) => {
+                const isAdd = log.action === 'added' || log.action === 'material_added';
+                const isMaterial = log.action === 'material_added' || log.action === 'material_removed';
+
+                return (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex items-start gap-3 p-3 rounded-lg border",
+                      isAdd
+                        ? "bg-green-50 border-green-200"
+                        : "bg-red-50 border-red-200"
+                    )}
+                  >
+                    <span className={cn(
+                      "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5",
+                      isAdd ? "bg-green-500" : "bg-red-500"
+                    )}>
+                      {isAdd ? '+' : '−'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">
+                        {isAdd ? 'Dodao' : 'Uklonio'} od tehničara{' '}
+                        <span className="font-semibold">{log.technicianName}</span>
+                        {isMaterial ? (
+                          <>
+                            {' '} — materijal{' '}
+                            <span className="font-semibold">{log.materialType}</span>
+                            {' '} (kol: {log.materialQuantity})
+                          </>
+                        ) : (
+                          <>
+                            {' '} — opremu{' '}
+                            <span className="font-semibold">{log.equipmentCategory}</span>
+                            {' '} - {log.equipmentSerialNumber}
+                          </>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {log.adminName} — {new Date(log.timestamp).toLocaleDateString('sr-RS', { day: 'numeric', month: 'numeric', year: 'numeric' })}{' '}
+                        {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Equipment Section */}
       <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
@@ -1701,9 +1852,9 @@ const WorkOrderDetail = () => {
 
       {/* Customer Status Modal */}
       {customerStatusModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <div className="p-6 border-b border-slate-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ overflow: 'hidden' }} onClick={(e) => { if (e.target === e.currentTarget) closeCustomerStatusModal(); }}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
+            <div className="p-6 border-b border-slate-200 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-900">Status korisnika</h3>
                 <button
@@ -1718,14 +1869,20 @@ const WorkOrderDetail = () => {
               </p>
             </div>
 
-            <div className="p-6 space-y-3">
+            <div className="p-6 space-y-3 overflow-y-auto flex-1">
               {[
                 'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
                 'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova'
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova',
+                'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju)',
+                'Dodavanje drugog uređaja ili dorada',
+                'Demontaža postojeće opreme kod korisnika (po korisniku)',
+                'Intervencija kod korisnika',
+                'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa)',
+                'ASTRA TELEKOM'
               ].map((status) => (
                 <button
                   key={status}
@@ -1747,7 +1904,7 @@ const WorkOrderDetail = () => {
               ))}
             </div>
 
-            <div className="p-6 border-t border-slate-200 flex space-x-3">
+            <div className="p-6 border-t border-slate-200 flex space-x-3 flex-shrink-0">
               <Button
                 type="secondary"
                 size="medium"

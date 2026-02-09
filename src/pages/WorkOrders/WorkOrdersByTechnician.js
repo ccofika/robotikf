@@ -878,8 +878,13 @@ const WorkOrdersByTechnician = () => {
       return;
     }
 
-    // Otvori detalje radnog naloga u novom tabu
-    window.open(`/work-orders/${orderId}`, '_blank');
+    // Ako dolazi sa verification taba, dodaj query param
+    const isFromVerification = activeTab === 'verification';
+    const url = isFromVerification
+      ? `/work-orders/${orderId}?fromVerification=true`
+      : `/work-orders/${orderId}`;
+
+    window.open(url, '_blank');
   };
 
   // Funkcija za handleovanje klika na statistike tehničara

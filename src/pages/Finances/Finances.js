@@ -479,7 +479,13 @@ const Finances = () => {
       'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)': 'GPON Zgrada',
       'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima': 'Sa Montažom',
       'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova': 'Bez Montaže',
-      'Nov korisnik': 'Nov Korisnik'
+      'Nov korisnik': 'Nov Korisnik',
+      'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju)': 'WiFi Priključenje',
+      'Dodavanje drugog uređaja ili dorada': 'Dodavanje/Dorada',
+      'Demontaža postojeće opreme kod korisnika (po korisniku)': 'Demontaža',
+      'Intervencija kod korisnika': 'Intervencija',
+      'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa)': 'GPON Priključenje',
+      'ASTRA TELEKOM': 'ASTRA TELEKOM'
     };
     return shortNames[customerStatus] || customerStatus;
   };

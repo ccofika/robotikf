@@ -1230,10 +1230,12 @@ const WorkOrdersSection = () => {
     if (!orderStatuses[orderId]) {
       await loadCustomerStatus(orderId);
     }
+    document.body.style.overflow = 'hidden';
     setCustomerStatusModal({ isOpen: true, orderId });
   };
 
   const closeCustomerStatusModal = () => {
+    document.body.style.overflow = '';
     setCustomerStatusModal({ isOpen: false, orderId: null });
   };
 
@@ -1258,9 +1260,15 @@ const WorkOrdersSection = () => {
 
   const getCustomerStatusColor = (status) => {
     if (status?.includes('HFC KDS')) return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (status?.includes('GPON tehnologijom')) return 'bg-teal-50 text-teal-700 border-teal-200';
     if (status?.includes('GPON')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (status?.includes('montažnim radovima')) return 'bg-amber-50 text-amber-700 border-amber-200';
     if (status?.includes('bez montažnih radova')) return 'bg-violet-50 text-violet-700 border-violet-200';
+    if (status?.includes('WiFi')) return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+    if (status?.includes('Dodavanje')) return 'bg-orange-50 text-orange-700 border-orange-200';
+    if (status?.includes('Demontaža')) return 'bg-red-50 text-red-700 border-red-200';
+    if (status?.includes('Intervencija')) return 'bg-pink-50 text-pink-700 border-pink-200';
+    if (status?.includes('ASTRA')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
     return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
@@ -2276,9 +2284,9 @@ const WorkOrdersSection = () => {
 
       {/* Customer Status Modal */}
       {customerStatusModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="max-w-md w-full mx-4">
-            <CardHeader className="border-b border-slate-100">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ overflow: 'hidden' }} onClick={(e) => { if (e.target === e.currentTarget) closeCustomerStatusModal(); }}>
+          <Card className="max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
+            <CardHeader className="border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <CardTitle>Status korisnika</CardTitle>
                 <button
@@ -2288,15 +2296,24 @@ const WorkOrdersSection = () => {
                   <XIcon size={20} className="text-slate-400" />
                 </button>
               </div>
+              <p className="text-sm text-slate-600 mt-2">
+                Izaberite status korisnika za ovaj radni nalog
+              </p>
             </CardHeader>
-            <CardContent className="p-6 space-y-3">
+            <CardContent className="p-6 space-y-3 overflow-y-auto flex-1">
               {[
                 'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
                 'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova'
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova',
+                'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju)',
+                'Dodavanje drugog uređaja ili dorada',
+                'Demontaža postojeće opreme kod korisnika (po korisniku)',
+                'Intervencija kod korisnika',
+                'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa)',
+                'ASTRA TELEKOM'
               ].map((status) => (
                 <button
                   key={status}

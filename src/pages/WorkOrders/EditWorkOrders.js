@@ -71,32 +71,9 @@ const EditWorkOrders = () => {
 
   const fetchFilters = async () => {
     try {
-      const response = await workOrdersAPI.getAll();
-
-      // Filter to only show work orders from last month
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-      const filteredWorkOrders = response.data.filter(wo => {
-        const workOrderDate = new Date(wo.date);
-        return workOrderDate >= oneMonthAgo;
-      });
-
-      // Extract unique municipalities
-      const uniqueMunicipalities = [...new Set(filteredWorkOrders.map(wo => wo.municipality))].filter(Boolean);
-      setMunicipalities(uniqueMunicipalities);
-
-      // Extract unique technicians
-      const uniqueTechnicians = [];
-      filteredWorkOrders.forEach(wo => {
-        if (wo.technicianId && !uniqueTechnicians.find(t => t._id === wo.technicianId._id)) {
-          uniqueTechnicians.push(wo.technicianId);
-        }
-        if (wo.technician2Id && !uniqueTechnicians.find(t => t._id === wo.technician2Id._id)) {
-          uniqueTechnicians.push(wo.technician2Id);
-        }
-      });
-      setTechnicians(uniqueTechnicians);
+      const response = await axios.get(`${apiUrl}/api/workorders/edit-filters`);
+      setMunicipalities(response.data.municipalities || []);
+      setTechnicians(response.data.technicians || []);
     } catch (error) {
       console.error('Error fetching filters:', error);
     }
@@ -113,8 +90,7 @@ const EditWorkOrders = () => {
         search: debouncedSearchTerm,
         status: statusFilter,
         municipality: municipalityFilter,
-        technician: technicianFilter,
-        lastMonthOnly: 'true' // Only fetch work orders from last month
+        technician: technicianFilter
       });
 
       const response = await axios.get(`${apiUrl}/api/workorders?${params.toString()}`);
@@ -127,13 +103,7 @@ const EditWorkOrders = () => {
         setPerformance(response.data.performance || { queryTime: 0, resultsPerPage: response.data.workOrders.length });
       } else {
         // Server returned all data - do client-side pagination
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
         let filteredData = response.data.filter(wo => {
-          const workOrderDate = new Date(wo.date);
-          if (workOrderDate < oneMonthAgo) return false;
-
           const matchesSearch = !debouncedSearchTerm ||
             wo.tisId?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
             wo.userName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
@@ -242,7 +212,7 @@ const EditWorkOrders = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Edituj radne naloge</h1>
             <p className="text-muted-foreground">
-              Dodaj opremu i materijal u radne naloge (poslednjih mesec dana)
+              Dodaj opremu i materijal u radne naloge
             </p>
           </div>
         </div>
@@ -435,67 +405,159 @@ const EditWorkOrders = () => {
           </div>
 
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
-            <Card>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
+          {pagination.totalPages > 1 && (() => {
+            const getVisiblePages = () => {
+              const current = pagination.currentPage;
+              const total = pagination.totalPages;
+              const delta = 2;
+              let pages = [];
+
+              if (current > delta + 1) {
+                pages.push(1);
+                if (current > delta + 2) pages.push('...');
+              }
+
+              for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
+                pages.push(i);
+              }
+
+              if (current < total - delta) {
+                if (current < total - delta - 1) pages.push('...');
+                pages.push(total);
+              }
+
+              return pages;
+            };
+
+            return (
+              <div className="bg-card border rounded-xl shadow-sm">
+                {/* Desktop Pagination */}
+                <div className="hidden sm:flex items-center justify-between px-6 py-4">
                   <div className="text-sm text-muted-foreground">
-                    Stranica {pagination.currentPage} od {pagination.totalPages} ({pagination.totalCount} ukupno)
+                    Prikazano{' '}
+                    <span className="font-semibold text-foreground">
+                      {((pagination.currentPage - 1) * pagination.limit) + 1}
+                    </span>
+                    {' '}-{' '}
+                    <span className="font-semibold text-foreground">
+                      {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)}
+                    </span>
+                    {' '}od{' '}
+                    <span className="font-semibold text-foreground">{pagination.totalCount}</span>
+                    {' '}rezultata
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Button
-                      variant="outline"
-                      size="sm"
+                      type="tertiary"
+                      size="small"
+                      onClick={() => handlePageChange(1)}
+                      disabled={pagination.currentPage === 1 || loading}
+                      className="w-9 h-9 !px-0"
+                    >
+                      &laquo;
+                    </Button>
+                    <Button
+                      type="tertiary"
+                      size="small"
                       onClick={() => handlePageChange(pagination.currentPage - 1)}
                       disabled={!pagination.hasPreviousPage || loading}
+                      className="w-9 h-9 !px-0"
                     >
-                      <ChevronLeftIcon size={16} />
-                      Prethodna
+                      &lsaquo;
                     </Button>
 
-                    <div className="flex items-center gap-1">
-                      {[...Array(Math.min(5, pagination.totalPages))].map((_, idx) => {
-                        let pageNumber;
-                        if (pagination.totalPages <= 5) {
-                          pageNumber = idx + 1;
-                        } else if (pagination.currentPage <= 3) {
-                          pageNumber = idx + 1;
-                        } else if (pagination.currentPage >= pagination.totalPages - 2) {
-                          pageNumber = pagination.totalPages - 4 + idx;
-                        } else {
-                          pageNumber = pagination.currentPage - 2 + idx;
-                        }
-
-                        return (
-                          <Button
-                            key={pageNumber}
-                            variant={pagination.currentPage === pageNumber ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handlePageChange(pageNumber)}
-                            disabled={loading}
-                            className="w-10"
-                          >
-                            {pageNumber}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                    {getVisiblePages().map((page, index) => (
+                      <Button
+                        key={index}
+                        type={page === pagination.currentPage ? "primary" : "tertiary"}
+                        size="small"
+                        onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                        disabled={page === '...' || loading}
+                        className={cn(
+                          "w-9 h-9 !px-0 font-medium",
+                          page === pagination.currentPage
+                            ? "!bg-primary !text-primary-foreground shadow-sm"
+                            : page === '...'
+                              ? "cursor-default"
+                              : "hover:bg-accent"
+                        )}
+                      >
+                        {page}
+                      </Button>
+                    ))}
 
                     <Button
-                      variant="outline"
-                      size="sm"
+                      type="tertiary"
+                      size="small"
                       onClick={() => handlePageChange(pagination.currentPage + 1)}
                       disabled={!pagination.hasNextPage || loading}
+                      className="w-9 h-9 !px-0"
                     >
-                      Sledeća
-                      <ChevronRightIcon size={16} />
+                      &rsaquo;
+                    </Button>
+                    <Button
+                      type="tertiary"
+                      size="small"
+                      onClick={() => handlePageChange(pagination.totalPages)}
+                      disabled={pagination.currentPage === pagination.totalPages || loading}
+                      className="w-9 h-9 !px-0"
+                    >
+                      &raquo;
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+
+                {/* Mobile Pagination */}
+                <div className="flex sm:hidden flex-col items-center gap-3 px-4 py-4">
+                  <div className="text-sm text-muted-foreground">
+                    Stranica{' '}
+                    <span className="font-semibold text-foreground">{pagination.currentPage}</span>
+                    {' '}od{' '}
+                    <span className="font-semibold text-foreground">{pagination.totalPages}</span>
+                    {' '}({pagination.totalCount} ukupno)
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="secondary"
+                      size="medium"
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                      disabled={!pagination.hasPreviousPage || loading}
+                      className="w-11 h-11 !px-0"
+                    >
+                      &lsaquo;
+                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      {getVisiblePages().filter(p => typeof p === 'number').slice(0, 5).map((page) => (
+                        <Button
+                          key={page}
+                          type={page === pagination.currentPage ? "primary" : "tertiary"}
+                          size="small"
+                          onClick={() => handlePageChange(page)}
+                          disabled={loading}
+                          className={cn(
+                            "w-9 h-9 !px-0 font-medium",
+                            page === pagination.currentPage && "!bg-primary !text-primary-foreground shadow-sm"
+                          )}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      type="secondary"
+                      size="medium"
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                      disabled={!pagination.hasNextPage || loading}
+                      className="w-11 h-11 !px-0"
+                    >
+                      &rsaquo;
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
