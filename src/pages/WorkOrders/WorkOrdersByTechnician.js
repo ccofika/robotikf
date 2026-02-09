@@ -629,10 +629,12 @@ const WorkOrdersByTechnician = () => {
     if (!orderStatuses[orderId]) {
       await loadCustomerStatus(orderId);
     }
+    document.body.style.overflow = 'hidden';
     setCustomerStatusModal({ isOpen: true, orderId });
   };
-  
+
   const closeCustomerStatusModal = () => {
+    document.body.style.overflow = '';
     setCustomerStatusModal({ isOpen: false, orderId: null });
   };
   
@@ -657,9 +659,15 @@ const WorkOrdersByTechnician = () => {
   
   const getCustomerStatusColor = (status) => {
     if (status?.includes('HFC KDS')) return 'bg-blue-100 text-blue-800';
+    if (status?.includes('GPON tehnologijom')) return 'bg-teal-100 text-teal-800';
     if (status?.includes('GPON')) return 'bg-green-100 text-green-800';
     if (status?.includes('montažnim radovima')) return 'bg-yellow-100 text-yellow-800';
     if (status?.includes('bez montažnih radova')) return 'bg-purple-100 text-purple-800';
+    if (status?.includes('WiFi')) return 'bg-cyan-100 text-cyan-800';
+    if (status?.includes('Dodavanje')) return 'bg-orange-100 text-orange-800';
+    if (status?.includes('Demontaža')) return 'bg-red-100 text-red-800';
+    if (status?.includes('Intervencija')) return 'bg-pink-100 text-pink-800';
+    if (status?.includes('ASTRA')) return 'bg-indigo-100 text-indigo-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -1923,9 +1931,9 @@ const WorkOrdersByTechnician = () => {
       
       {/* Customer Status Modal */}
       {customerStatusModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <div className="p-6 border-b border-slate-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ overflow: 'hidden' }} onClick={(e) => { if (e.target === e.currentTarget) closeCustomerStatusModal(); }}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
+            <div className="p-6 border-b border-slate-200 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-900">Status korisnika</h3>
                 <button
@@ -1939,23 +1947,28 @@ const WorkOrdersByTechnician = () => {
                 Izaberite status korisnika za ovaj radni nalog
               </p>
             </div>
-            
-            <div className="p-6 space-y-3">
+
+            <div className="p-6 space-y-3 overflow-y-auto flex-1">
               {[
                 'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
                 'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)',
                 'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova'
+                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova',
+                'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju) - ASTRA TELEKOM',
+                'Dodavanje drugog uređaja ili dorada - ASTRA TELEKOM',
+                'Demontaža postojeće opreme kod korisnika (po korisniku) - ASTRA TELEKOM',
+                'Intervencija kod korisnika - ASTRA TELEKOM',
+                'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa) - ASTRA TELEKOM'
               ].map((status) => (
                 <button
                   key={status}
                   onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
                   className={cn(
                     "w-full p-4 text-left rounded-lg border-2 transition-all hover:shadow-md",
-                    orderStatuses[customerStatusModal.orderId] === status 
-                      ? "border-blue-500 bg-blue-50" 
+                    orderStatuses[customerStatusModal.orderId] === status
+                      ? "border-blue-500 bg-blue-50"
                       : "border-slate-200 hover:border-slate-300"
                   )}
                 >
@@ -1968,8 +1981,8 @@ const WorkOrdersByTechnician = () => {
                 </button>
               ))}
             </div>
-            
-            <div className="p-6 border-t border-slate-200 flex space-x-3">
+
+            <div className="p-6 border-t border-slate-200 flex space-x-3 flex-shrink-0">
               <Button
                 type="secondary"
                 size="medium"

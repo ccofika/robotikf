@@ -480,12 +480,11 @@ const Finances = () => {
       'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima': 'Sa Montažom',
       'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova': 'Bez Montaže',
       'Nov korisnik': 'Nov Korisnik',
-      'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju)': 'WiFi Priključenje',
-      'Dodavanje drugog uređaja ili dorada': 'Dodavanje/Dorada',
-      'Demontaža postojeće opreme kod korisnika (po korisniku)': 'Demontaža',
-      'Intervencija kod korisnika': 'Intervencija',
-      'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa)': 'GPON Priključenje',
-      'ASTRA TELEKOM': 'ASTRA TELEKOM'
+      'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju) - ASTRA TELEKOM': 'WiFi Priključenje (ASTRA)',
+      'Dodavanje drugog uređaja ili dorada - ASTRA TELEKOM': 'Dodavanje/Dorada (ASTRA)',
+      'Demontaža postojeće opreme kod korisnika (po korisniku) - ASTRA TELEKOM': 'Demontaža (ASTRA)',
+      'Intervencija kod korisnika - ASTRA TELEKOM': 'Intervencija (ASTRA)',
+      'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa) - ASTRA TELEKOM': 'GPON Priključenje (ASTRA)'
     };
     return shortNames[customerStatus] || customerStatus;
   };
