@@ -279,7 +279,8 @@ const EquipmentList = () => {
     'STB', 'Cam Modul', 'Hybrid', 'OTT tv po tvom', 'Smart Card',
     'HFC Modem', 'GPON Modem', 'ATV', 'PON',
     'M-Cam Modul', 'M-Smart Card', 'M-HFC Modem', 'M-GPON Modem',
-    'M-ATV', 'M-STB', 'M-OTT tv po tvom', 'M-Hybrid', 'M-PON'
+    'M-ATV', 'M-STB', 'M-OTT tv po tvom', 'M-Hybrid', 'M-PON',
+    'Astra Modem', 'Astra Stb', 'Astra Antena', 'Astra Ruter', 'Astra Poe napajanje'
   ];
 
   // Formatiranje naziva kategorija - kategorije su sada standardizovane
@@ -304,7 +305,12 @@ const EquipmentList = () => {
       'M-STB': 'M-STB',
       'M-OTT tv po tvom': 'M-OTT tv po tvom',
       'M-Hybrid': 'M-Hybrid',
-      'M-PON': 'M-PON'
+      'M-PON': 'M-PON',
+      'Astra Modem': 'Astra Modem',
+      'Astra Stb': 'Astra Stb',
+      'Astra Antena': 'Astra Antena',
+      'Astra Ruter': 'Astra Ruter',
+      'Astra Poe napajanje': 'Astra Poe napajanje'
     };
 
     return categoryNames[category] || category;
