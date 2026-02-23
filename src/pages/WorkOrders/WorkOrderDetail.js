@@ -605,6 +605,7 @@ const WorkOrderDetail = () => {
       if (workOrder.tisId) additionalInfo.push(['TIS ID:', normalizeText(workOrder.tisId)]);
       if (workOrder.userName) additionalInfo.push(['Ime korisnika:', normalizeText(workOrder.userName)]);
       if (workOrder.userPhone) additionalInfo.push(['Telefon:', normalizeText(workOrder.userPhone)]);
+      if (workOrder.customerEmail) additionalInfo.push(['Email:', normalizeText(workOrder.customerEmail)]);
       if (workOrder.tisJobId) additionalInfo.push(['TIS Job ID:', normalizeText(workOrder.tisJobId)]);
       if (workOrder.technology) additionalInfo.push(['Tehnologija:', normalizeText(workOrder.technology)]);
       if (workOrder.additionalJobs) additionalInfo.push(['Dodatni poslovi:', normalizeText(workOrder.additionalJobs)]);
@@ -1233,6 +1234,12 @@ const WorkOrderDetail = () => {
               <div>
                 <label className="text-sm font-medium text-slate-600">Telefon korisnika:</label>
                 <p className="text-sm text-slate-900 mt-1">{workOrder.userPhone}</p>
+              </div>
+            )}
+            {workOrder?.customerEmail && (
+              <div>
+                <label className="text-sm font-medium text-slate-600">Email korisnika:</label>
+                <p className="text-sm text-slate-900 mt-1">{workOrder.customerEmail}</p>
               </div>
             )}
             {workOrder?.tisJobId && (

@@ -1557,6 +1557,12 @@ const TechnicianWorkOrderDetail = () => {
                 <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Telefon:</span>
                 <span className="text-xs text-slate-900 font-medium">{workOrder?.userPhone || 'Nije dostupno'}</span>
               </div>
+              {workOrder?.customerEmail && (
+                <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                  <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Email:</span>
+                  <span className="text-xs text-slate-900 font-medium">{workOrder.customerEmail}</span>
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
                 <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">TIS ID:</span>
                 <span className="text-xs text-slate-900 font-medium">{workOrder?.tisId || 'Nije dostupno'}</span>
