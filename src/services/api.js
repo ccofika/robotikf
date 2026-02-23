@@ -99,6 +99,17 @@ export const techniciansAPI = {
     api.get(`/api/technicians/${id}/recordings?date=${date}&includeWorkOrders=${includeWorkOrders}`),
   getRecordingDates: (id, month, year) =>
     api.get(`/api/technicians/${id}/recordings/dates?month=${month}&year=${year}`),
+  // Status aktivnosti
+  toggleStatus: (id) => api.put(`/api/technicians/${id}/toggle-status`),
+  // Dokumentacija
+  getDocuments: (id) => api.get(`/api/technicians/${id}/documents`),
+  uploadDocument: (id, formData) => api.post(`/api/technicians/${id}/documents`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deleteDocument: (id, documentId) => api.delete(`/api/technicians/${id}/documents/${documentId}`),
+  // Proxy URL za pregled/preuzimanje dokumenta (zaobilazi Cloudinary 401)
+  getDocumentViewUrl: (id, documentId) => `${API_URL}/api/technicians/${id}/documents/${documentId}/view`,
+  getDocumentDownloadUrl: (id, documentId) => `${API_URL}/api/technicians/${id}/documents/${documentId}/view?download=true`,
 };
 
 // Work Orders API
@@ -355,6 +366,13 @@ export const financesAPI = {
   excludeFromFinances: (workOrderId) => api.post(`/api/finances/exclude-from-finances/${workOrderId}`),
   confirmDiscount: (data) => api.post('/api/finances/confirm-discount', data),
   saveTechnicianPaymentSettings: (data) => api.post('/api/finances/technician-payment-settings', data),
+};
+
+export const reviewsAPI = {
+  getTechnicianReviews: (id, page = 1, limit = 10) => api.get(`/api/reviews/technician/${id}?page=${page}&limit=${limit}`),
+  getTechnicianStats: (id) => api.get(`/api/reviews/stats/${id}`),
+  getAllStats: () => api.get('/api/reviews/stats/all'),
+  deleteReview: (id) => api.delete(`/api/reviews/${id}`),
 };
 
 export default api;

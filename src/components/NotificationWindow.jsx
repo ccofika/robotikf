@@ -7,18 +7,20 @@ import { Button } from './ui/button'
 import { Card, CardContent, CardHeader } from './ui/card'
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
 import { Checkbox } from './ui/checkbox'
-import { 
-  CheckIcon, 
-  CloseIcon, 
+import {
+  CheckIcon,
+  CloseIcon,
   CheckCircleIcon,
   ClockIcon,
   AlertIcon,
   UserIcon,
+  UsersIcon,
   ToolsIcon,
   BoxIcon,
   ClipboardIcon,
   CarIcon,
-  BellIcon
+  BellIcon,
+  StarIcon
 } from './icons/SvgIcons'
 
 // API functions
@@ -147,6 +149,8 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
         case 'work_order_verification': return <ClipboardIcon size={20} />
         case 'material_anomaly': return <BoxIcon size={20} />
         case 'vehicle_registration_expiry': return <CarIcon size={20} />
+        case 'technician_employment_expiry': return <UsersIcon size={20} />
+        case 'low_review_rating': return <StarIcon size={20} />
         default: return <BellIcon size={20} />
       }
     }
@@ -170,6 +174,18 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
             action: 'vozilo sa registracijom koja ističe',
             target: `${notification.vehicle?.name} (${notification.vehicle?.licensePlate})`,
             content: `Registracija vozila ističe uskoro. Potrebno je obnoviti registraciju.`
+          }
+        case 'technician_employment_expiry':
+          return {
+            action: 'ugovor tehničara ističe',
+            target: notification.technician?.name || 'Tehničar',
+            content: `Ugovor o zaposlenju ističe uskoro. Potrebno je obnoviti ugovor.`
+          }
+        case 'low_review_rating':
+          return {
+            action: 'loša ocena korisnika',
+            target: notification.technicianName || 'Tehničar',
+            content: notification.message || `Korisnik je dao nisku ocenu tehničaru.`
           }
         default:
           return {
@@ -204,27 +220,27 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
       targetTab: apiNotification.targetTab,
       targetId: apiNotification.targetId,
       // Work order data for navigation
-      workOrder: apiNotification.workOrder
+      workOrder: apiNotification.workOrder,
+      // Technician data
+      technician: apiNotification.technician
     }
   }
 
-  const unreadNotifications = notifications.filter(n => !n.isRead)
-  const readNotifications = notifications.filter(n => n.isRead)
+  // Razdvajanje: radni nalozi idu ISKLJUČIVO u svoj tab, ostale notifikacije u Nove/Pročitane
+  const nonWorkOrderNotifications = notifications.filter(n => n.type !== 'work_order_verification')
+  const workOrderNotifications = notifications.filter(n => n.type === 'work_order_verification')
 
-  // Filter counts for tabs
-  const workOrderCount = notifications.filter(n => n.type === 'work_order_verification').length
-  const vehicleCount = notifications.filter(n => n.type === 'vehicle_registration_expiry').length
+  const unreadNonWO = nonWorkOrderNotifications.filter(n => !n.isRead)
+  const readNonWO = nonWorkOrderNotifications.filter(n => n.isRead)
 
   const getFilteredNotifications = () => {
     switch (activeTab) {
-      case "work-orders":
-        return notifications.filter(n => n.type === "work_order_verification")
-      case "vehicles":
-        return notifications.filter(n => n.type === "vehicle_registration_expiry")
-      case "procitane":
-        return readNotifications
       case "nove":
-        return unreadNotifications
+        return unreadNonWO
+      case "procitane":
+        return readNonWO
+      case "work-orders":
+        return workOrderNotifications
       default:
         return notifications
     }
@@ -256,17 +272,17 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
   }
 
   const handleMarkAllAsRead = async () => {
-    const success = await markAllAsRead()
+    // Za "Nove" tab - označi samo ne-radni-nalog notifikacije kao pročitane
+    // Za "Radni nalozi" tab - označi sve radne naloge kao pročitane
+    const idsToMark = filteredNotifications.filter(n => !n.isRead).map(n => n.id)
+    if (idsToMark.length === 0) return
+
+    const success = await markSelectedAsRead(idsToMark)
     if (success) {
-      if (activeTab === 'nove') {
-        setNotifications(prev => prev.map(n => 
-          !n.isRead ? { ...n, isRead: true } : n
-        ))
-      } else {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-      }
+      setNotifications(prev => prev.map(n =>
+        idsToMark.includes(n.id) ? { ...n, isRead: true } : n
+      ))
       setSelectedNotifications(new Set())
-      // Update sidebar badge count
       if (onNotificationUpdate) {
         onNotificationUpdate()
       }
@@ -331,14 +347,28 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
       
       case 'vehicle_registration_expiry':
         if (notification.targetId) {
-          // Navigate to vehicles page with specific vehicle highlighted
           navigate('/vehicles', { state: { highlightVehicle: notification.targetId } })
         } else {
-          // Navigate to vehicles page with expiring filter
           navigate('/vehicles', { state: { filter: 'expiring' } })
         }
         break
-      
+
+      case 'technician_employment_expiry':
+        if (notification.targetId) {
+          navigate(`/technicians/${notification.targetId}`)
+        } else {
+          navigate('/technicians')
+        }
+        break
+
+      case 'low_review_rating':
+        if (notification.targetId) {
+          navigate(`/technicians/${notification.targetId}`, { state: { tab: 'reviews' } })
+        } else {
+          navigate('/technicians')
+        }
+        break
+
       default:
         // For unknown notification types, navigate to dashboard
         navigate('/')
@@ -393,6 +423,18 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
           return (
             <div className={`${iconClass} bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400`}>
               <CarIcon size={20} />
+            </div>
+          )
+        case 'technician_employment_expiry':
+          return (
+            <div className={`${iconClass} bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400`}>
+              <UsersIcon size={20} />
+            </div>
+          )
+        case 'low_review_rating':
+          return (
+            <div className={`${iconClass} bg-purple-50 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400`}>
+              <StarIcon size={20} />
             </div>
           )
         default:
@@ -499,7 +541,7 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
               </h3>
               <div className="flex items-center gap-2">
                 {/* Mark all as read button */}
-                {activeTab === 'nove' && unreadNotifications.length > 0 && (
+                {(activeTab === 'nove' || activeTab === 'work-orders') && filteredNotifications.some(n => !n.isRead) && (
                   <Button className="size-8" variant="ghost" size="icon" onClick={handleMarkAllAsRead}>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -546,13 +588,13 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
                 <TabsList className="**:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 [&_button]:gap-1.5">
                   <TabsTrigger value="nove">
                     Nove
-                    <Badge variant="secondary">{unreadNotifications.length}</Badge>
+                    <Badge variant="secondary">{unreadNonWO.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="procitane">
-                    Pročitane <Badge variant="secondary">{readNotifications.length}</Badge>
+                    Pročitane <Badge variant="secondary">{readNonWO.length}</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="work-orders">
-                    Radni nalozi <Badge variant="secondary">{workOrderCount}</Badge>
+                    Radni nalozi <Badge variant="secondary">{workOrderNotifications.length}</Badge>
                   </TabsTrigger>
                 </TabsList>
               </div>

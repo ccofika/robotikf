@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon, PhoneIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon, PhoneIcon, DeleteIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
-import { techniciansAPI } from '../../services/api';
+import { techniciansAPI, reviewsAPI } from '../../services/api';
 
 // SVG Icons
 const MicIcon = ({ size = 20, className = '' }) => (
@@ -78,9 +78,27 @@ const TechnicianDetail = () => {
   // Pagination for materials
   const [materialsPage, setMaterialsPage] = useState(1);
   const materialsPerPage = 10;
-  
+
+  // Reviews state
+  const [reviewStats, setReviewStats] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Documents state
+  const [documents, setDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     fetchTechnicianData();
+    fetchDocuments();
+    fetchReviewStats();
+    fetchReviews(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   
@@ -98,6 +116,176 @@ const TechnicianDetail = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ============================================================
+  // REVIEW FUNCTIONS
+  // ============================================================
+
+  const fetchReviewStats = async () => {
+    try {
+      const response = await reviewsAPI.getTechnicianStats(id);
+      setReviewStats(response.data);
+    } catch (error) {
+      console.error('[Reviews] Greška pri učitavanju statistike:', error);
+    }
+  };
+
+  const fetchReviews = async (page) => {
+    setReviewsLoading(true);
+    try {
+      const response = await reviewsAPI.getTechnicianReviews(id, page, 5);
+      setReviews(response.data.reviews);
+      setReviewsTotal(response.data.total);
+      setReviewsPage(page);
+    } catch (error) {
+      console.error('[Reviews] Greška pri učitavanju review-ova:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu ocenu?')) return;
+    try {
+      await reviewsAPI.deleteReview(reviewId);
+      toast.success('Ocena je uspešno obrisana');
+      fetchReviewStats();
+      fetchReviews(reviewsPage);
+    } catch (error) {
+      console.error('[Reviews] Greška pri brisanju:', error);
+      toast.error('Greška pri brisanju ocene');
+    }
+  };
+
+  const renderStars = (rating) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill={i < rating ? '#f59e0b' : 'none'} stroke={i < rating ? '#f59e0b' : '#d1d5db'} strokeWidth="2">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </svg>
+    ));
+  };
+
+  // ============================================================
+  // DOCUMENT FUNCTIONS
+  // ============================================================
+
+  const fetchDocuments = async () => {
+    setDocumentsLoading(true);
+    try {
+      const response = await techniciansAPI.getDocuments(id);
+      setDocuments(response.data.documents || []);
+    } catch (error) {
+      console.error('Greška pri dohvatanju dokumenata:', error);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  const handleDocumentUpload = async (files) => {
+    if (!files || files.length === 0) return;
+
+    setUploadingDocument(true);
+    let successCount = 0;
+
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('documentName', file.name);
+
+        const response = await techniciansAPI.uploadDocument(id, formData);
+        setDocuments(prev => [...prev, response.data.document]);
+        successCount++;
+      } catch (error) {
+        console.error('Greška pri upload-u dokumenta:', error);
+        toast.error(`Greška pri upload-u: ${file.name}`);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} dokument(a) uspešno otpremljeno`);
+    }
+    setUploadingDocument(false);
+  };
+
+  const handleDeleteDocument = async (documentId, documentName) => {
+    if (!window.confirm(`Da li ste sigurni da želite da obrišete "${documentName}"?`)) return;
+
+    const originalDocuments = [...documents];
+    setDocuments(prev => prev.filter(d => d._id !== documentId));
+
+    try {
+      await techniciansAPI.deleteDocument(id, documentId);
+      toast.success('Dokument uspešno obrisan');
+    } catch (error) {
+      console.error('Greška pri brisanju dokumenta:', error);
+      toast.error('Greška pri brisanju dokumenta');
+      setDocuments(originalDocuments);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    handleDocumentUpload(files);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const getFileIcon = (fileType) => {
+    if (fileType?.includes('pdf')) return '📄';
+    if (fileType?.includes('word') || fileType?.includes('document')) return '📝';
+    if (fileType?.includes('excel') || fileType?.includes('spreadsheet')) return '📊';
+    if (fileType?.includes('image')) return '🖼️';
+    return '📎';
+  };
+
+  // Da li se fajl može prikazati u pregledaču
+  const isPreviewable = (doc) => {
+    const type = doc.fileType?.toLowerCase() || '';
+    if (type.includes('image')) return true;
+    if (type.includes('pdf')) return true;
+    return false;
+  };
+
+  const getPreviewType = (doc) => {
+    const type = doc.fileType?.toLowerCase() || '';
+    if (type.includes('image')) return 'image';
+    if (type.includes('pdf')) return 'pdf';
+    return null;
+  };
+
+  // Generiši proxy URL za dokument (zaobilazi Cloudinary 401)
+  const getDocViewUrl = (doc) => techniciansAPI.getDocumentViewUrl(id, doc._id);
+  const getDocDownloadUrl = (doc) => techniciansAPI.getDocumentDownloadUrl(id, doc._id);
+
+  // Otvara preview modal
+  const openPreview = (doc) => {
+    setPreviewDoc(doc);
+  };
+
+  const closePreview = () => {
+    setPreviewDoc(null);
+  };
+
+  // Download sa pravim imenom fajla - koristi backend proxy
+  const handleDownloadDocument = (doc) => {
+    const a = document.createElement('a');
+    a.href = getDocDownloadUrl(doc);
+    a.download = doc.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleChangePassword = async () => {
@@ -425,12 +613,43 @@ const TechnicianDetail = () => {
               <UserIcon size={32} />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-slate-900 mb-2">{technician.name}</h2>
+              <div className="flex items-center space-x-3 mb-2">
+                <h2 className="text-xl font-bold text-slate-900">{technician.name}</h2>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  technician.isActive === false
+                    ? 'bg-red-100 text-red-700 border border-red-200'
+                    : 'bg-green-100 text-green-700 border border-green-200'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                    technician.isActive === false ? 'bg-red-500' : 'bg-green-500'
+                  }`} />
+                  {technician.isActive === false ? 'Neaktivan' : 'Aktivan'}
+                </span>
+              </div>
               <div className="space-y-1 text-sm text-slate-600">
                 <p><span className="font-medium">ID:</span> {technician.id}</p>
                 <p><span className="font-medium">Gmail:</span> {technician.gmail || 'Nije uneto'}</p>
                 <p><span className="font-medium">Broj telefona:</span> {technician.phoneNumber || 'Nije uneto'}</p>
                 <p><span className="font-medium">Dodat:</span> {new Date(technician.createdAt).toLocaleDateString('sr-RS')}</p>
+                {technician.employedUntil && (
+                  <p>
+                    <span className="font-medium">Zaposlen do:</span>{' '}
+                    <span className={(() => {
+                      const days = Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24));
+                      if (days < 0) return 'text-red-600 font-semibold';
+                      if (days <= 30) return 'text-amber-600 font-semibold';
+                      return '';
+                    })()}>
+                      {new Date(technician.employedUntil).toLocaleDateString('sr-RS')}
+                      {(() => {
+                        const days = Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24));
+                        if (days < 0) return ' (ISTEKAO)';
+                        if (days <= 30) return ` (${days} dana)`;
+                        return '';
+                      })()}
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex flex-col space-y-2">
@@ -774,6 +993,371 @@ const TechnicianDetail = () => {
         )}
       </div>
       
+      {/* Documents Section */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" x2="8" y1="13" y2="13"></line>
+                <line x1="16" x2="8" y1="17" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <h2 className="text-lg font-semibold text-slate-900">Dokumentacija</h2>
+              <span className="text-sm text-slate-500">({documents.length})</span>
+            </div>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => handleDocumentUpload(Array.from(e.target.files))}
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+                className="hidden"
+              />
+              <Button
+                type="primary"
+                size="medium"
+                onClick={() => fileInputRef.current?.click()}
+                loading={uploadingDocument}
+                prefix={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" x2="12" y1="3" y2="15"></line>
+                  </svg>
+                }
+              >
+                Otpremi dokument
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Drag and drop zone */}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={`transition-all ${dragOver ? 'bg-blue-50 border-2 border-dashed border-blue-400' : ''}`}
+        >
+          {documentsLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="flex items-center space-x-3 text-slate-600">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-sm font-medium">Učitavanje dokumenata...</span>
+              </div>
+            </div>
+          ) : documents.length === 0 ? (
+            <div
+              className="px-6 py-12 text-center text-slate-500 cursor-pointer hover:bg-slate-50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="flex flex-col items-center space-y-3">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <p className="text-sm font-medium">Nema dokumenata</p>
+                <p className="text-xs">Kliknite ili prevucite fajlove za otpremanje<br/>(PDF, Word, Excel, slike)</p>
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-200">
+              {documents.map((doc) => (
+                <div
+                  key={doc._id}
+                  className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors group"
+                >
+                  <div
+                    className="flex items-center space-x-4 flex-1 min-w-0 cursor-pointer"
+                    onClick={() => isPreviewable(doc) ? openPreview(doc) : handleDownloadDocument(doc)}
+                  >
+                    <span className="text-2xl flex-shrink-0">{getFileIcon(doc.fileType)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{doc.name}</p>
+                      <div className="flex items-center space-x-3 mt-1">
+                        <span className="text-xs text-slate-500">
+                          {formatFileSize(doc.fileSize)}
+                        </span>
+                        <span className="text-xs text-slate-400">|</span>
+                        <span className="text-xs text-slate-500">
+                          {new Date(doc.uploadedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isPreviewable(doc) && (
+                      <button
+                        onClick={() => openPreview(doc)}
+                        className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                        title="Pregledaj"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDownloadDocument(doc)}
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      title="Preuzmi"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" x2="12" y1="15" y2="3"></line>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDocument(doc._id, doc.name)}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Obriši dokument"
+                    >
+                      <DeleteIcon size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Document Preview Modal */}
+      {previewDoc && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={closePreview}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
+              <div className="flex items-center space-x-3 min-w-0">
+                <span className="text-xl">{getFileIcon(previewDoc.fileType)}</span>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-slate-900 truncate">{previewDoc.name}</h2>
+                  <p className="text-xs text-slate-500">
+                    {formatFileSize(previewDoc.fileSize)} &middot; {new Date(previewDoc.uploadedAt).toLocaleDateString('sr-RS')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <button
+                  onClick={() => handleDownloadDocument(previewDoc)}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" x2="12" y1="15" y2="3"></line>
+                  </svg>
+                  Preuzmi
+                </button>
+                <button
+                  onClick={closePreview}
+                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" x2="6" y1="6" y2="18"></line>
+                    <line x1="6" x2="18" y1="6" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            {/* Preview Content */}
+            <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center">
+              {getPreviewType(previewDoc) === 'image' ? (
+                <img
+                  src={getDocViewUrl(previewDoc)}
+                  alt={previewDoc.name}
+                  className="max-w-full max-h-[80vh] object-contain p-4"
+                />
+              ) : getPreviewType(previewDoc) === 'pdf' ? (
+                <iframe
+                  src={getDocViewUrl(previewDoc)}
+                  title={previewDoc.name}
+                  className="w-full h-full min-h-[80vh] border-0"
+                />
+              ) : (
+                <div className="text-center p-12 text-slate-500">
+                  <p className="text-lg font-medium mb-2">Pregled nije dostupan</p>
+                  <button
+                    onClick={() => handleDownloadDocument(previewDoc)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Preuzmi dokument
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reviews Section */}
+      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center space-x-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <h2 className="text-lg font-bold text-slate-900">Ocene korisnika</h2>
+            {reviewStats && reviewStats.totalReviews > 0 && (
+              <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                {reviewStats.totalReviews}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Stats Overview */}
+          {reviewStats && reviewStats.totalReviews > 0 ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    {renderStars(Math.round(reviewStats.avgProfessionalism))}
+                  </div>
+                  <div className="text-2xl font-bold text-amber-700">{reviewStats.avgProfessionalism}</div>
+                  <div className="text-xs text-slate-500 mt-1">Profesionalnost</div>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    {renderStars(Math.round(reviewStats.avgServiceQuality))}
+                  </div>
+                  <div className="text-2xl font-bold text-blue-700">{reviewStats.avgServiceQuality}</div>
+                  <div className="text-xs text-slate-500 mt-1">Kvalitet servisa</div>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-green-700">{reviewStats.avgNps}</div>
+                  <div className="text-xs text-slate-500 mt-1">NPS Score (0-10)</div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-700">{reviewStats.onTimePercent}%</div>
+                  <div className="text-xs text-slate-500 mt-1">Tačnost dolaska</div>
+                </div>
+              </div>
+
+              {/* Additional Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700">{reviewStats.cleanInstallationPercent}%</div>
+                    <div className="text-xs text-slate-500">Uredna instalacija</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700">{reviewStats.fullExplanationPercent}%</div>
+                    <div className="text-xs text-slate-500">Jasno objašnjenje</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Individual Reviews */}
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Pojedinačne ocene</h3>
+              {reviewsLoading ? (
+                <div className="text-center py-4 text-slate-400">Učitavanje...</div>
+              ) : (
+                <div className="space-y-3">
+                  {reviews.map((review) => (
+                    <div key={review._id} className="border border-slate-200 rounded-xl p-4 hover:bg-slate-50/50 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-800">{review.customerName || 'Anonimni korisnik'}</span>
+                            <span className="text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString('sr-RS')}</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1">
+                            {renderStars(review.professionalism)}
+                            <span className="text-xs text-slate-500 ml-1">Profesionalnost</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteReview(review._id)}
+                          className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                          title="Obriši ocenu"
+                        >
+                          <DeleteIcon size={16} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                        <div className="bg-slate-100 rounded px-2 py-1">
+                          <span className="text-slate-500">Termin:</span>{' '}
+                          <span className="font-medium text-slate-700">{review.onTime}</span>
+                        </div>
+                        <div className="bg-slate-100 rounded px-2 py-1">
+                          <span className="text-slate-500">Urednost:</span>{' '}
+                          <span className="font-medium text-slate-700">{review.cleanInstallation}</span>
+                        </div>
+                        <div className="bg-slate-100 rounded px-2 py-1">
+                          <span className="text-slate-500">Servis:</span>{' '}
+                          <span className="font-medium text-slate-700">{review.serviceQuality}/5</span>
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p className="text-sm text-slate-600 mt-2 italic bg-slate-50 rounded-lg p-2">"{review.comment}"</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-slate-500">NPS:</span>
+                        <span className={`text-xs font-bold ${review.npsScore >= 9 ? 'text-green-600' : review.npsScore >= 7 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {review.npsScore}/10
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {reviewsTotal > 5 && (
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <button
+                    onClick={() => fetchReviews(reviewsPage - 1)}
+                    disabled={reviewsPage <= 1}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50"
+                  >
+                    Prethodna
+                  </button>
+                  <span className="text-sm text-slate-500">
+                    {reviewsPage} / {Math.ceil(reviewsTotal / 5)}
+                  </span>
+                  <button
+                    onClick={() => fetchReviews(reviewsPage + 1)}
+                    disabled={reviewsPage >= Math.ceil(reviewsTotal / 5)}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50"
+                  >
+                    Sledeća
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" className="mx-auto mb-3">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <p className="text-slate-400 text-sm">Nema ocena za ovog tehničara</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Password Change Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
