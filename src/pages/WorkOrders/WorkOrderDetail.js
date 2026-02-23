@@ -1236,12 +1236,10 @@ const WorkOrderDetail = () => {
                 <p className="text-sm text-slate-900 mt-1">{workOrder.userPhone}</p>
               </div>
             )}
-            {workOrder?.customerEmail && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">Email korisnika:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.customerEmail}</p>
-              </div>
-            )}
+            <div>
+              <label className="text-sm font-medium text-slate-600">Email korisnika:</label>
+              <p className="text-sm text-slate-900 mt-1">{workOrder?.customerEmail || <span className="text-slate-400 italic">Nije unet</span>}</p>
+            </div>
             {workOrder?.tisJobId && (
               <div>
                 <label className="text-sm font-medium text-slate-600">TIS Job ID:</label>
