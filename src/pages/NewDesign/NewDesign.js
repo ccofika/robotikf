@@ -25,7 +25,13 @@ import {
   UserCheckIcon,
   XIcon,
   TableIcon,
-  AlertIcon
+  AlertIcon,
+  MapPinIcon,
+  PhoneIcon,
+  ImageIcon,
+  DownloadIcon,
+  CommentIcon,
+  CheckIcon
 } from '../../components/icons/SvgIcons';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
@@ -608,8 +614,687 @@ const NewDesign = () => {
           </Card>
         )}
 
+        {/* Work Orders by Technician — Design Preview */}
+        <div className="pt-2">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-medium whitespace-nowrap">
+              Pregled dizajna · Radni nalozi po tehničarima
+            </span>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
+          </div>
+          <TechnicianWorkOrdersPreview />
+        </div>
+
+        {/* Work Order Detail — Design Preview */}
+        <div className="pt-2">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-medium whitespace-nowrap">
+              Pregled dizajna · Detalji radnog naloga
+            </span>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
+          </div>
+          <WorkOrderDetailPreview />
+        </div>
+
         {/* WORK ORDERS SECTION */}
         <WorkOrdersSection />
+      </div>
+    </div>
+  );
+};
+
+// ─── Technician Work Orders Design Preview (Static Data) ─────────────────────
+const TechnicianWorkOrdersPreview = () => {
+  const [selectedTech, setSelectedTech] = React.useState('t1');
+  const [activeFilter, setActiveFilter] = React.useState('');
+
+  const techData = {
+    t1: {
+      name: 'Nikola Jovanović', phone: '+381 64 222 3344', initials: 'NJ',
+      stats: { total: 47, completed: 38, pending: 6, postponed: 3 },
+      orders: [
+        { id: 'WO-8847', date: '15.02.2024', time: '09:30', municipality: 'Novi Beograd', address: 'Bul. M. Pupina 165a, st. 42', type: 'Instalacija GPON', status: 'zavrsen', verified: true, tisId: '104857', userName: 'Marko Petrović' },
+        { id: 'WO-8851', date: '15.02.2024', time: '11:00', municipality: 'Zemun', address: 'Glavna 28, st. 7', type: 'Instalacija HFC', status: 'zavrsen', verified: false, tisId: '104862', userName: 'Ana Nikolić' },
+        { id: 'WO-8855', date: '15.02.2024', time: '14:15', municipality: 'Novi Beograd', address: 'Jurija Gagarina 12', type: 'Servis', status: 'nezavrsen', verified: false, tisId: '104870', userName: 'Petar Marković' },
+        { id: 'WO-8860', date: '16.02.2024', time: '08:00', municipality: 'Zemun', address: 'Pregrevica 118', type: 'Instalacija GPON', status: 'zavrsen', verified: true, tisId: '104878', userName: 'Jelena Đorđević' },
+        { id: 'WO-8863', date: '16.02.2024', time: '10:30', municipality: 'Novi Beograd', address: 'Bul. Arsenija Čarnojevića 54', type: 'Demontaža', status: 'odlozen', verified: false, tisId: '104883', userName: 'Milan Stojanović' },
+        { id: 'WO-8869', date: '16.02.2024', time: '13:00', municipality: 'Surčin', address: 'Vojvođanska 15', type: 'Instalacija WiFi', status: 'zavrsen', verified: true, tisId: '104890', userName: 'Dragana Ilić' },
+        { id: 'WO-8874', date: '17.02.2024', time: '09:00', municipality: 'Zemun', address: 'Nikolaja Gogolja 43', type: 'Servis', status: 'nezavrsen', verified: false, tisId: '104895', userName: 'Nemanja Pavlović' },
+        { id: 'WO-8879', date: '17.02.2024', time: '11:30', municipality: 'Novi Beograd', address: 'Omladinskih brigada 90', type: 'Instalacija GPON', status: 'zavrsen', verified: false, tisId: '104901', userName: 'Ivana Tomić' },
+      ]
+    },
+    t2: {
+      name: 'Stefan Milić', phone: '+381 65 111 5566', initials: 'SM',
+      stats: { total: 35, completed: 28, pending: 5, postponed: 2 },
+      orders: [
+        { id: 'WO-8848', date: '15.02.2024', time: '08:30', municipality: 'Voždovac', address: 'Vojislava Ilića 112', type: 'Instalacija HFC', status: 'zavrsen', verified: true, tisId: '104858', userName: 'Miloš Ristić' },
+        { id: 'WO-8852', date: '15.02.2024', time: '12:00', municipality: 'Zvezdara', address: 'Bul. kralja Aleksandra 300', type: 'Servis', status: 'nezavrsen', verified: false, tisId: '104863', userName: 'Tamara Kostić' },
+        { id: 'WO-8858', date: '16.02.2024', time: '09:00', municipality: 'Voždovac', address: 'Ustanička 189', type: 'Instalacija GPON', status: 'zavrsen', verified: true, tisId: '104875', userName: 'Lazar Popović' },
+        { id: 'WO-8865', date: '16.02.2024', time: '14:00', municipality: 'Zvezdara', address: 'Dalmatinska 22', type: 'Instalacija WiFi', status: 'odlozen', verified: false, tisId: '104885', userName: 'Sonja Petrović' },
+      ]
+    },
+    t3: {
+      name: 'Marko Radović', phone: '+381 63 777 8899', initials: 'MR',
+      stats: { total: 29, completed: 22, pending: 4, postponed: 3 },
+      orders: [
+        { id: 'WO-8849', date: '15.02.2024', time: '09:00', municipality: 'Čukarica', address: 'Požeška 83', type: 'Instalacija GPON', status: 'zavrsen', verified: true, tisId: '104859', userName: 'Vesna Savić' },
+        { id: 'WO-8856', date: '15.02.2024', time: '13:30', municipality: 'Rakovica', address: 'Patrijarha Joanikija 20', type: 'Servis', status: 'nezavrsen', verified: false, tisId: '104871', userName: 'Goran Milošević' },
+        { id: 'WO-8862', date: '16.02.2024', time: '08:30', municipality: 'Čukarica', address: 'Kneza Višeslava 14', type: 'Demontaža', status: 'otkazan', verified: false, tisId: '104882', userName: 'Maja Stanković' },
+      ]
+    },
+    t4: {
+      name: 'Aleksandar Đokić', phone: '+381 66 333 4455', initials: 'AĐ',
+      stats: { total: 41, completed: 33, pending: 5, postponed: 3 },
+      orders: []
+    },
+    t5: {
+      name: 'Dejan Vasić', phone: '+381 64 999 1122', initials: 'DV',
+      stats: { total: 22, completed: 18, pending: 2, postponed: 2 },
+      orders: []
+    }
+  };
+
+  const tech = techData[selectedTech];
+  const filteredOrders = activeFilter
+    ? tech.orders.filter(o => o.status === activeFilter)
+    : tech.orders;
+
+  const statusCfg = {
+    zavrsen: { label: 'Završen', dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    nezavrsen: { label: 'Nezavršen', dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+    odlozen: { label: 'Odložen', dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    otkazan: { label: 'Otkazan', dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
+  };
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+
+      {/* ── Header Bar ──────────────────────────────────────────── */}
+      <div className="bg-slate-900 px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <UsersIcon size={16} className="text-slate-400" />
+            <span className="text-white text-sm font-semibold">Radni nalozi po tehničarima</span>
+          </div>
+          <div className="hidden sm:block w-px h-4 bg-slate-700" />
+          <span className="text-slate-400 text-xs font-mono">{Object.keys(techData).length} tehničara</span>
+          <div className="hidden sm:block w-px h-4 bg-slate-700" />
+          <span className="text-slate-400 text-xs font-mono">
+            {Object.values(techData).reduce((s, t) => s + t.stats.total, 0)} naloga
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
+            <PlusIcon size={12} />
+            Novi nalog
+          </button>
+          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
+            <DownloadIcon size={12} />
+            Export
+          </button>
+          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
+            <RefreshIcon size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Search Strip ────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-4 sm:px-5 py-2.5 border-b border-slate-100 bg-slate-50/50">
+        <div className="relative flex-1 max-w-sm">
+          <SearchIcon size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Pretraga po adresi, korisniku, serijskom broju..."
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+          />
+        </div>
+        <select className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900">
+          <option>Svi statusi</option>
+          <option>Završeni</option>
+          <option>Nezavršeni</option>
+          <option>Odloženi</option>
+        </select>
+        <select className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900">
+          <option>Svi datumi</option>
+          <option>Danas</option>
+          <option>Juče</option>
+          <option>Ove nedelje</option>
+        </select>
+      </div>
+
+      {/* ── Main Layout: Sidebar + Content ──────────────────────── */}
+      <div className="flex min-h-[520px]">
+
+        {/* LEFT — Technician List */}
+        <div className="w-[280px] flex-shrink-0 border-r border-slate-100 flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            {Object.entries(techData).map(([id, t]) => {
+              const isActive = selectedTech === id;
+              const rate = t.stats.total > 0 ? Math.round((t.stats.completed / t.stats.total) * 100) : 0;
+              return (
+                <div
+                  key={id}
+                  onClick={() => { setSelectedTech(id); setActiveFilter(''); }}
+                  className={`px-4 py-3 cursor-pointer transition-all border-l-[3px] ${
+                    isActive
+                      ? 'bg-slate-900 border-l-white'
+                      : 'border-l-transparent hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Name row */}
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold ${
+                      isActive ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {t.initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[13px] font-semibold truncate ${isActive ? 'text-white' : 'text-slate-900'}`}>
+                        {t.name}
+                      </p>
+                      <p className={`text-[10px] font-mono ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>
+                        {t.phone}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="flex items-center gap-1">
+                    <div
+                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-slate-50'}`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter(''); }}
+                    >
+                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-white' : 'text-slate-900'}`}>{t.stats.total}</p>
+                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>Sve</p>
+                    </div>
+                    <div
+                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-emerald-50/80'}`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('zavrsen'); }}
+                    >
+                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-emerald-400' : 'text-emerald-600'}`}>{t.stats.completed}</p>
+                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>OK</p>
+                    </div>
+                    <div
+                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-blue-50/80'}`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('nezavrsen'); }}
+                    >
+                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-blue-400' : 'text-blue-600'}`}>{t.stats.pending}</p>
+                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>Akt</p>
+                    </div>
+                    <div
+                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-amber-50/80'}`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('odlozen'); }}
+                    >
+                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-amber-400' : 'text-amber-600'}`}>{t.stats.postponed}</p>
+                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>Odl</p>
+                    </div>
+                  </div>
+
+                  {/* Completion bar */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className={`flex-1 h-1 rounded-full ${isActive ? 'bg-white/10' : 'bg-slate-100'}`}>
+                      <div
+                        className={`h-1 rounded-full transition-all ${isActive ? 'bg-emerald-400' : 'bg-emerald-500'}`}
+                        style={{ width: `${rate}%` }}
+                      />
+                    </div>
+                    <span className={`text-[10px] font-mono font-semibold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>{rate}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* RIGHT — Work Orders Table */}
+        <div className="flex-1 flex flex-col min-w-0">
+
+          {/* Tech header + filters */}
+          <div className="px-4 sm:px-5 py-3 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white text-xs font-bold">
+                  {tech.initials}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">{tech.name}</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">{tech.phone}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400">
+                  {filteredOrders.length} od {tech.orders.length} naloga
+                </span>
+                <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all">
+                  <DownloadIcon size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick filter chips */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setActiveFilter('')}
+                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
+                  !activeFilter
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                Svi ({tech.stats.total})
+              </button>
+              <button
+                onClick={() => setActiveFilter('zavrsen')}
+                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
+                  activeFilter === 'zavrsen'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300'
+                }`}
+              >
+                Završeni ({tech.stats.completed})
+              </button>
+              <button
+                onClick={() => setActiveFilter('nezavrsen')}
+                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
+                  activeFilter === 'nezavrsen'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-300'
+                }`}
+              >
+                Nezavršeni ({tech.stats.pending})
+              </button>
+              <button
+                onClick={() => setActiveFilter('odlozen')}
+                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
+                  activeFilter === 'odlozen'
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300'
+                }`}
+              >
+                Odloženi ({tech.stats.postponed})
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto">
+            {filteredOrders.length > 0 ? (
+              <table className="w-full">
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-24">Datum</th>
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-20">Vreme</th>
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5">Opština</th>
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5">Adresa</th>
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5">Korisnik</th>
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-28">Tip</th>
+                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-24">Status</th>
+                    <th className="text-right text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-16"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order, idx) => {
+                    const st = statusCfg[order.status];
+                    return (
+                      <tr
+                        key={order.id}
+                        className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-slate-900 font-medium">{order.date}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-[11px] font-mono text-slate-500">{order.time}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-slate-700">{order.municipality}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="max-w-[220px]">
+                            <p className="text-xs text-slate-900 font-medium truncate">{order.address}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">TIS {order.tisId}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-slate-600">{order.userName}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-[11px] text-slate-600">{order.type}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                            <span className={`text-[11px] font-medium ${st.text}`}>{st.label}</span>
+                            {order.verified && (
+                              <CheckCircleIcon size={11} className="text-emerald-500 ml-0.5" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors">
+                              <ViewIcon size={13} />
+                            </button>
+                            <button className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                              <DeleteIcon size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center py-12">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                    <ClipboardIcon size={18} className="text-slate-400" />
+                  </div>
+                  <p className="text-sm text-slate-600 font-medium">Nema radnih naloga</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Izaberite drugog tehničara ili promenite filter</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer / Pagination */}
+          {filteredOrders.length > 0 && (
+            <div className="px-4 sm:px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                Stranica 1 od 1 · {filteredOrders.length} naloga
+              </span>
+              <div className="flex items-center gap-1">
+                <button className="px-2 py-1 text-[11px] text-slate-400 bg-white border border-slate-200 rounded-md">‹</button>
+                <button className="px-2.5 py-1 text-[11px] text-white bg-slate-900 rounded-md font-medium">1</button>
+                <button className="px-2 py-1 text-[11px] text-slate-400 bg-white border border-slate-200 rounded-md">›</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Work Order Detail Design Preview (Static Data) ──────────────────────────
+const WorkOrderDetailPreview = () => {
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+
+      {/* ── Command Bar ─────────────────────────────────────────── */}
+      <div className="bg-slate-900 px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-emerald-500/15 px-2 py-1 rounded-md">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-emerald-400 text-[11px] font-semibold uppercase tracking-wide">Završen</span>
+          </div>
+          <span className="text-white font-mono text-sm font-bold tracking-tight">WO-2024-08847</span>
+          <span className="hidden sm:inline text-slate-600">·</span>
+          <span className="text-slate-400 text-xs font-mono">15.02.2024 · 09:30</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
+            <DownloadIcon size={12} />
+            PDF
+          </button>
+          <button className="px-2.5 py-1.5 text-[11px] text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md flex items-center gap-1.5 transition-all">
+            <CheckIcon size={12} />
+            Verifikuj
+          </button>
+          <button className="px-2.5 py-1.5 text-[11px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-md flex items-center gap-1.5 transition-all">
+            <AlertIcon size={12} />
+            Vrati
+          </button>
+        </div>
+      </div>
+
+      {/* ── Core Info Grid ──────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 border-b border-slate-100 bg-slate-50/50">
+        <div className="px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <CalendarIcon size={11} className="text-slate-400" />
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Datum / Tip</span>
+          </div>
+          <p className="text-[13px] text-slate-900 font-semibold leading-tight">15. februar 2024</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Instalacija GPON · 09:30</p>
+        </div>
+        <div className="px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <MapPinIcon size={11} className="text-slate-400" />
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Lokacija</span>
+          </div>
+          <p className="text-[13px] text-slate-900 font-semibold leading-tight">Novi Beograd</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Bul. Mihajla Pupina 165a, st. 42</p>
+        </div>
+        <div className="px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <UserIcon size={11} className="text-slate-400" />
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Tehničar</span>
+          </div>
+          <p className="text-[13px] text-slate-900 font-semibold leading-tight">Nikola Jovanović</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">+ Stefan Milić <span className="text-slate-400">(pomoćni)</span></p>
+        </div>
+        <div className="px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <PhoneIcon size={11} className="text-slate-400" />
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Korisnik</span>
+          </div>
+          <p className="text-[13px] text-slate-900 font-semibold leading-tight">Marko Petrović</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">+381 64 123 4567</p>
+        </div>
+      </div>
+
+      {/* ── IDs Strip ───────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 sm:px-5 py-2 border-b border-slate-100">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 uppercase">TIS</span>
+          <span className="text-[11px] font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">104857</span>
+        </div>
+        <div className="hidden sm:block w-px h-3 bg-slate-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 uppercase">Job</span>
+          <span className="text-[11px] font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">JOB-29481</span>
+        </div>
+        <div className="hidden sm:block w-px h-3 bg-slate-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 uppercase">Tehnologija</span>
+          <span className="text-[11px] font-mono text-slate-500">GPON</span>
+        </div>
+        <div className="hidden sm:block w-px h-3 bg-slate-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 uppercase">Email</span>
+          <span className="text-[11px] text-slate-500">marko.petrovic@gmail.com</span>
+        </div>
+      </div>
+
+      {/* ── Main Content ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12">
+
+        {/* LEFT COLUMN — work details + evidence */}
+        <div className="lg:col-span-7 lg:border-r border-slate-100">
+
+          {/* Details + Comment */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2 flex items-center gap-1.5">
+                  <CommentIcon size={11} className="text-slate-400" />
+                  Detalji posla
+                </p>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  Instalacija GPON opreme kod novog korisnika. Potrebno izvesti kabel od PM kutije na 3. spratu do stana 42 na 5. spratu. Korisnik obavestio da postoji kanal za kablove.
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2">Komentar tehničara</p>
+                <div className="border-l-2 border-emerald-400 pl-3 bg-emerald-50/50 py-2 pr-2 rounded-r">
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    Instalacija završena uspešno. Kabel provučen kroz postojeći kanal. Signal -18dBm, u granicama normale. Korisnik zadovoljan.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Equipment Table */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium flex items-center gap-1.5">
+                <BoxIcon size={11} className="text-slate-400" />
+                Oprema korisnika
+              </p>
+              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-medium">3</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left font-medium text-slate-500 pb-2 pr-3 w-14">Tip</th>
+                    <th className="text-left font-medium text-slate-500 pb-2 pr-3">Opis</th>
+                    <th className="text-left font-medium text-slate-500 pb-2 pr-3">Serijski br.</th>
+                    <th className="text-right font-medium text-slate-500 pb-2 w-16">Datum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { type: 'ONT', desc: 'Huawei HG8245H5', serial: 'HWT-48573920145', date: '15.02.24' },
+                    { type: 'STB', desc: 'Motorola VIP1003', serial: 'MOT-93847561022', date: '15.02.24' },
+                    { type: 'RTR', desc: 'TP-Link Archer C6', serial: 'TPL-28374650198', date: '15.02.24' },
+                  ].map((eq, i) => (
+                    <tr key={i} className="border-b border-slate-50 last:border-0">
+                      <td className="py-2 pr-3">
+                        <span className="bg-slate-900 text-white text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide">{eq.type}</span>
+                      </td>
+                      <td className="py-2 pr-3 text-slate-900 font-medium">{eq.desc}</td>
+                      <td className="py-2 pr-3 font-mono text-slate-500 text-[11px]">{eq.serial}</td>
+                      <td className="py-2 text-right text-slate-400">{eq.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Materials + Images */}
+          <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-slate-100">
+            {/* Materials */}
+            <div className="px-4 sm:px-5 py-4 border-b md:border-b-0 border-slate-100">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
+                <ToolsIcon size={11} className="text-slate-400" />
+                Utrošeni materijali
+              </p>
+              <div className="space-y-0.5">
+                {[
+                  { name: 'Opt. patch cord SC/APC 3m', qty: '1' },
+                  { name: 'UTP Cat6 kabl', qty: '15m' },
+                  { name: 'RJ45 konektor', qty: '4' },
+                  { name: 'Kanalica 40x25mm', qty: '3m' },
+                  { name: 'Tiplovi i šrafovi', qty: '8' },
+                ].map((mat, i) => (
+                  <div key={i} className="flex items-center justify-between py-1">
+                    <span className="text-[11px] text-slate-600">{mat.name}</span>
+                    <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">×{mat.qty}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Images */}
+            <div className="px-4 sm:px-5 py-4">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
+                <ImageIcon size={11} className="text-slate-400" />
+                Slike
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 rounded-full ml-0.5">4</span>
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="aspect-square rounded-md bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer flex items-center justify-center group">
+                    <ImageIcon size={14} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN — summary, history, status */}
+        <div className="lg:col-span-5 border-t lg:border-t-0 border-slate-100">
+
+          {/* Summary Counters */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5">Pregled</p>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Oprema', value: '3' },
+                { label: 'Materijali', value: '5' },
+                { label: 'Slike', value: '4' },
+                { label: 'Trajanje', value: '~2h' },
+              ].map((s, i) => (
+                <div key={i} className="text-center py-2 bg-slate-50 rounded-lg">
+                  <p className="text-lg font-bold text-slate-900 leading-none">{s.value}</p>
+                  <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-wide">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Additional Jobs */}
+          <div className="px-4 sm:px-5 py-3 border-b border-slate-100">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-1">Dodatni poslovi</p>
+            <p className="text-xs text-slate-700">Montaža nosača, testiranje signala</p>
+          </div>
+
+          {/* Postponement History */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
+            <p className="text-[10px] uppercase tracking-wider text-amber-500 font-medium mb-2.5 flex items-center gap-1.5">
+              <ClockIcon size={11} className="text-amber-500" />
+              Istorija odlaganja
+            </p>
+            <div className="bg-amber-50 rounded-lg p-3 border border-amber-100/80">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono text-amber-700">14.02.2024 · 08:15</span>
+                <span className="text-[9px] bg-amber-200/70 text-amber-800 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Odlaganje #1</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">Korisnik nije bio dostupan, zakazano za sutradan.</p>
+              <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-amber-600 font-mono">
+                <span>14.02</span>
+                <span className="text-amber-400">→</span>
+                <span>15.02.2024</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cancellation History */}
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
+            <p className="text-[10px] uppercase tracking-wider text-red-500 font-medium mb-2.5 flex items-center gap-1.5">
+              <AlertIcon size={11} className="text-red-500" filled />
+              Istorija otkazivanja
+            </p>
+            <div className="bg-red-50 rounded-lg p-3 border border-red-100/80">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono text-red-700">13.02.2024 · 14:20</span>
+                <span className="text-[9px] bg-red-200/70 text-red-800 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Otkazivanje #1</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">Korisnik otkazao prvi termin zbog putovanja.</p>
+            </div>
+          </div>
+
+          {/* Customer Status */}
+          <div className="px-4 sm:px-5 py-4">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
+              <CheckCircleIcon size={11} className="text-emerald-500" />
+              Status korisnika
+            </p>
+            <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100/80">
+              <p className="text-[11px] text-emerald-800 font-medium leading-relaxed">
+                Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -228,6 +228,11 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       icon: UsersIcon
     },
     {
+      title: "Export",
+      href: "/export",
+      icon: ExcelIcon
+    },
+    {
       title: "Logovi",
       href: "/logs",
       icon: HistoryIcon
@@ -270,11 +275,6 @@ export function ShadcnSidebar({ className }: SidebarProps) {
   // SuperAdmin ima sve admin stranice + dodatne opcije
   const superAdminMenuItems = [
     ...adminMenuItems,
-    {
-      title: "Export",
-      href: "/export",
-      icon: ExcelIcon
-    },
     {
       title: "Finansije",
       href: "/finances",

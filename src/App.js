@@ -307,7 +307,7 @@ const PrivateRoute = ({ children }) => {
                   isAdminLike(user?.role) ? <UsersList /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/export" element={
-                  isSupervisorLike(user?.role) ? <ExportSpecification /> : <Navigate to="/access-denied" />
+                  isAdminLike(user?.role) ? <ExportSpecification /> : <Navigate to="/access-denied" />
                 } />
                 <Route path="/logs" element={
                   isAdminLike(user?.role) ? <Logs /> : <Navigate to="/access-denied" />
