@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import {
   BoxIcon,
   ToolsIcon,
@@ -7,21 +9,21 @@ import {
   ClipboardIcon,
   CheckCircleIcon,
   ClockIcon,
-  BarChartIcon,
   PlusIcon,
   RefreshIcon,
   DollarSignIcon,
   AlertTriangleIcon,
   CalendarIcon,
-  HistoryIcon
+  HistoryIcon,
+  StarIcon,
+  ChevronRightIcon,
+  SearchIcon
 } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
 import { cn } from '../../utils/cn';
 import { AuthContext } from '../../context/AuthContext';
-import AIAnalysisCard from '../../components/dashboard/AIAnalysisCard';
+import api, { reviewsAPI } from '../../services/api';
+import GlobalSearch from '../../components/GlobalSearch';
 
-// Helper functions for log icon and color mapping
 const getIconForAction = (action) => {
   const iconMap = {
     'workorder_completed': CheckCircleIcon,
@@ -51,7 +53,8 @@ const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
 
-  const isSuperAdmin = user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'supervisor';
+
   const [stats, setStats] = useState({
     equipment: 0,
     materials: 0,
@@ -65,37 +68,32 @@ const Dashboard = () => {
     }
   });
 
-  // Extended stats
   const [vehicleStats, setVehicleStats] = useState(null);
   const [financialStats, setFinancialStats] = useState(null);
   const [activityStats, setActivityStats] = useState(null);
   const [failedTransactions, setFailedTransactions] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [reviewData, setReviewData] = useState(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
-      console.log('Dashboard: Fetching optimized data...');
-      const startTime = Date.now();
-
-      // Optimizovano - samo osnovni statsOnly pozivi sa MongoDB projekcijama
       const apiCalls = [
-        axios.get(`${apiUrl}/api/equipment?statsOnly=true`),
-        axios.get(`${apiUrl}/api/materials?statsOnly=true`),
-        axios.get(`${apiUrl}/api/technicians`),
-        axios.get(`${apiUrl}/api/workorders/statistics/summary`),
-        axios.get(`${apiUrl}/api/vehicles/stats/overview`).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/api/logs/statistics`).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/api/logs/technicians?limit=10`).catch(() => ({ data: { results: [] } }))
+        api.get('/api/equipment?statsOnly=true'),
+        api.get('/api/materials?statsOnly=true'),
+        api.get('/api/technicians'),
+        api.get('/api/workorders/statistics/summary'),
+        api.get('/api/vehicles/stats/overview').catch(() => ({ data: null })),
+        api.get('/api/logs/statistics').catch(() => ({ data: null })),
+        api.get('/api/logs/technicians?limit=5').catch(() => ({ data: { results: [] } })),
+        reviewsAPI.getDashboardSummary().catch(() => ({ data: null }))
       ];
 
-      // Add financial API calls only for superadmin
       if (isSuperAdmin) {
         apiCalls.push(
-          axios.get(`${apiUrl}/api/finances/reports?statsOnly=true`).catch(() => ({ data: null })),
-          axios.get(`${apiUrl}/api/finances/failed-transactions`).catch(() => ({ data: [] }))
+          api.get('/api/finances/reports?statsOnly=true').catch(() => ({ data: null })),
+          api.get('/api/finances/failed-transactions').catch(() => ({ data: [] }))
         );
       }
 
@@ -109,14 +107,12 @@ const Dashboard = () => {
         vehicleStatsRes,
         logsStatsRes,
         logsRes,
+        reviewsRes,
         financialReportsRes,
         failedTransactionsRes
       ] = isSuperAdmin
         ? responses
         : [...responses, { data: null }, { data: [] }];
-
-      const endTime = Date.now();
-      console.log(`Dashboard: Data fetched in ${endTime - startTime}ms`);
 
       setStats({
         equipment: equipment.data.total || equipment.data.length || 0,
@@ -132,15 +128,12 @@ const Dashboard = () => {
       });
 
       setVehicleStats(vehicleStatsRes.data);
-      setFinancialStats(financialReportsRes.data?.summary || null);
+      setFinancialStats(financialReportsRes?.data?.summary || null);
       setActivityStats(logsStatsRes.data);
-      setFailedTransactions(failedTransactionsRes.data || []);
+      setFailedTransactions(failedTransactionsRes?.data || []);
+      setReviewData(reviewsRes?.data || null);
 
-      // Process Recent Activity from logs
       const logsData = logsRes.data?.results || logsRes.data?.data || [];
-      console.log('logsData before processing:', logsData);
-
-      // Extract individual logs from grouped results
       const allLogs = [];
       if (Array.isArray(logsData)) {
         logsData.forEach(group => {
@@ -156,12 +149,8 @@ const Dashboard = () => {
       }
 
       const recentLogs = allLogs
-        .sort((a, b) => {
-          const dateA = new Date(a.timestamp || a.createdAt || 0);
-          const dateB = new Date(b.timestamp || b.createdAt || 0);
-          return dateB - dateA;
-        })
-        .slice(0, 3)
+        .sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0))
+        .slice(0, 5)
         .map(log => ({
           type: log.action || 'activity',
           message: log.description || log.action || 'Aktivnost',
@@ -171,7 +160,6 @@ const Dashboard = () => {
           technicianName: log.technicianName
         }));
 
-      console.log('recentLogs after processing:', recentLogs);
       setRecentActivity(recentLogs);
 
     } catch (error) {
@@ -219,582 +207,661 @@ const Dashboard = () => {
     return count;
   };
 
+  const renderStars = (rating, max = 5) => {
+    const stars = [];
+    const rounded = Math.round(rating);
+    for (let i = 1; i <= max; i++) {
+      stars.push(
+        <StarIcon
+          key={i}
+          size={12}
+          className={i <= rounded ? 'text-amber-400' : 'text-slate-200'}
+        />
+      );
+    }
+    return stars;
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-600 font-medium">Učitavanje...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-600 font-medium">Učitavanje...</p>
         </div>
       </div>
     );
   }
 
+  const completionRate = stats.workOrders.total > 0
+    ? Math.round((stats.workOrders.completed / stats.workOrders.total) * 100)
+    : 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <BarChartIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-              <p className="text-sm text-slate-600">Pregled sistema</p>
-            </div>
+    <div className="space-y-6">
+
+        {/* Header */}
+        <div className="flex items-center gap-4 pb-6">
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${searchFocused ? 'w-0 opacity-0' : 'opacity-100'}`}>
+            <h1 className="text-2xl font-semibold text-slate-900 mb-1">Dashboard</h1>
+            <p className="text-sm text-slate-500">Dobrodošli, {user?.name}</p>
           </div>
-          <Button
-            type="secondary"
-            size="small"
-            prefix={<RefreshIcon size={16} className={loading ? 'animate-spin' : ''} />}
-            onClick={fetchDashboardData}
-            disabled={loading}
-          >
-            Osveži
-          </Button>
-        </div>
-      </div>
-
-      {/* Critical Alerts - Compact */}
-      {getTotalAlerts() > 0 && (
-        <div className="mb-4">
-          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangleIcon size={20} className="text-red-600 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-red-900 text-sm">
-                    Upozorenja ({getTotalAlerts()})
-                  </h3>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {failedTransactions.length > 0 && (
-                  <button
-                    onClick={() => navigate('/finances')}
-                    className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
-                  >
-                    <DollarSignIcon size={14} />
-                    {failedTransactions.length} finansijskih
-                  </button>
-                )}
-                {vehicleStats?.expiringRegistrations > 0 && (
-                  <button
-                    onClick={() => navigate('/vehicles')}
-                    className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
-                  >
-                    <CalendarIcon size={14} />
-                    {vehicleStats.expiringRegistrations} registracija
-                  </button>
-                )}
-                {stats.workOrders.postponed > 0 && (
-                  <button
-                    onClick={() => navigateToWorkOrders('odlozen')}
-                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
-                  >
-                    <ClockIcon size={14} />
-                    {stats.workOrders.postponed} odloženih
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Stats Grid - 8 cards in 4x2 layout */}
-      <div className="mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Row 1 - Core Resources */}
-          <Link
-            to="/equipment"
-            className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-                <BoxIcon size={20} className="text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Oprema</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.equipment}</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/materials"
-            className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
-                <ToolsIcon size={20} className="text-green-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Materijali</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.materials}</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/technicians"
-            className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
-                <UsersIcon size={20} className="text-purple-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Tehničari</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.technicians}</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/work-orders"
-            className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">
-                <ClipboardIcon size={20} className="text-orange-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Radni nalozi</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.workOrders.total}</p>
-              </div>
-            </div>
-          </Link>
-
-          {/* Row 2 - Extended Stats */}
-          <Link
-            to="/vehicles"
-            className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-cyan-50 rounded-lg group-hover:bg-cyan-100 transition-colors">
-                <CalendarIcon size={20} className="text-cyan-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Vozila</p>
-                <p className="text-2xl font-bold text-slate-900">{vehicleStats?.totalVehicles || 0}</p>
-                {vehicleStats?.expiringRegistrations > 0 && (
-                  <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-0.5">
-                    <AlertTriangleIcon size={10} />
-                    {vehicleStats.expiringRegistrations} ističe
-                  </p>
-                )}
-              </div>
-            </div>
-          </Link>
-
-          {isSuperAdmin && financialStats && (
-            <Link
-              to="/finances"
-              className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
+          <div className="flex items-center gap-3 ml-auto flex-1 justify-end">
+            <GlobalSearch onFocusChange={setSearchFocused} expanded={searchFocused} />
+            <button
+              onClick={fetchDashboardData}
+              className="p-2 rounded-xl hover:bg-slate-50 transition-colors text-slate-500 hover:text-slate-900 flex-shrink-0"
+              title="Osveži podatke"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors">
-                  <DollarSignIcon size={20} className="text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-600 uppercase font-medium">Profit (mesec)</p>
-                  <p className="text-xl font-bold text-emerald-900">
-                    {((financialStats.totalProfit || 0) / 1000).toFixed(0)}k
-                  </p>
-                </div>
-              </div>
-            </Link>
-          )}
+              <RefreshIcon size={18} />
+            </button>
+            <Avatar className="h-9 w-9 flex-shrink-0">
+              <AvatarFallback className="bg-slate-900 text-white text-sm font-medium">
+                {user?.name?.charAt(0) || 'U'}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
 
-          <Link
-            to="/logs"
-            className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                <HistoryIcon size={20} className="text-indigo-600" />
+        {/* Alerts Banner */}
+        {getTotalAlerts() > 0 && (
+          <Card className="border border-red-200 bg-white">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-red-50 rounded-lg">
+                    <AlertTriangleIcon size={16} className="text-red-600" />
+                  </div>
+                  <span className="font-semibold text-slate-900 text-sm">
+                    Upozorenja ({getTotalAlerts()})
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {failedTransactions.length > 0 && (
+                    <button
+                      onClick={() => navigate('/finances')}
+                      className="text-xs bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
+                    >
+                      <DollarSignIcon size={12} />
+                      {failedTransactions.length} finansijskih
+                    </button>
+                  )}
+                  {vehicleStats?.expiringRegistrations > 0 && (
+                    <button
+                      onClick={() => navigate('/vehicles')}
+                      className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
+                    >
+                      <CalendarIcon size={12} />
+                      {vehicleStats.expiringRegistrations} registracija
+                    </button>
+                  )}
+                  {stats.workOrders.postponed > 0 && (
+                    <button
+                      onClick={() => navigateToWorkOrders('odlozen')}
+                      className="text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
+                    >
+                      <ClockIcon size={12} />
+                      {stats.workOrders.postponed} odloženih
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Aktivnosti</p>
-                <p className="text-2xl font-bold text-slate-900">{activityStats?.todayLogs || 0}</p>
-              </div>
-            </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Main Stats Grid - 4 cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link to="/work-orders">
+            <Card className="bg-slate-900 text-white border-0 hover:bg-slate-800 transition-all cursor-pointer overflow-hidden">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2 bg-white/10 rounded-lg">
+                    <ClipboardIcon size={20} className="text-white" />
+                  </div>
+                  <span className="text-xs text-slate-400">Ukupno</span>
+                </div>
+                <p className="text-sm text-slate-400 mb-1">Radni nalozi</p>
+                <p className="text-3xl font-bold mb-2">{stats.workOrders.total.toLocaleString()}</p>
+                <div className="flex items-center gap-1 text-xs text-emerald-400">
+                  <span>↑ {completionRate}%</span>
+                  <span className="text-slate-500">završeno</span>
+                </div>
+              </CardContent>
+            </Card>
           </Link>
 
-          {/* 8th Card - Completion Rate */}
-          <div className="bg-white rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-teal-50 rounded-lg">
-                <CheckCircleIcon size={20} className="text-teal-600" />
+          <Link to="/equipment">
+            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <BoxIcon size={20} className="text-blue-600" />
+                  </div>
+                  <span className="text-xs text-slate-400">Aktivna</span>
+                </div>
+                <p className="text-sm text-slate-500 mb-1">Oprema</p>
+                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.equipment.toLocaleString()}</p>
+                <div className="flex items-center gap-1 text-xs text-slate-500">
+                  <BoxIcon size={10} className="text-slate-400" />
+                  <span className="text-slate-400">ukupno uređaja</span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/technicians">
+            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2 bg-violet-50 rounded-lg">
+                    <UsersIcon size={20} className="text-violet-600" />
+                  </div>
+                  <span className="text-xs text-slate-400">Tim</span>
+                </div>
+                <p className="text-sm text-slate-500 mb-1">Tehničari</p>
+                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.technicians.toLocaleString()}</p>
+                <div className="flex items-center gap-1 text-xs text-slate-500">
+                  <span>~{stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0}</span>
+                  <span className="text-slate-400">naloga/tehničar</span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/materials">
+            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2 bg-amber-50 rounded-lg">
+                    <ToolsIcon size={20} className="text-amber-600" />
+                  </div>
+                  <span className="text-xs text-slate-400">Stanje</span>
+                </div>
+                <p className="text-sm text-slate-500 mb-1">Materijali</p>
+                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.materials.toLocaleString()}</p>
+                <div className="flex items-center gap-1 text-xs text-slate-500">
+                  <ToolsIcon size={10} className="text-slate-400" />
+                  <span className="text-slate-400">na lageru</span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Middle Section - Chart + Quick Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Work Orders Overview Chart */}
+          <Card className="lg:col-span-8 bg-white border border-slate-100">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-semibold text-slate-900">Pregled radnih naloga</CardTitle>
+                  <p className="text-xs text-slate-500 mt-1">Raspodela po statusu</p>
+                </div>
+                <Link to="/work-orders" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">
+                  Svi nalozi →
+                </Link>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-600 uppercase font-medium">Stopa završavanja</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {stats.workOrders.total > 0
-                    ? Math.round((stats.workOrders.completed / stats.workOrders.total) * 100)
-                    : 0}%
-                </p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56 flex items-end justify-between gap-6 px-4">
+                {[
+                  { label: 'Završeni', value: stats.workOrders.completed, color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600', status: 'zavrsen' },
+                  { label: 'U toku', value: stats.workOrders.pending, color: 'bg-blue-500', hoverColor: 'hover:bg-blue-600', status: 'nezavrsen' },
+                  { label: 'Odloženi', value: stats.workOrders.postponed, color: 'bg-amber-500', hoverColor: 'hover:bg-amber-600', status: 'odlozen' }
+                ].map((item) => {
+                  const maxVal = Math.max(stats.workOrders.completed, stats.workOrders.pending, stats.workOrders.postponed, 1);
+                  const heightPct = Math.max((item.value / maxVal) * 85, 5);
+                  return (
+                    <div
+                      key={item.status}
+                      className="flex-1 flex flex-col items-center gap-3 cursor-pointer group"
+                      onClick={() => navigateToWorkOrders(item.status)}
+                    >
+                      <span className="text-sm font-bold text-slate-900">{item.value}</span>
+                      <div className="w-full flex items-end" style={{ height: '170px' }}>
+                        <div
+                          className={`w-full rounded-t-xl transition-all ${item.color} ${item.hoverColor} group-hover:opacity-90`}
+                          style={{ height: `${heightPct}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-slate-500 group-hover:text-slate-900 font-medium transition-colors">
+                        {item.label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats - Completed & In Progress */}
+          <div className="lg:col-span-4 space-y-4">
+            <Card
+              className="bg-blue-50 border-0 cursor-pointer hover:bg-blue-100/80 transition-colors"
+              onClick={() => navigateToWorkOrders('zavrsen')}
+            >
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-blue-600 mb-1">Završeni</p>
+                    <p className="text-2xl font-bold text-slate-900">{stats.workOrders.completed}</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl">
+                    <CheckCircleIcon size={24} className="text-blue-600" />
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-blue-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600">Stopa uspešnosti</span>
+                    <span className="text-slate-900 font-semibold">{completionRate}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 mt-2">
+                    <div className="bg-blue-600 h-1.5 rounded-full transition-all" style={{ width: `${completionRate}%` }}></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="bg-violet-50 border-0 cursor-pointer hover:bg-violet-100/80 transition-colors"
+              onClick={() => navigateToWorkOrders('nezavrsen')}
+            >
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-violet-600 mb-1">U toku</p>
+                    <p className="text-2xl font-bold text-slate-900">{stats.workOrders.pending}</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl">
+                    <ClockIcon size={24} className="text-violet-600" />
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-violet-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600">Prosečno vreme</span>
+                    <span className="text-slate-900 font-semibold">{stats.workOrders.avgCompletionTime || 2.5}d</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </div>
 
-      {/* Work Orders Status - Prominent Section */}
-      <div className="mb-4">
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <ClipboardIcon size={18} className="text-orange-600" />
-              Status radnih naloga
-            </h2>
-          </div>
-          <div className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div
-                onClick={() => navigateToWorkOrders('zavrsen')}
-                className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200 cursor-pointer hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircleIcon size={20} className="text-green-600" />
-                    <span className="font-medium text-slate-900">Završeni</span>
+        {/* Bottom Grid - Status Breakdown + Recent Activity + Reviews */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+          {/* Status Breakdown */}
+          <Card className="lg:col-span-5 bg-white border border-slate-100">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900">Status radnih naloga</CardTitle>
+                <Link to="/work-orders" className="text-xs text-slate-500 hover:text-slate-900">Svi →</Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-0 divide-y divide-slate-50">
+                {[
+                  { label: 'Završeni', value: stats.workOrders.completed, color: 'bg-emerald-500', status: 'zavrsen' },
+                  { label: 'U toku', value: stats.workOrders.pending, color: 'bg-blue-500', status: 'nezavrsen' },
+                  { label: 'Odloženi', value: stats.workOrders.postponed, color: 'bg-amber-500', status: 'odlozen' }
+                ].map((item) => (
+                  <div
+                    key={item.status}
+                    className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50 -mx-6 px-6 transition-colors group"
+                    onClick={() => navigateToWorkOrders(item.status)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${item.color}`}></div>
+                      <span className="text-sm text-slate-700">{item.label}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500">
+                        {stats.workOrders.total > 0 ? Math.round((item.value / stats.workOrders.total) * 100) : 0}%
+                      </span>
+                      <span className="text-sm font-semibold text-slate-900 w-12 text-right">{item.value}</span>
+                      <ChevronRightIcon size={14} className="text-slate-300 group-hover:text-slate-600 transition-colors" />
+                    </div>
                   </div>
-                  {stats.workOrders.total > 0 && (
-                    <span className="text-sm font-semibold text-green-600">
-                      {Math.round((stats.workOrders.completed / stats.workOrders.total) * 100)}%
-                    </span>
-                  )}
-                </div>
-                <p className="text-3xl font-bold text-green-600">{stats.workOrders.completed}</p>
+                ))}
               </div>
 
-              <div
-                onClick={() => navigateToWorkOrders('nezavrsen')}
-                className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200 cursor-pointer hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <ClockIcon size={20} className="text-blue-600" />
-                    <span className="font-medium text-slate-900">U toku</span>
-                  </div>
-                  {stats.workOrders.total > 0 && (
-                    <span className="text-sm font-semibold text-blue-600">
-                      {Math.round((stats.workOrders.pending / stats.workOrders.total) * 100)}%
-                    </span>
-                  )}
+              {/* Resources summary */}
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <p className="text-xs font-medium text-slate-500 mb-3">Resursi</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <Link to="/equipment" className="text-center hover:bg-slate-50 rounded-lg p-2 transition-colors">
+                    <p className="text-xs text-slate-500 mb-1">Oprema</p>
+                    <p className="text-lg font-semibold text-slate-900">{stats.equipment}</p>
+                  </Link>
+                  <Link to="/materials" className="text-center hover:bg-slate-50 rounded-lg p-2 transition-colors">
+                    <p className="text-xs text-slate-500 mb-1">Materijali</p>
+                    <p className="text-lg font-semibold text-slate-900">{stats.materials}</p>
+                  </Link>
+                  <Link to="/technicians" className="text-center hover:bg-slate-50 rounded-lg p-2 transition-colors">
+                    <p className="text-xs text-slate-500 mb-1">Tehničari</p>
+                    <p className="text-lg font-semibold text-slate-900">{stats.technicians}</p>
+                  </Link>
                 </div>
-                <p className="text-3xl font-bold text-blue-600">{stats.workOrders.pending}</p>
               </div>
+            </CardContent>
+          </Card>
 
-              <div
-                onClick={() => navigateToWorkOrders('odlozen')}
-                className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200 cursor-pointer hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <ClockIcon size={20} className="text-yellow-600" />
-                    <span className="font-medium text-slate-900">Odloženi</span>
+          {/* Recent Activity */}
+          <Card className="lg:col-span-4 bg-white border border-slate-100">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900">Nedavna aktivnost</CardTitle>
+                <Link to="/logs" className="text-xs text-slate-500 hover:text-slate-900">Svi logovi →</Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length > 0 ? (
+                <div className="space-y-0 divide-y divide-slate-50">
+                  {recentActivity.slice(0, 5).map((activity, index) => {
+                    const IconComponent = activity.icon;
+                    return (
+                      <div key={index} className="flex items-start gap-3 py-3">
+                        <div className={cn(
+                          "p-2 rounded-lg",
+                          activity.color === 'green' && "bg-green-50",
+                          activity.color === 'blue' && "bg-blue-50",
+                          activity.color === 'purple' && "bg-purple-50",
+                          activity.color === 'cyan' && "bg-cyan-50",
+                          activity.color === 'slate' && "bg-slate-50",
+                          !activity.color && "bg-slate-50"
+                        )}>
+                          <IconComponent size={14} className={cn(
+                            activity.color === 'green' && "text-green-600",
+                            activity.color === 'blue' && "text-blue-600",
+                            activity.color === 'purple' && "text-purple-600",
+                            activity.color === 'cyan' && "text-cyan-600",
+                            activity.color === 'slate' && "text-slate-600",
+                            !activity.color && "text-slate-600"
+                          )} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-700 truncate">{activity.message}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-xs text-slate-400">{formatTimeAgo(activity.timestamp)}</p>
+                            {activity.technicianName && (
+                              <>
+                                <span className="text-xs text-slate-300">·</span>
+                                <p className="text-xs text-slate-500 font-medium truncate">{activity.technicianName}</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-8">Nema aktivnosti</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Reviews Card */}
+          <Card className="lg:col-span-3 bg-white border border-slate-100">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900">Ocene</CardTitle>
+                <Link to="/technicians" className="text-xs text-slate-500 hover:text-slate-900">Tehničari →</Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {reviewData && reviewData.totalReviews > 0 ? (
+                <div>
+                  {/* Overall Rating */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-amber-50 rounded-xl">
+                      <StarIcon size={24} className="text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-900">{reviewData.overallRating}</p>
+                      <div className="flex items-center gap-1">
+                        {renderStars(reviewData.overallRating)}
+                        <span className="text-xs text-slate-400 ml-1">/ 5</span>
+                      </div>
+                    </div>
                   </div>
-                  {stats.workOrders.total > 0 && (
-                    <span className="text-sm font-semibold text-yellow-600">
-                      {Math.round((stats.workOrders.postponed / stats.workOrders.total) * 100)}%
-                    </span>
+
+                  {/* Mini Stats */}
+                  <div className="space-y-2 mb-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-500">Profesionalnost</span>
+                        <span className="text-xs font-semibold text-slate-900">{reviewData.avgProfessionalism}</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5">
+                        <div className="bg-slate-900 h-1.5 rounded-full transition-all" style={{ width: `${(reviewData.avgProfessionalism / 5) * 100}%` }}></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-500">Kvalitet usluge</span>
+                        <span className="text-xs font-semibold text-slate-900">{reviewData.avgServiceQuality}</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5">
+                        <div className="bg-violet-500 h-1.5 rounded-full transition-all" style={{ width: `${(reviewData.avgServiceQuality / 5) * 100}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total reviews count */}
+                  <div className="flex items-center justify-between text-xs mb-3 pb-3 border-b border-slate-100">
+                    <span className="text-slate-500">Ukupno ocena</span>
+                    <span className="font-semibold text-slate-900">{reviewData.totalReviews}</span>
+                  </div>
+
+                  {/* Recent Reviews */}
+                  {reviewData.recentReviews && reviewData.recentReviews.length > 0 && (
+                    <div className="space-y-2.5">
+                      {reviewData.recentReviews.map((review, i) => (
+                        <div key={review._id || i} className="flex items-start gap-2.5">
+                          <Avatar className="h-6 w-6 flex-shrink-0">
+                            <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-medium">
+                              {review.technicianName?.charAt(0) || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-medium text-slate-900 truncate">{review.technicianName}</p>
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                {renderStars(Math.round((review.professionalism + review.serviceQuality) / 2))}
+                              </div>
+                            </div>
+                            {review.comment && (
+                              <p className="text-xs text-slate-500 truncate mt-0.5">{review.comment}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <p className="text-3xl font-bold text-yellow-600">{stats.workOrders.postponed}</p>
-              </div>
-            </div>
-          </div>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="p-3 bg-slate-50 rounded-xl inline-block mb-2">
+                    <StarIcon size={20} className="text-slate-300" />
+                  </div>
+                  <p className="text-sm text-slate-500">Nema ocena</p>
+                  <p className="text-xs text-slate-400 mt-1">Ocene će se pojaviti nakon što korisnici ocene tehničare</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* Financial Overview - Half Width - Only for Superadmin */}
-      {isSuperAdmin && financialStats && (
-        <div className="mb-4">
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-w-2xl">
-            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                <DollarSignIcon size={18} className="text-emerald-600" />
-                Finansije (ovaj mesec)
-              </h2>
-              <Link to="/finances" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
-                Detalji →
-              </Link>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center">
-                  <p className="text-xs text-slate-600 mb-1">Prihod</p>
-                  <p className="text-lg font-bold text-green-600">
-                    {((financialStats.totalRevenue || 0) / 1000).toFixed(0)}k
+        {/* Financial Stats - za superadmin i supervisor */}
+        {isSuperAdmin && financialStats && (
+          <Card className="bg-emerald-50 border-0">
+            <CardContent className="pt-5 pb-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <p className="text-xs text-emerald-700 mb-1">Mesečni prihod</p>
+                  <p className="text-2xl font-bold text-slate-900 mb-1">
+                    {((financialStats.totalRevenue || 0) / 1000).toFixed(1)}k
                   </p>
+                  <p className="text-xs text-slate-600">Ukupan prihod</p>
                 </div>
-                <div className="text-center">
+                <div>
                   <p className="text-xs text-slate-600 mb-1">Troškovi</p>
-                  <p className="text-lg font-bold text-red-600">
-                    {((financialStats.totalPayouts || 0) / 1000).toFixed(0)}k
+                  <p className="text-2xl font-bold text-slate-900 mb-1">
+                    {((financialStats.totalPayouts || 0) / 1000).toFixed(1)}k
                   </p>
+                  <p className="text-xs text-slate-600">Isplate tehničarima</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-xs text-slate-600 mb-1">Profit</p>
-                  <p className="text-lg font-bold text-blue-600">
-                    {((financialStats.totalProfit || 0) / 1000).toFixed(0)}k
+                <div>
+                  <p className="text-xs text-emerald-700 mb-1">Neto profit</p>
+                  <p className="text-2xl font-bold text-slate-900 mb-1">
+                    {((financialStats.totalProfit || 0) / 1000).toFixed(1)}k
                   </p>
+                  <p className="text-xs text-slate-600">Ovaj mesec</p>
+                </div>
+                <div className="flex items-center justify-center">
+                  <Link to="/finances">
+                    <button className="bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">
+                      Detalji →
+                    </button>
+                  </Link>
                 </div>
               </div>
               {failedTransactions.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-200">
+                <div className="mt-4 pt-4 border-t border-emerald-200">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-red-600 font-medium flex items-center gap-1">
                       <AlertTriangleIcon size={12} />
                       {failedTransactions.length} neuspešnih transakcija
                     </span>
-                    <Link to="/finances" className="text-red-600 hover:text-red-700">
+                    <Link to="/finances" className="text-red-600 hover:text-red-700 font-medium">
                       Reši →
                     </Link>
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Performance Metrics - Vozni park + Performanse sistema */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {/* Vehicle Fleet Overview */}
-        {vehicleStats && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                <CalendarIcon size={18} className="text-cyan-600" />
-                Vozni park
-              </h2>
-              <Link to="/vehicles" className="text-xs text-cyan-600 hover:text-cyan-700 font-medium">
-                Detalji →
-              </Link>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs text-slate-600 mb-2">Ukupno vozila</p>
-                  <p className="text-2xl font-bold text-slate-900">{vehicleStats.totalVehicles || 0}</p>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <p className="text-xs text-slate-600 mb-2">Aktivna</p>
-                  <p className="text-2xl font-bold text-green-600">{vehicleStats.activeVehicles || 0}</p>
-                </div>
-                <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                  <p className="text-xs text-slate-600 mb-2">Registracije ističu</p>
-                  <p className="text-2xl font-bold text-yellow-600">{vehicleStats.expiringRegistrations || 0}</p>
-                </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-slate-600 mb-2">Servisni troškovi</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {((vehicleStats.totalServiceCosts || 0) / 1000).toFixed(0)}k
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* System Performance */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <BarChartIcon size={18} className="text-blue-600" />
-              Performanse sistema
-            </h2>
-          </div>
-          <div className="p-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Prosečno vreme završavanja</p>
-                  <p className="text-xs text-slate-600">Radnih naloga</p>
-                </div>
-                <p className="text-2xl font-bold text-blue-600">
-                  {stats.workOrders.avgCompletionTime || 2.5}d
-                </p>
-              </div>
+        {/* Vehicle Fleet + Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Prosek po tehničaru</p>
-                  <p className="text-xs text-slate-600">Radnih naloga</p>
+          {/* Vehicle Fleet */}
+          {vehicleStats && (
+            <Card className="bg-white border border-slate-100">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <CalendarIcon size={16} className="text-cyan-600" />
+                    Vozni park
+                  </CardTitle>
+                  <Link to="/vehicles" className="text-xs text-slate-500 hover:text-slate-900">Detalji →</Link>
                 </div>
-                <p className="text-2xl font-bold text-green-600">
-                  {stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Efikasnost sistema</p>
-                  <p className="text-xs text-slate-600">Stopa uspešnosti</p>
-                </div>
-                <p className="text-2xl font-bold text-purple-600">
-                  {stats.workOrders.total > 0
-                    ? Math.round(((stats.workOrders.completed / stats.workOrders.total) * 100))
-                    : 0}%
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Section - Recent Activity + Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recent Activity */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <HistoryIcon size={18} className="text-indigo-600" />
-              Nedavna aktivnost
-            </h2>
-            <Link to="/logs" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-              Svi logovi →
-            </Link>
-          </div>
-          <div className="p-4">
-            {recentActivity.length > 0 ? (
-              <div className="space-y-2">
-                {recentActivity.map((activity, index) => {
-                const IconComponent = activity.icon;
-                return (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-                  >
-                    <div className={cn(
-                      "p-1.5 rounded-lg",
-                      activity.color === 'green' && "bg-green-100",
-                      activity.color === 'blue' && "bg-blue-100",
-                      activity.color === 'purple' && "bg-purple-100",
-                      activity.color === 'cyan' && "bg-cyan-100",
-                      activity.color === 'slate' && "bg-slate-100"
-                    )}>
-                      <IconComponent size={14} className={cn(
-                        activity.color === 'green' && "text-green-600",
-                        activity.color === 'blue' && "text-blue-600",
-                        activity.color === 'purple' && "text-purple-600",
-                        activity.color === 'cyan' && "text-cyan-600",
-                        activity.color === 'slate' && "text-slate-600"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-900 truncate">{activity.message}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-slate-500">{formatTimeAgo(activity.timestamp)}</p>
-                        {activity.technicianName && (
-                          <>
-                            <span className="text-xs text-slate-400">•</span>
-                            <p className="text-xs text-slate-600 font-medium">{activity.technicianName}</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-3 bg-slate-50 rounded-lg">
+                    <p className="text-xs text-slate-500 mb-1">Ukupno</p>
+                    <p className="text-xl font-bold text-slate-900">{vehicleStats.totalVehicles || 0}</p>
                   </div>
-                );
-              })}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-sm text-slate-500">Nema nedavnih aktivnosti</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <PlusIcon size={18} className="text-slate-600" />
-              Brze akcije
-            </h2>
-          </div>
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-2">
-              <Link
-                to="/work-orders/add"
-                className="flex items-center gap-2 p-3 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors group"
-              >
-                <div className="p-1.5 bg-orange-100 group-hover:bg-orange-200 rounded-lg transition-colors">
-                  <ClipboardIcon size={16} className="text-orange-600" />
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <p className="text-xs text-slate-500 mb-1">Aktivna</p>
+                    <p className="text-xl font-bold text-green-600">{vehicleStats.activeVehicles || 0}</p>
+                  </div>
+                  <div className="text-center p-3 bg-amber-50 rounded-lg">
+                    <p className="text-xs text-slate-500 mb-1">Ističe reg.</p>
+                    <p className="text-xl font-bold text-amber-600">{vehicleStats.expiringRegistrations || 0}</p>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-slate-500 mb-1">Troškovi serv.</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      {((vehicleStats.totalServiceCosts || 0) / 1000).toFixed(0)}k
+                    </p>
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-slate-900">Novi nalog</span>
-              </Link>
+              </CardContent>
+            </Card>
+          )}
 
-              <Link
-                to="/equipment/upload"
-                className="flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors group"
-              >
-                <div className="p-1.5 bg-blue-100 group-hover:bg-blue-200 rounded-lg transition-colors">
-                  <BoxIcon size={16} className="text-blue-600" />
-                </div>
-                <span className="text-sm font-medium text-slate-900">Dodaj opremu</span>
-              </Link>
-
-              <Link
-                to="/materials/add"
-                className="flex items-center gap-2 p-3 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors group"
-              >
-                <div className="p-1.5 bg-green-100 group-hover:bg-green-200 rounded-lg transition-colors">
-                  <ToolsIcon size={16} className="text-green-600" />
-                </div>
-                <span className="text-sm font-medium text-slate-900">Dodaj materijal</span>
-              </Link>
-
-              <Link
-                to="/technicians/add"
-                className="flex items-center gap-2 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors group"
-              >
-                <div className="p-1.5 bg-purple-100 group-hover:bg-purple-200 rounded-lg transition-colors">
-                  <UsersIcon size={16} className="text-purple-600" />
-                </div>
-                <span className="text-sm font-medium text-slate-900">Dodaj tehničara</span>
-              </Link>
-
-              {isSuperAdmin && (
+          {/* Quick Actions */}
+          <Card className="bg-white border border-slate-100">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <PlusIcon size={16} className="text-slate-600" />
+                Brze akcije
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2">
                 <Link
-                  to="/finances"
-                  className="flex items-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors group"
+                  to="/work-orders/add"
+                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
                 >
-                  <div className="p-1.5 bg-emerald-100 group-hover:bg-emerald-200 rounded-lg transition-colors">
-                    <DollarSignIcon size={16} className="text-emerald-600" />
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                    <ClipboardIcon size={14} className="text-slate-700" />
                   </div>
-                  <span className="text-sm font-medium text-slate-900">Finansije</span>
+                  <span className="text-sm font-medium text-slate-700">Novi nalog</span>
                 </Link>
-              )}
 
-              <Link
-                to="/vehicles"
-                className="flex items-center gap-2 p-3 bg-cyan-50 hover:bg-cyan-100 rounded-lg border border-cyan-200 transition-colors group"
-              >
-                <div className="p-1.5 bg-cyan-100 group-hover:bg-cyan-200 rounded-lg transition-colors">
-                  <CalendarIcon size={16} className="text-cyan-600" />
-                </div>
-                <span className="text-sm font-medium text-slate-900">Vozni park</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+                <Link
+                  to="/equipment/upload"
+                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
+                >
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                    <BoxIcon size={14} className="text-slate-700" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Dodaj opremu</span>
+                </Link>
 
-      {/* AI Analysis Section - Only for admin/supervisor - AT THE BOTTOM */}
-      {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'supervisor') && (
-        <div className="mt-4">
-          <AIAnalysisCard />
+                <Link
+                  to="/materials/add"
+                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
+                >
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                    <ToolsIcon size={14} className="text-slate-700" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Dodaj materijal</span>
+                </Link>
+
+                <Link
+                  to="/technicians/add"
+                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
+                >
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                    <UsersIcon size={14} className="text-slate-700" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Dodaj tehničara</span>
+                </Link>
+
+                {isSuperAdmin && (
+                  <Link
+                    to="/finances"
+                    className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
+                  >
+                    <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                      <DollarSignIcon size={14} className="text-slate-700" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">Finansije</span>
+                  </Link>
+                )}
+
+                <Link
+                  to="/vehicles"
+                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
+                >
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                    <CalendarIcon size={14} className="text-slate-700" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Vozni park</span>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      )}
+
     </div>
   );
 };

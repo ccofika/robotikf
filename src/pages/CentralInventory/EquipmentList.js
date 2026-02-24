@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 
 const EquipmentList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Server-side pagination state
   const [equipment, setEquipment] = useState([]);
@@ -29,9 +30,10 @@ const EquipmentList = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(true);
 
-  // Search and filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  // Search and filter states - read initial search from URL if present
+  const urlSearch = new URLSearchParams(location.search).get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(urlSearch);
   const [locationFilter, setLocationFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [error, setError] = useState('');

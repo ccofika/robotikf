@@ -27,9 +27,10 @@ const UsersList = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(true);
 
-  // Search and filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  // Search and filter states - read initial search from URL if present
+  const urlSearch = new URLSearchParams(location.search).get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(urlSearch);
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
 

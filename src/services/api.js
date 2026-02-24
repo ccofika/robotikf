@@ -368,10 +368,15 @@ export const financesAPI = {
   saveTechnicianPaymentSettings: (data) => api.post('/api/finances/technician-payment-settings', data),
 };
 
+export const searchAPI = {
+  globalSearch: (q) => api.get(`/api/search?q=${encodeURIComponent(q)}`),
+};
+
 export const reviewsAPI = {
   getTechnicianReviews: (id, page = 1, limit = 10) => api.get(`/api/reviews/technician/${id}?page=${page}&limit=${limit}`),
   getTechnicianStats: (id) => api.get(`/api/reviews/stats/${id}`),
   getAllStats: () => api.get('/api/reviews/stats/all'),
+  getDashboardSummary: () => api.get('/api/reviews/dashboard-summary'),
   deleteReview: (id) => api.delete(`/api/reviews/${id}`),
 };
 

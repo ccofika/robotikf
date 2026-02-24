@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon, ChevronLeftIcon, ChevronRightIcon } from '../../components/icons/SvgIcons';
+import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon, ChevronLeftIcon, ChevronRightIcon, BoxIcon, ToolsIcon, CalendarIcon, MapPinIcon, CommentIcon, CheckCircleIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
@@ -60,6 +60,15 @@ const WorkOrderDetail = () => {
   const [verificationOrderIds, setVerificationOrderIds] = useState([]);
   const isFromVerification = new URLSearchParams(location.search).get('fromVerification') === 'true';
 
+  // Status dropdown in sticky bar
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+
+  // Inline edit states
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const editRef = useRef(null);
+  const statusDropdownRef = useRef(null);
+
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 
@@ -71,7 +80,7 @@ const WorkOrderDetail = () => {
           workOrdersAPI.getOne(id),
           techniciansAPI.getAll()
         ]);
-        
+
         setWorkOrder(workOrderRes.data);
         setFormData({
           date: workOrderRes.data.date ? new Date(workOrderRes.data.date).toISOString().split('T')[0] : '',
@@ -86,7 +95,7 @@ const WorkOrderDetail = () => {
           status: workOrderRes.data.status || 'nezavrsen'
         });
         setTechnicians(techniciansRes.data);
-        
+
         // Postavi slike i materijale
         setImages(workOrderRes.data.images || []);
         setMaterials(workOrderRes.data.materials || []);
@@ -154,6 +163,32 @@ const WorkOrderDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFromVerification]);
 
+  // Click outside to close edit popover
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (editRef.current && !editRef.current.contains(e.target)) {
+        cancelEdit();
+      }
+    };
+    if (editingField) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [editingField]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Click outside to close status dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    if (showStatusDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusDropdown]);
+
   // Verification navigation helpers
   const currentVerificationIndex = verificationOrderIds.indexOf(id);
   const hasPrevVerification = isFromVerification && currentVerificationIndex > 0;
@@ -177,13 +212,13 @@ const WorkOrderDetail = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+    if (e) e.preventDefault();
+
     setSaving(true);
     setError('');
-    
+
     try {
       const updatedData = {
         ...formData,
@@ -204,24 +239,24 @@ const WorkOrderDetail = () => {
       setSaving(false);
     }
   };
-  
+
   const handleStatusChange = async (status) => {
     setSaving(true);
     setError('');
-    
+
     try {
       // Priprema podataka za slanje, konvertuj prazan string u null za oba technicianId polja
-      const updatedData = { 
+      const updatedData = {
         ...formData,
         status,
         technicianId: formData.technicianId || null, // konvertuj prazan string u null
         technician2Id: formData.technician2Id || null // konvertuj prazan string u null
       };
-      
+
       console.log('Sending data:', updatedData);
       const response = await workOrdersAPI.update(id, updatedData);
       console.log('Response:', response);
-      
+
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status }));
 
@@ -238,8 +273,6 @@ const WorkOrderDetail = () => {
       setSaving(false);
     }
   };
-  
-  // Removed unused function - handleUnassign
 
   // Function to check if work order needs verification
   const needsVerification = () => {
@@ -253,7 +286,7 @@ const WorkOrderDetail = () => {
   const loadCustomerStatus = async (orderId) => {
     try {
       const response = await axios.get(`${apiUrl}/api/workorders/${orderId}/evidence`);
-      const status = response.data.customerStatus || null; // Don't set default, leave as null if not set
+      const status = response.data.customerStatus || null;
       setOrderStatuses(prev => ({
         ...prev,
         [orderId]: status
@@ -261,7 +294,6 @@ const WorkOrderDetail = () => {
       return status;
     } catch (error) {
       console.error(`Failed to load status for order ${orderId}:`, error);
-      // If there's an error (like 404), set as null - no status set
       setOrderStatuses(prev => ({
         ...prev,
         [orderId]: null
@@ -277,13 +309,11 @@ const WorkOrderDetail = () => {
     try {
       setVerifying(true);
 
-      // First load the current customer status if not already loaded
       let currentStatus = orderStatuses[workOrder._id];
       if (!currentStatus) {
         currentStatus = await loadCustomerStatus(workOrder._id);
       }
 
-      // Check if customer status is set
       if (!currentStatus) {
         toast.error('Potrebno je prvo postaviti status korisnika pre verifikacije!');
         return;
@@ -292,10 +322,8 @@ const WorkOrderDetail = () => {
       await workOrdersAPI.verify(workOrder._id);
       toast.success('Radni nalog je uspešno verifikovan!');
 
-      // Refresh work order data
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
-
 
     } catch (error) {
       console.error('Greška pri verifikaciji:', error);
@@ -320,11 +348,9 @@ const WorkOrderDetail = () => {
       setShowReturnModal(false);
       setAdminComment('');
 
-      // Refresh work order data
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status: response.data.status }));
-
 
     } catch (error) {
       console.error('Greška pri vraćanju radnog naloga:', error);
@@ -424,21 +450,17 @@ const WorkOrderDetail = () => {
     try {
       const orderId = aiVerificationResult.orderId;
 
-      // 1. Postavi customerStatus
       await workOrdersAPI.updateCustomerStatus(orderId, {
         customerStatus: aiVerificationResult.customerStatus
       });
 
-      // 2. Verifikuj radni nalog
       await workOrdersAPI.verify(orderId);
 
       toast.success('Radni nalog je uspešno verifikovan!');
 
-      // Refresh work order data
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
 
-      // Zatvori modal
       setShowAIModal(false);
       setAIVerificationResult(null);
 
@@ -455,19 +477,16 @@ const WorkOrderDetail = () => {
     try {
       const orderId = aiVerificationResult.orderId;
 
-      // Vrati nalog tehničaru sa AI komentarom
       await axios.put(`${apiUrl}/api/workorders/${orderId}/return-incorrect`, {
         adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
       });
 
       toast.info('Radni nalog je vraćen tehničaru');
 
-      // Refresh work order data
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status: response.data.status }));
 
-      // Zatvori modal
       setShowAIModal(false);
       setAIVerificationResult(null);
 
@@ -493,13 +512,11 @@ const WorkOrderDetail = () => {
       const contentWidth = pageWidth - (2 * margin);
       let currentY = margin;
 
-      // Funkcija za normalizaciju teksta (uklanja probleme sa karakterima)
       const normalizeText = (text) => {
         if (!text) return 'N/A';
 
         let normalized = text.toString();
 
-        // Zameni srpske karaktere eksplicitno
         const replacements = {
           'š': 's', 'Š': 'S',
           'đ': 'dj', 'Đ': 'Dj',
@@ -518,28 +535,22 @@ const WorkOrderDetail = () => {
           'Ú': 'U', 'Ù': 'U', 'Û': 'U', 'Ü': 'U', 'Ū': 'U'
         };
 
-        // Zameni karaktere
         for (const [original, replacement] of Object.entries(replacements)) {
           normalized = normalized.replace(new RegExp(original, 'g'), replacement);
         }
 
-        // Ukloni sve nelatinske karaktere
         // eslint-disable-next-line no-control-regex
         normalized = normalized.replace(/[^\x00-\x7F]/g, '');
-
-        // Kompresuj razmake
         normalized = normalized.replace(/\s+/g, ' ').trim();
 
         return normalized;
       };
 
-      // Naslov
       pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
       pdf.text('RADNI NALOG', pageWidth / 2, currentY, { align: 'center' });
       currentY += 15;
 
-      // Status
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'normal');
       const statusText = formData.status === 'zavrsen' ? 'Zavrsen' :
@@ -548,7 +559,6 @@ const WorkOrderDetail = () => {
       pdf.text(`Status: ${statusText}`, margin, currentY);
       currentY += 10;
 
-      // Osnovni podaci
       pdf.setFont('helvetica', 'bold');
       pdf.text('OSNOVNI PODACI', margin, currentY);
       currentY += 8;
@@ -573,7 +583,6 @@ const WorkOrderDetail = () => {
 
       currentY += 5;
 
-      // Detalji i komentari
       if (formData.details) {
         pdf.setFont('helvetica', 'bold');
         pdf.text('DETALJI:', margin, currentY);
@@ -600,7 +609,6 @@ const WorkOrderDetail = () => {
         currentY += 3;
       }
 
-      // Dodatne informacije
       const additionalInfo = [];
       if (workOrder.tisId) additionalInfo.push(['TIS ID:', normalizeText(workOrder.tisId)]);
       if (workOrder.userName) additionalInfo.push(['Ime korisnika:', normalizeText(workOrder.userName)]);
@@ -624,7 +632,6 @@ const WorkOrderDetail = () => {
         currentY += 5;
       }
 
-      // Oprema korisnika
       if (userEquipment.length > 0) {
         if (currentY > pageHeight - 50) {
           pdf.addPage();
@@ -647,7 +654,6 @@ const WorkOrderDetail = () => {
         });
       }
 
-      // Materijali
       if (materials.length > 0) {
         if (currentY > pageHeight - 50) {
           pdf.addPage();
@@ -667,7 +673,6 @@ const WorkOrderDetail = () => {
         currentY += 5;
       }
 
-      // Slike - dodaj na novu stranicu
       if (images.length > 0) {
         pdf.addPage();
         currentY = margin;
@@ -677,7 +682,6 @@ const WorkOrderDetail = () => {
         pdf.text('SLIKE RADNOG NALOGA', margin, currentY);
         currentY += 15;
 
-        // Funkcija za učitavanje slika
         const loadImage = (src) => {
           return new Promise((resolve, reject) => {
             const img = new Image();
@@ -693,25 +697,21 @@ const WorkOrderDetail = () => {
             const imageUrl = typeof images[i] === 'object' ? images[i].url : images[i];
             const img = await loadImage(imageUrl);
 
-            // Izracunaj visinu slike proporcionalno full width-u
             const imgAspectRatio = img.naturalHeight / img.naturalWidth;
             const fullImageWidth = contentWidth;
             const fullImageHeight = fullImageWidth * imgAspectRatio;
 
-            // Maksimalna visina slike je visina stranice minus margine
             const maxImageHeight = pageHeight - (2 * margin);
             const finalImageHeight = Math.min(fullImageHeight, maxImageHeight);
             const finalImageWidth = fullImageHeight > maxImageHeight
               ? finalImageHeight / imgAspectRatio
               : fullImageWidth;
 
-            // Proveri da li slika stane na trenutnu stranicu
             if (currentY + finalImageHeight > pageHeight - margin) {
               pdf.addPage();
               currentY = margin;
             }
 
-            // Canvas za resize slike
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = img.naturalWidth;
@@ -729,7 +729,6 @@ const WorkOrderDetail = () => {
         }
       }
 
-      // Sacuvaj PDF
       const fileName = `Radni_Nalog_${workOrder.tisId || workOrder._id}_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
 
@@ -756,11 +755,9 @@ const WorkOrderDetail = () => {
       });
 
       toast.success('Slika je uspešno obrisana!');
-      
-      // Ukloni sliku iz lokalne liste
+
       setImages(images.filter(img => img !== imageUrl));
-      
-      // Refresh work order data
+
       const updatedWorkOrder = await workOrdersAPI.getOne(id);
       setImages(updatedWorkOrder.data.images || []);
     } catch (error) {
@@ -770,10 +767,131 @@ const WorkOrderDetail = () => {
       setDeletingImage(false);
     }
   };
-  
+
+  // ─── Inline Edit Helpers ───────────────────────────────────
+  const startEdit = (field, currentValue) => {
+    setEditingField(field);
+    setEditValue(currentValue || '');
+  };
+
+  const confirmEdit = () => {
+    if (editingField) {
+      setFormData(prev => ({ ...prev, [editingField]: editValue }));
+      setEditingField(null);
+      setEditValue('');
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  // ─── Status Config Helper ─────────────────────────────────
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case 'zavrsen':
+        return { label: 'Završen', dotColor: 'bg-emerald-400', textColor: 'text-emerald-400', bgColor: 'bg-emerald-500/15' };
+      case 'odlozen':
+        return { label: 'Odložen', dotColor: 'bg-amber-400', textColor: 'text-amber-400', bgColor: 'bg-amber-500/15' };
+      case 'otkazan':
+        return { label: 'Otkazan', dotColor: 'bg-red-400', textColor: 'text-red-400', bgColor: 'bg-red-500/15' };
+      default:
+        return { label: 'Nezavršen', dotColor: 'bg-blue-400', textColor: 'text-blue-400', bgColor: 'bg-blue-500/15' };
+    }
+  };
+
+  // ─── Editable Field Sub-Component ─────────────────────────
+  const EditableField = ({ field, value, displayValue, type = 'text', options, placeholder, rows }) => {
+    const isEditing = editingField === field;
+
+    return (
+      <div className="relative group">
+        <div className="flex items-start gap-1">
+          <span className="text-sm text-slate-900 font-semibold leading-snug">
+            {displayValue || value || <span className="text-slate-400 italic font-normal text-xs">Nije unet</span>}
+          </span>
+          <button
+            onClick={() => startEdit(field, value)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-slate-200 rounded flex-shrink-0 mt-0.5"
+            title="Izmeni"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        </div>
+
+        {isEditing && (
+          <div ref={editRef} className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2.5 min-w-[220px]">
+            {type === 'select' ? (
+              <select
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              >
+                {options?.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            ) : type === 'textarea' ? (
+              <textarea
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical"
+                rows={rows || 3}
+                placeholder={placeholder}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancelEdit();
+                }}
+              />
+            ) : (
+              <input
+                type={type}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder={placeholder}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmEdit();
+                  if (e.key === 'Escape') cancelEdit();
+                }}
+              />
+            )}
+            <div className="flex items-center gap-1.5 mt-2">
+              <button
+                onClick={confirmEdit}
+                className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                OK
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+              >
+                Otkaži
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Role Helpers ──────────────────────────────────────────
+  const storedUser = localStorage.getItem('user');
+  const currentUserRole = storedUser ? JSON.parse(storedUser).role : null;
+  const canViewRecordings = currentUserRole === 'supervisor' || currentUserRole === 'superadmin';
+  const canViewEditLog = currentUserRole === 'superadmin';
+
+  // ─── Loading State ─────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6">
         <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-slate-600 font-medium">Učitavanje...</p>
@@ -781,79 +899,13 @@ const WorkOrderDetail = () => {
       </div>
     );
   }
-  
+
   if (error && !workOrder) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6">
         <div className="p-6 mb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-slate-900">Detalji radnog naloga</h1>
-            <Button
-              type="secondary"
-              size="small"
-              prefix={<BackIcon size={16} />}
-              onClick={() => {
-                if (location.state?.fromUsersList) {
-                  navigate(location.state.previousPath || '/users', {
-                    state: { 
-                      fromWorkOrderDetail: true, 
-                      selectedUserId: location.state.selectedUserId 
-                    }
-                  });
-                } else {
-                  navigate('/work-orders');
-                }
-              }}
-            >
-              Povratak na listu
-            </Button>
-          </div>
-        </div>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Detalji radnog naloga</h1>
-          <div className="flex items-center gap-3">
-            {isFromVerification && verificationOrderIds.length > 0 && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={goToPrevVerification}
-                  disabled={!hasPrevVerification}
-                  className={cn(
-                    "p-2 rounded-lg border transition-all",
-                    hasPrevVerification
-                      ? "border-slate-300 hover:bg-slate-100 hover:border-slate-400 text-slate-700 cursor-pointer"
-                      : "border-slate-200 text-slate-300 cursor-not-allowed"
-                  )}
-                  title="Prethodni nalog"
-                >
-                  <ChevronLeftIcon size={20} />
-                </button>
-                <span className="text-sm text-slate-500 px-1 min-w-[3rem] text-center">
-                  {currentVerificationIndex + 1} / {verificationOrderIds.length}
-                </span>
-                <button
-                  onClick={goToNextVerification}
-                  disabled={!hasNextVerification}
-                  className={cn(
-                    "p-2 rounded-lg border transition-all",
-                    hasNextVerification
-                      ? "border-slate-300 hover:bg-slate-100 hover:border-slate-400 text-slate-700 cursor-pointer"
-                      : "border-slate-200 text-slate-300 cursor-not-allowed"
-                  )}
-                  title="Sledeći nalog"
-                >
-                  <ChevronRightIcon size={20} />
-                </button>
-              </div>
-            )}
             <Button
               type="secondary"
               size="small"
@@ -875,578 +927,263 @@ const WorkOrderDetail = () => {
             </Button>
           </div>
         </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
       </div>
-      
-      {/* Main Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        {/* Status Header */}
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className={cn(
-              "inline-flex items-center px-4 py-2 rounded-full text-sm font-medium",
-              formData.status === 'zavrsen' && "bg-green-50 text-green-700 border border-green-200",
-              formData.status === 'odlozen' && "bg-yellow-50 text-yellow-700 border border-yellow-200",
-              formData.status === 'otkazan' && "bg-red-50 text-red-700 border border-red-200",
-              formData.status === 'nezavrsen' && "bg-blue-50 text-blue-700 border border-blue-200"
-            )}>
-              {formData.status === 'zavrsen' ? 'Završen' : 
-               formData.status === 'odlozen' ? 'Odložen' : 
-               formData.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
+    );
+  }
+
+  const statusConfig = getStatusConfig(formData.status);
+  const techName = technicians.find(t => t._id === formData.technicianId)?.name;
+  const tech2Name = technicians.find(t => t._id === formData.technician2Id)?.name;
+
+  // ─── Main Return ───────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-white -m-6 pb-16">
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm m-4 rounded-lg">{error}</div>
+      )}
+
+      {/* ── Core Info Grid (4 columns, editable) ─────────── */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* Datum / Tip */}
+          <div className="px-5 sm:px-6 py-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <CalendarIcon size={13} className="text-slate-400" />
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Datum / Tip</span>
             </div>
-            <div className="flex items-center space-x-3 flex-wrap">
-              <Button
-                type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
-                size="small"
-                prefix={<CheckIcon size={16} />}
-                onClick={() => handleStatusChange('zavrsen')}
-                disabled={saving || formData.status === 'zavrsen'}
-              >
-                Završen
-              </Button>
-              <Button
-                type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
-                size="small"
-                prefix={<ClockIcon size={16} />}
-                onClick={() => handleStatusChange('nezavrsen')}
-                disabled={saving || formData.status === 'nezavrsen'}
-              >
-                Nezavršen
-              </Button>
-              <Button
-                type={formData.status === 'odlozen' ? 'warning' : 'secondary'}
-                size="small"
-                prefix={<AlertIcon size={16} />}
-                onClick={() => handleStatusChange('odlozen')}
-                disabled={saving || formData.status === 'odlozen'}
-              >
-                Odložen
-              </Button>
-              <Button
-                type={formData.status === 'otkazan' ? 'error' : 'secondary'}
-                size="small"
-                prefix={<BanIcon size={16} />}
-                onClick={() => handleStatusChange('otkazan')}
-                disabled={saving || formData.status === 'otkazan'}
-              >
-                Otkazan
-              </Button>
-              <Button
-                type="secondary"
-                size="small"
-                prefix={generatingPDF ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div> : <FileIcon size={16} />}
-                onClick={generatePDF}
-                disabled={generatingPDF || saving}
-                title="Preuzmi PDF"
-              >
-                {generatingPDF ? 'Generiše...' : 'Preuzmi PDF'}
-              </Button>
-
-              {/* Verification buttons - only show for finished work orders that need verification */}
-              {needsVerification() && (
-                <>
-                  <Button
-                    type="secondary"
-                    size="small"
-                    prefix={<UserCheckIcon size={16} />}
-                    onClick={() => openCustomerStatusModal(workOrder._id)}
-                    disabled={verifying}
-                  >
-                    Status
-                  </Button>
-                  <Button
-                    type="primary"
-                    size="small"
-                    prefix={<CheckIcon size={16} />}
-                    onClick={handleVerifyOrder}
-                    disabled={verifying || !orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id]}
-                    title={!orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id] ? 'Prvo postavite status korisnika' : ''}
-                  >
-                    {verifying ? 'Verifikuje...' : 'Verifikuj'}
-                  </Button>
-                  <Button
-                    type="error"
-                    size="small"
-                    prefix={<BanIcon size={16} />}
-                    onClick={() => setShowReturnModal(true)}
-                    disabled={verifying}
-                  >
-                    Neispravno popunjen
-                  </Button>
-                  <Button
-                    type="success"
-                    size="small"
-                    prefix={loadingAIVerification ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <CheckIcon size={16} />
-                    )}
-                    onClick={handleAIVerify}
-                    disabled={loadingAIVerification || verifying}
-                  >
-                    {loadingAIVerification ? 'AI Verifikuje...' : 'Verifikuj sa AI'}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Customer Status Indicator */}
-          {needsVerification() && (
-            <div className="p-4 border-t border-slate-200">
-              <div className="text-sm text-slate-600 mb-2">Status korisnika:</div>
-              {orderStatuses[workOrder._id] ? (
-                <div className={cn(
-                  "inline-flex px-3 py-1 rounded-full text-xs font-medium",
-                  getCustomerStatusColor(orderStatuses[workOrder._id])
-                )}>
-                  {orderStatuses[workOrder._id]}
-                </div>
-              ) : (
-                <div className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                  Kliknite "Status" da postavite
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* Form - Izmeni radni nalog */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900">Izmeni radni nalog</h3>
-        </div>
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="date" className="block text-sm font-medium text-slate-700 mb-2">
-                  Datum:
-                </label>
-                <input
-                  type="date"
-                  id="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  disabled={saving}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="time" className="block text-sm font-medium text-slate-700 mb-2">
-                  Vreme:
-                </label>
-                <input
-                  type="time"
-                  id="time"
-                  name="time"
-                  value={formData.time}
-                  onChange={handleChange}
-                  disabled={saving}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="municipality" className="block text-sm font-medium text-slate-700 mb-2">
-                  Opština:
-                </label>
-                <input
-                  type="text"
-                  id="municipality"
-                  name="municipality"
-                  value={formData.municipality}
-                  onChange={handleChange}
-                  placeholder="Unesite opštinu"
-                  disabled={saving}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-slate-700 mb-2">
-                  Adresa:
-                </label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="Unesite adresu"
-                  disabled={saving}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-slate-700 mb-2">
-                Tip instalacije:
-              </label>
-              <input
-                type="text"
-                id="type"
-                name="type"
+            <EditableField
+              field="date"
+              value={formData.date}
+              displayValue={formData.date ? new Date(formData.date).toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' }) : null}
+              type="date"
+            />
+            <div className="flex items-center gap-1.5 mt-1">
+              <EditableField
+                field="type"
                 value={formData.type}
-                onChange={handleChange}
-                placeholder="Internet, IPTV, Telefon..."
-                disabled={saving}
-                required
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                displayValue={
+                  <span className="text-xs text-slate-500 font-normal">{formData.type || '—'}</span>
+                }
+                type="text"
+                placeholder="Tip instalacije"
+              />
+              <span className="text-xs text-slate-400">·</span>
+              <EditableField
+                field="time"
+                value={formData.time}
+                displayValue={
+                  <span className="text-xs text-slate-500 font-normal">{formData.time || '—'}</span>
+                }
+                type="time"
               />
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="technicianId" className="block text-sm font-medium text-slate-700 mb-2">
-                  Glavni tehničar:
-                </label>
-                <select
-                  id="technicianId"
-                  name="technicianId"
-                  value={formData.technicianId}
-                  onChange={handleChange}
-                  disabled={saving}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">Odaberite tehničara</option>
-                  {technicians.map(tech => (
-                    <option key={tech._id} value={tech._id}>
-                      {tech.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="technician2Id" className="block text-sm font-medium text-slate-700 mb-2">
-                  Pomoćni tehničar (opciono):
-                </label>
-                <select
-                  id="technician2Id"
-                  name="technician2Id"
-                  value={formData.technician2Id}
-                  onChange={handleChange}
-                  disabled={saving}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">Nema pomoćnog tehničara</option>
-                  {technicians.filter(tech => tech._id !== formData.technicianId).map(tech => (
-                    <option key={tech._id} value={tech._id}>
-                      {tech.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Lokacija */}
+          <div className="px-5 sm:px-6 py-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <MapPinIcon size={13} className="text-slate-400" />
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Lokacija</span>
             </div>
-
-            <div>
-              <label htmlFor="details" className="block text-sm font-medium text-slate-700 mb-2">
-                Detalji posla:
-              </label>
-              <textarea
-                id="details"
-                name="details"
-                value={formData.details}
-                onChange={handleChange}
-                placeholder="Opišite detalje posla..."
-                rows="3"
-                disabled={saving}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed resize-vertical"
+            <EditableField
+              field="municipality"
+              value={formData.municipality}
+              type="text"
+              placeholder="Opština"
+            />
+            <div className="mt-1">
+              <EditableField
+                field="address"
+                value={formData.address}
+                displayValue={
+                  <span className="text-xs text-slate-500 font-normal">{formData.address || '—'}</span>
+                }
+                type="text"
+                placeholder="Adresa"
               />
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="comment" className="block text-sm font-medium text-slate-700 mb-2">
-                Komentar tehničara:
-              </label>
-              <textarea
-                id="comment"
-                name="comment"
-                value={formData.comment}
-                onChange={handleChange}
-                placeholder="Komentar ili napomene..."
-                rows="3"
-                disabled={saving}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed resize-vertical"
+          {/* Tehničar */}
+          <div className="px-5 sm:px-6 py-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <UserIcon size={13} className="text-slate-400" />
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Tehničar</span>
+            </div>
+            <EditableField
+              field="technicianId"
+              value={formData.technicianId}
+              displayValue={techName || <span className="text-slate-400 italic text-xs font-normal">Nije dodeljen</span>}
+              type="select"
+              options={[
+                { value: '', label: 'Odaberite tehničara' },
+                ...technicians.map(t => ({ value: t._id, label: t.name }))
+              ]}
+            />
+            <div className="mt-1">
+              <EditableField
+                field="technician2Id"
+                value={formData.technician2Id}
+                displayValue={
+                  tech2Name
+                    ? <span className="text-xs text-slate-500 font-normal">+ {tech2Name} <span className="text-slate-400">(pomoćni)</span></span>
+                    : <span className="text-xs text-slate-400 italic font-normal">Bez pomoćnog</span>
+                }
+                type="select"
+                options={[
+                  { value: '', label: 'Nema pomoćnog' },
+                  ...technicians.filter(t => t._id !== formData.technicianId).map(t => ({ value: t._id, label: t.name }))
+                ]}
               />
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-slate-700 mb-2">
-                Status:
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                disabled={saving}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="nezavrsen">Nezavršen</option>
-                <option value="zavrsen">Završen</option>
-                <option value="odlozen">Odložen</option>
-                <option value="otkazan">Otkazan</option>
-              </select>
+          {/* Korisnik (read-only) */}
+          <div className="px-5 sm:px-6 py-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <PhoneIcon size={13} className="text-slate-400" />
+              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Korisnik</span>
             </div>
-
-          </form>
-        </div>
-      </div>
-
-      {/* Additional Information */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900">Dodatne informacije</h3>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workOrder?.tisId && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">TIS ID:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.tisId}</p>
-              </div>
-            )}
-            {workOrder?.userName && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">Ime korisnika:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.userName}</p>
-              </div>
-            )}
-            {workOrder?.userPhone && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">Telefon korisnika:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.userPhone}</p>
-              </div>
-            )}
-            <div>
-              <label className="text-sm font-medium text-slate-600">Email korisnika:</label>
-              <p className="text-sm text-slate-900 mt-1">{workOrder?.customerEmail || <span className="text-slate-400 italic">Nije unet</span>}</p>
-            </div>
-            {workOrder?.tisJobId && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">TIS Job ID:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.tisJobId}</p>
-              </div>
-            )}
-            {workOrder?.technology && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">Tehnologija:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.technology}</p>
-              </div>
-            )}
-            {workOrder?.additionalJobs && (
-              <div>
-                <label className="text-sm font-medium text-slate-600">Dodatni poslovi:</label>
-                <p className="text-sm text-slate-900 mt-1">{workOrder.additionalJobs}</p>
-              </div>
-            )}
+            <p className="text-sm text-slate-900 font-semibold leading-snug">
+              {workOrder?.userName || <span className="text-slate-400 italic font-normal">—</span>}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">{workOrder?.userPhone || '—'}</p>
           </div>
         </div>
       </div>
 
-      {/* Admin Edit Log Section - Only for SuperAdmin */}
-      {(() => {
-        const storedUserForEditLog = localStorage.getItem('user');
-        const editLogRole = storedUserForEditLog ? JSON.parse(storedUserForEditLog).role : null;
-        const canViewEditLog = editLogRole === 'superadmin';
-
-        return canViewEditLog && workOrder?.adminEditLog && workOrder.adminEditLog.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-md border border-amber-200/50 rounded-2xl shadow-lg overflow-hidden mb-6">
-            <div className="p-6 border-b border-amber-200" style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' }}>
-              <h3 className="text-lg font-semibold text-amber-900 flex items-center space-x-2">
-                <HistoryIcon size={20} />
-                <span>Izmene opreme (Admin Edit)</span>
-              </h3>
-            </div>
-            <div className="p-6 space-y-3">
-              {workOrder.adminEditLog.map((log, index) => {
-                const isAdd = log.action === 'added' || log.action === 'material_added';
-                const isMaterial = log.action === 'material_added' || log.action === 'material_removed';
-
-                return (
-                  <div
-                    key={index}
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-lg border",
-                      isAdd
-                        ? "bg-green-50 border-green-200"
-                        : "bg-red-50 border-red-200"
-                    )}
-                  >
-                    <span className={cn(
-                      "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5",
-                      isAdd ? "bg-green-500" : "bg-red-500"
-                    )}>
-                      {isAdd ? '+' : '−'}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">
-                        {isAdd ? 'Dodao' : 'Uklonio'} od tehničara{' '}
-                        <span className="font-semibold">{log.technicianName}</span>
-                        {isMaterial ? (
-                          <>
-                            {' '} — materijal{' '}
-                            <span className="font-semibold">{log.materialType}</span>
-                            {' '} (kol: {log.materialQuantity})
-                          </>
-                        ) : (
-                          <>
-                            {' '} — opremu{' '}
-                            <span className="font-semibold">{log.equipmentCategory}</span>
-                            {' '} - {log.equipmentSerialNumber}
-                          </>
-                        )}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {log.adminName} — {new Date(log.timestamp).toLocaleDateString('sr-RS', { day: 'numeric', month: 'numeric', year: 'numeric' })}{' '}
-                        {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Equipment Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-            <EquipmentIcon size={20} />
-            <span>Oprema korisnika</span>
-          </h3>
-        </div>
-        <div className="p-6">
-          {loadingEquipment ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-slate-600">Učitavanje opreme...</p>
-            </div>
-          ) : (
+      {/* ── IDs Strip ────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 sm:px-6 py-2.5 bg-slate-50 border-b border-slate-200">
+          {workOrder?.tisId && (
             <>
-              {userEquipment.length > 0 ? (
-                <div>
-                  <h4 className="text-sm font-medium text-slate-700 mb-4">Trenutno instalirana oprema:</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Serijski broj</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum instalacije</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {userEquipment.map(eq => (
-                          <tr key={eq.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-sm text-slate-900">{eq.equipmentType}</td>
-                            <td className="px-4 py-3 text-sm text-slate-600">{eq.equipmentDescription}</td>
-                            <td className="px-4 py-3 text-sm font-mono text-slate-900 bg-slate-100 rounded px-2 py-1">{eq.serialNumber}</td>
-                            <td className="px-4 py-3 text-sm text-slate-600">{new Date(eq.installedAt).toLocaleDateString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-slate-600 text-center py-8">Korisnik trenutno nema instaliranu opremu.</p>
-              )}
-
-              {/* Prikaži dugme za istoriju ako ima bilo kakve istorije opreme */}
-              {userEquipmentHistory.length > 0 && (
-                <div className="mt-6">
-                  <Button
-                    type="secondary"
-                    size="small"
-                    prefix={<HistoryIcon size={16} />}
-                    onClick={() => setShowHistoryModal(true)}
-                  >
-                    Prikaži istoriju opreme
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400 uppercase font-medium">TIS</span>
+                <span className="text-xs font-mono font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">{workOrder.tisId}</span>
+              </div>
+              <div className="hidden sm:block w-px h-4 bg-slate-200" />
             </>
           )}
+          {workOrder?.tisJobId && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400 uppercase font-medium">Job</span>
+                <span className="text-xs font-mono font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">{workOrder.tisJobId}</span>
+              </div>
+              <div className="hidden sm:block w-px h-4 bg-slate-200" />
+            </>
+          )}
+          {workOrder?.technology && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400 uppercase font-medium">Tehnologija</span>
+                <span className="text-xs font-mono text-slate-600">{workOrder.technology}</span>
+              </div>
+              <div className="hidden sm:block w-px h-4 bg-slate-200" />
+            </>
+          )}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 uppercase font-medium">Email</span>
+            <span className="text-xs text-slate-600">{workOrder?.customerEmail || <span className="italic text-slate-400">Nije unet</span>}</span>
+          </div>
         </div>
 
-      </div>
+      {/* ── Main Content (7:5 grid) ──────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 bg-white">
 
-      {/* Modal za prikaz istorije opreme */}
-      {showHistoryModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-white/30 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-xl font-semibold text-slate-900">Istorija opreme korisnika</h3>
+        {/* ── LEFT COLUMN (7/12) ─────────────────────────── */}
+        <div className="lg:col-span-7 lg:border-r border-slate-200">
+
+            {/* Details + Comment */}
+            <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
+                    <CommentIcon size={13} className="text-slate-400" />
+                    Detalji posla
+                  </p>
+                  <EditableField
+                    field="details"
+                    value={formData.details}
+                    displayValue={
+                      formData.details
+                        ? <span className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">{formData.details}</span>
+                        : null
+                    }
+                    type="textarea"
+                    rows={4}
+                    placeholder="Opišite detalje posla..."
+                  />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2.5">Komentar tehničara</p>
+                  {formData.comment ? (
+                    <div className="border-l-2 border-emerald-400 pl-3 bg-emerald-50/50 py-2.5 pr-2 rounded-r">
+                      <EditableField
+                        field="comment"
+                        value={formData.comment}
+                        displayValue={
+                          <span className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">{formData.comment}</span>
+                        }
+                        type="textarea"
+                        rows={4}
+                        placeholder="Komentar..."
+                      />
+                    </div>
+                  ) : (
+                    <EditableField
+                      field="comment"
+                      value={formData.comment}
+                      displayValue={null}
+                      type="textarea"
+                      rows={3}
+                      placeholder="Komentar..."
+                    />
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="p-6">
-              {userEquipmentHistory.length > 0 ? (
+            {/* Equipment Table */}
+            <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium flex items-center gap-1.5">
+                  <BoxIcon size={13} className="text-slate-400" />
+                  Oprema korisnika
+                </p>
+                <span className="text-xs bg-slate-900 text-white px-2.5 py-0.5 rounded-full font-medium">
+                  {userEquipment.length}
+                </span>
+              </div>
+
+              {loadingEquipment ? (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                </div>
+              ) : userEquipment.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Serijski broj</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum instalacije</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum uklanjanja</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Stanje</th>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 w-16">Tip</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3">Opis</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3">Serijski br.</th>
+                        <th className="text-right font-medium text-slate-500 pb-2.5 w-20">Datum</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {userEquipmentHistory.map(eq => (
-                        <tr key={eq.id} className={cn(
-                          "hover:bg-slate-50 transition-colors",
-                          eq.status === 'removed' ? 'bg-red-50' : ''
-                        )}>
-                          <td className="px-4 py-3 text-sm text-slate-900">{eq.equipmentType}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{eq.equipmentDescription}</td>
-                          <td className="px-4 py-3 text-sm font-mono text-slate-900 bg-slate-100 rounded px-2 py-1">{eq.serialNumber}</td>
-                          <td className="px-4 py-3">
-                            <span className={cn(
-                              "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
-                              eq.status === 'active' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-                            )}>
-                              {eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}
+                    <tbody>
+                      {userEquipment.map((eq) => (
+                        <tr key={eq.id} className="border-b border-slate-50 last:border-0">
+                          <td className="py-2.5 pr-3">
+                            <span className="bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wide">
+                              {eq.equipmentType?.slice(0, 3)?.toUpperCase() || '—'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{eq.installedAt ? new Date(eq.installedAt).toLocaleDateString() : '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{eq.removedAt ? new Date(eq.removedAt).toLocaleDateString() : '-'}</td>
-                          <td className="px-4 py-3">
-                            {!eq.condition && <span className="text-sm text-slate-400">-</span>}
-                            {eq.condition === 'working' && (
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-200">
-                                Ispravno
-                              </span>
-                            )}
-                            {eq.condition === 'defective' && (
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-50 text-red-700 border border-red-200">
-                                Neispravno
-                              </span>
-                            )}
+                          <td className="py-2.5 pr-3 text-slate-900 font-medium">{eq.equipmentDescription || '—'}</td>
+                          <td className="py-2.5 pr-3 font-mono text-slate-500 text-xs">{eq.serialNumber}</td>
+                          <td className="py-2.5 text-right text-slate-400 text-xs">
+                            {eq.installedAt ? new Date(eq.installedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
                           </td>
                         </tr>
                       ))}
@@ -1454,311 +1191,653 @@ const WorkOrderDetail = () => {
                   </table>
                 </div>
               ) : (
-                <p className="text-slate-600 text-center py-8">Nema istorije opreme za ovog korisnika.</p>
+                <p className="text-sm text-slate-400 text-center py-4">Nema instalirane opreme</p>
+              )}
+
+              {userEquipmentHistory.length > 0 && (
+                <button
+                  onClick={() => setShowHistoryModal(true)}
+                  className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors font-medium"
+                >
+                  <HistoryIcon size={14} />
+                  Istorija opreme
+                </button>
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-200 flex justify-end">
-              <Button
-                type="primary"
-                size="medium"
-                onClick={() => setShowHistoryModal(false)}
-              >
-                Zatvori
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Removed Equipment Section */}
-      {removedEquipment.length > 0 && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="p-6 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-              <DeleteIcon size={20} />
-              <span>Uklonjena oprema (u ovom radnom nalogu)</span>
-            </h3>
-          </div>
-          <div className="p-6">
-            {loadingEquipment ? (
-              <div className="text-center py-8">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mb-4"></div>
-                <p className="text-slate-600">Učitavanje uklonjene opreme...</p>
-              </div>
-            ) : (
-              <div>
-                <h4 className="text-sm font-medium text-slate-700 mb-4">Oprema uklonjena u ovom radnom nalogu:</h4>
+            {/* Removed Equipment (red-themed, conditional) */}
+            {removedEquipment.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs uppercase tracking-wider text-red-500 font-medium flex items-center gap-1.5">
+                    <DeleteIcon size={13} className="text-red-500" />
+                    Uklonjena oprema
+                  </p>
+                  <span className="text-xs bg-red-600 text-white px-2.5 py-0.5 rounded-full font-medium">
+                    {removedEquipment.length}
+                  </span>
+                </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-red-50 border-b border-red-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-700 uppercase tracking-wider">Tip</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-700 uppercase tracking-wider">Serijski broj</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-700 uppercase tracking-wider">Stanje</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-700 uppercase tracking-wider">Datum uklanjanja</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-700 uppercase tracking-wider">Napomene</th>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-red-200">
+                        <th className="text-left font-medium text-red-600 pb-2.5 pr-3 w-16">Tip</th>
+                        <th className="text-left font-medium text-red-600 pb-2.5 pr-3">Serijski br.</th>
+                        <th className="text-left font-medium text-red-600 pb-2.5 pr-3">Stanje</th>
+                        <th className="text-right font-medium text-red-600 pb-2.5 w-20">Datum</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-red-200">
-                      {removedEquipment.map(eq => (
-                        <tr key={eq.id} className="hover:bg-red-50 transition-colors bg-red-25">
-                          <td className="px-4 py-3 text-sm text-slate-900 font-medium">{eq.equipmentType}</td>
-                          <td className="px-4 py-3 text-sm font-mono text-slate-900 bg-red-100 rounded px-2 py-1">{eq.serialNumber}</td>
-                          <td className="px-4 py-3">
+                    <tbody>
+                      {removedEquipment.map((eq) => (
+                        <tr key={eq.id} className="border-b border-red-50 last:border-0 bg-red-50/30">
+                          <td className="py-2.5 pr-3">
+                            <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wide">
+                              {eq.equipmentType?.slice(0, 3)?.toUpperCase() || '—'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-3 font-mono text-slate-600 text-xs">{eq.serialNumber}</td>
+                          <td className="py-2.5 pr-3">
                             <span className={cn(
-                              "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
-                              eq.condition === 'ispravna'
-                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
+                              "text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase",
+                              eq.condition === 'ispravna' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                             )}>
                               {eq.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600">
-                            {eq.removedAt ? new Date(eq.removedAt).toLocaleDateString('sr-RS') : '-'}
+                          <td className="py-2.5 text-right text-slate-400 text-xs">
+                            {eq.removedAt ? new Date(eq.removedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{eq.notes || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-700">
-                    <strong>Napomena:</strong> Ova oprema je uklonjena specifično u ovom radnom nalogu.
-                    Za kompletnu istoriju opreme korisnika, pogledajte "Istoriju opreme" iznad.
-                  </p>
-                </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* Materials Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-            <MaterialIcon size={20} />
-            <span>Utrošeni materijali</span>
-          </h3>
-        </div>
-        <div className="p-6">
-          {materials.length === 0 ? (
-            <p className="text-slate-600 text-center py-8">Nema utrošenih materijala za ovaj radni nalog</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {materials.map((materialItem, index) => (
-                <div key={index} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-medium text-slate-900">
-                      {materialItem.material?.type || 'Nepoznat materijal'}
-                    </h4>
-                    <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                      Količina: {materialItem.quantity}
-                    </span>
-                  </div>
-                  <div className="space-y-1 text-sm text-slate-600">
-                    <p><strong>Tip:</strong> {materialItem.material?.type || 'N/A'}</p>
-                    {materialItem.material?._id && (
-                      <p><strong>ID:</strong> {materialItem.material._id}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Images Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-            <ImageIcon size={20} />
-            <span>Slike radnog naloga</span>
-          </h3>
-        </div>
-        <div className="p-6">
-          {images.length === 0 ? (
-            <p className="text-slate-600 text-center py-8">Nema upload-ovanih slika za ovaj radni nalog</p>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {images.map((imageItem, index) => {
-                // Podrška za stari i novi format
-                const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
-                const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
-
-                return (
-                  <div key={index} className="relative group cursor-pointer">
-                    <img
-                      src={imageUrl}
-                      alt={originalName || `Slika ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-slate-200 hover:border-blue-300 transition-colors"
-                      onClick={() => setShowFullImage(imageUrl)}
-                    />
-                    {originalName && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-2 rounded-b-lg truncate">
-                        {originalName}
+            {/* Materials + Images (side by side) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-slate-100">
+              {/* Materials */}
+              <div className="px-5 sm:px-6 py-5 border-b md:border-b-0 border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3 flex items-center gap-1.5">
+                  <ToolsIcon size={13} className="text-slate-400" />
+                  Utrošeni materijali
+                </p>
+                {materials.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">Nema materijala</p>
+                ) : (
+                  <div className="space-y-1">
+                    {materials.map((materialItem, index) => (
+                      <div key={index} className="flex items-center justify-between py-1.5">
+                        <span className="text-sm text-slate-600">{materialItem.material?.type || 'Nepoznat'}</span>
+                        <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded ml-2 flex-shrink-0">
+                          ×{materialItem.quantity}
+                        </span>
                       </div>
-                    )}
-                    <button
-                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleImageDelete(imageUrl);
-                      }}
-                      title="Obriši sliku"
-                      disabled={deletingImage}
-                    >
-                      <DeleteIcon size={14} />
-                    </button>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+                )}
+              </div>
 
-      {/* Voice Recordings Section - Only for Supervisor and SuperAdmin */}
-      {(() => {
-        const storedUser = localStorage.getItem('user');
-        const userRole = storedUser ? JSON.parse(storedUser).role : null;
-        const canViewRecordings = userRole === 'supervisor' || userRole === 'superadmin';
+              {/* Images */}
+              <div className="px-5 sm:px-6 py-5">
+                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3 flex items-center gap-1.5">
+                  <ImageIcon size={13} className="text-slate-400" />
+                  Slike
+                  <span className="text-xs bg-slate-100 text-slate-500 px-2 rounded-full ml-0.5">{images.length}</span>
+                </p>
+                {images.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">Nema slika</p>
+                ) : (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {images.map((imageItem, index) => {
+                      const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
+                      const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
 
-        return canViewRecordings && (
-          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-                <PhoneIcon size={20} />
-                <span>Snimci poziva</span>
-              </h3>
+                      return (
+                        <div key={index} className="aspect-square rounded-md bg-slate-100 overflow-hidden cursor-pointer group relative">
+                          <img
+                            src={imageUrl}
+                            alt={originalName || `Slika ${index + 1}`}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform"
+                            onClick={() => setShowFullImage(imageUrl)}
+                          />
+                          <button
+                            className="absolute top-0.5 right-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleImageDelete(imageUrl);
+                            }}
+                            title="Obriši sliku"
+                            disabled={deletingImage}
+                          >
+                            <DeleteIcon size={10} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="p-6">
-              {voiceRecordings.length === 0 ? (
-                <p className="text-slate-600 text-center py-8">Nema snimljenih poziva za ovaj radni nalog</p>
-              ) : (
-                <div className="space-y-4">
-                  {voiceRecordings.map((recording, index) => (
-                    <div key={recording._id || index} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-blue-500 text-white rounded-full p-2">
-                            <PhoneIcon size={18} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">
-                              {recording.phoneNumber}
+          </div>
+
+        {/* ── RIGHT COLUMN (5/12) ────────────────────────── */}
+        <div className="lg:col-span-5 border-t lg:border-t-0 border-slate-200">
+
+            {/* Summary Counters */}
+            <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+              <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3">Pregled</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'Oprema', value: userEquipment.length.toString() },
+                  { label: 'Materijali', value: materials.length.toString() },
+                  { label: 'Slike', value: images.length.toString() },
+                  { label: 'Snimci', value: voiceRecordings.length.toString() },
+                ].map((s, i) => (
+                  <div key={i} className="text-center py-2.5 bg-slate-50 rounded-lg">
+                    <p className="text-xl font-bold text-slate-900 leading-none">{s.value}</p>
+                    <p className="text-[10px] text-slate-400 mt-1.5 uppercase tracking-wide">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Additional Jobs */}
+            {workOrder?.additionalJobs && (
+              <div className="px-5 sm:px-6 py-4 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-1.5">Dodatni poslovi</p>
+                <p className="text-sm text-slate-700">{workOrder.additionalJobs}</p>
+              </div>
+            )}
+
+            {/* Admin Edit Log (superadmin only) */}
+            {canViewEditLog && workOrder?.adminEditLog && workOrder.adminEditLog.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-amber-600 font-medium mb-3 flex items-center gap-1.5">
+                  <HistoryIcon size={13} className="text-amber-500" />
+                  Izmene opreme (Admin)
+                </p>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {workOrder.adminEditLog.map((log, index) => {
+                    const isAdd = log.action === 'added' || log.action === 'material_added';
+                    const isMaterial = log.action === 'material_added' || log.action === 'material_removed';
+
+                    return (
+                      <div key={index} className={cn(
+                        "rounded-lg p-3 border text-xs",
+                        isAdd ? "bg-green-50 border-green-100" : "bg-red-50 border-red-100"
+                      )}>
+                        <div className="flex items-start gap-2">
+                          <span className={cn(
+                            "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold mt-0.5",
+                            isAdd ? "bg-green-500" : "bg-red-500"
+                          )}>
+                            {isAdd ? '+' : '−'}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-slate-900 font-medium">
+                              {isAdd ? 'Dodao' : 'Uklonio'} — {log.technicianName}
+                              {isMaterial ? (
+                                <> · {log.materialType} (kol: {log.materialQuantity})</>
+                              ) : (
+                                <> · {log.equipmentCategory} - {log.equipmentSerialNumber}</>
+                              )}
                             </p>
-                            <p className="text-xs text-slate-500">
-                              {new Date(recording.recordedAt).toLocaleString('sr-RS')}
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              {log.adminName} · {new Date(log.timestamp).toLocaleDateString('sr-RS')} {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                         </div>
-                        {recording.duration && (
-                          <span className="text-xs font-medium text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
-                            {Math.floor(recording.duration / 60)}:{String(recording.duration % 60).padStart(2, '0')}
-                          </span>
-                        )}
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-                      {/* Audio Player */}
-                      <audio
-                        controls
-                        className="w-full h-10 rounded-lg"
-                        preload="metadata"
-                        style={{
-                          filter: 'hue-rotate(200deg)',
-                          accentColor: '#3b82f6'
-                        }}
-                      >
-                        <source src={recording.url} type="audio/mpeg" />
-                        <source src={recording.url} type="audio/mp4" />
-                        Vaš pretraživač ne podržava audio reprodukciju.
-                      </audio>
+            {/* Voice Recordings (supervisor/superadmin only) */}
+            {canViewRecordings && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-blue-500 font-medium mb-3 flex items-center gap-1.5">
+                  <PhoneIcon size={13} className="text-blue-500" />
+                  Snimci poziva
+                </p>
+                {voiceRecordings.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-3">Nema snimaka</p>
+                ) : (
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto">
+                    {voiceRecordings.map((recording, index) => (
+                      <div key={recording._id || index} className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-blue-500 text-white rounded-full p-1.5">
+                              <PhoneIcon size={12} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-800">{recording.phoneNumber}</p>
+                              <p className="text-[10px] text-slate-500">
+                                {new Date(recording.recordedAt).toLocaleString('sr-RS')}
+                              </p>
+                            </div>
+                          </div>
+                          {recording.duration && (
+                            <span className="text-[10px] font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                              {Math.floor(recording.duration / 60)}:{String(recording.duration % 60).padStart(2, '0')}
+                            </span>
+                          )}
+                        </div>
+                        <audio
+                          controls
+                          className="w-full h-8 rounded"
+                          preload="metadata"
+                          style={{ filter: 'hue-rotate(200deg)', accentColor: '#3b82f6' }}
+                        >
+                          <source src={recording.url} type="audio/mpeg" />
+                          <source src={recording.url} type="audio/mp4" />
+                          Vaš pretraživač ne podržava audio reprodukciju.
+                        </audio>
+                        <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500">
+                          <span className="truncate max-w-[140px]">{recording.fileName}</span>
+                          {recording.fileSize && (
+                            <span>{(recording.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-                      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                        <span className="truncate max-w-xs">{recording.fileName}</span>
-                        {recording.fileSize && (
-                          <span>{(recording.fileSize / 1024 / 1024).toFixed(2)} MB</span>
-                        )}
+            {/* Postpone History */}
+            {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-amber-500 font-medium mb-3 flex items-center gap-1.5">
+                  <ClockIcon size={13} className="text-amber-500" />
+                  Istorija odlaganja
+                </p>
+                <div className="space-y-2.5 max-h-56 overflow-y-auto">
+                  {workOrder.postponeHistory.map((postponement, index) => (
+                    <div key={index} className="bg-amber-50 rounded-lg p-3.5 border border-amber-100/80">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-mono text-amber-700">
+                          {new Date(postponement.postponedAt).toLocaleString('sr-RS')}
+                        </span>
+                        <span className="text-[10px] bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded font-semibold uppercase tracking-wide">
+                          Odlaganje #{index + 1}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 leading-relaxed">{postponement.comment}</p>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-amber-600 font-mono">
+                        <span>{new Date(postponement.fromDate).toLocaleDateString('sr-RS')} {postponement.fromTime}</span>
+                        <span className="text-amber-400">→</span>
+                        <span>{new Date(postponement.toDate).toLocaleDateString('sr-RS')} {postponement.toTime}</span>
                       </div>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Cancel History */}
+            {workOrder?.cancelHistory && workOrder.cancelHistory.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-red-500 font-medium mb-3 flex items-center gap-1.5">
+                  <AlertIcon size={13} className="text-red-500" />
+                  Istorija otkazivanja
+                </p>
+                <div className="space-y-2.5 max-h-56 overflow-y-auto">
+                  {workOrder.cancelHistory.map((cancellation, index) => (
+                    <div key={index} className="bg-red-50 rounded-lg p-3.5 border border-red-100/80">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-mono text-red-700">
+                          {new Date(cancellation.canceledAt).toLocaleString('sr-RS')}
+                        </span>
+                        <span className="text-[10px] bg-red-200/70 text-red-800 px-2 py-0.5 rounded font-semibold uppercase tracking-wide">
+                          Otkazivanje #{index + 1}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 leading-relaxed">{cancellation.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Customer Status */}
+            {needsVerification() && (
+              <div className="px-5 sm:px-6 py-5">
+                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3 flex items-center gap-1.5">
+                  <CheckCircleIcon size={13} className="text-emerald-500" />
+                  Status korisnika
+                </p>
+                {orderStatuses[workOrder._id] ? (
+                  <div className="bg-emerald-50 rounded-lg p-3.5 border border-emerald-100/80">
+                    <p className="text-sm text-emerald-800 font-medium leading-relaxed">
+                      {orderStatuses[workOrder._id]}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openCustomerStatusModal(workOrder._id)}
+                    className="w-full bg-slate-50 hover:bg-slate-100 rounded-lg p-4 border border-slate-200 border-dashed text-center transition-colors"
+                  >
+                    <p className="text-sm text-slate-500">Kliknite da postavite status korisnika</p>
+                  </button>
+                )}
+              </div>
+            )}
+
+        </div>
+      </div>
+
+      {/* ── Bottom Action Bar ────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 md:left-16 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-2.5 z-40 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+        <div className="flex items-center">
+
+          {/* ─ LEFT GROUP: Status + Back + Status Dropdown ─ */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Status badge */}
+            <div className={cn("flex items-center gap-1.5 px-3 py-2 rounded-lg", statusConfig.bgColor)}>
+              <div className={cn("w-2 h-2 rounded-full", statusConfig.dotColor)} />
+              <span className={cn("text-xs font-bold uppercase tracking-wide", statusConfig.textColor)}>
+                {statusConfig.label}
+              </span>
+            </div>
+
+            {workOrder?.verified && (
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 flex-shrink-0">
+                <CheckCircleIcon size={14} />
+                <span className="hidden sm:inline">Verifikovan</span>
+              </span>
+            )}
+
+            {/* Back */}
+            <button
+              onClick={() => {
+                if (location.state?.fromUsersList) {
+                  navigate(location.state.previousPath || '/users', {
+                    state: {
+                      fromWorkOrderDetail: true,
+                      selectedUserId: location.state.selectedUserId
+                    }
+                  });
+                } else {
+                  navigate('/work-orders');
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg transition-all flex-shrink-0"
+            >
+              <BackIcon size={16} />
+              <span className="hidden sm:inline">Nazad</span>
+            </button>
+
+            <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
+
+            {/* Status change dropdown */}
+            <div className="relative flex-shrink-0" ref={statusDropdownRef}>
+              <button
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-700 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg transition-all disabled:opacity-50"
+              >
+                Promeni status
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", showStatusDropdown && "rotate-180")}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {showStatusDropdown && (
+                <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[180px] py-1">
+                  {[
+                    { status: 'zavrsen', label: 'Završen', icon: <CheckIcon size={15} />, color: 'text-emerald-600', bg: 'hover:bg-emerald-50' },
+                    { status: 'nezavrsen', label: 'Nezavršen', icon: <ClockIcon size={15} />, color: 'text-blue-600', bg: 'hover:bg-blue-50' },
+                    { status: 'odlozen', label: 'Odložen', icon: <AlertIcon size={15} />, color: 'text-amber-600', bg: 'hover:bg-amber-50' },
+                    { status: 'otkazan', label: 'Otkazan', icon: <BanIcon size={15} />, color: 'text-red-600', bg: 'hover:bg-red-50' },
+                  ].map(s => (
+                    <button
+                      key={s.status}
+                      onClick={() => {
+                        handleStatusChange(s.status);
+                        setShowStatusDropdown(false);
+                      }}
+                      disabled={saving || formData.status === s.status}
+                      className={cn(
+                        "w-full px-4 py-2.5 text-sm flex items-center gap-2.5 transition-colors",
+                        s.color, s.bg,
+                        formData.status === s.status ? "font-bold bg-slate-50" : "font-medium",
+                        (saving || formData.status === s.status) && "opacity-40 cursor-not-allowed"
+                      )}
+                    >
+                      {s.icon}
+                      {s.label}
+                      {formData.status === s.status && (
+                        <span className="ml-auto text-xs text-slate-400">trenutni</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-        );
-      })()}
 
-      {/* Postpone History */}
-      {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="p-6 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-              <HistoryIcon size={20} />
-              <span>Istorija odlaganja</span>
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {workOrder.postponeHistory.map((postponement, index) => (
-                <div key={index} className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-slate-600">
-                      {new Date(postponement.postponedAt).toLocaleString('sr-RS')}
-                    </span>
-                    <span className="text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
-                      Odlaganje #{index + 1}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="text-slate-700">
-                      <strong>Sa:</strong> {new Date(postponement.fromDate).toLocaleDateString('sr-RS')} u {postponement.fromTime}
-                    </div>
-                    <div className="text-slate-700">
-                      <strong>Na:</strong> {new Date(postponement.toDate).toLocaleDateString('sr-RS')} u {postponement.toTime}
-                    </div>
-                    <div className="text-slate-700">
-                      <strong>Razlog:</strong> {postponement.comment}
-                    </div>
-                  </div>
+            {/* Verification nav arrows */}
+            {isFromVerification && verificationOrderIds.length > 0 && (
+              <>
+                <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={goToPrevVerification}
+                    disabled={!hasPrevVerification}
+                    className={cn(
+                      "p-2 rounded-lg border transition-all",
+                      hasPrevVerification
+                        ? "border-slate-300 hover:bg-slate-100 text-slate-700"
+                        : "border-slate-200 text-slate-300 cursor-not-allowed"
+                    )}
+                    title="Prethodni nalog"
+                  >
+                    <ChevronLeftIcon size={16} />
+                  </button>
+                  <span className="text-xs text-slate-500 px-0.5 min-w-[2.5rem] text-center font-mono">
+                    {currentVerificationIndex + 1}/{verificationOrderIds.length}
+                  </span>
+                  <button
+                    onClick={goToNextVerification}
+                    disabled={!hasNextVerification}
+                    className={cn(
+                      "p-2 rounded-lg border transition-all",
+                      hasNextVerification
+                        ? "border-slate-300 hover:bg-slate-100 text-slate-700"
+                        : "border-slate-200 text-slate-300 cursor-not-allowed"
+                    )}
+                    title="Sledeći nalog"
+                  >
+                    <ChevronRightIcon size={16} />
+                  </button>
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </div>
+
+          {/* ─ SPACER ─ */}
+          <div className="flex-1" />
+
+          {/* ─ RIGHT GROUP: Verification + PDF + Save ─ */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Verification buttons (left of PDF/Save) */}
+            {needsVerification() && (
+              <>
+                <button
+                  onClick={() => openCustomerStatusModal(workOrder._id)}
+                  disabled={verifying}
+                  className="px-3 py-2 text-sm text-slate-600 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+                  title="Status korisnika"
+                >
+                  <UserCheckIcon size={16} />
+                  <span className="hidden lg:inline">Status</span>
+                </button>
+                <button
+                  onClick={handleVerifyOrder}
+                  disabled={verifying || !orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id]}
+                  className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+                  title={!orderStatuses[workOrder._id] ? 'Prvo postavite status korisnika' : 'Verifikuj'}
+                >
+                  <CheckIcon size={16} />
+                  <span className="hidden lg:inline">{verifying ? 'Verifikuje...' : 'Verifikuj'}</span>
+                </button>
+                <button
+                  onClick={() => setShowReturnModal(true)}
+                  disabled={verifying}
+                  className="px-3 py-2 text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+                  title="Vrati nalog"
+                >
+                  <AlertIcon size={16} />
+                  <span className="hidden lg:inline">Vrati</span>
+                </button>
+                <button
+                  onClick={handleAIVerify}
+                  disabled={loadingAIVerification || verifying}
+                  className="px-3 py-2 text-sm text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+                  title="AI Verifikacija"
+                >
+                  {loadingAIVerification ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600"></div>
+                  ) : (
+                    <CheckIcon size={16} />
+                  )}
+                  <span className="hidden lg:inline">AI</span>
+                </button>
+                <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
+              </>
+            )}
+
+            {/* PDF */}
+            <button
+              onClick={generatePDF}
+              disabled={generatingPDF || saving}
+              className="px-3 py-2 text-sm text-slate-600 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+              title="Generiši PDF"
+            >
+              {generatingPDF ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600"></div>
+              ) : (
+                <DownloadIcon size={16} />
+              )}
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+
+            {/* Save */}
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-60 flex-shrink-0"
+            >
+              <SaveIcon size={16} />
+              {saving ? 'Čuva...' : 'Sačuvaj'}
+            </button>
+          </div>
+
         </div>
-      )}
+      </div>
 
-      {/* Cancel History */}
-      {workOrder?.cancelHistory && workOrder.cancelHistory.length > 0 && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="p-6 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-              <BanIcon size={20} />
-              <span>Istorija otkazivanja</span>
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {workOrder.cancelHistory.map((cancellation, index) => (
-                <div key={index} className="bg-red-50 rounded-lg p-4 border border-red-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-slate-600">
-                      {new Date(cancellation.canceledAt).toLocaleString('sr-RS')}
-                    </span>
-                    <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
-                      Otkazivanje #{index + 1}
-                    </span>
-                  </div>
-                  <div className="text-sm text-slate-700">
-                    <strong>Razlog:</strong> {cancellation.comment}
-                  </div>
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* ██ MODALS (unchanged) ██████████████████████████████ */}
+      {/* ══════════════════════════════════════════════════════ */}
+
+      {/* Equipment History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowHistoryModal(false); }}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full flex flex-col" style={{ maxHeight: '85vh' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="bg-slate-900 text-white rounded-lg p-1.5">
+                  <HistoryIcon size={14} />
                 </div>
-              ))}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Istorija opreme korisnika</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">TIS: {workOrder?.tisId || '—'} · {userEquipmentHistory.length} stavki</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <XIcon size={18} className="text-slate-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="overflow-y-auto flex-1 p-4">
+              {userEquipmentHistory.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Tip</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Opis</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Serijski br.</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Status</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Instalirano</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Uklonjeno</th>
+                        <th className="text-left font-medium text-slate-500 pb-2.5 text-[10px] uppercase tracking-wider">Stanje</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userEquipmentHistory.map(eq => (
+                        <tr key={eq.id} className={cn(
+                          "border-b border-slate-50 last:border-0 transition-colors hover:bg-slate-50/80",
+                          eq.status === 'removed' ? 'bg-red-50/40' : ''
+                        )}>
+                          <td className="py-2.5 pr-3">
+                            <span className={cn(
+                              "text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide text-white",
+                              eq.status === 'active' ? 'bg-slate-900' : 'bg-red-600'
+                            )}>
+                              {eq.equipmentType?.slice(0, 3)?.toUpperCase() || '—'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-3 text-slate-900 font-medium">{eq.equipmentDescription || '—'}</td>
+                          <td className="py-2.5 pr-3">
+                            <span className="font-mono text-[11px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{eq.serialNumber}</span>
+                          </td>
+                          <td className="py-2.5 pr-3">
+                            <span className={cn(
+                              "text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase",
+                              eq.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                            )}>
+                              {eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-3 text-slate-500 font-mono text-[11px]">{eq.installedAt ? new Date(eq.installedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</td>
+                          <td className="py-2.5 pr-3 text-slate-500 font-mono text-[11px]">{eq.removedAt ? new Date(eq.removedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</td>
+                          <td className="py-2.5">
+                            {!eq.condition && <span className="text-slate-400">—</span>}
+                            {eq.condition === 'working' && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase bg-green-100 text-green-700">Ispravno</span>
+                            )}
+                            {eq.condition === 'defective' && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase bg-red-100 text-red-700">Neispravno</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 text-center py-8">Nema istorije opreme za ovog korisnika.</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-slate-200 flex justify-end flex-shrink-0">
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="px-4 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Zatvori
+              </button>
             </div>
           </div>
         </div>
@@ -1766,31 +1845,95 @@ const WorkOrderDetail = () => {
 
       {/* Image Viewer Modal */}
       {showFullImage && (
-        <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" 
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
           onClick={() => setShowFullImage(null)}
         >
-          <div 
-            className="relative flex items-center justify-center max-w-[95vw] max-h-[95vh]" 
+          {/* Top bar with info and close */}
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent z-10">
+            <div className="flex items-center gap-2">
+              <ImageIcon size={14} className="text-white/70" />
+              <span className="text-xs text-white/70 font-mono">
+                {(() => {
+                  const idx = images.findIndex(img => (typeof img === 'object' ? img.url : img) === showFullImage);
+                  return idx >= 0 ? `${idx + 1} / ${images.length}` : '';
+                })()}
+              </span>
+            </div>
+            <button
+              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-colors"
+              onClick={(e) => { e.stopPropagation(); setShowFullImage(null); }}
+              title="Zatvori"
+            >
+              <XIcon size={18} />
+            </button>
+          </div>
+
+          {/* Image */}
+          <div
+            className="relative flex items-center justify-center w-full h-full p-12"
             onClick={(e) => e.stopPropagation()}
           >
-            <img 
-              src={showFullImage} 
-              alt="Slika u punoj veličini" 
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            {/* Prev/Next arrows for navigating images */}
+            {(() => {
+              const currentIdx = images.findIndex(img => (typeof img === 'object' ? img.url : img) === showFullImage);
+              return (
+                <>
+                  {images.length > 1 && currentIdx > 0 && (
+                    <button
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors z-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const prevImg = images[currentIdx - 1];
+                        setShowFullImage(typeof prevImg === 'object' ? prevImg.url : prevImg);
+                      }}
+                    >
+                      <ChevronLeftIcon size={20} />
+                    </button>
+                  )}
+                  {images.length > 1 && currentIdx >= 0 && currentIdx < images.length - 1 && (
+                    <button
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors z-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextImg = images[currentIdx + 1];
+                        setShowFullImage(typeof nextImg === 'object' ? nextImg.url : nextImg);
+                      }}
+                    >
+                      <ChevronRightIcon size={20} />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+
+            <img
+              src={showFullImage}
+              alt="Slika u punoj veličini"
+              className="max-w-full max-h-full object-contain rounded-lg select-none"
               style={{
-                maxWidth: '95vw',
-                maxHeight: '95vh',
+                maxWidth: 'calc(100vw - 6rem)',
+                maxHeight: 'calc(100vh - 6rem)',
                 width: 'auto',
                 height: 'auto'
               }}
+              onClick={(e) => e.stopPropagation()}
             />
-            <button 
-              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-colors z-10" 
-              onClick={() => setShowFullImage(null)}
-              title="Zatvori sliku"
+          </div>
+
+          {/* Bottom bar with delete */}
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center px-4 py-3 bg-gradient-to-t from-black/60 to-transparent z-10">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleImageDelete(showFullImage);
+                setShowFullImage(null);
+              }}
+              disabled={deletingImage}
+              className="px-4 py-2 text-xs text-red-400 hover:text-red-300 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-sm transition-colors flex items-center gap-1.5 disabled:opacity-40"
             >
-              <DeleteIcon size={20} />
+              <DeleteIcon size={12} />
+              Obriši sliku
             </button>
           </div>
         </div>
@@ -1921,50 +2064,6 @@ const WorkOrderDetail = () => {
           </div>
         </div>
       )}
-
-      {/* Action Buttons - moved to bottom */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6">
-          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
-            <Button
-              type="secondary"
-              size="medium"
-              onClick={() => {
-                if (location.state && location.state.returnTo) {
-                  navigate(location.state.returnTo, {
-                    state: {
-                      selectedUserId: location.state.selectedUserId
-                    }
-                  });
-                } else {
-                  navigate('/work-orders');
-                }
-              }}
-              disabled={saving}
-            >
-              Odustani
-            </Button>
-            <Button
-              type="secondary"
-              size="medium"
-              prefix={generatingPDF ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div> : <DownloadIcon size={16} />}
-              onClick={generatePDF}
-              disabled={generatingPDF || saving}
-            >
-              {generatingPDF ? 'Generiše PDF...' : 'Preuzmi PDF'}
-            </Button>
-            <Button
-              type="primary"
-              size="medium"
-              prefix={<SaveIcon size={16} />}
-              disabled={saving}
-              onClick={handleSubmit}
-            >
-              {saving ? 'Čuvanje...' : 'Sačuvaj izmene'}
-            </Button>
-          </div>
-        </div>
-      </div>
 
       {/* AI Verification Modal */}
       <AIVerificationModal
