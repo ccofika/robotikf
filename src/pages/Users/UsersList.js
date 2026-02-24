@@ -3,12 +3,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from '../../utils/toast';
 import axios from 'axios';
 import { cn } from '../../utils/cn';
+import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import { Button } from '../../components/ui/button-1';
 import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon, EquipmentIcon, CalendarIcon, FilterIcon, EyeIcon, SettingsIcon, CheckIcon } from '../../components/icons/SvgIcons';
 
 const UsersList = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { refreshCounter } = useWorkOrderModal();
 
   // Server-side pagination state
   const [users, setUsers] = useState([]);
@@ -78,6 +80,14 @@ const UsersList = () => {
     fetchDashboardStats();
     fetchUsers();
   }, []);
+
+  // Refresh data when modal signals changes
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      fetchUsers();
+      fetchDashboardStats();
+    }
+  }, [refreshCounter]);
 
   // Restore modal state from navigation if coming back from work order detail
   useEffect(() => {
@@ -962,6 +972,7 @@ const UsersList = () => {
                               <Link
                                 to={`/work-orders/${order._id}`}
                                 state={{
+                                  backgroundLocation: location,
                                   fromUsersList: true,
                                   selectedUserId: selectedUser._id,
                                   previousPath: location.pathname

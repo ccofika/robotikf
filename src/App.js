@@ -9,6 +9,9 @@ import { ShadcnSidebar } from './components/layout/ShadcnSidebar';
 // Context
 import { AuthContext } from './context/AuthContext';
 import { OverdueWorkOrdersProvider, useOverdueWorkOrders } from './context/OverdueWorkOrdersContext';
+import { WorkOrderModalProvider } from './context/WorkOrderModalContext';
+// Modal
+import WorkOrderModal from './components/WorkOrderModal';
 
 // Pages
 import Login from './pages/Auth/Login';
@@ -82,6 +85,186 @@ const OverdueRouteGuard = ({ children }) => {
 
   console.log('RouteGuard: Showing normal content');
   return children;
+};
+
+const PrivateRoute = ({ children }) => {
+  const { user } = useContext(AuthContext);
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// Shared route definitions - used for both background and normal rendering
+const AppRouteDefinitions = ({ user, isAdminLike, isSupervisorLike, logout }) => (
+  <>
+    {/* Javne rute */}
+    <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+    <Route path="/logout" element={<Logout />} />
+
+    {/* Ruta za pristup odbijen */}
+    <Route path="/access-denied" element={
+      <div className="access-denied">
+        <h2>Pristup odbijen</h2>
+        <p>Nemate potrebne dozvole za pristup ovoj stranici.</p>
+        <button onClick={logout} className="btn">Odjavite se</button>
+      </div>
+    } />
+
+    {/* Admin rute */}
+    <Route path="/" element={
+      user ? (
+        isAdminLike(user.role) ? <Dashboard /> : <Navigate to="/my-work-orders" />
+      ) : <Navigate to="/login" />
+    } />
+
+    {/* Inventar rute */}
+    <Route path="/equipment" element={
+      isAdminLike(user?.role) ? <EquipmentList /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/virtual-warehouse" element={
+      isAdminLike(user?.role) ? <VirtualWarehouse /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/equipment/upload" element={
+      isAdminLike(user?.role) ? <EquipmentUpload /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/equipment/edit/:id" element={
+      isAdminLike(user?.role) ? <EditEquipment /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/materials" element={
+      isAdminLike(user?.role) ? <MaterialsList /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/materials/add" element={
+      isAdminLike(user?.role) ? <AddMaterial /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/materials/edit/:id" element={
+      isAdminLike(user?.role) ? <EditMaterial /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/basic-equipment" element={
+      isAdminLike(user?.role) ? <BasicEquipmentManager /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/technicians" element={
+      isAdminLike(user?.role) ? <TechniciansList /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/technicians/add" element={
+      isAdminLike(user?.role) ? <AddTechnician /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/technicians/:id" element={
+      isAdminLike(user?.role) ? <TechnicianDetail /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/technicians/:id/assign-equipment" element={
+      isAdminLike(user?.role) ? <AssignEquipment /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/technicians/:id/assign-material" element={
+      isAdminLike(user?.role) ? <AssignMaterial /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/technicians/gps" element={
+      isAdminLike(user?.role) ? <TechniciansGPS /> : <Navigate to="/access-denied" />
+    } />
+
+    {/* Radni nalozi rute za admina */}
+    <Route path="/work-orders" element={
+      isAdminLike(user?.role) ? <WorkOrdersByTechnician /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/work-orders/list" element={
+      isAdminLike(user?.role) ? <WorkOrdersList /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/work-orders/upload" element={
+      isAdminLike(user?.role) ? <WorkOrdersUpload /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/work-orders/add" element={
+      isAdminLike(user?.role) ? <AddWorkOrder /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/work-orders/:id" element={
+      isAdminLike(user?.role) ? <WorkOrderDetail /> : <Navigate to="/access-denied" />
+    } />
+
+    {/* Edit radni nalozi rute za admina/superadmina/supervisora */}
+    <Route path="/edit-work-orders" element={
+      isAdminLike(user?.role) ? <EditWorkOrders /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/edit-work-orders/:id" element={
+      isAdminLike(user?.role) ? <EditWorkOrderDetail /> : <Navigate to="/access-denied" />
+    } />
+
+    {/* Korisnici ruta za admina */}
+    <Route path="/users" element={
+      isAdminLike(user?.role) ? <UsersList /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/export" element={
+      isAdminLike(user?.role) ? <ExportSpecification /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/logs" element={
+      isAdminLike(user?.role) ? <Logs /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/backend-logs" element={
+      (user?.role === 'supervisor' || user?.role === 'superadmin') ? <BackendLogs /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/vehicles" element={
+      isAdminLike(user?.role) ? <VehicleFleet /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/defective-equipment" element={
+      isAdminLike(user?.role) ? <DefectiveEquipment /> : <Navigate to="/access-denied" />
+    } />
+    <Route path="/finances" element={
+      isSupervisorLike(user?.role) ? <Finances /> : <Navigate to="/access-denied" />
+    } />
+
+    {/* Radni nalozi rute za tehničara */}
+    <Route path="/my-work-orders" element={
+      user ? <TechnicianWorkOrders /> : <Navigate to="/login" />
+    } />
+    <Route path="/my-work-orders/:id" element={
+      user ? <TechnicianWorkOrderDetail /> : <Navigate to="/login" />
+    } />
+
+    {/* Inventar rute za tehničara */}
+    <Route path="/my-equipment" element={
+      user ? <TechnicianEquipment /> : <Navigate to="/login" />
+    } />
+    <Route path="/my-materials" element={
+      user ? <TechnicianMaterials /> : <Navigate to="/login" />
+    } />
+    <Route path="/my-basic-equipment" element={
+      user ? <TechnicianBasicEquipment /> : <Navigate to="/login" />
+    } />
+    <Route path="/reports/user-equipment" element={
+      <PrivateRoute>
+        <UserEquipmentReport />
+      </PrivateRoute>
+    } />
+
+    {/* New Design Page - Dostupna svim ulogovanim korisnicima */}
+    <Route path="/new-design" element={
+      user ? <NewDesign /> : <Navigate to="/login" />
+    } />
+
+    {/* Fallback ruta */}
+    <Route path="*" element={
+      <Navigate to={user ? (isAdminLike(user.role) ? '/' : '/my-work-orders') : '/login'} />
+    } />
+  </>
+);
+
+// Inner component that uses useLocation for modal routing
+const AppRoutes = ({ user, isAdminLike, isSupervisorLike, logout }) => {
+  const location = useLocation();
+  const backgroundLocation = location.state?.backgroundLocation;
+
+  return (
+    <main className={`${user ? 'md:ml-16' : ''} transition-all duration-300 ease-in-out`}>
+      <div className={`${user ? 'pt-16 md:pt-6' : ''} p-6 min-h-screen`}>
+        <OverdueRouteGuard>
+          {/* When backgroundLocation exists, render the background page routes using that location */}
+          <Routes location={backgroundLocation || location}>
+            {AppRouteDefinitions({ user, isAdminLike, isSupervisorLike, logout })}
+          </Routes>
+        </OverdueRouteGuard>
+      </div>
+
+      {/* Modal overlay - only when backgroundLocation exists and we're on a work-orders/:id route */}
+      {backgroundLocation && location.pathname.match(/^\/work-orders\/[a-f0-9]+$/i) && (
+        <WorkOrderModal backgroundLocation={backgroundLocation} />
+      )}
+    </main>
+  );
 };
 
 function App() {
@@ -192,12 +375,6 @@ function App() {
     setShowEquipmentConfirmation(false);
   };
   
-const PrivateRoute = ({ children }) => {
-  const { user } = useContext(AuthContext);
-  
-  return user ? children : <Navigate to="/login" replace />;
-};
-
   if (loading) {
     return <div className="loading">Učitavanje...</div>;
   }
@@ -209,160 +386,10 @@ const PrivateRoute = ({ children }) => {
           <Router>
             <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
               {user && <ShadcnSidebar />}
-              <main className={`${user ? 'md:ml-16' : ''} transition-all duration-300 ease-in-out`}>
-                <div className={`${user ? 'pt-16 md:pt-6' : ''} p-6 min-h-screen`}>
-                  <OverdueRouteGuard>
-                <Routes>
-                {/* Javne rute */}
-                <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-                <Route path="/logout" element={<Logout />} />
-                
-                {/* Ruta za pristup odbijen */}
-                <Route path="/access-denied" element={
-                  <div className="access-denied">
-                    <h2>Pristup odbijen</h2>
-                    <p>Nemate potrebne dozvole za pristup ovoj stranici.</p>
-                    <button onClick={logout} className="btn">Odjavite se</button>
-                  </div>
-                } />
-                
-                {/* Admin rute */}
-                <Route path="/" element={
-                  user ? (
-                    isAdminLike(user.role) ? <Dashboard /> : <Navigate to="/my-work-orders" />
-                  ) : <Navigate to="/login" />
-                } />
+              <WorkOrderModalProvider>
+                <AppRoutes user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
+              </WorkOrderModalProvider>
 
-                {/* Inventar rute */}
-                <Route path="/equipment" element={
-                  isAdminLike(user?.role) ? <EquipmentList /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/virtual-warehouse" element={
-                  isAdminLike(user?.role) ? <VirtualWarehouse /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/equipment/upload" element={
-                  isAdminLike(user?.role) ? <EquipmentUpload /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/equipment/edit/:id" element={
-                  isAdminLike(user?.role) ? <EditEquipment /> : <Navigate to="/access-denied" />
-                } />
-                                <Route path="/materials" element={
-                  isAdminLike(user?.role) ? <MaterialsList /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/materials/add" element={
-                  isAdminLike(user?.role) ? <AddMaterial /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/materials/edit/:id" element={
-                  isAdminLike(user?.role) ? <EditMaterial /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/basic-equipment" element={
-                  isAdminLike(user?.role) ? <BasicEquipmentManager /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/technicians" element={
-                  isAdminLike(user?.role) ? <TechniciansList /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/technicians/add" element={
-                  isAdminLike(user?.role) ? <AddTechnician /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/technicians/:id" element={
-                  isAdminLike(user?.role) ? <TechnicianDetail /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/technicians/:id/assign-equipment" element={
-                  isAdminLike(user?.role) ? <AssignEquipment /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/technicians/:id/assign-material" element={
-                  isAdminLike(user?.role) ? <AssignMaterial /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/technicians/gps" element={
-                  isAdminLike(user?.role) ? <TechniciansGPS /> : <Navigate to="/access-denied" />
-                } />
-
-                {/* Radni nalozi rute za admina */}
-                <Route path="/work-orders" element={
-                  isAdminLike(user?.role) ? <WorkOrdersByTechnician /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/work-orders/list" element={
-                  isAdminLike(user?.role) ? <WorkOrdersList /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/work-orders/upload" element={
-                  isAdminLike(user?.role) ? <WorkOrdersUpload /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/work-orders/add" element={
-                  isAdminLike(user?.role) ? <AddWorkOrder /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/work-orders/:id" element={
-                  isAdminLike(user?.role) ? <WorkOrderDetail /> : <Navigate to="/access-denied" />
-                } />
-
-                {/* Edit radni nalozi rute za admina/superadmina/supervisora */}
-                <Route path="/edit-work-orders" element={
-                  isAdminLike(user?.role) ? <EditWorkOrders /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/edit-work-orders/:id" element={
-                  isAdminLike(user?.role) ? <EditWorkOrderDetail /> : <Navigate to="/access-denied" />
-                } />
-
-                {/* Korisnici ruta za admina */}
-                <Route path="/users" element={
-                  isAdminLike(user?.role) ? <UsersList /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/export" element={
-                  isAdminLike(user?.role) ? <ExportSpecification /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/logs" element={
-                  isAdminLike(user?.role) ? <Logs /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/backend-logs" element={
-                  (user?.role === 'supervisor' || user?.role === 'superadmin') ? <BackendLogs /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/vehicles" element={
-                  isAdminLike(user?.role) ? <VehicleFleet /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/defective-equipment" element={
-                  isAdminLike(user?.role) ? <DefectiveEquipment /> : <Navigate to="/access-denied" />
-                } />
-                <Route path="/finances" element={
-                  isSupervisorLike(user?.role) ? <Finances /> : <Navigate to="/access-denied" />
-                } />
-                
-                {/* Radni nalozi rute za tehničara */}
-                <Route path="/my-work-orders" element={
-                  user ? <TechnicianWorkOrders /> : <Navigate to="/login" />
-                } />
-                <Route path="/my-work-orders/:id" element={
-                  user ? <TechnicianWorkOrderDetail /> : <Navigate to="/login" />
-                } />
-                
-                {/* Inventar rute za tehničara */}
-                <Route path="/my-equipment" element={
-                  user ? <TechnicianEquipment /> : <Navigate to="/login" />
-                } />
-                <Route path="/my-materials" element={
-                  user ? <TechnicianMaterials /> : <Navigate to="/login" />
-                } />
-                <Route path="/my-basic-equipment" element={
-                  user ? <TechnicianBasicEquipment /> : <Navigate to="/login" />
-                } />
-                <Route path="/reports/user-equipment" element={
-                  <PrivateRoute>
-                    <UserEquipmentReport />
-                  </PrivateRoute>
-                } />
-
-                {/* New Design Page - Dostupna svim ulogovanim korisnicima */}
-                <Route path="/new-design" element={
-                  user ? <NewDesign /> : <Navigate to="/login" />
-                } />
-
-                {/* Fallback ruta */}
-                <Route path="*" element={
-                  <Navigate to={user ? (isAdminLike(user.role) ? '/' : '/my-work-orders') : '/login'} />
-                } />
-                </Routes>
-                  </OverdueRouteGuard>
-              </div>
-            </main>
-            
             {/* Komponenta za potvrđivanje opreme - prikazuje se kao overlay kad je potrebno */}
             {showEquipmentConfirmation && user?.role === 'technician' && (
               <EquipmentConfirmation onConfirmationComplete={handleEquipmentConfirmationComplete} />

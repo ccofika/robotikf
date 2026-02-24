@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { PlusIcon, UploadIcon, SearchIcon, FilterIcon, ViewIcon, DeleteIcon, ClipboardIcon, RefreshIcon } from '../../components/icons/SvgIcons';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
+import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import './WorkOrdersModern.css';
 
 const WorkOrdersList = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [workOrders, setWorkOrders] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,9 +21,18 @@ const WorkOrdersList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
+  const { refreshCounter } = useWorkOrderModal();
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Refresh data when modal signals changes
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      fetchData();
+    }
+  }, [refreshCounter]);
   
   const fetchData = async () => {
     setLoading(true);
@@ -269,8 +280,9 @@ const WorkOrdersList = () => {
                           </span>
                         </td>
                         <td className="actions-column">
-                          <Link 
-                            to={`/work-orders/${order._id}`} 
+                          <Link
+                            to={`/work-orders/${order._id}`}
+                            state={{ backgroundLocation: location }}
                             className="btn btn-sm action-btn view-btn"
                           >
                             <ViewIcon /> Detalji

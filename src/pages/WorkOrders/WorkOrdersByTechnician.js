@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, AlertIcon, RefreshIcon, ClipboardIcon, PlusIcon, UserCheckIcon, XIcon, TableIcon } from '../../components/icons/SvgIcons';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, ToolsIcon, CheckIcon, RefreshIcon, ClipboardIcon, PlusIcon, UserCheckIcon, XIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
+import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import AIVerificationModal from '../../components/AIVerificationModal';
-import FancyDataTable from '../../components/fancy-table/FancyDataTable';
 
 const WorkOrdersByTechnician = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { refreshCounter } = useWorkOrderModal();
   const [technicians, setTechnicians] = useState([]);
 
   // Optimized state management with priority-based loading
@@ -18,7 +21,6 @@ const WorkOrdersByTechnician = () => {
   const [recentUnassigned, setRecentUnassigned] = useState([]);
   const [olderUnassigned, setOlderUnassigned] = useState([]);
   const [verificationOrders, setVerificationOrders] = useState([]);
-  // Removed unused state - dashboardStats
 
 
   // Loading states
@@ -33,70 +35,53 @@ const WorkOrdersByTechnician = () => {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [technicianFilter, setTechnicianFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [timeSortOrder, setTimeSortOrder] = useState('asc'); // 'asc' = oldest first, 'desc' = newest first
+  const [timeSortOrder, setTimeSortOrder] = useState('asc');
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'technicians');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
   const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
-  const [orderStatuses, setOrderStatuses] = useState({}); // Store customer status for each order
+  const [orderStatuses, setOrderStatuses] = useState({});
 
   // AI Verification states
   const [loadingAIVerification, setLoadingAIVerification] = useState(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiVerificationResult, setAIVerificationResult] = useState(null);
 
-  // Fancy table states (for new "pregled" tab)
-  const [fancyTableData, setFancyTableData] = useState([]);
-  const [fancyTablePagination, setFancyTablePagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalCount: 0,
-    limit: 20,
-    hasNextPage: false,
-    hasPreviousPage: false
-  });
-  const [fancyTableLoading, setFancyTableLoading] = useState(false);
-  const [fancyTableFilters, setFancyTableFilters] = useState({
-    status: '',
-    technician: '',
-    municipality: '',
-    type: '',
-    dateFrom: '',
-    dateTo: '',
-    verified: ''
-  });
-  const [fancyTableSearch, setFancyTableSearch] = useState('');
-  const [fancyTableRefreshing, setFancyTableRefreshing] = useState(false);
+  // Sidebar state for mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Removed unused hook - navigate
-  
   // Paginacija
   const [currentPageUnassigned, setCurrentPageUnassigned] = useState(1);
   const [currentPageVerification, setCurrentPageVerification] = useState(1);
   const [currentPageAllOrders, setCurrentPageAllOrders] = useState(1);
   const [technicianCurrentPages, setTechnicianCurrentPages] = useState({});
   const itemsPerPage = 20;
-  
+
   useEffect(() => {
     fetchDashboardAndTechnicians();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refresh data when modal signals changes
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      fetchData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshCounter]);
 
   // Prati promene u URL parametrima i automatski postavlja tab i search
   useEffect(() => {
     const tab = searchParams.get('tab');
     const search = searchParams.get('search');
 
-    // Postavi tab ako postoji u URL-u (bez provere trenutne vrednosti)
     if (tab) {
       setActiveTab(tab);
 
-      // Lazy load verification data when tab is accessed
       if (tab === 'verification' && !verificationDataLoaded) {
         fetchVerificationOrders();
       }
     }
 
-    // Postavi search ako postoji u URL-u (bez provere trenutne vrednosti)
     if (search) {
       setSearchTerm(search);
     }
@@ -107,101 +92,11 @@ const WorkOrdersByTechnician = () => {
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
 
-    // Lazy load verification data when tab is clicked
     if (tabName === 'verification' && !verificationDataLoaded) {
       fetchVerificationOrders();
     }
-
-    // Load fancy table data when pregled tab is clicked
-    if (tabName === 'pregled') {
-      fetchFancyTableData();
-    }
   };
 
-  // Fetch data for fancy table (server-side pagination)
-  const fetchFancyTableData = async (page) => {
-    setFancyTableLoading(true);
-    try {
-      const currentPage = page || fancyTablePagination?.currentPage || 1;
-      const currentLimit = fancyTablePagination?.limit || 20;
-
-      const params = {
-        page: currentPage.toString(),
-        limit: currentLimit.toString(),
-        search: fancyTableSearch,
-        status: fancyTableFilters.status,
-        municipality: fancyTableFilters.municipality,
-        technician: fancyTableFilters.technician
-      };
-
-      console.log('Fetching fancy table data with params:', params);
-
-      const response = await workOrdersAPI.getAll(params);
-      console.log('API Response:', response.data);
-
-      // Backend vraća podatke u response.data direktno ili u response.data objektu
-      const workOrders = response.data.workOrders || response.data || [];
-      const pagination = response.data.pagination;
-
-      console.log('Work Orders:', workOrders);
-      console.log('Pagination:', pagination);
-
-      setFancyTableData(Array.isArray(workOrders) ? workOrders : []);
-
-      if (pagination) {
-        setFancyTablePagination(pagination);
-      } else {
-        // Ako backend ne vraća pagination strukturu, kreiraj je manualno
-        setFancyTablePagination({
-          currentPage: currentPage,
-          totalPages: 1,
-          totalCount: Array.isArray(workOrders) ? workOrders.length : 0,
-          limit: currentLimit,
-          hasNextPage: false,
-          hasPreviousPage: false
-        });
-      }
-    } catch (error) {
-      console.error('Greška pri učitavanju radnih naloga:', error);
-      toast.error('Greška pri učitavanju podataka!');
-    } finally {
-      setFancyTableLoading(false);
-    }
-  };
-
-  // Handle fancy table page change
-  const handleFancyTablePageChange = (newPage) => {
-    setFancyTablePagination(prev => ({ ...prev, currentPage: newPage }));
-  };
-
-  // Handle fancy table filter change
-  const handleFancyTableFilterChange = (newFilters) => {
-    setFancyTableFilters(newFilters);
-    setFancyTablePagination(prev => ({ ...prev, currentPage: 1 }));
-  };
-
-  // Handle fancy table search change
-  const handleFancyTableSearchChange = (value) => {
-    setFancyTableSearch(value);
-    setFancyTablePagination(prev => ({ ...prev, currentPage: 1 }));
-  };
-
-  // Handle fancy table refresh
-  const handleFancyTableRefresh = async () => {
-    setFancyTableRefreshing(true);
-    await fetchFancyTableData(fancyTablePagination?.currentPage || 1);
-    setFancyTableRefreshing(false);
-    toast.success('Podaci su osveženi!');
-  };
-
-  // Fetch fancy table data when filters, search, or page changes
-  useEffect(() => {
-    if (activeTab === 'pregled') {
-      fetchFancyTableData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fancyTablePagination?.currentPage, fancyTableSearch, fancyTableFilters]);
-  
   // Priority 1: Load dashboard stats and technicians (fastest)
   const fetchDashboardAndTechnicians = async () => {
     setDashboardLoading(true);
@@ -213,8 +108,6 @@ const WorkOrdersByTechnician = () => {
 
       setTechnicians(techniciansData);
 
-
-      // Start loading recent data
       setTimeout(() => {
         fetchRecentWorkOrders();
       }, 100);
@@ -244,7 +137,6 @@ const WorkOrdersByTechnician = () => {
       const workOrdersData = workOrdersResponse.data;
       const unassignedData = unassignedResponse.data;
 
-      // Filter for last 3 days
       const recentWorkOrdersData = workOrdersData.filter(order => {
         const orderDate = new Date(order.date);
         return orderDate >= threeDaysAgo;
@@ -258,15 +150,17 @@ const WorkOrdersByTechnician = () => {
       setRecentWorkOrders(recentWorkOrdersData);
       setRecentUnassigned(recentUnassignedData);
 
+      // Load verification count in background (don't block)
+      if (!verificationDataLoaded) {
+        fetchVerificationOrders();
+      }
 
-      // Start loading older data in background
       setTimeout(() => {
         fetchOlderWorkOrders();
       }, 500);
 
     } catch (error) {
       console.error('Greška pri učitavanju najnovijih radnih naloga:', error);
-      // Don't show error for background loading
     } finally {
       setRecentLoading(false);
     }
@@ -288,7 +182,6 @@ const WorkOrdersByTechnician = () => {
       const workOrdersData = workOrdersResponse.data;
       const unassignedData = unassignedResponse.data;
 
-      // Filter for older than 3 days
       const olderWorkOrdersData = workOrdersData.filter(order => {
         const orderDate = new Date(order.date);
         return orderDate < threeDaysAgo;
@@ -302,10 +195,8 @@ const WorkOrdersByTechnician = () => {
       setOlderWorkOrders(olderWorkOrdersData);
       setOlderUnassigned(olderUnassignedData);
 
-
     } catch (error) {
       console.error('Greška pri učitavanju starijih radnih naloga:', error);
-      // Silent background loading
     } finally {
       setOlderLoading(false);
     }
@@ -324,7 +215,6 @@ const WorkOrdersByTechnician = () => {
       setVerificationOrders(verificationData);
       setVerificationDataLoaded(true);
 
-
     } catch (error) {
       console.error('Greška pri učitavanju naloga za verifikaciju:', error);
       toast.error('Neuspešno učitavanje naloga za verifikaciju!');
@@ -338,12 +228,11 @@ const WorkOrdersByTechnician = () => {
     setVerificationDataLoaded(false);
     await fetchDashboardAndTechnicians();
 
-    // If verification tab is active, reload it
     if (activeTab === 'verification') {
       await fetchVerificationOrders();
     }
   };
-  
+
   const loadCustomerStatus = async (orderId) => {
     try {
       const response = await workOrdersAPI.getEvidence(orderId);
@@ -363,16 +252,14 @@ const WorkOrdersByTechnician = () => {
       return status;
     }
   };
-  
+
   const handleVerifyOrder = async (orderId) => {
     try {
-      // First load the current customer status if not already loaded
       let currentStatus = orderStatuses[orderId];
       if (!currentStatus) {
         currentStatus = await loadCustomerStatus(orderId);
       }
-      
-      // Check if customer status is set and not the old default value
+
       if (!currentStatus || currentStatus === 'Nov korisnik') {
         toast.error('Potrebno je prvo postaviti status korisnika pre verifikacije!');
         return;
@@ -380,10 +267,9 @@ const WorkOrdersByTechnician = () => {
 
       await workOrdersAPI.verify(orderId, {});
       toast.success('Radni nalog je uspešno verifikovan!');
-      
+
       setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
-      
-      // Update in both recent and older work orders
+
       const updateOrderInArray = (ordersArray, setOrdersFunc) => {
         const updatedOrders = [...ordersArray];
         const updatedIndex = updatedOrders.findIndex(order => order._id === orderId);
@@ -400,24 +286,22 @@ const WorkOrdersByTechnician = () => {
         return false;
       };
 
-      // Try to update in recent orders first, then older orders
       if (!updateOrderInArray(recentWorkOrders, setRecentWorkOrders)) {
         updateOrderInArray(olderWorkOrders, setOlderWorkOrders);
       }
-      
+
     } catch (error) {
       console.error('Greška pri verifikaciji:', error);
       toast.error('Neuspešna verifikacija radnog naloga!');
     }
   };
-  
+
   const handleDelete = async (id) => {
     if (window.confirm('Da li ste sigurni da želite da obrišete ovaj radni nalog?')) {
       try {
         await workOrdersAPI.delete(id);
         toast.success('Radni nalog je uspešno obrisan!');
 
-        // Update both recent and older work orders
         setRecentWorkOrders(prev => prev.filter(order => order._id !== id));
         setOlderWorkOrders(prev => prev.filter(order => order._id !== id));
         setRecentUnassigned(prev => prev.filter(order => order._id !== id));
@@ -430,15 +314,15 @@ const WorkOrdersByTechnician = () => {
       }
     }
   };
-  
-  // Combine recent and older work orders for compatibility
-  const getAllWorkOrders = () => {
-    return [...recentWorkOrders, ...olderWorkOrders];
-  };
 
-  const getAllUnassignedOrders = () => {
+  // Combine recent and older work orders for compatibility
+  const getAllWorkOrders = useCallback(() => {
+    return [...recentWorkOrders, ...olderWorkOrders];
+  }, [recentWorkOrders, olderWorkOrders]);
+
+  const getAllUnassignedOrders = useCallback(() => {
     return [...recentUnassigned, ...olderUnassigned];
-  };
+  }, [recentUnassigned, olderUnassigned]);
 
   const groupWorkOrdersByTechnician = () => {
     const techWorkOrders = {};
@@ -450,7 +334,6 @@ const WorkOrdersByTechnician = () => {
       };
     });
 
-    // Combine recent and older work orders
     const allWorkOrders = getAllWorkOrders();
 
     allWorkOrders.forEach(order => {
@@ -468,9 +351,9 @@ const WorkOrdersByTechnician = () => {
   };
 
   const technicianWorkOrders = groupWorkOrdersByTechnician();
-  
+
   // Enhanced filtering function with deep search
-  const filterOrders = (orders) => {
+  const filterOrders = useCallback((orders) => {
     return orders.filter(order => {
       const matchesStatus = !statusFilter || order.status === statusFilter;
       const matchesTechnician = !technicianFilter ||
@@ -479,12 +362,11 @@ const WorkOrdersByTechnician = () => {
         order.technician2Id?._id === technicianFilter ||
         order.technician2Id === technicianFilter;
 
-      // Date filter - check if order date matches selected date
       let matchesDate = true;
       if (dateFilter) {
         const orderDate = new Date(order.date);
-        const filterDate = new Date(dateFilter);
-        matchesDate = orderDate.toDateString() === filterDate.toDateString();
+        const filterDateObj = new Date(dateFilter);
+        matchesDate = orderDate.toDateString() === filterDateObj.toDateString();
       }
 
       let matchesSearch = true;
@@ -499,15 +381,12 @@ const WorkOrdersByTechnician = () => {
           order.userName?.toLowerCase().includes(searchLower) ||
           order.description?.toLowerCase().includes(searchLower) ||
           order.notes?.toLowerCase().includes(searchLower) ||
-          // Search by technician name
           order.technicianId?.name?.toLowerCase().includes(searchLower) ||
           order.technician2Id?.name?.toLowerCase().includes(searchLower) ||
-          // Search by equipment serial numbers (last 4 digits or full)
           order.equipment?.some(eq =>
             eq.serialNumber?.toLowerCase().includes(searchLower) ||
             eq.serialNumber?.slice(-4).includes(searchTerm)
           ) ||
-          // Search by material names
           order.materials?.some(mat =>
             mat.name?.toLowerCase().includes(searchLower)
           );
@@ -515,25 +394,22 @@ const WorkOrdersByTechnician = () => {
 
       return matchesStatus && matchesTechnician && matchesDate && matchesSearch;
     });
-  };
-  
+  }, [statusFilter, technicianFilter, dateFilter, searchTerm]);
+
   // Filtrirani podaci sa paginacijom
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, dateFilter, searchTerm]);
+  const filteredUnassigned = useMemo(() => filterOrders(getAllUnassignedOrders()), [recentUnassigned, olderUnassigned, statusFilter, technicianFilter, dateFilter, searchTerm, filterOrders, getAllUnassignedOrders]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, dateFilter, searchTerm]);
+  const filteredVerification = useMemo(() => filterOrders(verificationOrders), [verificationOrders, statusFilter, technicianFilter, dateFilter, searchTerm, filterOrders]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredAllOrders = useMemo(() => {
     const filtered = filterOrders(getAllWorkOrders());
-    // Sort by time if date filter is active
     if (dateFilter) {
       return [...filtered].sort((a, b) => {
-        // Combine date and time for proper sorting
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
 
-        // Parse time strings (format: "HH:MM")
         const [hoursA, minutesA] = (a.time || '00:00').split(':').map(Number);
         const [hoursB, minutesB] = (b.time || '00:00').split(':').map(Number);
 
@@ -548,26 +424,26 @@ const WorkOrdersByTechnician = () => {
     }
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, dateFilter, timeSortOrder, searchTerm]);
-  
+  }, [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, dateFilter, timeSortOrder, searchTerm, filterOrders, getAllWorkOrders]);
+
   // Paginacija za nedodeljene naloge
   const indexOfLastUnassigned = currentPageUnassigned * itemsPerPage;
   const indexOfFirstUnassigned = indexOfLastUnassigned - itemsPerPage;
   const currentUnassignedItems = filteredUnassigned.slice(indexOfFirstUnassigned, indexOfLastUnassigned);
   const totalPagesUnassigned = Math.ceil(filteredUnassigned.length / itemsPerPage);
-  
+
   // Paginacija za verifikaciju
   const indexOfLastVerification = currentPageVerification * itemsPerPage;
   const indexOfFirstVerification = indexOfLastVerification - itemsPerPage;
   const currentVerificationItems = filteredVerification.slice(indexOfFirstVerification, indexOfLastVerification);
   const totalPagesVerification = Math.ceil(filteredVerification.length / itemsPerPage);
-  
+
   // Paginacija za sve radne naloge
   const indexOfLastAllOrders = currentPageAllOrders * itemsPerPage;
   const indexOfFirstAllOrders = indexOfLastAllOrders - itemsPerPage;
   const currentAllOrdersItems = filteredAllOrders.slice(indexOfFirstAllOrders, indexOfLastAllOrders);
   const totalPagesAllOrders = Math.ceil(filteredAllOrders.length / itemsPerPage);
-  
+
   // Funkcije za paginaciju
   const paginateUnassigned = (pageNumber) => setCurrentPageUnassigned(pageNumber);
   const paginateVerification = (pageNumber) => setCurrentPageVerification(pageNumber);
@@ -581,28 +457,18 @@ const WorkOrdersByTechnician = () => {
       [techId]: pageNumber
     }));
   };
-  
+
   // Sortiranje po datumu (najnoviji na vrhu)
   const sortByDate = (orders) => {
     return [...orders].sort((a, b) => new Date(b.date) - new Date(a.date));
   };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('sr-RS');
   };
-  
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'zavrsen': return 'Završen';
-      case 'nezavrsen': return 'Nezavršen';
-      case 'odlozen': return 'Odložen';
-      case 'otkazan': return 'Otkazan';
-      default: return status;
-    }
-  };
-  
+
   const getTechnicianName = (order) => {
     if (order.technicianId?.name) return order.technicianId.name;
     if (order.technicianId) {
@@ -611,7 +477,7 @@ const WorkOrdersByTechnician = () => {
     }
     return 'Nedodeljen';
   };
-  
+
   const resetFilters = () => {
     setSearchTerm('');
     setStatusFilter('');
@@ -623,9 +489,8 @@ const WorkOrdersByTechnician = () => {
     setCurrentPageAllOrders(1);
     setTechnicianCurrentPages({});
   };
-  
+
   const openCustomerStatusModal = async (orderId) => {
-    // Load customer status when modal opens if not already loaded
     if (!orderStatuses[orderId]) {
       await loadCustomerStatus(orderId);
     }
@@ -637,7 +502,7 @@ const WorkOrdersByTechnician = () => {
     document.body.style.overflow = '';
     setCustomerStatusModal({ isOpen: false, orderId: null });
   };
-  
+
   const handleCustomerStatusChange = async (orderId, newStatus) => {
     try {
       await workOrdersAPI.updateCustomerStatus(orderId, {
@@ -656,7 +521,7 @@ const WorkOrdersByTechnician = () => {
       toast.error('Greška pri ažuriranju statusa korisnika!');
     }
   };
-  
+
   const getCustomerStatusColor = (status) => {
     if (status?.includes('HFC KDS')) return 'bg-blue-100 text-blue-800';
     if (status?.includes('GPON tehnologijom')) return 'bg-teal-100 text-teal-800';
@@ -709,20 +574,16 @@ const WorkOrdersByTechnician = () => {
     try {
       const orderId = aiVerificationResult.orderId;
 
-      // 1. Postavi customerStatus
       await workOrdersAPI.updateCustomerStatus(orderId, {
         customerStatus: aiVerificationResult.customerStatus
       });
 
-      // 2. Verifikuj radni nalog
       await workOrdersAPI.verify(orderId, {});
 
       toast.success('Radni nalog je uspešno verifikovan!');
 
-      // Ukloni nalog iz liste verifikacije
       setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
 
-      // Update in work orders lists
       const updateOrderInArray = (ordersArray, setOrdersFunc) => {
         const updatedOrders = [...ordersArray];
         const updatedIndex = updatedOrders.findIndex(order => order._id === orderId);
@@ -743,7 +604,6 @@ const WorkOrdersByTechnician = () => {
         updateOrderInArray(olderWorkOrders, setOlderWorkOrders);
       }
 
-      // Zatvori modal
       setShowAIModal(false);
       setAIVerificationResult(null);
 
@@ -760,17 +620,14 @@ const WorkOrdersByTechnician = () => {
     try {
       const orderId = aiVerificationResult.orderId;
 
-      // Vrati nalog tehničaru sa AI komentarom
       await workOrdersAPI.returnIncorrect(orderId, {
         adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
       });
 
       toast.info('Radni nalog je vraćen tehničaru');
 
-      // Ukloni nalog iz liste verifikacije
       setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
 
-      // Update order status
       const updateOrderInArray = (ordersArray, setOrdersFunc) => {
         const updatedOrders = [...ordersArray];
         const updatedIndex = updatedOrders.findIndex(order => order._id === orderId);
@@ -791,7 +648,6 @@ const WorkOrdersByTechnician = () => {
         updateOrderInArray(olderWorkOrders, setOlderWorkOrders);
       }
 
-      // Zatvori modal
       setShowAIModal(false);
       setAIVerificationResult(null);
 
@@ -800,11 +656,11 @@ const WorkOrdersByTechnician = () => {
       toast.error('Greška pri vraćanju radnog naloga');
     }
   };
-  
+
   // Komponenta za paginaciju
   const PaginationComponent = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
-    
+
     return (
       <div className="flex justify-center items-center space-x-2 mt-6">
         <Button
@@ -818,7 +674,7 @@ const WorkOrdersByTechnician = () => {
         >
           &laquo;
         </Button>
-        
+
         <Button
           type="secondary"
           size="small"
@@ -830,7 +686,7 @@ const WorkOrdersByTechnician = () => {
         >
           &lsaquo;
         </Button>
-        
+
         {Array.from({ length: totalPages }, (_, i) => i + 1)
           .filter(number => {
             return (
@@ -852,7 +708,7 @@ const WorkOrdersByTechnician = () => {
               {number}
             </Button>
           ))}
-        
+
         <Button
           type="secondary"
           size="small"
@@ -864,7 +720,7 @@ const WorkOrdersByTechnician = () => {
         >
           &rsaquo;
         </Button>
-        
+
         <Button
           type="secondary"
           size="small"
@@ -880,681 +736,711 @@ const WorkOrdersByTechnician = () => {
     );
   };
 
-  // Funkcija za navigaciju na detalje radnog naloga u novom tabu
+  // Funkcija za navigaciju na detalje radnog naloga (modal ili novi tab sa middle-click)
   const navigateToOrderDetails = (orderId, event) => {
     if (event.target.closest('.delete-btn') || event.target.closest('.verify-btn')) {
       return;
     }
 
-    // Ako dolazi sa verification taba, dodaj query param
     const isFromVerification = activeTab === 'verification';
     const url = isFromVerification
       ? `/work-orders/${orderId}?fromVerification=true`
       : `/work-orders/${orderId}`;
 
-    window.open(url, '_blank');
+    if (event.button === 1 || event.ctrlKey || event.metaKey) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    navigate(url, { state: { backgroundLocation: location } });
   };
 
   // Funkcija za handleovanje klika na statistike tehničara
   const handleStatClick = (techId, status, event) => {
     event.stopPropagation();
-    
-    // Postaviti status filter
+
     setStatusFilter(status);
-    
-    // Otvoriti expandovanu karticu ako nije već otvorena
+
     if (selectedTechnicianId !== techId) {
       setSelectedTechnicianId(techId);
     }
-    
-    // Reset paginacije za ovog tehničara
+
     setTechnicianCurrentPages(prev => ({
       ...prev,
       [techId]: 1
     }));
   };
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header Section */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <ToolsIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Radni nalozi po tehničarima</h1>
-              <p className="text-slate-600 mt-1">Upravljanje i praćenje radnih naloga po tehničarima</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button type="primary" size="medium" prefix={<PlusIcon size={16} />} asChild>
-              <Link to="/work-orders/add">
-                Novi nalog
-              </Link>
-            </Button>
-            <Button type="secondary" size="medium" asChild>
-              <Link to="/work-orders/upload">
-                Import
-              </Link>
-            </Button>
-            {/* Sync snimke button - samo za superadmin i supervisor */}
-            {(() => {
-              const storedUser = localStorage.getItem('user');
-              const userRole = storedUser ? JSON.parse(storedUser).role : null;
-              if (userRole === 'superadmin' || userRole === 'supervisor') {
-                return (
-                  <Button
-                    type="secondary"
-                    size="medium"
-                    prefix={<RefreshIcon size={16} />}
-                    onClick={async () => {
-                      try {
-                        toast.info('Slanje sync notifikacije...');
-                        const response = await workOrdersAPI.triggerSyncRecordings();
-                        toast.success(`Sync notifikacija poslata ${response.data.successCount} tehničarima`);
-                      } catch (error) {
-                        console.error('Sync error:', error);
-                        toast.error(error.response?.data?.error || 'Greška pri slanju sync notifikacije');
-                      }
-                    }}
-                  >
-                    Sync snimke
-                  </Button>
-                );
-              }
-              return null;
-            })()}
-          </div>
+
+  // Helpers for sidebar layout
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Search result counting for sidebar badges
+  const searchMatchCounts = useMemo(() => {
+    if (!searchTerm) return {};
+    const counts = {
+      all: filterOrders(getAllWorkOrders()).length,
+      verification: filterOrders(verificationOrders).length,
+      unassigned: filterOrders(getAllUnassignedOrders()).length,
+    };
+    Object.entries(technicianWorkOrders).forEach(([id, data]) => {
+      counts[id] = filterOrders(data.workOrders).length;
+    });
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, recentWorkOrders, olderWorkOrders, recentUnassigned, olderUnassigned, verificationOrders, technicians, statusFilter, technicianFilter, dateFilter]);
+
+  // Filter technicians in sidebar by search
+  const filteredSidebarTechnicians = useMemo(() => {
+    if (!searchTerm) return Object.entries(technicianWorkOrders);
+    const searchLower = searchTerm.toLowerCase();
+    return Object.entries(technicianWorkOrders).filter(([techId, techData]) => {
+      const nameMatch = techData.technicianInfo.name?.toLowerCase().includes(searchLower);
+      const phoneMatch = techData.technicianInfo.phone?.toLowerCase().includes(searchLower);
+      const orderMatch = searchMatchCounts[techId] > 0;
+      return nameMatch || phoneMatch || orderMatch;
+    });
+  }, [searchTerm, technicianWorkOrders, searchMatchCounts]);
+
+  // Status badge config
+  const statusCfg = {
+    zavrsen: { label: 'Završen', dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    nezavrsen: { label: 'Nezavršen', dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+    odlozen: { label: 'Odložen', dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    otkazan: { label: 'Otkazan', dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
+  };
+
+  const renderStatusBadge = (status) => {
+    const cfg = statusCfg[status] || { label: status, dot: 'bg-gray-400', bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' };
+    return (
+      <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border', cfg.bg, cfg.text, cfg.border)}>
+        <span className={cn('w-1.5 h-1.5 rounded-full', cfg.dot)} />
+        {cfg.label}
+      </span>
+    );
+  };
+
+  // Get current display data for the active tab
+  const getCurrentOrders = () => {
+    if (activeTab === 'technicians' && selectedTechnicianId && technicianWorkOrders[selectedTechnicianId]) {
+      return filterOrders(technicianWorkOrders[selectedTechnicianId].workOrders);
+    }
+    if (activeTab === 'unassigned') return filteredUnassigned;
+    if (activeTab === 'verification') return filteredVerification;
+    if (activeTab === 'all') return filteredAllOrders;
+    return [];
+  };
+
+  const getCurrentPaginatedOrders = () => {
+    if (activeTab === 'technicians' && selectedTechnicianId) {
+      const orders = filterOrders(technicianWorkOrders[selectedTechnicianId]?.workOrders || []);
+      const currentPageTech = technicianCurrentPages[selectedTechnicianId] || 1;
+      const start = (currentPageTech - 1) * itemsPerPage;
+      return orders.slice(start, start + itemsPerPage);
+    }
+    if (activeTab === 'unassigned') return currentUnassignedItems;
+    if (activeTab === 'verification') return currentVerificationItems;
+    if (activeTab === 'all') return currentAllOrdersItems;
+    return [];
+  };
+
+  const getCurrentTotalPages = () => {
+    if (activeTab === 'technicians' && selectedTechnicianId) {
+      const orders = filterOrders(technicianWorkOrders[selectedTechnicianId]?.workOrders || []);
+      return Math.ceil(orders.length / itemsPerPage);
+    }
+    if (activeTab === 'unassigned') return totalPagesUnassigned;
+    if (activeTab === 'verification') return totalPagesVerification;
+    if (activeTab === 'all') return totalPagesAllOrders;
+    return 0;
+  };
+
+  const getCurrentPage = () => {
+    if (activeTab === 'technicians' && selectedTechnicianId) {
+      return technicianCurrentPages[selectedTechnicianId] || 1;
+    }
+    if (activeTab === 'unassigned') return currentPageUnassigned;
+    if (activeTab === 'verification') return currentPageVerification;
+    if (activeTab === 'all') return currentPageAllOrders;
+    return 1;
+  };
+
+  const handleCurrentPageChange = (page) => {
+    if (activeTab === 'technicians' && selectedTechnicianId) {
+      paginateTechnician(selectedTechnicianId, page);
+    } else if (activeTab === 'unassigned') {
+      paginateUnassigned(page);
+    } else if (activeTab === 'verification') {
+      paginateVerification(page);
+    } else if (activeTab === 'all') {
+      paginateAllOrders(page);
+    }
+  };
+
+  // Sidebar click handler (auto-closes on mobile)
+  const handleSidebarItemClick = (tab, techId) => {
+    handleTabChange(tab);
+    if (techId) {
+      setSelectedTechnicianId(techId);
+    } else {
+      setSelectedTechnicianId('');
+    }
+    setSidebarOpen(false);
+  };
+
+  // Content header info
+  const getContentHeaderInfo = () => {
+    if (activeTab === 'technicians' && selectedTechnicianId && technicianWorkOrders[selectedTechnicianId]) {
+      const tech = technicianWorkOrders[selectedTechnicianId].technicianInfo;
+      return { title: tech.name, subtitle: tech.phone, icon: <UserIcon size={16} /> };
+    }
+    if (activeTab === 'unassigned') return { title: 'Nedodeljeni radni nalozi', subtitle: `${filteredUnassigned.length} naloga`, icon: <UserSlashIcon size={16} /> };
+    if (activeTab === 'verification') return { title: 'Za verifikaciju', subtitle: `${filteredVerification.length} naloga`, icon: <CheckIcon size={16} /> };
+    if (activeTab === 'all') return { title: 'Svi radni nalozi', subtitle: `${filteredAllOrders.length} naloga`, icon: <ClipboardIcon size={16} /> };
+    if (activeTab === 'technicians') return { title: 'Tehničari', subtitle: 'Izaberite tehničara iz menija', icon: <UserIcon size={16} /> };
+    return { title: '', subtitle: '', icon: null };
+  };
+
+  const isLoading = dashboardLoading && recentLoading;
+
+  // Render sidebar content (shared between desktop and mobile overlay)
+  const renderSidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Fixed nav items */}
+      <div className="flex-shrink-0">
+        {/* Svi radni nalozi */}
+        <button
+          onClick={() => handleSidebarItemClick('all', null)}
+          className={cn(
+            'w-full flex items-center gap-3 px-4 py-2 text-left transition-all border-l-[3px]',
+            activeTab === 'all'
+              ? 'bg-slate-900 text-white border-l-white'
+              : 'border-l-transparent hover:bg-slate-50',
+            searchTerm && searchMatchCounts.all > 0 && activeTab !== 'all' && 'bg-blue-50/50'
+          )}
+        >
+          <ClipboardIcon size={16} className={activeTab === 'all' ? 'text-white' : 'text-slate-500'} />
+          <span className={cn('text-[13px] font-medium flex-1', activeTab === 'all' ? 'text-white' : 'text-slate-700')}>Svi radni nalozi</span>
+          <span className={cn('text-[11px] font-semibold', activeTab === 'all' ? 'text-white/70' : 'text-slate-400')}>
+            {getAllWorkOrders().length}
+          </span>
+          {searchTerm && searchMatchCounts.all > 0 && activeTab !== 'all' && (
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700">({searchMatchCounts.all})</span>
+          )}
+        </button>
+
+        {/* Za verifikaciju */}
+        <button
+          onClick={() => handleSidebarItemClick('verification', null)}
+          className={cn(
+            'w-full flex items-center gap-3 px-4 py-2 text-left transition-all border-l-[3px]',
+            activeTab === 'verification'
+              ? 'bg-slate-900 text-white border-l-white'
+              : 'border-l-transparent hover:bg-slate-50',
+            searchTerm && searchMatchCounts.verification > 0 && activeTab !== 'verification' && 'bg-blue-50/50'
+          )}
+        >
+          <CheckIcon size={16} className={activeTab === 'verification' ? 'text-white' : 'text-slate-500'} />
+          <span className={cn('text-[13px] font-medium flex-1', activeTab === 'verification' ? 'text-white' : 'text-slate-700')}>Za verifikaciju</span>
+          <span className={cn('text-[11px] font-semibold', activeTab === 'verification' ? 'text-white/70' : 'text-slate-400')}>
+            {verificationOrders.length}
+          </span>
+          {searchTerm && searchMatchCounts.verification > 0 && activeTab !== 'verification' && (
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700">({searchMatchCounts.verification})</span>
+          )}
+        </button>
+
+        {/* Nedodeljeni */}
+        <button
+          onClick={() => handleSidebarItemClick('unassigned', null)}
+          className={cn(
+            'w-full flex items-center gap-3 px-4 py-2 text-left transition-all border-l-[3px]',
+            activeTab === 'unassigned'
+              ? 'bg-slate-900 text-white border-l-white'
+              : 'border-l-transparent hover:bg-slate-50',
+            searchTerm && searchMatchCounts.unassigned > 0 && activeTab !== 'unassigned' && 'bg-blue-50/50'
+          )}
+        >
+          <UserSlashIcon size={16} className={activeTab === 'unassigned' ? 'text-white' : 'text-slate-500'} />
+          <span className={cn('text-[13px] font-medium flex-1', activeTab === 'unassigned' ? 'text-white' : 'text-slate-700')}>Nedodeljeni</span>
+          <span className={cn('text-[11px] font-semibold', activeTab === 'unassigned' ? 'text-white/70' : 'text-slate-400')}>
+            {getAllUnassignedOrders().length}
+          </span>
+          {searchTerm && searchMatchCounts.unassigned > 0 && activeTab !== 'unassigned' && (
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700">({searchMatchCounts.unassigned})</span>
+          )}
+        </button>
+
+        {/* Divider */}
+        <div className="border-b border-slate-100 my-2" />
+
+        {/* Tehničari section header */}
+        <div className="px-4 py-2 flex items-center justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Tehničari</span>
+          <span className="text-[10px] text-slate-400">{filteredSidebarTechnicians.length}</span>
         </div>
       </div>
-      
+
+      {/* Technician cards - scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        {filteredSidebarTechnicians.map(([techId, techData]) => {
+          const isActive = activeTab === 'technicians' && selectedTechnicianId === techId;
+          const tech = techData.technicianInfo;
+          const total = techData.workOrders.length;
+          const completed = techData.workOrders.filter(o => o.status === 'zavrsen').length;
+          const active = techData.workOrders.filter(o => o.status === 'nezavrsen').length;
+          const postponed = techData.workOrders.filter(o => o.status === 'odlozen').length;
+          const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+          return (
+            <button
+              key={techId}
+              onClick={() => handleSidebarItemClick('technicians', techId)}
+              className={cn(
+                'w-full px-4 py-3 cursor-pointer transition-all border-l-[3px] text-left',
+                isActive
+                  ? 'bg-slate-900 text-white border-l-white'
+                  : 'border-l-transparent hover:bg-slate-50',
+                searchTerm && searchMatchCounts[techId] > 0 && !isActive && 'bg-blue-50/50'
+              )}
+            >
+              {/* Top row: avatar + name + phone */}
+              <div className="flex items-center gap-2.5">
+                <div className={cn(
+                  'w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0',
+                  isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                )}>
+                  {getInitials(tech.name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className={cn('text-[13px] font-semibold truncate', isActive ? 'text-white' : 'text-slate-800')}>
+                    {tech.name}
+                  </div>
+                  <div className={cn('text-[10px] font-mono', isActive ? 'text-white/60' : 'text-slate-400')}>
+                    {tech.phone}
+                  </div>
+                </div>
+                {searchTerm && searchMatchCounts[techId] > 0 && !isActive && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700 flex-shrink-0">
+                    ({searchMatchCounts[techId]})
+                  </span>
+                )}
+              </div>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-4 gap-1.5 mt-2">
+                <div
+                  className={cn(
+                    'rounded px-1.5 py-1 flex flex-col items-center justify-center cursor-pointer transition-colors',
+                    isActive ? 'bg-white/10 hover:bg-white/20' : 'bg-slate-50 hover:bg-slate-100'
+                  )}
+                  onClick={(e) => handleStatClick(techId, '', e)}
+                >
+                  <div className={cn('text-[11px] font-bold', isActive ? 'text-white' : 'text-slate-900')}>{total}</div>
+                  <div className={cn('text-[8px] uppercase tracking-wider', isActive ? 'text-white/50' : 'text-slate-400')}>Sve</div>
+                </div>
+                <div
+                  className={cn(
+                    'rounded px-1.5 py-1 flex flex-col items-center justify-center cursor-pointer transition-colors',
+                    isActive ? 'bg-white/10 hover:bg-emerald-500/30' : 'bg-slate-50 hover:bg-emerald-50'
+                  )}
+                  onClick={(e) => handleStatClick(techId, 'zavrsen', e)}
+                >
+                  <div className={cn('text-[11px] font-bold', isActive ? 'text-emerald-400' : 'text-emerald-600')}>{completed}</div>
+                  <div className={cn('text-[8px] uppercase tracking-wider', isActive ? 'text-white/50' : 'text-slate-400')}>OK</div>
+                </div>
+                <div
+                  className={cn(
+                    'rounded px-1.5 py-1 flex flex-col items-center justify-center cursor-pointer transition-colors',
+                    isActive ? 'bg-white/10 hover:bg-blue-500/30' : 'bg-slate-50 hover:bg-blue-50'
+                  )}
+                  onClick={(e) => handleStatClick(techId, 'nezavrsen', e)}
+                >
+                  <div className={cn('text-[11px] font-bold', isActive ? 'text-blue-400' : 'text-blue-600')}>{active}</div>
+                  <div className={cn('text-[8px] uppercase tracking-wider', isActive ? 'text-white/50' : 'text-slate-400')}>Akt</div>
+                </div>
+                <div
+                  className={cn(
+                    'rounded px-1.5 py-1 flex flex-col items-center justify-center cursor-pointer transition-colors',
+                    isActive ? 'bg-white/10 hover:bg-amber-500/30' : 'bg-slate-50 hover:bg-amber-50'
+                  )}
+                  onClick={(e) => handleStatClick(techId, 'odlozen', e)}
+                >
+                  <div className={cn('text-[11px] font-bold', isActive ? 'text-amber-400' : 'text-amber-600')}>{postponed}</div>
+                  <div className={cn('text-[8px] uppercase tracking-wider', isActive ? 'text-white/50' : 'text-slate-400')}>Odl</div>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className={cn('h-1 rounded-full mt-2 overflow-hidden', isActive ? 'bg-white/10' : 'bg-slate-100')}>
+                <div
+                  className={cn('h-full rounded-full transition-all', isActive ? 'bg-emerald-400' : 'bg-emerald-500')}
+                  style={{ width: `${completionPct}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="-m-6 -mt-16 md:-mt-6 h-screen flex flex-col overflow-hidden">
+      {/* 1. Dark Header Bar */}
+      <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="lg:hidden p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-slate-300"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+
+          <ToolsIcon size={18} className="text-blue-400" />
+          <h1 className="text-[15px] font-semibold text-white">Radni nalozi</h1>
+          <div className="w-px h-5 bg-white/20 hidden sm:block" />
+          <span className="text-[11px] text-slate-400 hidden sm:inline">{technicians.length} tehničara</span>
+          <span className="text-[11px] text-slate-500 hidden sm:inline">&middot;</span>
+          <span className="text-[11px] text-slate-400 hidden sm:inline">{getAllWorkOrders().length} naloga</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/work-orders/add"
+            className="px-2.5 py-1.5 text-[11px] bg-white/5 hover:bg-white/10 rounded-md text-slate-300 transition-colors flex items-center gap-1.5"
+          >
+            <PlusIcon size={12} />
+            <span className="hidden sm:inline">Novi nalog</span>
+          </Link>
+          <Link
+            to="/work-orders/upload"
+            className="px-2.5 py-1.5 text-[11px] bg-white/5 hover:bg-white/10 rounded-md text-slate-300 transition-colors"
+          >
+            <span className="hidden sm:inline">Import</span>
+            <span className="sm:hidden">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </span>
+          </Link>
+          {(() => {
+            const storedUser = localStorage.getItem('user');
+            const userRole = storedUser ? JSON.parse(storedUser).role : null;
+            if (userRole === 'superadmin' || userRole === 'supervisor') {
+              return (
+                <button
+                  onClick={async () => {
+                    try {
+                      toast.info('Slanje sync notifikacije...');
+                      const response = await workOrdersAPI.triggerSyncRecordings();
+                      toast.success(`Sync notifikacija poslata ${response.data.successCount} tehničarima`);
+                    } catch (err) {
+                      console.error('Sync error:', err);
+                      toast.error(err.response?.data?.error || 'Greška pri slanju sync notifikacije');
+                    }
+                  }}
+                  className="px-2.5 py-1.5 text-[11px] bg-white/5 hover:bg-white/10 rounded-md text-slate-300 transition-colors flex items-center gap-1.5"
+                >
+                  <RefreshIcon size={12} />
+                  <span className="hidden sm:inline">Sync snimke</span>
+                </button>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      </div>
+
+      {/* Error display */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border-b border-red-200 text-red-700 px-4 py-2 text-sm flex-shrink-0">
           {error}
         </div>
       )}
-      
-      {/* Tab Navigation */}
-      <div className="mb-6">
-        <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
-          <button
-            onClick={() => handleTabChange('technicians')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              activeTab === 'technicians' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <UserIcon size={16} />
-            <span>Tehničari</span>
-            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {Object.keys(technicianWorkOrders).length}
-            </span>
-          </button>
-          <button
-            onClick={() => handleTabChange('unassigned')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              activeTab === 'unassigned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <UserSlashIcon size={16} />
-            <span>Nedodeljeni</span>
-            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {getAllUnassignedOrders().length}
-            </span>
-          </button>
-          <button
-            onClick={() => handleTabChange('verification')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              activeTab === 'verification' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <CheckIcon size={16} />
-            <span>Za verifikaciju</span>
-            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {verificationOrders.length}
-            </span>
-          </button>
-          <button
-            onClick={() => handleTabChange('all')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              activeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <ClipboardIcon size={16} />
-            <span>Svi radni nalozi</span>
-            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {getAllWorkOrders().length}
-            </span>
-          </button>
-          <button
-            onClick={() => handleTabChange('pregled')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              activeTab === 'pregled' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <TableIcon size={16} />
-            <span>Pregled radnih naloga</span>
-            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {fancyTablePagination?.totalCount || 0}
-            </span>
-          </button>
+
+      {/* 2. Search Strip */}
+      <div className="bg-slate-50/50 border-b border-slate-100 px-4 py-2.5 flex items-center gap-3 flex-shrink-0 flex-wrap">
+        {/* Search input */}
+        <div className="relative flex-1 max-w-sm">
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={14} />
+          <input
+            type="text"
+            placeholder="Pretraga po adresi, korisniku, serijskom broju..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPageUnassigned(1);
+              setCurrentPageVerification(1);
+              setCurrentPageAllOrders(1);
+              setTechnicianCurrentPages({});
+            }}
+            className="h-8 w-full pl-9 pr-3 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all"
+          />
         </div>
+
+        {/* Status filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setCurrentPageUnassigned(1);
+            setCurrentPageVerification(1);
+            setCurrentPageAllOrders(1);
+            setTechnicianCurrentPages({});
+          }}
+          className="h-8 px-2.5 pr-7 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all appearance-none"
+        >
+          <option value="">Svi statusi</option>
+          <option value="zavrsen">Završeni</option>
+          <option value="nezavrsen">Nezavršeni</option>
+          <option value="odlozen">Odloženi</option>
+          <option value="otkazan">Otkazani</option>
+        </select>
+
+        {/* Technician filter - only for all/verification tabs */}
+        {(activeTab === 'all' || activeTab === 'verification') && (
+          <select
+            value={technicianFilter}
+            onChange={(e) => {
+              setTechnicianFilter(e.target.value);
+              setCurrentPageUnassigned(1);
+              setCurrentPageVerification(1);
+              setCurrentPageAllOrders(1);
+              setTechnicianCurrentPages({});
+            }}
+            className="h-8 px-2.5 pr-7 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all appearance-none"
+          >
+            <option value="">Svi tehničari</option>
+            {technicians.map(tech => (
+              <option key={tech._id} value={tech._id}>
+                {tech.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Date filter - only for all tab */}
+        {activeTab === 'all' && (
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              setCurrentPageAllOrders(1);
+            }}
+            className="h-8 px-2.5 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all"
+          />
+        )}
+
+        {/* Time sort - only when date filter active */}
+        {activeTab === 'all' && dateFilter && (
+          <select
+            value={timeSortOrder}
+            onChange={(e) => {
+              setTimeSortOrder(e.target.value);
+              setCurrentPageAllOrders(1);
+            }}
+            className="h-8 px-2.5 pr-7 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all appearance-none"
+          >
+            <option value="asc">Najstarije &rarr; Najnovije</option>
+            <option value="desc">Najnovije &rarr; Najstarije</option>
+          </select>
+        )}
+
+        {/* Reset */}
+        <button
+          onClick={resetFilters}
+          className="h-8 px-2.5 text-[11px] text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+        >
+          Resetuj
+        </button>
+
+        {/* Refresh */}
+        <button
+          onClick={fetchData}
+          disabled={dashboardLoading || recentLoading}
+          className="h-8 px-2.5 text-[11px] text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
+        >
+          <RefreshIcon size={12} className={(dashboardLoading || recentLoading || olderLoading) ? 'animate-spin' : ''} />
+          <span className="hidden sm:inline">Osveži</span>
+        </button>
       </div>
-      
-      {/* Search and Filters - Hide for pregled tab */}
-      {activeTab !== 'pregled' && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="p-6 border-b border-slate-200">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center space-x-4 flex-1">
-                {/* Search */}
-                <div className="relative flex-1 max-w-md">
-                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="text"
-                    placeholder="Pretraga po adresi, korisniku, serijskom broju, tehničaru..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPageUnassigned(1);
-                      setCurrentPageVerification(1);
-                      setCurrentPageAllOrders(1);
-                      setTechnicianCurrentPages({});
-                    }}
-                    className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                  />
-                </div>
 
-                {/* Status Filter */}
-                <div className="relative">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      setCurrentPageUnassigned(1);
-                      setCurrentPageVerification(1);
-                      setCurrentPageAllOrders(1);
-                      setTechnicianCurrentPages({});
-                    }}
-                    className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
-                  >
-                    <option value="">Svi statusi</option>
-                    <option value="zavrsen">Završeni</option>
-                    <option value="nezavrsen">Nezavršeni</option>
-                    <option value="odlozen">Odloženi</option>
-                    <option value="otkazan">Otkazani</option>
-                  </select>
-                  <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                </div>
+      {/* 3. Main area: Sidebar + Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Mobile sidebar overlay backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-                {/* Technician Filter */}
-                {(activeTab === 'all' || activeTab === 'verification') && (
-                  <div className="relative">
-                    <select
-                      value={technicianFilter}
-                      onChange={(e) => {
-                        setTechnicianFilter(e.target.value);
-                        setCurrentPageUnassigned(1);
-                        setCurrentPageVerification(1);
-                        setCurrentPageAllOrders(1);
-                        setTechnicianCurrentPages({});
-                      }}
-                      className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
-                    >
-                      <option value="">Svi tehničari</option>
-                      {technicians.map(tech => (
-                        <option key={tech._id} value={tech._id}>
-                          {tech.name}
-                        </option>
-                      ))}
-                    </select>
-                    <UserIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-                )}
+        {/* Left Sidebar */}
+        <div
+          className={cn(
+            'w-[280px] flex-shrink-0 border-r border-slate-100 bg-white overflow-hidden transition-transform duration-200',
+            'lg:relative lg:translate-x-0',
+            'fixed left-0 top-0 h-full z-40 lg:z-auto',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          )}
+        >
+          {renderSidebarContent()}
+        </div>
 
-                {/* Date Filter - Only for "all" tab */}
-                {activeTab === 'all' && (
-                  <>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={dateFilter}
-                        onChange={(e) => {
-                          setDateFilter(e.target.value);
-                          setCurrentPageAllOrders(1);
-                        }}
-                        className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                      />
+        {/* Right Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-slate-500 text-sm">Učitavanje podataka...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Content header */}
+              <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="text-slate-400">
+                      {getContentHeaderInfo().icon}
                     </div>
+                    <div>
+                      <h2 className="text-[14px] font-semibold text-slate-800">{getContentHeaderInfo().title}</h2>
+                      <p className="text-[11px] text-slate-400">
+                        {getContentHeaderInfo().subtitle}
+                        {recentLoading && <span className="ml-2">(učitavanje...)</span>}
+                        {olderLoading && <span className="ml-2 text-[10px]">(stariji nalozi...)</span>}
+                      </p>
+                    </div>
+                  </div>
 
-                    {/* Time Sort Order - Only show when date filter is active */}
-                    {dateFilter && (
-                      <div className="relative">
-                        <select
-                          value={timeSortOrder}
-                          onChange={(e) => {
-                            setTimeSortOrder(e.target.value);
-                            setCurrentPageAllOrders(1);
+                  {/* Quick filter chips for technician view */}
+                  {activeTab === 'technicians' && selectedTechnicianId && (
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        { label: 'Svi', value: '', activeBg: 'bg-slate-900 text-white', inactiveBg: 'bg-slate-100 text-slate-600 hover:bg-slate-200' },
+                        { label: 'Završeni', value: 'zavrsen', activeBg: 'bg-emerald-600 text-white', inactiveBg: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+                        { label: 'Nezavršeni', value: 'nezavrsen', activeBg: 'bg-blue-600 text-white', inactiveBg: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                        { label: 'Odloženi', value: 'odlozen', activeBg: 'bg-amber-500 text-white', inactiveBg: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                      ].map(chip => (
+                        <button
+                          key={chip.value}
+                          onClick={() => {
+                            setStatusFilter(chip.value);
+                            setTechnicianCurrentPages(prev => ({ ...prev, [selectedTechnicianId]: 1 }));
                           }}
-                          className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none hover:bg-accent"
+                          className={cn(
+                            'px-2.5 py-1 text-[11px] rounded-full transition-colors',
+                            statusFilter === chip.value ? chip.activeBg : chip.inactiveBg
+                          )}
                         >
-                          <option value="asc">Najstarije → Najnovije</option>
-                          <option value="desc">Najnovije → Najstarije</option>
-                        </select>
-                        <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                      </div>
-                    )}
-                  </>
-                )}
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center space-x-3">
-                <Button type="tertiary" size="small" prefix={<RefreshIcon size={16} />} onClick={resetFilters}>
-                  Resetuj
-                </Button>
-                <Button
-                  type="secondary"
-                  size="small"
-                  prefix={<RefreshIcon size={16} className={(dashboardLoading || recentLoading || olderLoading) ? 'animate-spin' : ''} />}
-                  onClick={fetchData}
-                  disabled={dashboardLoading || recentLoading}
-                >
-                  Osveži
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {(dashboardLoading && recentLoading) ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-slate-600">Učitavanje osnovnih podataka...</p>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Tab za tehničare */}
-          {activeTab === 'technicians' && (
-            <div>
-              {Object.keys(technicianWorkOrders).length === 0 ? (
-                <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12 text-center">
-                  <UserIcon size={48} className="text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600">Nema tehničara u sistemu</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {Object.entries(technicianWorkOrders).map(([techId, techData]) => {
-                    const filteredTechOrders = filterOrders(techData.workOrders);
-                    
-                    const currentPageTech = technicianCurrentPages[techId] || 1;
-                    const indexOfLastTech = currentPageTech * itemsPerPage;
-                    const indexOfFirstTech = indexOfLastTech - itemsPerPage;
-                    const currentTechItems = filteredTechOrders.slice(indexOfFirstTech, indexOfLastTech);
-                    const totalPagesTech = Math.ceil(filteredTechOrders.length / itemsPerPage);
-                    
-                    return (
-                      <div 
-                        key={techId} 
-                        className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl"
-                      >
-                        <div 
-                          className="p-6 cursor-pointer hover:bg-slate-50 transition-colors"
-                          onClick={() => setSelectedTechnicianId(prevId => prevId === techId ? '' : techId)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <div className="p-3 bg-blue-50 rounded-xl">
-                                <UserIcon size={20} className="text-blue-600" />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-semibold text-slate-900">{techData.technicianInfo.name}</h3>
-                                <p className="text-slate-600">{techData.technicianInfo.phone}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-6">
-                              <div 
-                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                                onClick={(e) => handleStatClick(techId, '', e)}
-                                title="Klikni da prikažeš sve naloge"
-                              >
-                                <div className="text-xl font-bold text-slate-900">{techData.workOrders.length}</div>
-                                <div className="text-xs text-slate-600">Ukupno</div>
-                              </div>
-                              <div 
-                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-yellow-50 transition-colors"
-                                onClick={(e) => handleStatClick(techId, 'nezavrsen', e)}
-                                title="Klikni da prikažeš nezavršene naloge"
-                              >
-                                <div className="text-xl font-bold text-yellow-600">
-                                  {techData.workOrders.filter(o => o.status === 'nezavrsen').length}
-                                </div>
-                                <div className="text-xs text-slate-600">Nezavršeni</div>
-                              </div>
-                              <div 
-                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-green-50 transition-colors"
-                                onClick={(e) => handleStatClick(techId, 'zavrsen', e)}
-                                title="Klikni da prikažeš završene naloge"
-                              >
-                                <div className="text-xl font-bold text-green-600">
-                                  {techData.workOrders.filter(o => o.status === 'zavrsen').length}
-                                </div>
-                                <div className="text-xs text-slate-600">Završeni</div>
-                              </div>
-                              <div 
-                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-orange-50 transition-colors"
-                                onClick={(e) => handleStatClick(techId, 'odlozen', e)}
-                                title="Klikni da prikažeš odložene naloge"
-                              >
-                                <div className="text-xl font-bold text-orange-600">
-                                  {techData.workOrders.filter(o => o.status === 'odlozen').length}
-                                </div>
-                                <div className="text-xs text-slate-600">Odloženi</div>
-                              </div>
-                              <div 
-                                className="text-center cursor-pointer p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                onClick={(e) => handleStatClick(techId, 'otkazan', e)}
-                                title="Klikni da prikažeš otkazane naloge"
-                              >
-                                <div className="text-xl font-bold text-red-600">
-                                  {techData.workOrders.filter(o => o.status === 'otkazan').length}
-                                </div>
-                                <div className="text-xs text-slate-600">Otkazani</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {selectedTechnicianId === techId && (
-                          <div className="border-t border-slate-200 p-6">
-                            {filteredTechOrders.length === 0 ? (
-                              <div className="text-center py-8">
-                                <p className="text-slate-600">Nema radnih naloga koji odgovaraju pretrazi</p>
-                                {olderLoading && <p className="text-slate-500 text-sm mt-2">Učitavanje starijih naloga u pozadini...</p>}
-                              </div>
-                            ) : (
-                              <>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full">
-                                    <thead className="bg-slate-50 border-b border-slate-200">
-                                      <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200">
-                                      {sortByDate(currentTechItems).map((order) => (
-                                        <tr 
-                                          key={order._id} 
-                                          onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                          className="hover:bg-slate-50 transition-colors cursor-pointer"
-                                        >
-                                          <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
-                                          <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
-                                          <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
-                                          <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
-                                          <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
-                                          <td className="px-6 py-4 text-sm">
-                                            <span className={cn(
-                                              "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
-                                              order.status === 'zavrsen' && "bg-green-100 text-green-800",
-                                              order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
-                                              order.status === 'odlozen' && "bg-orange-100 text-orange-800",
-                                              order.status === 'otkazan' && "bg-red-100 text-red-800"
-                                            )}>
-                                              {getStatusLabel(order.status)}
-                                            </span>
-                                            {order.status === 'zavrsen' && order.verified && (
-                                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800" title="Verifikovano">
-                                                <CheckIcon size={14} />
-                                              </span>
-                                            )}
-                                          </td>
-                                          <td className="px-6 py-4 text-sm">
-                                            <div className="flex items-center space-x-2">
-                                              <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                                <Link
-                                                  to={`/work-orders/${order._id}`}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  onClick={(e) => e.stopPropagation()}
-                                                >
-                                                  Detalji
-                                                </Link>
-                                              </Button>
-                                              <Button 
-                                                type="error" 
-                                                size="tiny" 
-                                                prefix={<DeleteIcon size={14} />}
-                                                onClick={(e) => { 
-                                                  e.stopPropagation(); 
-                                                  handleDelete(order._id); 
-                                                }}
-                                                className="delete-btn"
-                                              />
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                
-                                <PaginationComponent 
-                                  currentPage={currentPageTech}
-                                  totalPages={totalPagesTech}
-                                  onPageChange={(page) => paginateTechnician(techId, page)}
-                                />
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Tab za nedodeljene naloge */}
-          {activeTab === 'unassigned' && (
-            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-orange-50 rounded-lg">
-                    <UserSlashIcon size={20} className="text-orange-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Nedodeljeni radni nalozi</h2>
-                    <p className="text-sm text-slate-600">
-                      {recentLoading ? 'Učitavanje najnovijih...' : `${filteredUnassigned.length} naloga`}
-                      {olderLoading && <span className="ml-2 text-xs">(učitavanje starijih...)</span>}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                {filteredUnassigned.length === 0 ? (
-                  <div className="text-center py-12">
-                    <UserSlashIcon size={48} className="text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600">Nema nedodeljenih radnih naloga</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {sortByDate(currentUnassignedItems).map((order) => (
-                            <tr 
-                              key={order._id} 
-                              onClick={(e) => navigateToOrderDetails(order._id, e)}
-                              className="hover:bg-slate-50 transition-colors cursor-pointer"
-                            >
-                              <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
-                              <td className="px-6 py-4 text-sm">
-                                <span className={cn(
-                                  "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
-                                  order.status === 'zavrsen' && "bg-green-100 text-green-800",
-                                  order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
-                                  order.status === 'odlozen' && "bg-orange-100 text-orange-800",
-                                  order.status === 'otkazan' && "bg-red-100 text-red-800"
-                                )}>
-                                  {getStatusLabel(order.status)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-sm">
-                                <div className="flex items-center space-x-2">
-                                  <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                    <Link
-                                      to={`/work-orders/${order._id}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      Detalji
-                                    </Link>
-                                  </Button>
-                                  <Button 
-                                    type="error" 
-                                    size="tiny" 
-                                    prefix={<DeleteIcon size={14} />}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(order._id);
-                                    }}
-                                    className="delete-btn"
-                                  />
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              {/* Table container */}
+              <div className="flex-1 overflow-auto">
+                {activeTab === 'technicians' && !selectedTechnicianId ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center py-12">
+                      <UserIcon size={48} className="text-slate-300 mx-auto mb-4" />
+                      <p className="text-slate-500 text-sm">Izaberite tehničara iz menija sa leve strane</p>
                     </div>
-                    
-                    <PaginationComponent 
-                      currentPage={currentPageUnassigned}
-                      totalPages={totalPagesUnassigned}
-                      onPageChange={paginateUnassigned}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Tab za verifikaciju radnih naloga */}
-          {activeTab === 'verification' && (
-            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-yellow-50 rounded-lg">
-                    <AlertIcon size={20} className="text-yellow-600" />
                   </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Radni nalozi za verifikaciju</h2>
-                    <p className="text-sm text-slate-600">
-                      {verificationLoading ? 'Učitavanje...' : `${filteredVerification.length} naloga`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                {verificationLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                ) : activeTab === 'verification' && verificationLoading ? (
+                  <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600 mx-auto mb-4"></div>
-                      <p className="text-slate-600">Učitavanje naloga za verifikaciju...</p>
+                      <p className="text-slate-500 text-sm">Učitavanje naloga za verifikaciju...</p>
                     </div>
                   </div>
-                ) : filteredVerification.length === 0 ? (
-                  <div className="text-center py-12">
-                    <AlertIcon size={48} className="text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600">Nema radnih naloga za verifikaciju</p>
+                ) : getCurrentOrders().length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center py-12">
+                      <ClipboardIcon size={48} className="text-slate-300 mx-auto mb-4" />
+                      <p className="text-slate-500 text-sm">Nema radnih naloga koji odgovaraju filterima</p>
+                    </div>
                   </div>
                 ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {sortByDate(currentVerificationItems).map((order) => {
-                            const technician = technicians.find(tech => tech._id === order.technicianId);
-                            return (
-                              <tr 
-                                key={order._id}
-                                onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                className="hover:bg-slate-50 transition-colors cursor-pointer"
-                              >
-                                <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
-                                <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
-                                <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
-                                <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
-                                <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
-                                <td className="px-6 py-4 text-sm text-slate-600">{technician ? technician.name : 'Nepoznat'}</td>
-                                <td className="px-6 py-4 text-sm">
-                                  <div className="flex flex-col space-y-2">
-                                    <div className="flex items-center space-x-2">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Datum</th>
+                        {(activeTab === 'all' || activeTab === 'technicians') && (
+                          <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Vreme</th>
+                        )}
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Opština</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Adresa</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Korisnik</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Tip</th>
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Tehničar</th>
+                        {activeTab !== 'verification' && (
+                          <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Status</th>
+                        )}
+                        <th className="px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-slate-500 border-b border-slate-200">Akcije</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const paginatedOrders = getCurrentPaginatedOrders();
+                        const ordersToRender = (activeTab === 'all' && dateFilter) ? paginatedOrders : sortByDate(paginatedOrders);
+
+                        return ordersToRender.map((order) => {
+                          const technician = technicians.find(tech => tech._id === (order.technicianId?._id || order.technicianId));
+                          return (
+                            <tr
+                              key={order._id}
+                              onClick={(e) => navigateToOrderDetails(order._id, e)}
+                              className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                            >
+                              <td className="px-4 py-3 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
+                              {(activeTab === 'all' || activeTab === 'technicians') && (
+                                <td className="px-4 py-3 text-sm text-slate-500">{order.time || '-'}</td>
+                              )}
+                              <td className="px-4 py-3 text-sm text-slate-600">{order.municipality}</td>
+                              <td className="px-4 py-3 text-sm text-slate-600">{order.address}</td>
+                              <td className="px-4 py-3 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
+                              <td className="px-4 py-3 text-sm text-slate-600">{order.type}</td>
+                              <td className="px-4 py-3 text-sm text-slate-600">{technician ? technician.name : getTechnicianName(order)}</td>
+                              {activeTab !== 'verification' && (
+                                <td className="px-4 py-3 text-sm">
+                                  <div className="flex items-center gap-1.5">
+                                    {renderStatusBadge(order.status)}
+                                    {order.status === 'zavrsen' && order.verified && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200" title="Verifikovano">
+                                        <CheckIcon size={12} />
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-sm">
+                                {activeTab === 'verification' ? (
+                                  <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-1.5">
                                       <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
                                         <Link
-                                          to={`/work-orders/${order._id}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
+                                          to={`/work-orders/${order._id}?fromVerification=true`}
+                                          state={{ backgroundLocation: location }}
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           Detalji
                                         </Link>
                                       </Button>
-                                      <Button 
-                                        type="secondary" 
-                                        size="tiny" 
+                                      <Button
+                                        type="secondary"
+                                        size="tiny"
                                         prefix={<UserCheckIcon size={14} />}
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -1606,329 +1492,67 @@ const WorkOrdersByTechnician = () => {
                                     {!orderStatuses[order._id] && (
                                       <div className="text-xs">
                                         <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                          Kliknite "Status" da postavite
+                                          Kliknite &quot;Status&quot; da postavite
                                         </span>
                                       </div>
                                     )}
                                   </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    <PaginationComponent 
-                      currentPage={currentPageVerification}
-                      totalPages={totalPagesVerification}
-                      onPageChange={paginateVerification}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Tab za pregled radnih naloga (fancy table) */}
-          {activeTab === 'pregled' && (
-            <FancyDataTable
-              data={fancyTableData.map(order => ({
-                ...order,
-                onClick: () => window.open(`/work-orders/${order._id}`, '_blank')
-              }))}
-              columns={[
-                {
-                  id: 'date',
-                  header: 'Datum',
-                  cell: (row) => {
-                    const date = new Date(row.date);
-                    return date.toLocaleDateString('sr-RS');
-                  },
-                  className: 'w-32'
-                },
-                {
-                  id: 'time',
-                  header: 'Vreme',
-                  cell: (row) => row.time || '-',
-                  className: 'w-24'
-                },
-                {
-                  id: 'municipality',
-                  header: 'Opština',
-                  cell: (row) => row.municipality,
-                  cellClassName: 'font-medium text-slate-900'
-                },
-                {
-                  id: 'address',
-                  header: 'Adresa',
-                  cell: (row) => row.address,
-                  cellClassName: 'text-slate-700'
-                },
-                {
-                  id: 'userName',
-                  header: 'Korisnik',
-                  cell: (row) => row.userName || 'Nepoznat',
-                  cellClassName: 'text-slate-700'
-                },
-                {
-                  id: 'type',
-                  header: 'Tip',
-                  cell: (row) => row.type,
-                  cellClassName: 'text-slate-700'
-                },
-                {
-                  id: 'technician',
-                  header: 'Tehničar',
-                  cell: (row) => {
-                    if (row.technicianId?.name) return row.technicianId.name;
-                    if (row.technicianId) {
-                      const tech = technicians.find(t => t._id === row.technicianId);
-                      return tech?.name || 'Nepoznat';
-                    }
-                    return 'Nedodeljen';
-                  },
-                  cellClassName: 'text-slate-700'
-                },
-                {
-                  id: 'status',
-                  header: 'Status',
-                  cell: (row) => (
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
-                        row.status === 'zavrsen' && "bg-green-100 text-green-800",
-                        row.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
-                        row.status === 'odlozen' && "bg-orange-100 text-orange-800",
-                        row.status === 'otkazan' && "bg-red-100 text-red-800"
-                      )}>
-                        {getStatusLabel(row.status)}
-                      </span>
-                      {row.status === 'zavrsen' && row.verified && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800" title="Verifikovano">
-                          <CheckIcon size={14} />
-                        </span>
-                      )}
-                    </div>
-                  )
-                },
-                {
-                  id: 'actions',
-                  header: 'Akcije',
-                  cell: (row) => (
-                    <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                      <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                        <Link
-                          to={`/work-orders/${row._id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Detalji
-                        </Link>
-                      </Button>
-                      <Button
-                        type="error"
-                        size="tiny"
-                        prefix={<DeleteIcon size={14} />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(row._id);
-                        }}
-                      />
-                    </div>
-                  ),
-                  className: 'w-48 text-right'
-                }
-              ]}
-              pagination={fancyTablePagination}
-              onPageChange={handleFancyTablePageChange}
-              loading={fancyTableLoading}
-              filterFields={[
-                {
-                  id: 'status',
-                  label: 'Status radnog naloga',
-                  type: 'select',
-                  options: [
-                    { value: 'zavrsen', label: 'Završen' },
-                    { value: 'nezavrsen', label: 'Nezavršen' },
-                    { value: 'odlozen', label: 'Odložen' },
-                    { value: 'otkazan', label: 'Otkazan' }
-                  ]
-                },
-                {
-                  id: 'verified',
-                  label: 'Status verifikacije',
-                  type: 'select',
-                  options: [
-                    { value: 'true', label: 'Verifikovano' },
-                    { value: 'false', label: 'Nije verifikovano' }
-                  ]
-                },
-                {
-                  id: 'technician',
-                  label: 'Tehničar',
-                  type: 'select',
-                  options: technicians.map(tech => ({
-                    value: tech._id,
-                    label: tech.name
-                  }))
-                },
-                {
-                  id: 'municipality',
-                  label: 'Opština',
-                  type: 'select',
-                  options: [
-                    ...new Set(fancyTableData.map(order => order.municipality).filter(Boolean))
-                  ].map(municipality => ({
-                    value: municipality,
-                    label: municipality
-                  }))
-                },
-                {
-                  id: 'type',
-                  label: 'Tip radnog naloga',
-                  type: 'select',
-                  options: [
-                    ...new Set(fancyTableData.map(order => order.type).filter(Boolean))
-                  ].map(type => ({
-                    value: type,
-                    label: type
-                  }))
-                },
-                {
-                  id: 'dateFrom',
-                  label: 'Datum od',
-                  type: 'date'
-                },
-                {
-                  id: 'dateTo',
-                  label: 'Datum do',
-                  type: 'date'
-                }
-              ]}
-              onFilterChange={handleFancyTableFilterChange}
-              filters={fancyTableFilters}
-              searchValue={fancyTableSearch}
-              onSearchChange={handleFancyTableSearchChange}
-              onRefresh={handleFancyTableRefresh}
-              isRefreshing={fancyTableRefreshing}
-            />
-          )}
-
-          {/* Tab za sve radne naloge */}
-          {activeTab === 'all' && (
-            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <ClipboardIcon size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Svi radni nalozi</h2>
-                    <p className="text-sm text-slate-600">
-                      {recentLoading ? 'Učitavanje najnovijih...' : `${filteredAllOrders.length} naloga`}
-                      {olderLoading && <span className="ml-2 text-xs">(učitavanje starijih...)</span>}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                {filteredAllOrders.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ClipboardIcon size={48} className="text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600">Nema radnih naloga koji odgovaraju filterima</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Vreme</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opština</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {(dateFilter ? currentAllOrdersItems : sortByDate(currentAllOrdersItems)).map((order) => (
-                            <tr
-                              key={order._id}
-                              onClick={(e) => navigateToOrderDetails(order._id, e)}
-                              className="hover:bg-slate-50 transition-colors cursor-pointer"
-                            >
-                              <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.time || '-'}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.municipality}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.address}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.userName || 'Nepoznat'}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{order.type}</td>
-                              <td className="px-6 py-4 text-sm text-slate-600">{getTechnicianName(order)}</td>
-                              <td className="px-6 py-4 text-sm">
-                                <span className={cn(
-                                  "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
-                                  order.status === 'zavrsen' && "bg-green-100 text-green-800",
-                                  order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
-                                  order.status === 'odlozen' && "bg-orange-100 text-orange-800",
-                                  order.status === 'otkazan' && "bg-red-100 text-red-800"
-                                )}>
-                                  {getStatusLabel(order.status)}
-                                </span>
-                                {order.status === 'zavrsen' && order.verified && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800" title="Verifikovano">
-                                    <CheckIcon size={14} />
-                                  </span>
+                                ) : (
+                                  <div className={cn(
+                                    'flex items-center gap-1.5',
+                                    'opacity-0 group-hover:opacity-100 transition-opacity'
+                                  )}>
+                                    <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
+                                      <Link
+                                        to={`/work-orders/${order._id}`}
+                                        state={{ backgroundLocation: location }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        Detalji
+                                      </Link>
+                                    </Button>
+                                    <Button
+                                      type="error"
+                                      size="tiny"
+                                      prefix={<DeleteIcon size={14} />}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(order._id);
+                                      }}
+                                      className="delete-btn"
+                                    />
+                                  </div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 text-sm">
-                                <div className="flex items-center space-x-2">
-                                  <Button type="tertiary" size="tiny" prefix={<ViewIcon size={14} />} asChild>
-                                    <Link
-                                      to={`/work-orders/${order._id}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      Detalji
-                                    </Link>
-                                  </Button>
-                                  <Button
-                                    type="error"
-                                    size="tiny"
-                                    prefix={<DeleteIcon size={14} />}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(order._id);
-                                    }}
-                                    className="delete-btn"
-                                  />
-                                </div>
-                              </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    <PaginationComponent 
-                      currentPage={currentPageAllOrders}
-                      totalPages={totalPagesAllOrders}
-                      onPageChange={paginateAllOrders}
-                    />
-                  </>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
                 )}
               </div>
-            </div>
+
+              {/* Footer/Pagination */}
+              {getCurrentOrders().length > 0 && (
+                <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 flex items-center justify-between flex-shrink-0">
+                  <div className="text-[11px] text-slate-500">
+                    Prikazano {getCurrentPaginatedOrders().length} od {getCurrentOrders().length}
+                  </div>
+                  <div>
+                    <PaginationComponent
+                      currentPage={getCurrentPage()}
+                      totalPages={getCurrentTotalPages()}
+                      onPageChange={handleCurrentPageChange}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
-      
+      </div>
+
       {/* Customer Status Modal */}
       {customerStatusModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ overflow: 'hidden' }} onClick={(e) => { if (e.target === e.currentTarget) closeCustomerStatusModal(); }}>

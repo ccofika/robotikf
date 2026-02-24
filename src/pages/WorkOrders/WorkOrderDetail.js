@@ -12,11 +12,93 @@ import jsPDF from 'jspdf';
 // eslint-disable-next-line no-unused-vars
 import html2canvas from 'html2canvas';
 import AIVerificationModal from '../../components/AIVerificationModal';
+import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 
-const WorkOrderDetail = () => {
-  const { id } = useParams();
+// EditableField extracted outside to prevent remount on parent re-render (fixes cursor jump)
+const EditableField = ({ field, value, displayValue, type = 'text', options, placeholder, rows, isEditing, editVal, onEditValChange, onStartEdit, onConfirm, onCancel, editRefProp }) => {
+  return (
+    <div className="relative group">
+      <div className="flex items-start gap-1">
+        <span className="text-sm text-slate-900 font-semibold leading-snug">
+          {displayValue || value || <span className="text-slate-400 italic font-normal text-xs">Nije unet</span>}
+        </span>
+        <button
+          onClick={() => onStartEdit(field, value)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-slate-200 rounded flex-shrink-0 mt-0.5"
+          title="Izmeni"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
+      </div>
+
+      {isEditing && (
+        <div ref={editRefProp} className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2.5 min-w-[220px]">
+          {type === 'select' ? (
+            <select
+              value={editVal}
+              onChange={(e) => onEditValChange(e.target.value)}
+              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              autoFocus
+            >
+              {options?.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          ) : type === 'textarea' ? (
+            <textarea
+              value={editVal}
+              onChange={(e) => onEditValChange(e.target.value)}
+              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical"
+              rows={rows || 3}
+              placeholder={placeholder}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') onCancel();
+              }}
+            />
+          ) : (
+            <input
+              type={type}
+              value={editVal}
+              onChange={(e) => onEditValChange(e.target.value)}
+              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={placeholder}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onConfirm();
+                if (e.key === 'Escape') onCancel();
+              }}
+            />
+          )}
+          <div className="flex items-center gap-1.5 mt-2">
+            <button
+              onClick={onConfirm}
+              className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+            >
+              OK
+            </button>
+            <button
+              onClick={onCancel}
+              className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+            >
+              Otkaži
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) => {
+  const params = useParams();
+  const id = modalWorkOrderId || params.id;
   const navigate = useNavigate();
   const location = useLocation();
+  const { signalDataChanged } = useWorkOrderModal();
   const [workOrder, setWorkOrder] = useState(null);
   const [formData, setFormData] = useState({
     date: '',
@@ -208,6 +290,22 @@ const WorkOrderDetail = () => {
     }
   };
 
+  // Centralized back navigation
+  const goBack = () => {
+    if (isModal && onCloseModal) {
+      onCloseModal();
+    } else if (location.state?.fromUsersList) {
+      navigate(location.state.previousPath || '/users', {
+        state: {
+          fromWorkOrderDetail: true,
+          selectedUserId: location.state.selectedUserId
+        }
+      });
+    } else {
+      navigate('/work-orders');
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -229,7 +327,7 @@ const WorkOrderDetail = () => {
       const response = await workOrdersAPI.update(id, updatedData);
       setWorkOrder(response.data);
 
-
+      signalDataChanged();
       toast.success('Radni nalog je uspešno ažuriran!');
     } catch (error) {
       console.error('Greška pri ažuriranju radnog naloga:', error);
@@ -260,7 +358,7 @@ const WorkOrderDetail = () => {
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status }));
 
-
+      signalDataChanged();
       toast.success(`Status radnog naloga je promenjen na "${status === 'zavrsen' ? 'Završen' :
         status === 'odlozen' ? 'Odložen' :
         status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}"!`);
@@ -324,6 +422,7 @@ const WorkOrderDetail = () => {
 
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
+      signalDataChanged();
 
     } catch (error) {
       console.error('Greška pri verifikaciji:', error);
@@ -351,6 +450,7 @@ const WorkOrderDetail = () => {
       const response = await workOrdersAPI.getOne(id);
       setWorkOrder(response.data);
       setFormData(prev => ({ ...prev, status: response.data.status }));
+      signalDataChanged();
 
     } catch (error) {
       console.error('Greška pri vraćanju radnog naloga:', error);
@@ -787,6 +887,17 @@ const WorkOrderDetail = () => {
     setEditValue('');
   };
 
+  // Helper to generate shared EditableField props
+  const editProps = (field) => ({
+    isEditing: editingField === field,
+    editVal: editValue,
+    onEditValChange: setEditValue,
+    onStartEdit: startEdit,
+    onConfirm: confirmEdit,
+    onCancel: cancelEdit,
+    editRefProp: editRef
+  });
+
   // ─── Status Config Helper ─────────────────────────────────
   const getStatusConfig = (status) => {
     switch (status) {
@@ -802,86 +913,6 @@ const WorkOrderDetail = () => {
   };
 
   // ─── Editable Field Sub-Component ─────────────────────────
-  const EditableField = ({ field, value, displayValue, type = 'text', options, placeholder, rows }) => {
-    const isEditing = editingField === field;
-
-    return (
-      <div className="relative group">
-        <div className="flex items-start gap-1">
-          <span className="text-sm text-slate-900 font-semibold leading-snug">
-            {displayValue || value || <span className="text-slate-400 italic font-normal text-xs">Nije unet</span>}
-          </span>
-          <button
-            onClick={() => startEdit(field, value)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-slate-200 rounded flex-shrink-0 mt-0.5"
-            title="Izmeni"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
-        </div>
-
-        {isEditing && (
-          <div ref={editRef} className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2.5 min-w-[220px]">
-            {type === 'select' ? (
-              <select
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                autoFocus
-              >
-                {options?.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            ) : type === 'textarea' ? (
-              <textarea
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical"
-                rows={rows || 3}
-                placeholder={placeholder}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') cancelEdit();
-                }}
-              />
-            ) : (
-              <input
-                type={type}
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={placeholder}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') confirmEdit();
-                  if (e.key === 'Escape') cancelEdit();
-                }}
-              />
-            )}
-            <div className="flex items-center gap-1.5 mt-2">
-              <button
-                onClick={confirmEdit}
-                className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-              >
-                OK
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-              >
-                Otkaži
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // ─── Role Helpers ──────────────────────────────────────────
   const storedUser = localStorage.getItem('user');
   const currentUserRole = storedUser ? JSON.parse(storedUser).role : null;
@@ -891,7 +922,7 @@ const WorkOrderDetail = () => {
   // ─── Loading State ─────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6">
+      <div className={isModal ? "flex items-center justify-center h-96" : "min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6"}>
         <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-slate-600 font-medium">Učitavanje...</p>
@@ -910,18 +941,7 @@ const WorkOrderDetail = () => {
               type="secondary"
               size="small"
               prefix={<BackIcon size={16} />}
-              onClick={() => {
-                if (location.state?.fromUsersList) {
-                  navigate(location.state.previousPath || '/users', {
-                    state: {
-                      fromWorkOrderDetail: true,
-                      selectedUserId: location.state.selectedUserId
-                    }
-                  });
-                } else {
-                  navigate('/work-orders');
-                }
-              }}
+              onClick={goBack}
             >
               Povratak na listu
             </Button>
@@ -938,7 +958,7 @@ const WorkOrderDetail = () => {
 
   // ─── Main Return ───────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white -m-6 pb-16">
+    <div className={isModal ? "bg-white pb-16" : "min-h-screen bg-white -m-6 pb-16"}>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm m-4 rounded-lg">{error}</div>
@@ -955,6 +975,7 @@ const WorkOrderDetail = () => {
             </div>
             <EditableField
               field="date"
+              {...editProps("date")}
               value={formData.date}
               displayValue={formData.date ? new Date(formData.date).toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' }) : null}
               type="date"
@@ -962,6 +983,7 @@ const WorkOrderDetail = () => {
             <div className="flex items-center gap-1.5 mt-1">
               <EditableField
                 field="type"
+                {...editProps("type")}
                 value={formData.type}
                 displayValue={
                   <span className="text-xs text-slate-500 font-normal">{formData.type || '—'}</span>
@@ -972,6 +994,7 @@ const WorkOrderDetail = () => {
               <span className="text-xs text-slate-400">·</span>
               <EditableField
                 field="time"
+                {...editProps("time")}
                 value={formData.time}
                 displayValue={
                   <span className="text-xs text-slate-500 font-normal">{formData.time || '—'}</span>
@@ -989,6 +1012,7 @@ const WorkOrderDetail = () => {
             </div>
             <EditableField
               field="municipality"
+              {...editProps("municipality")}
               value={formData.municipality}
               type="text"
               placeholder="Opština"
@@ -996,6 +1020,7 @@ const WorkOrderDetail = () => {
             <div className="mt-1">
               <EditableField
                 field="address"
+                {...editProps("address")}
                 value={formData.address}
                 displayValue={
                   <span className="text-xs text-slate-500 font-normal">{formData.address || '—'}</span>
@@ -1014,6 +1039,7 @@ const WorkOrderDetail = () => {
             </div>
             <EditableField
               field="technicianId"
+              {...editProps("technicianId")}
               value={formData.technicianId}
               displayValue={techName || <span className="text-slate-400 italic text-xs font-normal">Nije dodeljen</span>}
               type="select"
@@ -1025,6 +1051,7 @@ const WorkOrderDetail = () => {
             <div className="mt-1">
               <EditableField
                 field="technician2Id"
+                {...editProps("technician2Id")}
                 value={formData.technician2Id}
                 displayValue={
                   tech2Name
@@ -1105,6 +1132,7 @@ const WorkOrderDetail = () => {
                   </p>
                   <EditableField
                     field="details"
+                    {...editProps("details")}
                     value={formData.details}
                     displayValue={
                       formData.details
@@ -1122,6 +1150,7 @@ const WorkOrderDetail = () => {
                     <div className="border-l-2 border-emerald-400 pl-3 bg-emerald-50/50 py-2.5 pr-2 rounded-r">
                       <EditableField
                         field="comment"
+                        {...editProps("comment")}
                         value={formData.comment}
                         displayValue={
                           <span className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">{formData.comment}</span>
@@ -1134,6 +1163,7 @@ const WorkOrderDetail = () => {
                   ) : (
                     <EditableField
                       field="comment"
+                      {...editProps("comment")}
                       value={formData.comment}
                       displayValue={null}
                       type="textarea"
@@ -1533,7 +1563,10 @@ const WorkOrderDetail = () => {
       </div>
 
       {/* ── Bottom Action Bar ────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 md:left-16 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-2.5 z-40 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+      <div className={isModal
+        ? "fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-2.5 z-[10000] shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
+        : "fixed bottom-0 left-0 md:left-16 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-2.5 z-40 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
+      }>
         <div className="flex items-center">
 
           {/* ─ LEFT GROUP: Status + Back + Status Dropdown ─ */}
@@ -1555,18 +1588,7 @@ const WorkOrderDetail = () => {
 
             {/* Back */}
             <button
-              onClick={() => {
-                if (location.state?.fromUsersList) {
-                  navigate(location.state.previousPath || '/users', {
-                    state: {
-                      fromWorkOrderDetail: true,
-                      selectedUserId: location.state.selectedUserId
-                    }
-                  });
-                } else {
-                  navigate('/work-orders');
-                }
-              }}
+              onClick={goBack}
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg transition-all flex-shrink-0"
             >
               <BackIcon size={16} />

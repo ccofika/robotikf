@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   SearchIcon,
   ClipboardIcon,
@@ -13,6 +13,7 @@ import { searchAPI } from '../services/api';
 
 const GlobalSearch = ({ onFocusChange, expanded }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -84,11 +85,11 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleNavigate = (path) => {
+  const handleNavigate = (path, opts) => {
     handleBlurClose();
     setQuery('');
     setResults(null);
-    navigate(path);
+    navigate(path, opts);
   };
 
   const totalResults = results
@@ -175,7 +176,7 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
                   return (
                     <div
                       key={wo._id}
-                      onClick={() => handleNavigate(`/work-orders/${wo._id}`)}
+                      onClick={() => handleNavigate(`/work-orders/${wo._id}`, { state: { backgroundLocation: location } })}
                       className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50"
                     >
                       <div className="flex-1 min-w-0">
