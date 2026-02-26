@@ -275,6 +275,10 @@ const TechniciansGPS = () => {
   const handleRequestLocations = async () => {
     setRequesting(true);
     try {
+      // Odmah učitaj poslednje poznate lokacije iz baze (background tracking ih čuva)
+      await fetchLocations();
+
+      // Pošalji push za tehničare koji imaju app otvoren (bonus, ne zavisi od toga)
       const response = await gpsAPI.requestLocations();
       if (response.data.success) {
         setLastRequest({
@@ -285,16 +289,17 @@ const TechniciansGPS = () => {
           totalTechnicians: response.data.totalTechnicians
         });
 
-        toast.success(`GPS zahtev poslan! Uspešno: ${response.data.successCount}/${response.data.totalTechnicians}`);
+        toast.success(`Lokacije učitane. Push poslan tehničarima sa otvorenom aplikacijom.`);
         setAutoRefresh(true);
 
-        setTimeout(() => {
-          fetchLocations();
-        }, 5000);
+        // Osvežavaj još par puta za tehničare koji odgovore na push
+        setTimeout(() => fetchLocations(), 5000);
+        setTimeout(() => fetchLocations(), 15000);
       }
     } catch (error) {
       console.error('Greška pri slanju GPS zahteva:', error);
-      toast.error('Neuspešno slanje GPS zahteva');
+      // Čak i ako push fail-uje, lokacije su već učitane
+      toast.info('Prikazane su poslednje poznate lokacije tehničara.');
     } finally {
       setRequesting(false);
     }
