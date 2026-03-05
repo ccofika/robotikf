@@ -15,12 +15,15 @@ const WorkOrdersByTechnician = () => {
   const { refreshCounter } = useWorkOrderModal();
   const [technicians, setTechnicians] = useState([]);
 
-  // Optimized state management with priority-based loading
+  // Work orders state
   const [recentWorkOrders, setRecentWorkOrders] = useState([]);
   const [olderWorkOrders, setOlderWorkOrders] = useState([]);
   const [recentUnassigned, setRecentUnassigned] = useState([]);
   const [olderUnassigned, setOlderUnassigned] = useState([]);
   const [verificationOrders, setVerificationOrders] = useState([]);
+  const [allLoaded, setAllLoaded] = useState(false);
+  const [allLoadingInProgress, setAllLoadingInProgress] = useState(false);
+  const [serverSearchResults, setServerSearchResults] = useState(null);
 
 
   // Loading states
@@ -60,6 +63,19 @@ const WorkOrdersByTechnician = () => {
     fetchDashboardAndTechnicians();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debounced server-side search for old orders not in memory
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 2 || allLoaded) {
+      setServerSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      serverSearch(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, allLoaded]);
 
   // Refresh data when modal signals changes
   useEffect(() => {
@@ -126,28 +142,23 @@ const WorkOrdersByTechnician = () => {
     setRecentLoading(true);
 
     try {
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
       const [workOrdersResponse, unassignedResponse] = await Promise.all([
-        workOrdersAPI.getAll(),
+        workOrdersAPI.getAll({ recent: 3 }),
         workOrdersAPI.getUnassigned()
       ]);
 
-      const workOrdersData = workOrdersResponse.data;
+      const workOrdersData = Array.isArray(workOrdersResponse.data) ? workOrdersResponse.data : (workOrdersResponse.data.workOrders || []);
       const unassignedData = unassignedResponse.data;
 
-      const recentWorkOrdersData = workOrdersData.filter(order => {
-        const orderDate = new Date(order.date);
-        return orderDate >= threeDaysAgo;
-      });
-
+      // Filter unassigned by recent (server already filtered work orders)
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       const recentUnassignedData = unassignedData.filter(order => {
         const orderDate = new Date(order.date);
         return orderDate >= threeDaysAgo;
       });
 
-      setRecentWorkOrders(recentWorkOrdersData);
+      setRecentWorkOrders(workOrdersData);
       setRecentUnassigned(recentUnassignedData);
 
       // Load verification count in background (don't block)
@@ -155,9 +166,10 @@ const WorkOrdersByTechnician = () => {
         fetchVerificationOrders();
       }
 
+      // Load next batch of older orders in background (~200 more)
       setTimeout(() => {
-        fetchOlderWorkOrders();
-      }, 500);
+        fetchInitialOlderWorkOrders();
+      }, 300);
 
     } catch (error) {
       console.error('Greška pri učitavanju najnovijih radnih naloga:', error);
@@ -166,39 +178,96 @@ const WorkOrdersByTechnician = () => {
     }
   };
 
-  // Priority 3: Load older work orders (background loading)
-  const fetchOlderWorkOrders = async () => {
+  // Priority 3: Load initial batch of older orders (~200) in background
+  const fetchInitialOlderWorkOrders = async () => {
     setOlderLoading(true);
-
     try {
       const threeDaysAgo = new Date();
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       const [workOrdersResponse, unassignedResponse] = await Promise.all([
-        workOrdersAPI.getAll(),
+        workOrdersAPI.getAll({ olderThan: 3, page: 1, limit: 200 }),
         workOrdersAPI.getUnassigned()
       ]);
 
-      const workOrdersData = workOrdersResponse.data;
+      const data = workOrdersResponse.data;
+      const workOrdersData = data.workOrders || (Array.isArray(data) ? data : []);
       const unassignedData = unassignedResponse.data;
+      const olderUnassignedData = unassignedData.filter(order => new Date(order.date) < threeDaysAgo);
 
-      const olderWorkOrdersData = workOrdersData.filter(order => {
-        const orderDate = new Date(order.date);
-        return orderDate < threeDaysAgo;
-      });
-
-      const olderUnassignedData = unassignedData.filter(order => {
-        const orderDate = new Date(order.date);
-        return orderDate < threeDaysAgo;
-      });
-
-      setOlderWorkOrders(olderWorkOrdersData);
+      setOlderWorkOrders(workOrdersData);
       setOlderUnassigned(olderUnassignedData);
-
     } catch (error) {
       console.error('Greška pri učitavanju starijih radnih naloga:', error);
     } finally {
       setOlderLoading(false);
+    }
+  };
+
+  // Load ALL older work orders progressively (button click)
+  const fetchAllWorkOrders = async () => {
+    setAllLoadingInProgress(true);
+    setOlderLoading(true);
+
+    try {
+      let page = 1;
+      const pageSize = 200;
+      let allOrders = [];
+      let hasMore = true;
+
+      // Start from page 2 since page 1 is already loaded by fetchInitialOlderWorkOrders
+      if (olderWorkOrders.length > 0) {
+        allOrders = [...olderWorkOrders];
+        page = 2;
+      }
+
+      while (hasMore) {
+        const response = await workOrdersAPI.getAll({ olderThan: 3, page, limit: pageSize });
+        const data = response.data;
+        const batch = data.workOrders || (Array.isArray(data) ? data : []);
+
+        if (batch.length === 0) {
+          hasMore = false;
+        } else {
+          // Deduplicate
+          const existingIds = new Set(allOrders.map(o => o._id));
+          const newOrders = batch.filter(o => !existingIds.has(o._id));
+          allOrders = [...allOrders, ...newOrders];
+          setOlderWorkOrders([...allOrders]);
+
+          if (data.pagination && !data.pagination.hasNextPage) {
+            hasMore = false;
+          } else if (batch.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        }
+      }
+
+      setAllLoaded(true);
+      toast.success(`Učitano ukupno ${allOrders.length} starijih naloga`);
+    } catch (error) {
+      console.error('Greška pri učitavanju svih radnih naloga:', error);
+      toast.error('Greška pri učitavanju svih radnih naloga');
+    } finally {
+      setOlderLoading(false);
+      setAllLoadingInProgress(false);
+    }
+  };
+
+  // Server-side search for work orders (searches ALL orders on backend)
+  const serverSearch = async (term) => {
+    if (!term || term.length < 2) {
+      setServerSearchResults(null);
+      return;
+    }
+    try {
+      const response = await workOrdersAPI.getAll({ search: term, page: 1, limit: 100 });
+      const data = response.data;
+      setServerSearchResults(data.workOrders || (Array.isArray(data) ? data : []));
+    } catch (error) {
+      console.error('Greška pri pretrazi:', error);
     }
   };
 
@@ -226,6 +295,10 @@ const WorkOrdersByTechnician = () => {
   // Refresh all data
   const fetchData = async () => {
     setVerificationDataLoaded(false);
+    setAllLoaded(false);
+    setOlderWorkOrders([]);
+    setOlderUnassigned([]);
+    setServerSearchResults(null);
     await fetchDashboardAndTechnicians();
 
     if (activeTab === 'verification') {
@@ -315,10 +388,15 @@ const WorkOrdersByTechnician = () => {
     }
   };
 
-  // Combine recent and older work orders for compatibility
+  // Combine recent, older, and server search results (deduplicated)
   const getAllWorkOrders = useCallback(() => {
-    return [...recentWorkOrders, ...olderWorkOrders];
-  }, [recentWorkOrders, olderWorkOrders]);
+    const localOrders = [...recentWorkOrders, ...olderWorkOrders];
+    if (!serverSearchResults) return localOrders;
+    // Merge server results, avoiding duplicates
+    const existingIds = new Set(localOrders.map(o => o._id));
+    const newFromServer = serverSearchResults.filter(o => !existingIds.has(o._id));
+    return [...localOrders, ...newFromServer];
+  }, [recentWorkOrders, olderWorkOrders, serverSearchResults]);
 
   const getAllUnassignedOrders = useCallback(() => {
     return [...recentUnassigned, ...olderUnassigned];
@@ -424,7 +502,7 @@ const WorkOrdersByTechnician = () => {
     }
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentWorkOrders, olderWorkOrders, statusFilter, technicianFilter, dateFilter, timeSortOrder, searchTerm, filterOrders, getAllWorkOrders]);
+  }, [recentWorkOrders, olderWorkOrders, serverSearchResults, statusFilter, technicianFilter, dateFilter, timeSortOrder, searchTerm, filterOrders, getAllWorkOrders]);
 
   // Paginacija za nedodeljene naloge
   const indexOfLastUnassigned = currentPageUnassigned * itemsPerPage;
@@ -1182,6 +1260,29 @@ const WorkOrdersByTechnician = () => {
             className="h-8 w-full pl-9 pr-3 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all"
           />
         </div>
+
+        {/* Load all button */}
+        {!allLoaded && (
+          <button
+            onClick={fetchAllWorkOrders}
+            disabled={allLoadingInProgress}
+            className="h-8 px-3 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-md text-[11px] font-medium transition-colors whitespace-nowrap flex items-center gap-1.5"
+          >
+            {allLoadingInProgress ? (
+              <>
+                <RefreshIcon className="spin" size={12} />
+                Učitava...
+              </>
+            ) : (
+              'Učitaj sve naloge'
+            )}
+          </button>
+        )}
+        {allLoaded && (
+          <span className="h-8 px-3 bg-green-50 text-green-700 border border-green-200 rounded-md text-[11px] font-medium flex items-center">
+            Svi nalozi učitani
+          </span>
+        )}
 
         {/* Status filter */}
         <select

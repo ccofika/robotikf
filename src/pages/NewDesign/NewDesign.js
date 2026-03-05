@@ -1483,10 +1483,6 @@ const WorkOrdersSection = () => {
 
       setTechnicians(techniciansData);
 
-      setTimeout(() => {
-        fetchRecentWorkOrders();
-      }, 100);
-
     } catch (error) {
       console.error('Greška pri učitavanju dashboard podataka:', error);
       setError('Greška pri učitavanju osnovnih podataka. Pokušajte ponovo.');
@@ -1501,28 +1497,23 @@ const WorkOrdersSection = () => {
     setRecentLoading(true);
 
     try {
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
       const [workOrdersResponse, unassignedResponse] = await Promise.all([
-        workOrdersAPI.getAll(),
+        workOrdersAPI.getAll({ recent: 3 }),
         workOrdersAPI.getUnassigned()
       ]);
 
-      const workOrdersData = workOrdersResponse.data;
+      const workOrdersData = Array.isArray(workOrdersResponse.data) ? workOrdersResponse.data : (workOrdersResponse.data.workOrders || []);
       const unassignedData = unassignedResponse.data;
 
-      const recentWorkOrdersData = workOrdersData.filter(order => {
-        const orderDate = new Date(order.date);
-        return orderDate >= threeDaysAgo;
-      });
-
+      // Filter unassigned by recent (server already filtered work orders)
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       const recentUnassignedData = unassignedData.filter(order => {
         const orderDate = new Date(order.date);
         return orderDate >= threeDaysAgo;
       });
 
-      setRecentWorkOrders(recentWorkOrdersData);
+      setRecentWorkOrders(workOrdersData);
       setRecentUnassigned(recentUnassignedData);
 
       setTimeout(() => {
@@ -1536,7 +1527,7 @@ const WorkOrdersSection = () => {
     }
   };
 
-  // Priority 3: Load older work orders
+  // Priority 3: Load older work orders (older than 3 days)
   const fetchOlderWorkOrders = async () => {
     setOlderLoading(true);
 
@@ -1545,24 +1536,19 @@ const WorkOrdersSection = () => {
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       const [workOrdersResponse, unassignedResponse] = await Promise.all([
-        workOrdersAPI.getAll(),
+        workOrdersAPI.getAll({ olderThan: 3 }),
         workOrdersAPI.getUnassigned()
       ]);
 
-      const workOrdersData = workOrdersResponse.data;
+      const workOrdersData = Array.isArray(workOrdersResponse.data) ? workOrdersResponse.data : (workOrdersResponse.data.workOrders || []);
       const unassignedData = unassignedResponse.data;
-
-      const olderWorkOrdersData = workOrdersData.filter(order => {
-        const orderDate = new Date(order.date);
-        return orderDate < threeDaysAgo;
-      });
 
       const olderUnassignedData = unassignedData.filter(order => {
         const orderDate = new Date(order.date);
         return orderDate < threeDaysAgo;
       });
 
-      setOlderWorkOrders(olderWorkOrdersData);
+      setOlderWorkOrders(workOrdersData);
       setOlderUnassigned(olderUnassignedData);
 
     } catch (error) {
@@ -1595,11 +1581,15 @@ const WorkOrdersSection = () => {
 
   // Refresh all data
   const fetchData = async () => {
-    setVerificationDataLoaded(false);
     await fetchDashboardAndTechnicians();
 
     if (activeTab === 'verification') {
+      setVerificationDataLoaded(false);
       await fetchVerificationOrders();
+    }
+
+    if (activeTab === 'pregled') {
+      await fetchFancyTableData();
     }
   };
 

@@ -14,38 +14,70 @@ const WorkOrdersList = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [technicianFilter, setTechnicianFilter] = useState('');
-  
-  // Paginacija
+
+  // Server-side pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  
+  const itemsPerPage = 24;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ zavrsen: 0, nezavrsen: 0, odlozen: 0 });
+
   const { refreshCounter } = useWorkOrderModal();
 
+  // Fetch technicians once
   useEffect(() => {
-    fetchData();
+    techniciansAPI.getAll().then(res => setTechnicians(res.data)).catch(() => {});
   }, []);
+
+  // Fetch work orders when filters/page change
+  useEffect(() => {
+    fetchWorkOrders();
+  }, [currentPage, searchTerm, statusFilter, technicianFilter]);
 
   // Refresh data when modal signals changes
   useEffect(() => {
     if (refreshCounter > 0) {
-      fetchData();
+      fetchWorkOrders();
     }
   }, [refreshCounter]);
-  
-  const fetchData = async () => {
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const fetchWorkOrders = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
-      const [workOrdersResponse, techniciansResponse] = await Promise.all([
-        workOrdersAPI.getAll(),
-        techniciansAPI.getAll()
-      ]);
-      
-      setWorkOrders(workOrdersResponse.data);
-      setTechnicians(techniciansResponse.data);
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
+      if (searchTerm) params.search = searchTerm;
+      if (statusFilter) params.status = statusFilter;
+      if (technicianFilter && technicianFilter !== 'unassigned') params.technician = technicianFilter;
+
+      const response = await workOrdersAPI.getAll(params);
+      const data = response.data;
+
+      if (data.workOrders) {
+        setWorkOrders(data.workOrders);
+        setTotalPages(data.pagination.totalPages);
+        setTotalCount(data.pagination.totalCount);
+        if (data.statusCounts) setStatusCounts(data.statusCounts);
+      } else {
+        // Backward compat if backend hasn't been deployed yet
+        setWorkOrders(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
       console.error('Greška pri učitavanju podataka:', error);
       setError('Greška pri učitavanju radnih naloga. Pokušajte ponovo.');
@@ -54,45 +86,29 @@ const WorkOrdersList = () => {
       setLoading(false);
     }
   };
+
+  const fetchData = fetchWorkOrders;
   
   const handleDelete = async (id, address) => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete radni nalog za adresu "${address}"?`)) {
-      // OPTIMISTIC UPDATE - immediately remove from UI
-      const originalWorkOrders = [...workOrders];
-      setWorkOrders(prev => prev.filter(order => order._id !== id));
-
       try {
         await workOrdersAPI.delete(id);
         toast.success('Radni nalog je uspešno obrisan!');
-        // Success - optimistic update already done, optionally refresh to confirm
+        fetchWorkOrders();
       } catch (error) {
         console.error('Greška pri brisanju radnog naloga:', error);
         toast.error('Greška pri brisanju radnog naloga!');
-
-        // ROLLBACK - restore original data on error
-        setWorkOrders(originalWorkOrders);
       }
     }
   };
   
-    // Filtriranje radnih naloga
-  const filteredWorkOrders = useMemo(() => {
-    return workOrders.filter(order => {
-      const searchMatch = searchTerm === '' || 
-                         order.municipality.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (order.comment && order.comment.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const statusMatch = statusFilter === '' || order.status === statusFilter;
-      const technicianMatch = technicianFilter === '' ||
-                             (technicianFilter === 'unassigned' ? (!order.technicianId && !order.technician2Id) :
-                              ((order.technicianId?._id || order.technicianId) === technicianFilter ||
-                               (order.technician2Id?._id || order.technician2Id) === technicianFilter));
-      
-      return searchMatch && statusMatch && technicianMatch;
-    });
-  }, [workOrders, searchTerm, statusFilter, technicianFilter]);
+    // Client-side filter only for unassigned (not supported by backend filter)
+  const displayedWorkOrders = useMemo(() => {
+    if (technicianFilter === 'unassigned') {
+      return workOrders.filter(order => !order.technicianId && !order.technician2Id);
+    }
+    return workOrders;
+  }, [workOrders, technicianFilter]);
   
   // Dobavljanje imena tehničara po ID-u
   const getTechnicianName = (technicianId) => {
@@ -123,13 +139,6 @@ const WorkOrdersList = () => {
     
     return names.join(', ');
   };
-  
-  // Paginacija
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredWorkOrders.slice(indexOfFirstItem, indexOfLastItem);
-  
-  const totalPages = Math.ceil(filteredWorkOrders.length / itemsPerPage);
   
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   
@@ -187,8 +196,8 @@ const WorkOrdersList = () => {
               <input
                 type="text"
                 placeholder="Pretraga po opštini, adresi, tipu..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
             
@@ -196,7 +205,7 @@ const WorkOrdersList = () => {
               <FilterIcon className="filter-icon" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               >
                 <option value="">Svi statusi</option>
                 <option value="zavrsen">Završeni</option>
@@ -208,7 +217,7 @@ const WorkOrdersList = () => {
             <div className="filter-box">
               <select
                 value={technicianFilter}
-                onChange={(e) => setTechnicianFilter(e.target.value)}
+                onChange={(e) => { setTechnicianFilter(e.target.value); setCurrentPage(1); }}
               >
                 <option value="">Svi tehničari</option>
                 <option value="unassigned">Nedodeljeni</option>
@@ -251,14 +260,14 @@ const WorkOrdersList = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentItems.length === 0 ? (
+                  {displayedWorkOrders.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="text-center">
                         Nema rezultata za prikazivanje
                       </td>
                     </tr>
                   ) : (
-                    currentItems.map((order) => (
+                    displayedWorkOrders.map((order) => (
                       <tr key={order._id} className="slide-in">
                         <td>{new Date(order.date).toLocaleDateString('sr-RS')}</td>
                         <td>{order.municipality}</td>
@@ -302,7 +311,7 @@ const WorkOrdersList = () => {
               </table>
             </div>
             
-            {filteredWorkOrders.length > itemsPerPage && (
+            {totalPages > 1 && (
               <div className="pagination">
                 <button 
                   onClick={() => paginate(1)}
@@ -362,37 +371,37 @@ const WorkOrdersList = () => {
             </div>
             <div>
               <p>Ukupno</p>
-              <h3>{filteredWorkOrders.length}</h3>
+              <h3>{totalCount}</h3>
             </div>
           </div>
-          
+
           <div className="stat">
             <div className="stat-icon-circle green">
-              <span>{filteredWorkOrders.filter(order => order.status === 'zavrsen').length}</span>
+              <span>{statusCounts.zavrsen}</span>
             </div>
             <div>
               <p>Završeni</p>
-              <h3>{Math.round(filteredWorkOrders.filter(order => order.status === 'zavrsen').length / filteredWorkOrders.length * 100) || 0}%</h3>
+              <h3>{totalCount ? Math.round(statusCounts.zavrsen / totalCount * 100) : 0}%</h3>
             </div>
           </div>
-          
+
           <div className="stat">
             <div className="stat-icon-circle yellow">
-              <span>{filteredWorkOrders.filter(order => order.status === 'nezavrsen').length}</span>
+              <span>{statusCounts.nezavrsen}</span>
             </div>
             <div>
               <p>Nezavršeni</p>
-              <h3>{Math.round(filteredWorkOrders.filter(order => order.status === 'nezavrsen').length / filteredWorkOrders.length * 100) || 0}%</h3>
+              <h3>{totalCount ? Math.round(statusCounts.nezavrsen / totalCount * 100) : 0}%</h3>
             </div>
           </div>
-          
+
           <div className="stat">
             <div className="stat-icon-circle blue">
-              <span>{filteredWorkOrders.filter(order => order.status === 'odlozen').length}</span>
+              <span>{statusCounts.odlozen}</span>
             </div>
             <div>
               <p>Odloženi</p>
-              <h3>{Math.round(filteredWorkOrders.filter(order => order.status === 'odlozen').length / filteredWorkOrders.length * 100) || 0}%</h3>
+              <h3>{totalCount ? Math.round(statusCounts.odlozen / totalCount * 100) : 0}%</h3>
             </div>
           </div>
         </div>
