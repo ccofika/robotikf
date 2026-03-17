@@ -54,17 +54,26 @@ const EquipmentUpload = () => {
     try {
       const response = await equipmentAPI.uploadExcel(formData);
 
-      const { message, addedCount, duplicates, errors } = response.data;
+      const { message, totalProcessed, addedCount, duplicates, errors } = response.data;
 
       setParseResults({
+        totalProcessed: totalProcessed || 0,
         equipmentAdded: addedCount || 0,
         duplicates: duplicates || [],
         errors: errors || []
       });
 
       const duplicateMessage = duplicates?.length > 0 ? ` (${duplicates.length} duplikat${duplicates.length === 1 ? '' : 'a'} preskočen${duplicates.length === 1 ? '' : 'o'})` : '';
-      setSuccessMessage(`${message}${duplicateMessage}`);
-      toast.success('Uspešno dodavanje opreme!');
+      const errorsExist = errors && errors.length > 0;
+
+      if (errorsExist) {
+        setSuccessMessage(`${message}${duplicateMessage}`);
+        setError(`${errors.length} stavk${errors.length === 1 ? 'a' : 'i'} iz Excel fajla nije moglo biti dodato zbog grešaka. Pogledajte detalje ispod.`);
+        toast.warning ? toast.warning('Upload završen sa greškama') : toast.error(`Upload završen - ${errors.length} grešaka`);
+      } else {
+        setSuccessMessage(`${message}${duplicateMessage}`);
+        toast.success('Uspešno dodavanje opreme!');
+      }
       setFile(null);
       
       // Resetuj input polje za fajl
@@ -297,34 +306,83 @@ const EquipmentUpload = () => {
           {parseResults && (
             <div className="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Rezultat obrade</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+              {/* Summary cards */}
+              <div className={cn(
+                "grid gap-4 mb-4",
+                parseResults.errors.length > 0 ? "grid-cols-1 md:grid-cols-4" : "grid-cols-1 md:grid-cols-3"
+              )}>
                 <div className="bg-white p-4 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm text-slate-600">Ukupno redova u fajlu</span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.totalProcessed}</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-green-200">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Dodato opreme</span>
+                    <span className="text-sm text-slate-600">Uspešno dodato</span>
                   </div>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.equipmentAdded}</p>
+                  <p className="text-xl font-bold text-green-700 mt-1">{parseResults.equipmentAdded}</p>
                 </div>
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
+                <div className="bg-white p-4 rounded-lg border border-orange-200">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Duplikati pronađeni</span>
+                    <span className="text-sm text-slate-600">Preskočeni duplikati</span>
                   </div>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.duplicates.length}</p>
+                  <p className="text-xl font-bold text-orange-700 mt-1">{parseResults.duplicates.length}</p>
                 </div>
+                {parseResults.errors.length > 0 && (
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-sm text-red-600 font-medium">Greške</span>
+                    </div>
+                    <p className="text-xl font-bold text-red-700 mt-1">{parseResults.errors.length}</p>
+                  </div>
+                )}
               </div>
 
+              {/* Error details */}
               {parseResults.errors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <h4 className="font-semibold text-red-800 mb-2">Greške prilikom obrade:</h4>
-                  <ul className="space-y-1">
-                    {parseResults.errors.map((err, index) => (
-                      <li key={index} className="text-sm text-red-700 flex items-start space-x-2">
-                        <div className="w-1 h-1 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
-                        <span>{err}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <h4 className="font-semibold text-red-800 mb-2">
+                    Greške prilikom obrade ({parseResults.errors.length}):
+                  </h4>
+                  <p className="text-sm text-red-700 mb-3">
+                    Sledeći redovi iz Excel fajla nisu mogli biti dodati. Proverite da li svaki red ima popunjene kolone <strong>Kategorija</strong>, <strong>MODEL</strong> i <strong>SN</strong>.
+                  </p>
+                  <div className="max-h-64 overflow-y-auto bg-white rounded border border-red-200">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-red-100">
+                        <tr>
+                          <th className="text-left p-2 text-red-800 font-medium">Red u Excel-u</th>
+                          <th className="text-left p-2 text-red-800 font-medium">Kategorija</th>
+                          <th className="text-left p-2 text-red-800 font-medium">Model</th>
+                          <th className="text-left p-2 text-red-800 font-medium">Serijski broj</th>
+                          <th className="text-left p-2 text-red-800 font-medium">Problem</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parseResults.errors.map((err, index) => {
+                          const isStructured = typeof err === 'object' && err !== null;
+                          return (
+                            <tr key={index} className="border-t border-red-100">
+                              <td className="p-2 text-red-700 font-mono">{isStructured && err.row ? err.row : '-'}</td>
+                              <td className="p-2 text-red-700">{isStructured && err.rawData ? err.rawData.kategorija : '-'}</td>
+                              <td className="p-2 text-red-700">{isStructured && err.rawData ? err.rawData.model : '-'}</td>
+                              <td className="p-2 text-red-700 font-mono">{isStructured && err.rawData ? err.rawData.sn : '-'}</td>
+                              <td className="p-2 text-red-600">{isStructured ? err.message : String(err)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-red-600 mt-2">
+                    Ispravite Excel fajl i ponovo ga upload-ujte da biste dodali ove stavke.
+                  </p>
                 </div>
               )}
 
