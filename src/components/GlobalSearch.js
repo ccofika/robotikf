@@ -112,7 +112,8 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
   const equipmentLocationColors = {
     warehouse: 'text-slate-600 bg-slate-100',
     technician: 'text-violet-700 bg-violet-50',
-    user: 'text-blue-700 bg-blue-50'
+    user: 'text-blue-700 bg-blue-50',
+    defective: 'text-red-700 bg-red-50'
   };
 
   return (
@@ -217,7 +218,9 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
               {results.equipment.map((eq) => {
                 const locColor = equipmentLocationColors[eq.locationtype] || 'text-slate-600 bg-slate-100';
                 const handleClick = () => {
-                  if (eq.locationtype === 'user') {
+                  if (eq.locationtype === 'defective') {
+                    handleNavigate(`/defective-equipment?search=${encodeURIComponent(eq.serialNumber)}`);
+                  } else if (eq.locationtype === 'user') {
                     handleNavigate(`/users?search=${encodeURIComponent(eq.searchParam)}`);
                   } else {
                     handleNavigate(`/equipment?search=${encodeURIComponent(eq.serialNumber)}`);
