@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon } from '../../components/icons/SvgIcons';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon, DownloadIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { equipmentAPI, techniciansAPI } from '../../services/api';
@@ -58,6 +60,9 @@ const EquipmentList = () => {
     description: '',
     serialNumber: ''
   });
+
+  // Export state
+  const [isExporting, setIsExporting] = useState(false);
   
   // Debounce search input
   useEffect(() => {
@@ -243,6 +248,76 @@ const EquipmentList = () => {
     const { value } = e.target;
     setSearchTerm(value);
     setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  // Export filtered equipment to Excel (respects current filters)
+  const handleExportToExcel = async () => {
+    if (!locationFilter) return;
+
+    setIsExporting(true);
+    try {
+      const params = {
+        all: 'true',
+        search: debouncedSearchTerm,
+        category: selectedCategory === 'all' ? '' : selectedCategory,
+        location: locationFilter
+      };
+
+      const response = await equipmentAPI.getDisplay(params);
+      const equipmentData = response.data?.data || [];
+
+      if (equipmentData.length === 0) {
+        toast.error('Nema opreme za eksportovanje sa trenutnim filterima.');
+        return;
+      }
+
+      const excelRows = equipmentData.map(item => ({
+        'Kategorija': item.category || '',
+        'Opis': item.description || '',
+        'Serijski broj': item.serialNumber || '',
+        'Lokacija': translateLocation(item.location || '')
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
+      worksheet['!cols'] = [
+        { wch: 22 },
+        { wch: 35 },
+        { wch: 22 },
+        { wch: 28 }
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Oprema');
+
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      // Build filename
+      const dateStr = new Date().toISOString().slice(0, 10);
+      let locationLabel = 'oprema';
+      if (locationFilter === 'magacin') {
+        locationLabel = 'magacin';
+      } else if (locationFilter.startsWith('tehnicar-')) {
+        const techId = locationFilter.split('-')[1];
+        const technician = technicians.find(tech => tech._id === techId || tech.id === techId);
+        if (technician?.name) {
+          locationLabel = technician.name.replace(/\s+/g, '_').toLowerCase();
+        } else {
+          locationLabel = `tehnicar-${techId}`;
+        }
+      }
+      const filename = `oprema-${locationLabel}-${dateStr}.xlsx`;
+
+      saveAs(blob, filename);
+      toast.success(`Eksportovano ${equipmentData.length} komada opreme!`);
+    } catch (error) {
+      console.error('Greška pri eksportovanju opreme:', error);
+      toast.error('Greška pri eksportovanju opreme!');
+    } finally {
+      setIsExporting(false);
+    }
   };
   
   // Categories for filters
@@ -638,6 +713,19 @@ const EquipmentList = () => {
                 </select>
                 <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
               </div>
+
+              {/* Export Button - shows when a specific location is selected */}
+              {locationFilter && (
+                <Button
+                  type="primary"
+                  size="medium"
+                  onClick={handleExportToExcel}
+                  disabled={isExporting}
+                  prefix={<DownloadIcon size={16} className={isExporting ? 'animate-pulse' : ''} />}
+                >
+                  {isExporting ? 'Eksportujem...' : 'Eksportuj u Excel'}
+                </Button>
+              )}
             </div>
             
             <div className="flex items-center space-x-3">
