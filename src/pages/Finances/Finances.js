@@ -402,6 +402,53 @@ const Finances = () => {
     }
   };
 
+  // Migrira stare customerStatus ključeve (HFC/GPON/Radovi bez sufiksa) u nove
+  // (sa " sa isporukom materijala" sufiksom) u FinancialSettings dokumentu.
+  // Bezbedno za višestruko pokretanje.
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const migrateCustomerStatusKeys = async () => {
+    if (!window.confirm('Ovo će preimenovati stare ključeve cena (HFC/GPON/Radovi bez sufiksa) u nove (sa "sa isporukom materijala"). Nastavi?')) {
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      const response = await financesAPI.migrateCustomerStatusKeys();
+      const { globalRenamed, globalSkipped, techniciansAffected } = response.data;
+      toast.success(`Migracija završena: ${globalRenamed} globalnih cena preimenovano, ${techniciansAffected} tehničara ažurirano${globalSkipped > 0 ? ` (${globalSkipped} preskočeno jer novi ključ već ima vrednost)` : ''}`);
+      // Osveži settings da bi se nove cene prikazale
+      const settingsRes = await financesAPI.getSettings();
+      setPricesByCustomerStatus(settingsRes.data.pricesByCustomerStatus || {});
+      setTechnicianPrices(settingsRes.data.technicianPrices || []);
+    } catch (error) {
+      console.error('Greška pri migraciji ključeva:', error);
+      toast.error('Greška pri migraciji ključeva: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // Pokuša ponovo obračun za sve nerazrešene failed transakcije
+  const retryAllFailedTransactions = async () => {
+    if (!window.confirm(`Ovo će pokušati ponovo obračun za sve neuspesne radne naloge (${failedTransactions.length}). Nastavi?`)) {
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      const response = await financesAPI.retryAllFailedTransactions();
+      const { summary } = response.data;
+      toast.success(`Bulk retry završen: ${summary.succeeded} uspešno, ${summary.stillFailing} i dalje failuje, ${summary.errors} grešaka`);
+      // Osveži failed transakcije i reports
+      const failedRes = await financesAPI.getFailedTransactions();
+      setFailedTransactions(failedRes.data || []);
+      fetchReportsWithFilter();
+    } catch (error) {
+      console.error('Greška pri bulk retry-u:', error);
+      toast.error('Greška pri bulk retry-u: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   const confirmDiscount = async (municipality, discountPercent, workOrderIds) => {
     setRetryLoading(prev => {
       const newState = { ...prev };
@@ -473,14 +520,6 @@ const Finances = () => {
   // Helper funkcije za tabelu transakcija
   const getCustomerStatusShortName = (customerStatus) => {
     const shortNames = {
-      // Stari statusi (za backward compat sa postojećim transakcijama)
-      'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme)': 'HFC Zgrada',
-      'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme)': 'HFC Kuća',
-      'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)': 'GPON Kuća',
-      'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme)': 'GPON Zgrada',
-      'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima': 'Sa Montažom',
-      'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova': 'Bez Montaže',
-      // Novi statusi sa "sa isporukom materijala"
       'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala': 'HFC Zgrada',
       'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala': 'HFC Kuća',
       'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala': 'GPON Kuća',
@@ -798,14 +837,32 @@ const Finances = () => {
                           </p>
                         </div>
                       </div>
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => setFailedTransactionsExpanded(!failedTransactionsExpanded)}
-                      suffix={failedTransactionsExpanded ? <ChevronUpIcon size={16} /> : <ChevronDownIcon size={16} />}
-                    >
-                      {failedTransactionsExpanded ? 'Sakrij' : 'Prikaži'}
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        type="secondary"
+                        size="small"
+                        onClick={migrateCustomerStatusKeys}
+                        disabled={bulkActionLoading}
+                      >
+                        {bulkActionLoading ? 'Radi...' : 'Migriraj cene'}
+                      </Button>
+                      <Button
+                        type="primary"
+                        size="small"
+                        onClick={retryAllFailedTransactions}
+                        disabled={bulkActionLoading || validFailedTransactions.length === 0}
+                      >
+                        {bulkActionLoading ? 'Radi...' : `Obračunaj sve ponovo (${validFailedTransactions.length})`}
+                      </Button>
+                      <Button
+                        type="tertiary"
+                        size="small"
+                        onClick={() => setFailedTransactionsExpanded(!failedTransactionsExpanded)}
+                        suffix={failedTransactionsExpanded ? <ChevronUpIcon size={16} /> : <ChevronDownIcon size={16} />}
+                      >
+                        {failedTransactionsExpanded ? 'Sakrij' : 'Prikaži'}
+                      </Button>
+                    </div>
                   </div>
 
                   {failedTransactionsExpanded && (
