@@ -33,6 +33,14 @@ const TechniciansList = () => {
   // Review stats za sve tehničare
   const [reviewStatsMap, setReviewStatsMap] = useState({});
 
+  // Sekcija "Sve ocene"
+  const [allReviews, setAllReviews] = useState([]);
+  const [allReviewsTotal, setAllReviewsTotal] = useState(0);
+  const [allReviewsPage, setAllReviewsPage] = useState(1);
+  const [allReviewsLoading, setAllReviewsLoading] = useState(false);
+  const [allReviewsTechnicianFilter, setAllReviewsTechnicianFilter] = useState(''); // '' = svi
+  const allReviewsLimit = 20;
+
   // Ref za date picker portal
   const datePickerPortalRef = useRef(null);
 
@@ -44,7 +52,14 @@ const TechniciansList = () => {
     }
     fetchTechnicians();
     fetchAllReviewStats();
+    fetchAllReviews(1, '');
   }, []);
+
+  // Učitaj ocene kad se promeni filter ili stranica
+  useEffect(() => {
+    fetchAllReviews(allReviewsPage, allReviewsTechnicianFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allReviewsPage, allReviewsTechnicianFilter]);
 
   // Close column menu when clicking outside
   useEffect(() => {
@@ -84,6 +99,81 @@ const TechniciansList = () => {
       console.error('[Reviews] Greška pri učitavanju statistike:', error);
     }
   };
+
+  const fetchAllReviews = async (page, technicianId) => {
+    setAllReviewsLoading(true);
+    try {
+      const response = await reviewsAPI.getAllReviews(page, allReviewsLimit, technicianId || null);
+      setAllReviews(response.data.reviews || []);
+      setAllReviewsTotal(response.data.total || 0);
+    } catch (error) {
+      console.error('[Reviews] Greška pri učitavanju svih ocena:', error);
+      toast.error('Greška pri učitavanju ocena');
+    } finally {
+      setAllReviewsLoading(false);
+    }
+  };
+
+  const handleDeleteReviewFromList = async (reviewId) => {
+    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu ocenu?')) return;
+    try {
+      await reviewsAPI.deleteReview(reviewId);
+      toast.success('Ocena uspešno obrisana');
+      // Osveži ocene i stats
+      fetchAllReviews(allReviewsPage, allReviewsTechnicianFilter);
+      fetchAllReviewStats();
+    } catch (error) {
+      console.error('[Reviews] Greška pri brisanju ocene:', error);
+      toast.error('Greška pri brisanju ocene');
+    }
+  };
+
+  // Helper za prikaz zvezdica (1-5)
+  const renderStars = (rating) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <svg
+          key={i}
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill={i <= rating ? '#f59e0b' : 'none'}
+          stroke={i <= rating ? '#f59e0b' : '#cbd5e1'}
+          strokeWidth="1.5"
+        >
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+      );
+    }
+    return stars;
+  };
+
+  const allReviewsTotalPages = Math.ceil(allReviewsTotal / allReviewsLimit);
+
+  // Grupiše ocene iz trenutne strane po tehničaru (zadržava redosled)
+  // Vraća niz: [{ technicianId, technicianName, stats, reviews: [...] }, ...]
+  const groupedReviewsOnPage = useMemo(() => {
+    const groups = [];
+    const groupMap = new Map();
+
+    allReviews.forEach((review) => {
+      const techId = review.technicianId?.toString() || 'unknown';
+      if (!groupMap.has(techId)) {
+        const group = {
+          technicianId: techId,
+          technicianName: review.technicianName || 'Nepoznat tehničar',
+          stats: reviewStatsMap[techId] || null,
+          reviews: []
+        };
+        groupMap.set(techId, group);
+        groups.push(group);
+      }
+      groupMap.get(techId).reviews.push(review);
+    });
+
+    return groups;
+  }, [allReviews, reviewStatsMap]);
 
   const handleDelete = async (id, name) => {
     if (window.confirm(`Da li ste sigurni da želite da obrišete tehničara "${name}"?`)) {
@@ -775,6 +865,307 @@ const TechniciansList = () => {
                       size="small"
                       onClick={() => paginate(totalPages)}
                       disabled={currentPage === totalPages}
+                    >
+                      &raquo;
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ============================== */}
+      {/* SVE OCENE KORISNIKA - SEKCIJA */}
+      {/* ============================== */}
+      <div className="mt-8 bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Sve ocene korisnika</h2>
+                <p className="text-sm text-slate-600">
+                  {allReviewsTotal > 0
+                    ? `Ukupno ${allReviewsTotal} ${allReviewsTotal === 1 ? 'ocena' : 'ocena/e'}`
+                    : 'Nema ocena u sistemu'}
+                </p>
+              </div>
+            </div>
+
+            {/* Filter po tehničaru */}
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-slate-600 font-medium">Filter:</label>
+              <select
+                value={allReviewsTechnicianFilter}
+                onChange={(e) => {
+                  setAllReviewsTechnicianFilter(e.target.value);
+                  setAllReviewsPage(1); // Reset na prvu stranu pri promeni filtera
+                }}
+                className="h-9 px-3 bg-white border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all min-w-[200px]"
+              >
+                <option value="">Svi tehničari</option>
+                {technicianUsers
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((tech) => (
+                    <option key={tech._id} value={tech._id}>
+                      {tech.name}
+                    </option>
+                  ))}
+              </select>
+              <Button
+                type="tertiary"
+                size="small"
+                onClick={() => fetchAllReviews(allReviewsPage, allReviewsTechnicianFilter)}
+                disabled={allReviewsLoading}
+                prefix={<RefreshIcon size={14} />}
+              >
+                Osveži
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        {allReviewsLoading ? (
+          <div className="flex items-center justify-center p-12">
+            <div className="flex items-center space-x-3 text-slate-600">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-500"></div>
+              <span className="text-sm font-medium">Učitavanje ocena...</span>
+            </div>
+          </div>
+        ) : allReviewsTotal === 0 ? (
+          <div className="text-center py-12">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" className="mx-auto mb-3">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <p className="text-slate-400 text-sm">
+              {allReviewsTechnicianFilter
+                ? 'Nema ocena za izabranog tehničara'
+                : 'Nema ocena u sistemu'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Grupisane ocene po tehničaru */}
+            <div className="divide-y divide-slate-200">
+              {groupedReviewsOnPage.map((group) => (
+                <div key={group.technicianId} className="p-6">
+                  {/* Header grupe sa sumom tehničara */}
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                        <UserIcon size={18} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <Link
+                          to={`/technicians/${group.technicianId}`}
+                          className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors"
+                        >
+                          {group.technicianName}
+                        </Link>
+                        <div className="text-xs text-slate-500">
+                          {group.reviews.length} {group.reviews.length === 1 ? 'ocena' : 'ocena/e'} na ovoj stranici
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Suma za tehničara (iz reviewStatsMap) */}
+                    {group.stats && group.stats.totalReviews > 0 ? (
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="text-center">
+                          <div className="text-xs text-slate-500 mb-0.5">Ukupno</div>
+                          <div className="text-sm font-bold text-slate-800">{group.stats.totalReviews}</div>
+                        </div>
+                        <div className="h-8 w-px bg-slate-200" />
+                        <div className="text-center">
+                          <div className="text-xs text-slate-500 mb-0.5">Profesionalnost</div>
+                          <div className="flex items-center gap-1">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1">
+                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span className="text-sm font-bold text-amber-700">{group.stats.avgProfessionalism}</span>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-slate-500 mb-0.5">Kvalitet</div>
+                          <div className="flex items-center gap-1">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#3b82f6" stroke="#3b82f6" strokeWidth="1">
+                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span className="text-sm font-bold text-blue-700">{group.stats.avgServiceQuality}</span>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-slate-500 mb-0.5">NPS</div>
+                          <div className="text-sm font-bold text-green-700">{group.stats.avgNps}/10</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </div>
+
+                  {/* Tabela ocena za ovog tehničara */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Korisnik</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
+                          <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Prof.</th>
+                          <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Servis</th>
+                          <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">NPS</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Termin</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Urednost</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Komentar</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {group.reviews.map((review) => (
+                          <tr key={review._id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-3 py-3 text-sm text-slate-800 font-medium">
+                              {review.customerName || 'Anonimni'}
+                              {review.tisJobId && (
+                                <div className="text-xs text-slate-400 font-mono">#{review.tisJobId}</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">
+                              {new Date(review.createdAt).toLocaleDateString('sr-RS')}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <div className="flex items-center justify-center gap-0.5">
+                                {renderStars(review.professionalism)}
+                              </div>
+                              <div className="text-xs text-slate-500 mt-0.5">{review.professionalism}/5</div>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <div className="flex items-center justify-center gap-0.5">
+                                {renderStars(review.serviceQuality)}
+                              </div>
+                              <div className="text-xs text-slate-500 mt-0.5">{review.serviceQuality}/5</div>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <span
+                                className={cn(
+                                  'inline-block px-2 py-0.5 rounded-full text-xs font-bold',
+                                  review.npsScore >= 9
+                                    ? 'bg-green-100 text-green-700'
+                                    : review.npsScore >= 7
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-red-100 text-red-700'
+                                )}
+                              >
+                                {review.npsScore}/10
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-xs text-slate-600">{review.onTime}</td>
+                            <td className="px-3 py-3 text-xs text-slate-600">
+                              {review.cleanInstallation}
+                              {review.cleanInstallationComment && (
+                                <div className="text-xs text-slate-400 italic mt-0.5">"{review.cleanInstallationComment}"</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-xs text-slate-600 max-w-xs">
+                              {review.comment ? (
+                                <span className="italic" title={review.comment}>
+                                  "{review.comment.length > 60 ? review.comment.substring(0, 60) + '...' : review.comment}"
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-right">
+                              <button
+                                onClick={() => handleDeleteReviewFromList(review._id)}
+                                className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                                title="Obriši ocenu"
+                              >
+                                <DeleteIcon size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Paginacija */}
+            {allReviewsTotalPages > 1 && (
+              <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="text-sm text-slate-600">
+                    Stranica {allReviewsPage} od {allReviewsTotalPages} •{' '}
+                    Prikazano {(allReviewsPage - 1) * allReviewsLimit + 1} -{' '}
+                    {Math.min(allReviewsPage * allReviewsLimit, allReviewsTotal)} od {allReviewsTotal}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="tertiary"
+                      size="small"
+                      onClick={() => setAllReviewsPage(1)}
+                      disabled={allReviewsPage === 1}
+                    >
+                      &laquo;
+                    </Button>
+                    <Button
+                      type="tertiary"
+                      size="small"
+                      onClick={() => setAllReviewsPage(allReviewsPage - 1)}
+                      disabled={allReviewsPage === 1}
+                    >
+                      &lsaquo;
+                    </Button>
+
+                    {Array.from({ length: allReviewsTotalPages }, (_, i) => i + 1)
+                      .filter((number) => {
+                        return (
+                          number === 1 ||
+                          number === allReviewsTotalPages ||
+                          Math.abs(number - allReviewsPage) <= 1
+                        );
+                      })
+                      .map((number, idx, arr) => {
+                        const prev = arr[idx - 1];
+                        const showEllipsis = prev && number - prev > 1;
+                        return (
+                          <React.Fragment key={number}>
+                            {showEllipsis && <span className="text-slate-400 px-1">…</span>}
+                            <Button
+                              type={allReviewsPage === number ? 'primary' : 'tertiary'}
+                              size="small"
+                              onClick={() => setAllReviewsPage(number)}
+                            >
+                              {number}
+                            </Button>
+                          </React.Fragment>
+                        );
+                      })}
+
+                    <Button
+                      type="tertiary"
+                      size="small"
+                      onClick={() => setAllReviewsPage(allReviewsPage + 1)}
+                      disabled={allReviewsPage === allReviewsTotalPages}
+                    >
+                      &rsaquo;
+                    </Button>
+                    <Button
+                      type="tertiary"
+                      size="small"
+                      onClick={() => setAllReviewsPage(allReviewsTotalPages)}
+                      disabled={allReviewsPage === allReviewsTotalPages}
                     >
                       &raquo;
                     </Button>

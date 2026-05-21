@@ -378,6 +378,11 @@ export const reviewsAPI = {
   getTechnicianReviews: (id, page = 1, limit = 10) => api.get(`/api/reviews/technician/${id}?page=${page}&limit=${limit}`),
   getTechnicianStats: (id) => api.get(`/api/reviews/stats/${id}`),
   getAllStats: () => api.get('/api/reviews/stats/all'),
+  getAllReviews: (page = 1, limit = 20, technicianId = null) => {
+    const params = new URLSearchParams({ page, limit });
+    if (technicianId) params.append('technicianId', technicianId);
+    return api.get(`/api/reviews/all?${params.toString()}`);
+  },
   getDashboardSummary: () => api.get('/api/reviews/dashboard-summary'),
   deleteReview: (id) => api.delete(`/api/reviews/${id}`),
 };
