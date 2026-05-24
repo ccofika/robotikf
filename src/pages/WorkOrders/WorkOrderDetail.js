@@ -110,7 +110,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     technician2Id: '',
     details: '',
     comment: '',
-    status: ''
+    status: '',
+    customerEmail: ''
   });
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +175,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           technician2Id: workOrderRes.data.technician2Id?._id || workOrderRes.data.technician2Id || '',
           details: workOrderRes.data.details || '',
           comment: workOrderRes.data.comment || '',
-          status: workOrderRes.data.status || 'nezavrsen'
+          status: workOrderRes.data.status || 'nezavrsen',
+          customerEmail: workOrderRes.data.customerEmail || ''
         });
         setTechnicians(techniciansRes.data);
 
@@ -875,11 +877,25 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   };
 
   const confirmEdit = () => {
-    if (editingField) {
+    if (!editingField) return;
+
+    // Email format validacija (samo za customerEmail polje)
+    if (editingField === 'customerEmail') {
+      const trimmed = (editValue || '').trim();
+      if (trimmed !== '') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmed)) {
+          toast.error('Email nije u ispravnom formatu (npr. ime@domen.com)');
+          return; // Ne zatvaraj edit popover, neka korisnik ispravi
+        }
+      }
+      setFormData(prev => ({ ...prev, [editingField]: trimmed }));
+    } else {
       setFormData(prev => ({ ...prev, [editingField]: editValue }));
-      setEditingField(null);
-      setEditValue('');
     }
+
+    setEditingField(null);
+    setEditValue('');
   };
 
   const cancelEdit = () => {
@@ -1112,7 +1128,26 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           )}
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-400 uppercase font-medium">Email</span>
-            <span className="text-xs text-slate-600">{workOrder?.customerEmail || <span className="italic text-slate-400">Nije unet</span>}</span>
+            {workOrder?.verified ? (
+              // Verifikovan radni nalog - read-only (email se ne može menjati posle verifikacije)
+              <span className="text-xs text-slate-600">
+                {workOrder?.customerEmail || <span className="italic text-slate-400">Nije unet</span>}
+              </span>
+            ) : (
+              // Pre verifikacije - editovati slobodno
+              <EditableField
+                field="customerEmail"
+                {...editProps("customerEmail")}
+                value={formData.customerEmail}
+                displayValue={
+                  formData.customerEmail
+                    ? <span className="text-xs text-slate-600 font-normal">{formData.customerEmail}</span>
+                    : <span className="italic text-slate-400 text-xs font-normal">Nije unet</span>
+                }
+                type="email"
+                placeholder="ime@domen.com"
+              />
+            )}
           </div>
         </div>
 
