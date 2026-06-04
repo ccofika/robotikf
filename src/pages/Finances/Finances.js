@@ -206,6 +206,26 @@ const Finances = () => {
         technicianPrices: updatedTechnicianPrices
       });
 
+      // Čuvanje cena na "Po Statusu Naloga" tabu znači da tehničar radi po statusu.
+      // Ako je ranije bio na "plata", moramo i da prebacimo paymentType — inače ostaje
+      // na plati i unete cene se ne koriste u obračunu (bug koji je ostavljao tehničare na plati).
+      if (selectedTechnician.paymentType !== 'po_statusu') {
+        await financesAPI.saveTechnicianPaymentSettings({
+          technicianId: selectedTechnician._id,
+          paymentType: 'po_statusu',
+          monthlySalary: 0
+        });
+
+        const updatedTechnicians = technicians.map(t =>
+          t._id === selectedTechnician._id
+            ? { ...t, paymentType: 'po_statusu', monthlySalary: 0 }
+            : t
+        );
+        setTechnicians(updatedTechnicians);
+        setSelectedTechnician({ ...selectedTechnician, paymentType: 'po_statusu', monthlySalary: 0 });
+        setTechnicianMonthlySalary(0);
+      }
+
       setTechnicianPrices(updatedTechnicianPrices);
       toast.success(`Cene za ${selectedTechnician.name} su sačuvane`);
     } catch (error) {
