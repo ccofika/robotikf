@@ -10,6 +10,8 @@ import { ShadcnSidebar } from './components/layout/ShadcnSidebar';
 import { AuthContext } from './context/AuthContext';
 import { OverdueWorkOrdersProvider, useOverdueWorkOrders } from './context/OverdueWorkOrdersContext';
 import { WorkOrderModalProvider } from './context/WorkOrderModalContext';
+// Web push notifikacije za admine
+import { enableWebPushForAdmin } from './utils/webPush';
 // Modal
 import WorkOrderModal from './components/WorkOrderModal';
 
@@ -324,7 +326,15 @@ function App() {
 
     checkPendingEquipment();
   }, [user]);
-  
+
+  // Web push notifikacije — registruj pretplatu za admin naloge
+  // (bezbedno pri svakom učitavanju: upsert na backendu, dozvola se traži samo jednom)
+  useEffect(() => {
+    if (user) {
+      enableWebPushForAdmin(user);
+    }
+  }, [user]);
+
   const login = (userData, token) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
