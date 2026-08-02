@@ -275,6 +275,8 @@ const EquipmentList = () => {
         'Kategorija': item.category || '',
         'Opis': item.description || '',
         'Serijski broj': item.serialNumber || '',
+        'Datum zaduženja': item.assignedAt ? new Date(item.assignedAt).toLocaleDateString('sr-RS') : '',
+        'Zadužio': item.assignedByName || '',
         'Lokacija': translateLocation(item.location || '')
       }));
 
@@ -283,6 +285,8 @@ const EquipmentList = () => {
         { wch: 22 },
         { wch: 35 },
         { wch: 22 },
+        { wch: 16 },
+        { wch: 30 },
         { wch: 28 }
       ];
 
