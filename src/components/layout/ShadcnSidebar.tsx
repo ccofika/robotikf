@@ -359,9 +359,10 @@ export function ShadcnSidebar({ className }: SidebarProps) {
             <div className="flex h-16 items-center justify-between border-b px-4">
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">TC</AvatarFallback>
+                  <AvatarImage src="/logo192.png" alt="Robotik" />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">R</AvatarFallback>
                 </Avatar>
-                <span className="text-lg font-semibold">TelCo Manager</span>
+                <span className="text-lg font-semibold">Robotik</span>
               </div>
               <button onClick={() => setMobileOpen(false)}>
                 <ChevronRight size={20} className="rotate-180" />
@@ -500,11 +501,12 @@ export function ShadcnSidebar({ className }: SidebarProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-[38px] w-full flex items-center justify-center">
                   <Avatar className='rounded size-6'>
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">TC</AvatarFallback>
+                    <AvatarImage src="/logo192.png" alt="Robotik" />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">R</AvatarFallback>
                   </Avatar>
                   {!isCollapsed && (
                     <motion.div variants={variants} className="flex items-center justify-between w-full ml-2 overflow-hidden">
-                      <p className="text-sm font-medium whitespace-nowrap">TelCo Manager</p>
+                      <p className="text-sm font-medium whitespace-nowrap">Robotik</p>
                       <ChevronsUpDown className="h-4 w-4 text-muted-foreground/50 ml-2 shrink-0" />
                     </motion.div>
                   )}
