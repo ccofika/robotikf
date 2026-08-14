@@ -9443,15 +9443,6 @@
     "movedAt": "2025-12-17T23:53:20.437Z"
   },
   {
-    "_id": "1146",
-    "category": "GPON Modem",
-    "description": "HG8245W5-6T",
-    "serialNumber": "485754434e6b09a7",
-    "location": "Nemanja Lazarević",
-    "originalUpdatedAt": "2025-11-11T10:32:19.323Z",
-    "movedAt": "2025-12-17T23:53:42.223Z"
-  },
-  {
     "_id": "1147",
     "category": "ATV",
     "description": "ZXV10 B866V2-H",
