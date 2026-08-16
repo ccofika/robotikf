@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon, PhoneIcon, DeleteIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
-import { techniciansAPI, reviewsAPI } from '../../services/api';
+import { techniciansAPI, reviewsAPI, supportCallsAPI } from '../../services/api';
+import { describeAssignment } from '../../utils/equipmentAssignment';
 
 // SVG Icons
 const MicIcon = ({ size = 20, className = '' }) => (
@@ -81,6 +82,7 @@ const TechnicianDetail = () => {
 
   // Reviews state
   const [reviewStats, setReviewStats] = useState(null);
+  const [supportCallSummary, setSupportCallSummary] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
   const [reviewsPage, setReviewsPage] = useState(1);
@@ -99,8 +101,19 @@ const TechnicianDetail = () => {
     fetchDocuments();
     fetchReviewStats();
     fetchReviews(1);
+    fetchSupportCallSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const fetchSupportCallSummary = async () => {
+    try {
+      const response = await supportCallsAPI.getTechnicianSummary(id);
+      setSupportCallSummary(response.data);
+    } catch (error) {
+      // Summary je informativan — neuspeh ne sme da obori stranicu
+      console.error('Greška pri učitavanju pregleda poziva podrške:', error);
+    }
+  };
   
   const fetchTechnicianData = async () => {
     setLoading(true);
@@ -696,6 +709,40 @@ const TechnicianDetail = () => {
         </div>
       </div>
 
+      {/* Pozivi podršci — zbirni pregled */}
+      {supportCallSummary && supportCallSummary.total > 0 && (
+        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
+          <div className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <PhoneIcon size={20} className="text-slate-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Pozivi podršci</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-slate-700">{supportCallSummary.total}</div>
+                <div className="text-xs text-slate-500 mt-1">Ukupno poziva</div>
+              </div>
+              <div className="bg-gradient-to-br from-violet-50 to-violet-100/50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-violet-700">{supportCallSummary.administrative}</div>
+                <div className="text-xs text-slate-500 mt-1">Administrativna podrška</div>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-orange-700">{supportCallSummary.super}</div>
+                <div className="text-xs text-slate-500 mt-1">Superpodrška</div>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 text-center">
+                <div className="text-sm font-bold text-blue-700 leading-8">
+                  {supportCallSummary.lastCalledAt
+                    ? new Date(supportCallSummary.lastCalledAt).toLocaleString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : '—'}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">Poslednji poziv</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Equipment Section */}
       <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
         <div className="p-6 border-b border-slate-200">
@@ -729,6 +776,9 @@ const TechnicianDetail = () => {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Serijski broj
                 </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Zaduženo
+                </th>
                 <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Status
                 </th>
@@ -744,7 +794,7 @@ const TechnicianDetail = () => {
                 if (equipmentItems.length === 0) {
                   return (
                     <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center space-y-2">
                           <BoxIcon size={48} className="text-slate-300" />
                           <p className="text-sm font-medium">Nema zadužene opreme</p>
@@ -766,6 +816,18 @@ const TechnicianDetail = () => {
                     <td className="px-6 py-4 text-sm text-slate-700 font-mono">
                       {item.serialNumber}
                     </td>
+                    {(() => {
+                      const assignment = describeAssignment(item, { assumeAssigned: true });
+                      return (
+                        <td className="px-6 py-4 text-sm whitespace-nowrap">
+                          <span className={assignment.variant === 'stamped'
+                            ? 'text-slate-700 font-mono'
+                            : 'text-slate-400 italic text-xs'}>
+                            {assignment.text}
+                          </span>
+                        </td>
+                      );
+                    })()}
                     <td className="px-6 py-4 text-center">
                       <Button
                         type={item.status === 'available' ? 'secondary' : item.status === 'assigned' ? 'primary' : 'tertiary'}

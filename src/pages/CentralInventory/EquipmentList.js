@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { equipmentAPI, techniciansAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
+import { describeAssignment, formatAssignedAt } from '../../utils/equipmentAssignment';
 
 const EquipmentList = () => {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ const EquipmentList = () => {
     description: true,
     serialNumber: true,
     location: true,
+    assignedAt: true,
     actions: true
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
@@ -275,19 +277,19 @@ const EquipmentList = () => {
         'Kategorija': item.category || '',
         'Opis': item.description || '',
         'Serijski broj': item.serialNumber || '',
-        'Datum zaduženja': item.assignedAt ? new Date(item.assignedAt).toLocaleDateString('sr-RS') : '',
+        'Datum i vreme zaduženja': formatAssignedAt(item.assignedAt) || '',
         'Zadužio': item.assignedByName || '',
         'Lokacija': translateLocation(item.location || '')
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(excelRows);
       worksheet['!cols'] = [
-        { wch: 22 },
-        { wch: 35 },
-        { wch: 22 },
-        { wch: 16 },
-        { wch: 30 },
-        { wch: 28 }
+        { wch: 22 }, // Kategorija
+        { wch: 35 }, // Opis
+        { wch: 22 }, // Serijski broj
+        { wch: 22 }, // Datum i vreme zaduženja
+        { wch: 30 }, // Zadužio
+        { wch: 28 }  // Lokacija
       ];
 
       const workbook = XLSX.utils.book_new();
@@ -764,6 +766,7 @@ const EquipmentList = () => {
                         description: 'Opis',
                         serialNumber: 'Serijski broj',
                         location: 'Lokacija',
+                        assignedAt: 'Zaduženo',
                         actions: 'Akcije'
                       }).map(([key, label]) => (
                         <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
@@ -814,6 +817,11 @@ const EquipmentList = () => {
                         Lokacija
                       </th>
                     )}
+                    {visibleColumns.assignedAt && (
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Zaduženo
+                      </th>
+                    )}
                     {visibleColumns.actions && (
                       <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                         Akcije
@@ -824,7 +832,7 @@ const EquipmentList = () => {
                 <tbody className="divide-y divide-slate-200">
                   {equipment.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="px-6 py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center space-y-2">
                           <BoxIcon size={48} className="text-slate-300" />
                           <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
@@ -865,6 +873,20 @@ const EquipmentList = () => {
                             </Button>
                           </td>
                         )}
+                        {visibleColumns.assignedAt && (() => {
+                          const assignment = describeAssignment(item);
+                          return (
+                            <td className="px-6 py-4 text-sm whitespace-nowrap">
+                              <span className={cn(
+                                assignment.variant === 'stamped' && 'text-slate-700 font-mono',
+                                assignment.variant === 'legacy' && 'text-slate-400 italic text-xs',
+                                assignment.variant === 'none' && 'text-slate-300'
+                              )}>
+                                {assignment.text}
+                              </span>
+                            </td>
+                          );
+                        })()}
                         {visibleColumns.actions && (
                           <td className="px-6 py-4 text-right space-x-2">
                             <Link to={`/equipment/edit/${item._id}`}>

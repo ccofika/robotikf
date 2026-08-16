@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { AuthContext } from '../../context/AuthContext';
 import { workOrdersAPI } from '../../services/api';
+import { getTimBgClass } from '../../utils/tim';
 
 const OverdueWorkOrdersModal = ({ onModalComplete }) => {
   const { user } = useContext(AuthContext);
@@ -117,9 +118,9 @@ const OverdueWorkOrdersModal = ({ onModalComplete }) => {
         {/* Work Orders List - Takes remaining 60% of screen height */}
         <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-2 min-h-0">
           {overdueOrders.map((workOrder, index) => (
-            <div 
-              key={workOrder._id} 
-              className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 cursor-pointer"
+            <div
+              key={workOrder._id}
+              className={`${getTimBgClass(workOrder.tim) || 'bg-white/80'} backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 cursor-pointer`}
               onClick={() => handleWorkOrderClick(workOrder._id)}
             >
               <div className="flex items-start space-x-3">

@@ -38,6 +38,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
+import { getTimRowClasses } from '../../utils/tim';
 import AIVerificationModal from '../../components/AIVerificationModal';
 import FancyDataTable from '../../components/fancy-table/FancyDataTable';
 
@@ -2870,7 +2871,7 @@ const WorkOrdersSection = () => {
                                       <tr
                                         key={order._id}
                                         onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                        className={cn("transition-colors cursor-pointer", getTimRowClasses(order.tim, 'hover:bg-slate-50'))}
                                       >
                                         <td className="px-4 py-3 text-sm text-slate-700">{formatDate(order.date)}</td>
                                         <td className="px-4 py-3 text-sm text-slate-600">{order.municipality}</td>

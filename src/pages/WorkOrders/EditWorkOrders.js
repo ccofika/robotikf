@@ -343,7 +343,11 @@ const EditWorkOrders = () => {
             {workOrders.map(workOrder => (
               <Card
                 key={workOrder._id}
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary"
+                className={cn(
+                  "cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary",
+                  workOrder.tim === 'robotik' && 'bg-blue-50/80 dark:bg-blue-950/30',
+                  workOrder.tim === 'mtel' && 'bg-red-50/80 dark:bg-red-950/30'
+                )}
                 onClick={() => navigate(`/edit-work-orders/${workOrder._id}`)}
               >
                 <CardHeader className="pb-3">

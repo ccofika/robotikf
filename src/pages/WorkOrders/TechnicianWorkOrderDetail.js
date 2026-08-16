@@ -4,6 +4,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, AlertIcon, CloseIcon, CalendarIcon, ImageIcon, DeleteIcon, SearchIcon, PhoneIcon, MapPinIcon, BoxIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
+import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import { userEquipmentAPI, materialsAPI, workOrdersAPI, techniciansAPI } from '../../services/api';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -1612,6 +1613,12 @@ const TechnicianWorkOrderDetail = () => {
               <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
                 <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tehnologija:</span>
                 <span className="text-xs text-slate-900 font-medium">{workOrder?.technology || 'Nije definisana'}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
+                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tim:</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded self-start sm:self-auto ${getTimBadgeClasses(workOrder?.tim)}`}>
+                  {getTimLabel(workOrder?.tim)}
+                </span>
               </div>
               {workOrder?.details && (
                 <div className="py-1">

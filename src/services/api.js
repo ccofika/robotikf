@@ -387,4 +387,10 @@ export const reviewsAPI = {
   deleteReview: (id) => api.delete(`/api/reviews/${id}`),
 };
 
+// Support Calls API - pozivi podršci iz mobilne aplikacije
+export const supportCallsAPI = {
+  getByWorkOrder: (workOrderId) => api.get(`/api/support-calls/workorder/${workOrderId}`),
+  getTechnicianSummary: (technicianId) => api.get(`/api/support-calls/technician/${technicianId}/summary`),
+};
+
 export default api;

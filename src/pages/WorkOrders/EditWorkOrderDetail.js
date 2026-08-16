@@ -19,6 +19,7 @@ import {
 import { Button } from '../../components/ui/button-1';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/card';
 import { cn } from '../../utils/cn';
+import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import EquipmentSelectionModal from './components/EquipmentSelectionModal';
 import MaterialsModal from './components/MaterialsModal';
 
@@ -412,6 +413,16 @@ const EditWorkOrderDetail = () => {
                 </div>
               </div>
             )}
+
+            <div className="flex items-start gap-3">
+              <UserIcon size={20} className="text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">Tim</p>
+                <span className={cn("inline-block text-sm font-semibold px-2 py-0.5 rounded mt-0.5", getTimBadgeClasses(workOrder.tim))}>
+                  {getTimLabel(workOrder.tim)}
+                </span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

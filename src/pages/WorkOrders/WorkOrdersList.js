@@ -3,6 +3,7 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { PlusIcon, UploadIcon, SearchIcon, FilterIcon, ViewIcon, DeleteIcon, ClipboardIcon, RefreshIcon } from '../../components/icons/SvgIcons';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
+import { getTimRowStyle } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import './WorkOrdersModern.css';
 
@@ -268,7 +269,7 @@ const WorkOrdersList = () => {
                     </tr>
                   ) : (
                     displayedWorkOrders.map((order) => (
-                      <tr key={order._id} className="slide-in">
+                      <tr key={order._id} className="slide-in" style={getTimRowStyle(order.tim)}>
                         <td>{new Date(order.date).toLocaleDateString('sr-RS')}</td>
                         <td>{order.municipality}</td>
                         <td>{order.address}</td>

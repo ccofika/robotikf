@@ -5,6 +5,7 @@ import { toast } from '../../utils/toast';
 import { techniciansAPI, equipmentAPI } from '../../services/api';
 import { Button } from '../../components/ui/button-1';
 import { cn } from '../../utils/cn';
+import { describeAssignment } from '../../utils/equipmentAssignment';
 
 const AssignEquipment = () => {
   const [technician, setTechnician] = useState(null);
@@ -107,11 +108,17 @@ const AssignEquipment = () => {
       prev.filter(item => !selectedEquipment.includes(item.serialNumber))
     );
 
+    // `assignedAt` se pečatira i na backendu (routes/technicians.js) — postavljamo ga
+    // i ovde da tek zadužena oprema ne bi u koloni "Zaduženo" ispala kao stara
+    // oprema bez pečata dok se lista ne osveži.
+    const assignedAtStamp = new Date().toISOString();
+
     setAssignedEquipment(prev => [
       ...prev,
       ...equipmentToMove.map(item => ({
         ...item,
-        location: `tehnicar-${id}`
+        location: `tehnicar-${id}`,
+        assignedAt: assignedAtStamp
       }))
     ]);
 
@@ -153,7 +160,8 @@ const AssignEquipment = () => {
       ...prev,
       ...equipmentToReturn.map(item => ({
         ...item,
-        location: 'magacin'
+        location: 'magacin',
+        assignedAt: null
       }))
     ]);
 
@@ -350,6 +358,9 @@ const AssignEquipment = () => {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Opis</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Serijski broj</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Lokacija</th>
+                {activeTab === 'return' && (
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Zaduženo</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -396,7 +407,7 @@ const AssignEquipment = () => {
               ) : (
                 filteredAssignedEquipment.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
                       {searchTerm ? 'Nema rezultata za pretragu' : 'Tehničar nema zaduženu opremu'}
                     </td>
                   </tr>
@@ -430,6 +441,18 @@ const AssignEquipment = () => {
                           {translateLocation(item.location)}
                         </span>
                       </td>
+                      {(() => {
+                        const assignment = describeAssignment(item, { assumeAssigned: true });
+                        return (
+                          <td className="px-6 py-4 text-sm whitespace-nowrap">
+                            <span className={assignment.variant === 'stamped'
+                              ? 'text-slate-700 font-mono'
+                              : 'text-slate-400 italic text-xs'}>
+                              {assignment.text}
+                            </span>
+                          </td>
+                        );
+                      })()}
                     </tr>
                   ))
                 )

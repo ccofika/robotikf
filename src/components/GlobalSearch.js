@@ -10,6 +10,7 @@ import {
   ChevronRightIcon
 } from './icons/SvgIcons';
 import { searchAPI } from '../services/api';
+import { getTimRowClasses } from '../utils/tim';
 
 const GlobalSearch = ({ onFocusChange, expanded }) => {
   const navigate = useNavigate();
@@ -178,7 +179,7 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
                     <div
                       key={wo._id}
                       onClick={() => handleNavigate(`/work-orders/${wo._id}`, { state: { backgroundLocation: location } })}
-                      className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50"
+                      className={`px-4 py-2.5 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50 ${getTimRowClasses(wo.tim, 'hover:bg-slate-50')}`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">

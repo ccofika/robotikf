@@ -8,6 +8,7 @@ import { toast } from '../../utils/toast';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
+import { getTimRowClasses, getTimBgClass } from '../../utils/tim';
 import TechnicianAPKDownload from '../../components/TechnicianAPKDownload';
 
 const TechnicianWorkOrders = () => {
@@ -650,7 +651,8 @@ const TechnicianWorkOrders = () => {
                         key={order._id} 
                         id={`order-${order._id}`}
                         className={cn(
-                          "bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 transition-transform duration-200 touch-pan-y",
+                          "border border-slate-200 rounded-lg overflow-hidden border-l-4 transition-transform duration-200 touch-pan-y",
+                          getTimBgClass(order.tim) || 'bg-white',
                           statusColors[displayStatus.cssClass]
                         )}
                         onTouchStart={(e) => {
@@ -778,7 +780,7 @@ const TechnicianWorkOrders = () => {
                         
                         return (
                           <React.Fragment key={order._id}>
-                            <tr className="hover:bg-slate-50 transition-colors">
+                            <tr className={cn("transition-colors", getTimRowClasses(order.tim, 'hover:bg-slate-50'))}>
                               <td className="px-6 py-4 text-sm text-slate-900">{new Date(order.date).toLocaleDateString('sr-RS')}</td>
                               <td className="px-6 py-4 text-sm text-slate-700">{order.time || '09:00'}</td>
                               <td className="px-6 py-4 text-sm font-medium text-slate-900">{order.municipality}</td>
@@ -806,7 +808,7 @@ const TechnicianWorkOrders = () => {
                             </tr>
                             {/* Admin comment row */}
                             {order.adminComment && (
-                              <tr>
+                              <tr className={getTimBgClass(order.tim)}>
                                 <td colSpan="7" className="px-6 py-2 border-t-0">
                                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
                                     <div className="text-xs font-medium text-red-800 mb-1">Razlog vraćanja:</div>

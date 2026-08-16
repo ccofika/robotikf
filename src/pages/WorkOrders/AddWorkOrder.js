@@ -19,6 +19,7 @@ const AddWorkOrder = () => {
     comment: '',
     // Dodati novi atributi iz workorders.json
     technology: '',
+    tim: 'robotik',
     tisId: '',
     userName: '',
     userPhone: '',
@@ -194,23 +195,40 @@ const AddWorkOrder = () => {
               />
             </div>
             
-            {/* Technology */}
-            <div className="space-y-2">
-              <label htmlFor="technology" className="block text-sm font-medium text-slate-700">Tehnologija</label>
-              <select
-                id="technology"
-                name="technology"
-                value={formData.technology}
-                onChange={handleChange}
-                disabled={loading}
-                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
-              >
-                <option value="">-- Izaberite tehnologiju --</option>
-                <option value="HFC">HFC</option>
-                <option value="GPON">GPON</option>
-                <option value="VDSL">VDSL</option>
-                <option value="ADSL">ADSL</option>
-              </select>
+            {/* Technology and Team */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label htmlFor="technology" className="block text-sm font-medium text-slate-700">Tehnologija</label>
+                <select
+                  id="technology"
+                  name="technology"
+                  value={formData.technology}
+                  onChange={handleChange}
+                  disabled={loading}
+                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
+                >
+                  <option value="">-- Izaberite tehnologiju --</option>
+                  <option value="HFC">HFC</option>
+                  <option value="GPON">GPON</option>
+                  <option value="VDSL">VDSL</option>
+                  <option value="ADSL">ADSL</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="tim" className="block text-sm font-medium text-slate-700">Tim</label>
+                <select
+                  id="tim"
+                  name="tim"
+                  value={formData.tim}
+                  onChange={handleChange}
+                  disabled={loading}
+                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
+                >
+                  <option value="robotik">Robotik</option>
+                  <option value="mtel">mtel</option>
+                </select>
+              </div>
             </div>
             
             {/* Technicians */}

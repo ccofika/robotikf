@@ -4,6 +4,7 @@ import { SearchIcon, FilterIcon, ViewIcon, DeleteIcon, UserIcon, UserSlashIcon, 
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
+import { getTimRowClasses } from '../../utils/tim';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import AIVerificationModal from '../../components/AIVerificationModal';
@@ -1503,7 +1504,10 @@ const WorkOrdersByTechnician = () => {
                             <tr
                               key={order._id}
                               onClick={(e) => navigateToOrderDetails(order._id, e)}
-                              className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                              className={cn(
+                                "border-b border-slate-50 transition-colors cursor-pointer group",
+                                getTimRowClasses(order.tim, 'hover:bg-slate-50/80')
+                              )}
                             >
                               <td className="px-4 py-3 text-sm font-medium text-slate-900">{formatDate(order.date)}</td>
                               {(activeTab === 'all' || activeTab === 'technicians') && (

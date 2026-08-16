@@ -51,14 +51,17 @@ const WorkOrdersUpload = () => {
     try {
       const response = await workOrdersAPI.createBulk(formData);
 
-      const { newWorkOrders, newUsers, existingUsers, errors, duplicates } = response.data;
+      const { newWorkOrders, newUsers, existingUsers, errors, duplicates, timWarnings, timSummary, skippedSheets } = response.data;
 
       setParseResults({
         workOrdersAdded: newWorkOrders?.length || 0,
         usersAdded: newUsers?.length || 0,
         usersUpdated: existingUsers?.length || 0,
         errors: errors || [],
-        duplicates: duplicates || []
+        duplicates: duplicates || [],
+        timWarnings: timWarnings || [],
+        timSummary: timSummary || null,
+        skippedSheets: skippedSheets || []
       });
       
       const duplicateMessage = duplicates?.length > 0 ? ` (${duplicates.length} duplikat${duplicates.length === 1 ? '' : 'a'} preskočen${duplicates.length === 1 ? '' : 'o'})` : '';
@@ -137,7 +140,7 @@ const WorkOrdersUpload = () => {
         </div>
         <div className="p-6">
           <p className="text-slate-600 mb-4">
-            Excel fajl mora sadržati sledeće kolone:
+            Excel fajl mora sadržati sledeće kolone (obrađuju se <span className="font-medium text-slate-900">svi sheet-ovi</span> u fajlu):
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
             <div className="space-y-2">
@@ -153,6 +156,13 @@ const WorkOrdersUpload = () => {
                 <div>
                   <span className="font-medium text-slate-900">Tehnicar 2</span>
                   <p className="text-sm text-slate-600">ime drugog tehničara (opciono)</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+                <div>
+                  <span className="font-medium text-slate-900">Tim</span>
+                  <p className="text-sm text-slate-600">tim u koji se nalog svrstava: <span className="text-blue-700 font-medium">Robotik</span> (i "Robotik 1", "Robotik 2") ili <span className="text-red-700 font-medium">mtel</span> (i "M telecommunication")</p>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
@@ -333,7 +343,82 @@ const WorkOrdersUpload = () => {
                   <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.usersUpdated}</p>
                 </div>
               </div>
-              
+
+              {/* Tim statistika */}
+              {parseResults.timSummary && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-blue-50/80 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-sm text-blue-800">Tim Robotik</span>
+                    </div>
+                    <p className="text-xl font-bold text-blue-900 mt-1">{parseResults.timSummary.robotik}</p>
+                  </div>
+                  <div className="bg-red-50/80 p-4 rounded-lg border border-red-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-sm text-red-800">Tim mtel</span>
+                    </div>
+                    <p className="text-xl font-bold text-red-900 mt-1">{parseResults.timSummary.mtel}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border border-slate-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                      <span className="text-sm text-slate-600">Bez tima</span>
+                    </div>
+                    <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.timSummary.bezTima}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Preskočeni sheet-ovi */}
+              {parseResults.skippedSheets?.length > 0 && (
+                <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Preskočeni sheet-ovi</span> (ne sadrže kolone radnih naloga): {parseResults.skippedSheets.join(', ')}
+                  </p>
+                </div>
+              )}
+
+              {/* Tim upozorenja */}
+              {parseResults.timWarnings?.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-yellow-800 mb-2">Upozorenja za kolonu "Tim" ({parseResults.timWarnings.length}):</h4>
+                  <p className="text-sm text-yellow-700 mb-3">Sledeći nalozi su uvezeni, ali tim nije prepoznat pa neće imati boju tima u tabelama. Tim možete naknadno postaviti u detaljima naloga:</p>
+                  <div className="space-y-3">
+                    {parseResults.timWarnings.map((warning, index) => (
+                      <div key={index} className="bg-white border border-yellow-200 rounded-lg p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium text-slate-700">Sheet / red:</span>
+                            <p className="text-slate-600">"{warning.sheet}" — red {warning.excelRow}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Adresa:</span>
+                            <p className="text-slate-600">{warning.address || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Korisnik:</span>
+                            <p className="text-slate-600">{warning.userName || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">TIS Posao ID:</span>
+                            <p className="text-slate-600">{warning.tisJobId || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Uneta vrednost:</span>
+                            <p className="text-slate-600">{warning.value || 'prazno'}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-yellow-100">
+                          <span className="text-xs text-yellow-700">{warning.reason}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {parseResults.errors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                   <h4 className="font-semibold text-red-800 mb-2">Greške prilikom obrade:</h4>
@@ -380,6 +465,16 @@ const WorkOrdersUpload = () => {
                             <span className="font-medium text-slate-700">Paket:</span>
                             <p className="text-slate-600">{duplicate.packageName}</p>
                           </div>
+                          <div>
+                            <span className="font-medium text-slate-700">Tim:</span>
+                            <p className="text-slate-600">{duplicate.tim || '-'}</p>
+                          </div>
+                          {duplicate.sheet && (
+                            <div>
+                              <span className="font-medium text-slate-700">Sheet / red:</span>
+                              <p className="text-slate-600">"{duplicate.sheet}" — red {duplicate.excelRow}</p>
+                            </div>
+                          )}
                         </div>
                         <div className="mt-2 pt-2 border-t border-orange-100">
                           <span className="text-xs text-orange-700">{duplicate.reason}</span>

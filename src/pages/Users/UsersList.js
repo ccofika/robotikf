@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from '../../utils/toast';
 import axios from 'axios';
 import { cn } from '../../utils/cn';
+import { getTimRowClasses } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import { Button } from '../../components/ui/button-1';
 import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon, EquipmentIcon, CalendarIcon, FilterIcon, EyeIcon, SettingsIcon, CheckIcon } from '../../components/icons/SvgIcons';
@@ -944,7 +945,7 @@ const UsersList = () => {
                       </thead>
                       <tbody className="divide-y divide-slate-200">
                         {userWorkOrders.map(order => (
-                          <tr key={order._id} className="hover:bg-white transition-colors">
+                          <tr key={order._id} className={cn("transition-colors", getTimRowClasses(order.tim, 'hover:bg-white'))}>
                             <td className="px-4 py-3">
                               <div className="flex items-center space-x-2">
                                 <CalendarIcon size={14} className="text-slate-400" />

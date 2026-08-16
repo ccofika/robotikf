@@ -5,8 +5,10 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon, ChevronLeftIcon, ChevronRightIcon, BoxIcon, ToolsIcon, CalendarIcon, MapPinIcon, CommentIcon, CheckCircleIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
-import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
+import { workOrdersAPI, techniciansAPI, userEquipmentAPI, supportCallsAPI } from '../../services/api';
+import { supportTypeLabel } from '../../utils/supportCalls';
 import { cn } from '../../utils/cn';
+import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 // eslint-disable-next-line no-unused-vars
@@ -111,7 +113,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     details: '',
     comment: '',
     status: '',
-    customerEmail: ''
+    customerEmail: '',
+    tim: ''
   });
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +131,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const [deletingImage, setDeletingImage] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [voiceRecordings, setVoiceRecordings] = useState([]);
+  const [supportCalls, setSupportCalls] = useState([]);
   const [verifying, setVerifying] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [adminComment, setAdminComment] = useState('');
@@ -176,7 +180,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           details: workOrderRes.data.details || '',
           comment: workOrderRes.data.comment || '',
           status: workOrderRes.data.status || 'nezavrsen',
-          customerEmail: workOrderRes.data.customerEmail || ''
+          customerEmail: workOrderRes.data.customerEmail || '',
+          tim: workOrderRes.data.tim || ''
         });
         setTechnicians(techniciansRes.data);
 
@@ -184,6 +189,14 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         setImages(workOrderRes.data.images || []);
         setMaterials(workOrderRes.data.materials || []);
         setVoiceRecordings(workOrderRes.data.voiceRecordings || []);
+
+        // Pozivi podršci — zaseban fetch da njegov neuspeh ne obori stranicu
+        supportCallsAPI.getByWorkOrder(id)
+          .then(res => setSupportCalls(Array.isArray(res.data) ? res.data : []))
+          .catch(err => {
+            console.error('Greška pri učitavanju poziva podrške:', err);
+            setSupportCalls([]);
+          });
 
         // Load customer status if this is a finished work order that needs verification
         if (workOrderRes.data.status === 'zavrsen' && !workOrderRes.data.verified && workOrderRes.data.technicianId) {
@@ -674,7 +687,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         ['Adresa:', normalizeText(formData.address) || 'N/A'],
         ['Tip instalacije:', normalizeText(formData.type) || 'N/A'],
         ['Prvi tehnicar:', normalizeText(technicians.find(t => t._id === formData.technicianId)?.name) || 'Nije dodeljen'],
-        ['Drugi tehnicar:', normalizeText(technicians.find(t => t._id === formData.technician2Id)?.name) || 'Nije dodeljen']
+        ['Drugi tehnicar:', normalizeText(technicians.find(t => t._id === formData.technician2Id)?.name) || 'Nije dodeljen'],
+        ['Tim:', normalizeText(getTimLabel(formData.tim))]
       ];
 
       basicData.forEach(([label, value]) => {
@@ -1127,6 +1141,26 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
             </>
           )}
           <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 uppercase font-medium">Tim</span>
+            <EditableField
+              field="tim"
+              {...editProps("tim")}
+              value={formData.tim}
+              displayValue={
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${getTimBadgeClasses(formData.tim)}`}>
+                  {getTimLabel(formData.tim)}
+                </span>
+              }
+              type="select"
+              options={[
+                { value: '', label: 'Nije definisan' },
+                { value: 'robotik', label: 'Robotik' },
+                { value: 'mtel', label: 'mtel' }
+              ]}
+            />
+          </div>
+          <div className="hidden sm:block w-px h-4 bg-slate-200" />
+          <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-400 uppercase font-medium">Email</span>
             {workOrder?.verified ? (
               // Verifikovan radni nalog - read-only (email se ne može menjati posle verifikacije)
@@ -1512,6 +1546,55 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Pozivi podršci (timeline iz mobilne aplikacije) */}
+            {supportCalls.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-violet-500 font-medium mb-3 flex items-center gap-1.5">
+                  <PhoneIcon size={13} className="text-violet-500" />
+                  Pozivi podršci
+                </p>
+                <div className="space-y-2.5 max-h-56 overflow-y-auto">
+                  {supportCalls.map((call, index) => (
+                    <div
+                      key={call._id || index}
+                      className={call.supportType === 'super'
+                        ? 'bg-orange-50 rounded-lg p-3 border border-orange-100'
+                        : 'bg-violet-50 rounded-lg p-3 border border-violet-100'}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={call.supportType === 'super'
+                            ? 'bg-orange-500 text-white rounded-full p-1.5'
+                            : 'bg-violet-500 text-white rounded-full p-1.5'}>
+                            <PhoneIcon size={12} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-800">
+                              {supportTypeLabel(call.supportType)}
+                              {call.phoneNumber && (
+                                <span className="ml-1.5 font-normal text-slate-500">({call.phoneNumber})</span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                              {new Date(call.calledAt).toLocaleString('sr-RS')}
+                              {(call.technicianName || call.technicianId?.name) && (
+                                <span> &middot; {call.technicianName || call.technicianId?.name}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={call.supportType === 'super'
+                          ? 'text-[10px] font-medium text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full'
+                          : 'text-[10px] font-medium text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full'}>
+                          Poziv #{index + 1}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
