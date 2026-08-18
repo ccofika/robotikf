@@ -116,6 +116,7 @@ export const techniciansAPI = {
 export const workOrdersAPI = {
   getAll: (params) => api.get('/api/workorders', { params }),
   getOne: (id) => api.get(`/api/workorders/${id}`),
+  getSameAddress: (id) => api.get(`/api/workorders/${id}/same-address`),
   getTechnicianWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}`),
   getTechnicianOverdueWorkOrders: (technicianId) => api.get(`/api/workorders/technician/${technicianId}/overdue`),
   getUnassigned: () => api.get('/api/workorders/unassigned'),

@@ -151,6 +151,7 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
         case 'vehicle_registration_expiry': return <CarIcon size={20} />
         case 'technician_employment_expiry': return <UsersIcon size={20} />
         case 'low_review_rating': return <StarIcon size={20} />
+        case 'duplicate_address': return <AlertIcon size={20} />
         default: return <BellIcon size={20} />
       }
     }
@@ -186,6 +187,12 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
             action: 'loša ocena korisnika',
             target: notification.technicianName || 'Tehničar',
             content: notification.message || `Korisnik je dao nisku ocenu tehničaru.`
+          }
+        case 'duplicate_address':
+          return {
+            action: 'nalog na adresi otkazanog naloga',
+            target: null,
+            content: notification.message
           }
         default:
           return {
@@ -366,6 +373,17 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
           navigate(`/technicians/${notification.targetId}`, { state: { tab: 'reviews' } })
         } else {
           navigate('/technicians')
+        }
+        break
+
+      case 'duplicate_address':
+        // Pojedinačna vodi na detalje flagovanog naloga; zbirna na listu naloga
+        if (notification.targetPage && notification.targetPage.startsWith('/work-orders/')) {
+          navigate(notification.targetPage)
+        } else if (notification.targetId) {
+          navigate(`/work-orders/${notification.targetId}`)
+        } else {
+          navigate('/work-orders')
         }
         break
 

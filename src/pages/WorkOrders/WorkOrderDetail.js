@@ -6,7 +6,7 @@ import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon,
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI, supportCallsAPI } from '../../services/api';
-import { supportTypeLabel } from '../../utils/supportCalls';
+import { supportTypeLabel, callSourceLabel, EVENT_TYPE_BADGES } from '../../utils/supportCalls';
 import { cn } from '../../utils/cn';
 import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import axios from 'axios';
@@ -132,6 +132,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [voiceRecordings, setVoiceRecordings] = useState([]);
   const [supportCalls, setSupportCalls] = useState([]);
+  const [sameAddressOrders, setSameAddressOrders] = useState([]);
   const [verifying, setVerifying] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [adminComment, setAdminComment] = useState('');
@@ -196,6 +197,14 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           .catch(err => {
             console.error('Greška pri učitavanju poziva podrške:', err);
             setSupportCalls([]);
+          });
+
+        // Nalozi na istoj adresi — zaseban fetch, neuspeh ne obara stranicu
+        workOrdersAPI.getSameAddress(id)
+          .then(res => setSameAddressOrders(Array.isArray(res.data) ? res.data : []))
+          .catch(err => {
+            console.error('Greška pri učitavanju naloga na istoj adresi:', err);
+            setSameAddressOrders([]);
           });
 
         // Load customer status if this is a finished work order that needs verification
@@ -994,6 +1003,31 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm m-4 rounded-lg">{error}</div>
       )}
 
+      {/* Povratak na nalog sa kog se došlo (klik iz sekcije "Nalozi na istoj adresi") */}
+      {location.state?.backTo && (
+        <div className="bg-slate-50 border-b border-slate-200 px-5 sm:px-6 py-2.5">
+          <button
+            onClick={() => navigate(`/work-orders/${location.state.backTo.id}`)}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800"
+          >
+            <BackIcon size={14} />
+            Nazad na nalog {location.state.backTo.tis ? `TIS ${location.state.backTo.tis}` : ''}
+          </button>
+        </div>
+      )}
+
+      {/* Upozorenje: na ovoj adresi postoji ranije otkazan nalog (flag sa importa) */}
+      {workOrder?.duplicateAddressFlagged && (
+        <div className="bg-amber-50 border-b border-amber-200 px-5 sm:px-6 py-2.5 flex items-center gap-2">
+          <AlertIcon size={15} className="text-amber-600 shrink-0" />
+          <span className="text-sm text-amber-800">
+            Na ovoj adresi {workOrder.duplicateAddressCanceledCount === 1
+              ? 'postoji ranije otkazan radni nalog'
+              : `postoje ${workOrder.duplicateAddressCanceledCount || ''} ranije otkazana radna naloga`} — pogledaj sekciju "Nalozi na istoj adresi" ispod.
+          </span>
+        </div>
+      )}
+
       {/* ── Core Info Grid (4 columns, editable) ─────────── */}
       <div className="bg-white border-b border-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
@@ -1549,51 +1583,121 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
               </div>
             )}
 
-            {/* Pozivi podršci (timeline iz mobilne aplikacije) */}
+            {/* Pozivi i kontakti (objedinjeni timeline: podrška + korisnik + podsetnici + alerti) */}
             {supportCalls.length > 0 && (
               <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
                 <p className="text-xs uppercase tracking-wider text-violet-500 font-medium mb-3 flex items-center gap-1.5">
                   <PhoneIcon size={13} className="text-violet-500" />
-                  Pozivi podršci
+                  Pozivi i kontakti
                 </p>
-                <div className="space-y-2.5 max-h-56 overflow-y-auto">
-                  {supportCalls.map((call, index) => (
-                    <div
-                      key={call._id || index}
-                      className={call.supportType === 'super'
-                        ? 'bg-orange-50 rounded-lg p-3 border border-orange-100'
-                        : 'bg-violet-50 rounded-lg p-3 border border-violet-100'}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={call.supportType === 'super'
-                            ? 'bg-orange-500 text-white rounded-full p-1.5'
-                            : 'bg-violet-500 text-white rounded-full p-1.5'}>
-                            <PhoneIcon size={12} />
+                <div className="space-y-2.5 max-h-72 overflow-y-auto">
+                  {supportCalls.map((event, index) => {
+                    // Stil po tipu događaja u timeline-u
+                    const style = event.eventType === 'customer_call'
+                      ? { box: 'bg-emerald-50 border-emerald-100', icon: 'bg-emerald-500', badge: 'text-emerald-700 bg-emerald-100' }
+                      : event.eventType === 'reminder_sent'
+                      ? { box: 'bg-sky-50 border-sky-100', icon: 'bg-sky-500', badge: 'text-sky-700 bg-sky-100' }
+                      : event.eventType === 'uncontacted_alert'
+                      ? { box: 'bg-red-50 border-red-100', icon: 'bg-red-500', badge: 'text-red-700 bg-red-100' }
+                      : event.supportType === 'super'
+                      ? { box: 'bg-orange-50 border-orange-100', icon: 'bg-orange-500', badge: 'text-orange-700 bg-orange-100' }
+                      : { box: 'bg-violet-50 border-violet-100', icon: 'bg-violet-500', badge: 'text-violet-700 bg-violet-100' };
+
+                    const title = event.eventType === 'customer_call'
+                      ? <>Poziv korisniku{event.source && (
+                          <span className="ml-1.5 font-normal text-slate-500">({callSourceLabel(event.source)})</span>
+                        )}</>
+                      : event.eventType === 'reminder_sent'
+                      ? 'Podsetnik tehničaru (30 min pre termina)'
+                      : event.eventType === 'uncontacted_alert'
+                      ? 'Alert adminima — korisnik nije kontaktiran'
+                      : <>{supportTypeLabel(event.supportType)}{event.phoneNumber && (
+                          <span className="ml-1.5 font-normal text-slate-500">({event.phoneNumber})</span>
+                        )}</>;
+
+                    const badgeLabel = event.eventType === 'support_call' && event.supportType === 'super'
+                      ? 'Superpodrška'
+                      : EVENT_TYPE_BADGES[event.eventType] || 'Poziv';
+
+                    return (
+                      <div key={event._id || index} className={`rounded-lg p-3 border ${style.box}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`${style.icon} text-white rounded-full p-1.5`}>
+                              {event.eventType === 'uncontacted_alert'
+                                ? <AlertIcon size={12} />
+                                : event.eventType === 'reminder_sent'
+                                ? <ClockIcon size={12} />
+                                : <PhoneIcon size={12} />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-800">{title}</p>
+                              <p className="text-[10px] text-slate-500">
+                                {new Date(event.at || event.calledAt).toLocaleString('sr-RS')}
+                                {(event.technicianName || event.technicianId?.name) && (
+                                  <span> &middot; {event.technicianName || event.technicianId?.name}</span>
+                                )}
+                                {event.backfilled && <span> &middot; istorijski zapis</span>}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs font-medium text-slate-800">
-                              {supportTypeLabel(call.supportType)}
-                              {call.phoneNumber && (
-                                <span className="ml-1.5 font-normal text-slate-500">({call.phoneNumber})</span>
-                              )}
-                            </p>
-                            <p className="text-[10px] text-slate-500">
-                              {new Date(call.calledAt).toLocaleString('sr-RS')}
-                              {(call.technicianName || call.technicianId?.name) && (
-                                <span> &middot; {call.technicianName || call.technicianId?.name}</span>
-                              )}
-                            </p>
-                          </div>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${style.badge}`}>
+                            {badgeLabel}
+                          </span>
                         </div>
-                        <span className={call.supportType === 'super'
-                          ? 'text-[10px] font-medium text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full'
-                          : 'text-[10px] font-medium text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full'}>
-                          Poziv #{index + 1}
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Nalozi na istoj adresi (svi statusi; otkazani su okidač za flag pri importu) */}
+            {sameAddressOrders.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-blue-500 font-medium mb-3 flex items-center gap-1.5">
+                  <MapPinIcon size={13} className="text-blue-500" />
+                  Nalozi na istoj adresi ({sameAddressOrders.length})
+                </p>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {sameAddressOrders.map((o) => {
+                    const st = o.status === 'zavrsen'
+                      ? { label: 'Završen', cls: 'text-emerald-700 bg-emerald-100' }
+                      : o.status === 'otkazan'
+                      ? { label: 'Otkazan', cls: 'text-red-700 bg-red-100' }
+                      : o.status === 'odlozen'
+                      ? { label: 'Odložen', cls: 'text-amber-700 bg-amber-100' }
+                      : { label: 'Nezavršen', cls: 'text-blue-700 bg-blue-100' };
+                    const techNames = [o.technicianId?.name, o.technician2Id?.name].filter(Boolean).join(', ');
+                    return (
+                      <button
+                        key={o._id}
+                        onClick={() => navigate(`/work-orders/${o._id}`, {
+                          state: { backTo: { id, tis: workOrder?.tisId || formData?.tisId || '' } }
+                        })}
+                        className={`w-full text-left rounded-lg p-3 border transition-colors hover:bg-slate-100 ${
+                          o.status === 'otkazan' ? 'bg-red-50/60 border-red-100' : 'bg-slate-50 border-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-slate-800 truncate">
+                              {o.tisId ? `TIS ${o.tisId}` : (o.tisJobId ? `JOB ${o.tisJobId}` : 'Nalog')}
+                              {o.type && <span className="font-normal text-slate-500"> · {o.type}</span>}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {o.date ? new Date(o.date).toLocaleDateString('sr-RS') : ''}
+                              {o.time && ` u ${o.time}`}
+                              {techNames && <span> &middot; {techNames}</span>}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${st.cls}`}>
+                            {st.label}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
