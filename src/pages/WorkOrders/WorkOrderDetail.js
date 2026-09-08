@@ -6,7 +6,7 @@ import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon,
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI, supportCallsAPI } from '../../services/api';
-import { supportTypeLabel, callSourceLabel, EVENT_TYPE_BADGES } from '../../utils/supportCalls';
+import { supportTypeLabel, supportTypeStyle, callSourceLabel, EVENT_TYPE_BADGES } from '../../utils/supportCalls';
 import { cn } from '../../utils/cn';
 import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import axios from 'axios';
@@ -1599,9 +1599,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                       ? { box: 'bg-sky-50 border-sky-100', icon: 'bg-sky-500', badge: 'text-sky-700 bg-sky-100' }
                       : event.eventType === 'uncontacted_alert'
                       ? { box: 'bg-red-50 border-red-100', icon: 'bg-red-500', badge: 'text-red-700 bg-red-100' }
-                      : event.supportType === 'super'
-                      ? { box: 'bg-orange-50 border-orange-100', icon: 'bg-orange-500', badge: 'text-orange-700 bg-orange-100' }
-                      : { box: 'bg-violet-50 border-violet-100', icon: 'bg-violet-500', badge: 'text-violet-700 bg-violet-100' };
+                      // pozivi podršci/kontaktima: boja po tipu iz mape (administrative, super, marko, ana)
+                      : supportTypeStyle(event.supportType);
 
                     const title = event.eventType === 'customer_call'
                       ? <>Poziv korisniku{event.source && (
@@ -1615,8 +1614,10 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                           <span className="ml-1.5 font-normal text-slate-500">({event.phoneNumber})</span>
                         )}</>;
 
-                    const badgeLabel = event.eventType === 'support_call' && event.supportType === 'super'
-                      ? 'Superpodrška'
+                    // Za pozive iz aplikacije prikaži konkretan tip (Superpodrška, Marko, Ana...),
+                    // a ne genericnu oznaku — inače Marko/Ana ispadaju kao "Podrška"
+                    const badgeLabel = event.eventType === 'support_call'
+                      ? supportTypeLabel(event.supportType)
                       : EVENT_TYPE_BADGES[event.eventType] || 'Poziv';
 
                     return (

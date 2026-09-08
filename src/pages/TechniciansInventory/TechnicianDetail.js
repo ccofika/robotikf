@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { techniciansAPI, reviewsAPI, supportCallsAPI } from '../../services/api';
 import { describeAssignment } from '../../utils/equipmentAssignment';
+import { SUPPORT_TYPES, supportTypeLabel, supportTypeStyle } from '../../utils/supportCalls';
 
 // SVG Icons
 const MicIcon = ({ size = 20, className = '' }) => (
@@ -717,19 +718,20 @@ const TechnicianDetail = () => {
               <PhoneIcon size={20} className="text-slate-600" />
               <h2 className="text-lg font-semibold text-slate-900">Pozivi podršci</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-slate-700">{supportCallSummary.total}</div>
                 <div className="text-xs text-slate-500 mt-1">Ukupno poziva</div>
               </div>
-              <div className="bg-gradient-to-br from-violet-50 to-violet-100/50 rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-violet-700">{supportCallSummary.administrative}</div>
-                <div className="text-xs text-slate-500 mt-1">Administrativna podrška</div>
-              </div>
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-orange-700">{supportCallSummary.super}</div>
-                <div className="text-xs text-slate-500 mt-1">Superpodrška</div>
-              </div>
+              {SUPPORT_TYPES.map((type) => {
+                const style = supportTypeStyle(type);
+                return (
+                  <div key={type} className={`bg-gradient-to-br rounded-xl p-4 text-center ${style.tile}`}>
+                    <div className={`text-2xl font-bold ${style.tileText}`}>{supportCallSummary[type] || 0}</div>
+                    <div className="text-xs text-slate-500 mt-1">{supportTypeLabel(type)}</div>
+                  </div>
+                );
+              })}
               <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 text-center">
                 <div className="text-sm font-bold text-blue-700 leading-8">
                   {supportCallSummary.lastCalledAt
