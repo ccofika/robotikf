@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { workOrdersAPI } from '../../services/api';
+import api, { workOrdersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../utils/toast';
 import {
@@ -20,7 +20,6 @@ import { Button } from '../../components/ui/button-1';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { cn } from '../../utils/cn';
-import axios from 'axios';
 
 const EditWorkOrders = () => {
   const { user } = useContext(AuthContext);
@@ -47,8 +46,6 @@ const EditWorkOrders = () => {
   const [municipalities, setMunicipalities] = useState([]);
   const [technicians, setTechnicians] = useState([]);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -71,7 +68,7 @@ const EditWorkOrders = () => {
 
   const fetchFilters = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/edit-filters`);
+      const response = await api.get('/api/workorders/edit-filters');
       setMunicipalities(response.data.municipalities || []);
       setTechnicians(response.data.technicians || []);
     } catch (error) {
@@ -93,7 +90,7 @@ const EditWorkOrders = () => {
         technician: technicianFilter
       });
 
-      const response = await axios.get(`${apiUrl}/api/workorders?${params.toString()}`);
+      const response = await api.get(`/api/workorders?${params.toString()}`);
 
       // Handle response - check if it has pagination data
       if (response.data.workOrders) {

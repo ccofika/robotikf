@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button-1';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { toast } from '../../utils/toast';
-import axios from 'axios';
+import { workOrdersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { getTimRowClasses, getTimBgClass } from '../../utils/tim';
@@ -31,8 +31,6 @@ const TechnicianWorkOrders = () => {
   // Paginacija
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = isMobile ? 12 : 10;
-  
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   // Function to check if work order date/time hasn't passed yet
   const isWorkOrderNew = (order) => {
@@ -128,7 +126,7 @@ const TechnicianWorkOrders = () => {
     setError('');
     
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/technician/${user._id}`);
+      const response = await workOrdersAPI.getTechnicianWorkOrders(user._id);
       setWorkOrders(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju radnih naloga:', error);

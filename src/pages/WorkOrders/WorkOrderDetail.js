@@ -5,11 +5,10 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon, ChevronLeftIcon, ChevronRightIcon, BoxIcon, ToolsIcon, CalendarIcon, MapPinIcon, CommentIcon, CheckCircleIcon } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
-import { workOrdersAPI, techniciansAPI, userEquipmentAPI, supportCallsAPI } from '../../services/api';
+import api, { workOrdersAPI, techniciansAPI, userEquipmentAPI, supportCallsAPI } from '../../services/api';
 import { supportTypeLabel, supportTypeStyle, callSourceLabel, EVENT_TYPE_BADGES } from '../../utils/supportCalls';
 import { cn } from '../../utils/cn';
 import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
-import axios from 'axios';
 import jsPDF from 'jspdf';
 // eslint-disable-next-line no-unused-vars
 import html2canvas from 'html2canvas';
@@ -156,8 +155,6 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const [editValue, setEditValue] = useState('');
   const editRef = useRef(null);
   const statusDropdownRef = useRef(null);
-
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 
   useEffect(() => {
@@ -407,7 +404,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   // Load customer status for verification
   const loadCustomerStatus = async (orderId) => {
     try {
-      const response = await axios.get(`${apiUrl}/api/workorders/${orderId}/evidence`);
+      const response = await api.get(`/api/workorders/${orderId}/evidence`);
       const status = response.data.customerStatus || null;
       setOrderStatuses(prev => ({
         ...prev,
@@ -545,7 +542,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     try {
       console.log('Starting AI analysis for order:', workOrder._id);
 
-      const result = await axios.post(`${apiUrl}/api/workorders/${workOrder._id}/ai-verify`);
+      const result = await api.post(`/api/workorders/${workOrder._id}/ai-verify`);
 
       console.log('AI analysis result:', result.data);
 
@@ -601,7 +598,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     try {
       const orderId = aiVerificationResult.orderId;
 
-      await axios.put(`${apiUrl}/api/workorders/${orderId}/return-incorrect`, {
+      await api.put(`/api/workorders/${orderId}/return-incorrect`, {
         adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
       });
 
@@ -875,7 +872,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
 
     setDeletingImage(true);
     try {
-      await axios.delete(`${apiUrl}/api/workorders/${id}/images`, {
+      await api.delete(`/api/workorders/${id}/images`, {
         data: { imageUrl }
       });
 

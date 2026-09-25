@@ -30,7 +30,7 @@ const ExportSpecification = () => {
       const startTime = Date.now();
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/export/evidence-preview?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+      const response = await fetch(`${apiUrl}/api/export/evidence-preview?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
 
       if (response.ok) {
         const data = await response.json();

@@ -33,7 +33,6 @@ import {
   CommentIcon,
   CheckIcon
 } from '../../components/icons/SvgIcons';
-import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import api, { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
@@ -81,13 +80,11 @@ const NewDesign = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
       const apiCalls = [
         api.get('/api/equipment?statsOnly=true'),
-        axios.get(`${apiUrl}/api/materials?statsOnly=true`),
-        axios.get(`${apiUrl}/api/technicians`),
-        axios.get(`${apiUrl}/api/workorders/statistics/summary`),
+        api.get('/api/materials?statsOnly=true'),
+        api.get('/api/technicians'),
+        api.get('/api/workorders/statistics/summary'),
         api.get('/api/vehicles/stats/overview').catch(() => ({ data: null })),
         api.get('/api/logs/statistics').catch(() => ({ data: null })),
         api.get('/api/logs/technicians?limit=5').catch(() => ({ data: { results: [] } }))
@@ -95,7 +92,7 @@ const NewDesign = () => {
 
       if (isSuperAdmin) {
         apiCalls.push(
-          axios.get(`${apiUrl}/api/finances/reports?statsOnly=true`).catch(() => ({ data: null }))
+          api.get('/api/finances/reports?statsOnly=true').catch(() => ({ data: null }))
         );
       }
 
