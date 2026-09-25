@@ -47,6 +47,7 @@ export const equipmentAPI = {
   getLocations: () => api.get('/api/equipment/locations'),
   getGrouped: (params) => api.get('/api/equipment/grouped', { params }),
   getOne: (serialNumber) => api.get(`/api/equipment/${serialNumber}`),
+  getTemplate: () => api.get('/api/equipment/template', { responseType: 'blob' }),
   create: (data) => api.post('/api/equipment', data),
   uploadExcel: (formData) => api.post('/api/equipment/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -107,9 +108,12 @@ export const techniciansAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   deleteDocument: (id, documentId) => api.delete(`/api/technicians/${id}/documents/${documentId}`),
-  // Proxy URL za pregled/preuzimanje dokumenta (zaobilazi Cloudinary 401)
-  getDocumentViewUrl: (id, documentId) => `${API_URL}/api/technicians/${id}/documents/${documentId}/view`,
-  getDocumentDownloadUrl: (id, documentId) => `${API_URL}/api/technicians/${id}/documents/${documentId}/view?download=true`,
+  // Pregled/preuzimanje dokumenta kroz backend proxy (zaobilazi Cloudinary 401).
+  // Proxy traži token, pa se fajl dohvata kao blob umesto direktnog linka.
+  getDocumentFile: (id, documentId, download = false) => api.get(`/api/technicians/${id}/documents/${documentId}/view`, {
+    params: download ? { download: 'true' } : {},
+    responseType: 'blob'
+  }),
 };
 
 // Work Orders API

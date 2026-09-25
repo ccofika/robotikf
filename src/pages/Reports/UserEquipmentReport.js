@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BackIcon, DownloadIcon, FilterIcon, SearchIcon, CloseIcon, RefreshIcon, TableIcon } from '../../components/icons/SvgIcons';
 import axios from 'axios';
+import api from '../../services/api';
 import { saveAs } from 'file-saver';
 import { toast } from '../../utils/toast';
 import './ExportSpecificationModern.css';
@@ -35,7 +36,7 @@ const UserEquipmentReport = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${apiUrl}/api/user-equipment`);
+      const response = await api.get('/api/user-equipment');
       setEquipment(response.data);
       setFilteredEquipment(response.data);
     } catch (err) {

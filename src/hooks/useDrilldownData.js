@@ -68,7 +68,8 @@ export const useDrilldownData = () => {
       if (sourceSegment) params.append('sourceSegment', sourceSegment);
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/drilldown?${params.toString()}`
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/logs/drilldown?${params.toString()}`,
+        { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }
       );
 
       if (!response.ok) {

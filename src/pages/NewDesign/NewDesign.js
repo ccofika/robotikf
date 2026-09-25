@@ -35,7 +35,7 @@ import {
 } from '../../components/icons/SvgIcons';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
-import { workOrdersAPI, techniciansAPI } from '../../services/api';
+import api, { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 import { getTimRowClasses } from '../../utils/tim';
@@ -84,13 +84,13 @@ const NewDesign = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
       const apiCalls = [
-        axios.get(`${apiUrl}/api/equipment?statsOnly=true`),
+        api.get('/api/equipment?statsOnly=true'),
         axios.get(`${apiUrl}/api/materials?statsOnly=true`),
         axios.get(`${apiUrl}/api/technicians`),
         axios.get(`${apiUrl}/api/workorders/statistics/summary`),
-        axios.get(`${apiUrl}/api/vehicles/stats/overview`).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/api/logs/statistics`).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/api/logs/technicians?limit=5`).catch(() => ({ data: { results: [] } }))
+        api.get('/api/vehicles/stats/overview').catch(() => ({ data: null })),
+        api.get('/api/logs/statistics').catch(() => ({ data: null })),
+        api.get('/api/logs/technicians?limit=5').catch(() => ({ data: { results: [] } }))
       ];
 
       if (isSuperAdmin) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from '../../utils/toast';
-import axios from 'axios';
+import api from '../../services/api';
 import { cn } from '../../utils/cn';
 import { getTimRowClasses } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
@@ -61,8 +61,6 @@ const UsersList = () => {
     actions: true
   });
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -119,7 +117,7 @@ const UsersList = () => {
   const fetchDashboardStats = async () => {
     setDashboardLoading(true);
     try {
-      const response = await axios.get(`${apiUrl}/api/users?statsOnly=true`);
+      const response = await api.get('/api/users?statsOnly=true');
       setDashboardStats(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju dashboard podataka:', error);
@@ -144,7 +142,7 @@ const UsersList = () => {
         sortOrder
       });
 
-      const response = await axios.get(`${apiUrl}/api/users?${params.toString()}`);
+      const response = await api.get(`/api/users?${params.toString()}`);
       const { users: userData, pagination: paginationData, performance: performanceData } = response.data;
 
       setUsers(userData);
@@ -212,7 +210,7 @@ const UsersList = () => {
   const fetchUserWorkOrders = async (userId) => {
     setLoadingWorkOrders(true);
     try {
-      const response = await axios.get(`${apiUrl}/api/users/${userId}/workorders`);
+      const response = await api.get(`/api/users/${userId}/workorders`);
       setUserWorkOrders(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju radnih naloga korisnika:', error);
@@ -225,7 +223,7 @@ const UsersList = () => {
   const fetchUserEquipment = async (userId) => {
     setLoadingEquipment(true);
     try {
-      const response = await axios.get(`${apiUrl}/api/user-equipment/user/${userId}`);
+      const response = await api.get(`/api/user-equipment/user/${userId}`);
       setUserEquipment(response.data);
     } catch (error) {
       console.error('Greška pri učitavanju opreme korisnika:', error);

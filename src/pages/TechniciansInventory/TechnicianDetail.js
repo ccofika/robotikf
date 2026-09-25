@@ -95,6 +95,9 @@ const TechnicianDetail = () => {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRequestRef = useRef(0);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -279,27 +282,51 @@ const TechnicianDetail = () => {
     return null;
   };
 
-  // Generiši proxy URL za dokument (zaobilazi Cloudinary 401)
-  const getDocViewUrl = (doc) => techniciansAPI.getDocumentViewUrl(id, doc._id);
-  const getDocDownloadUrl = (doc) => techniciansAPI.getDocumentDownloadUrl(id, doc._id);
-
-  // Otvara preview modal
-  const openPreview = (doc) => {
+  // Otvara preview modal - fajl se učitava kroz backend proxy (traži token) kao blob URL
+  const openPreview = async (doc) => {
     setPreviewDoc(doc);
+    if (!getPreviewType(doc)) return;
+
+    const requestId = ++previewRequestRef.current;
+    setPreviewLoading(true);
+    try {
+      const response = await techniciansAPI.getDocumentFile(id, doc._id);
+      // Preview je u međuvremenu zatvoren ili otvoren drugi dokument
+      if (requestId !== previewRequestRef.current) return;
+      setPreviewUrl(window.URL.createObjectURL(response.data));
+    } catch (error) {
+      if (requestId !== previewRequestRef.current) return;
+      console.error('Greška pri učitavanju dokumenta:', error);
+      toast.error('Greška pri učitavanju dokumenta');
+    } finally {
+      if (requestId === previewRequestRef.current) setPreviewLoading(false);
+    }
   };
 
   const closePreview = () => {
+    previewRequestRef.current++;
+    if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewLoading(false);
     setPreviewDoc(null);
   };
 
-  // Download sa pravim imenom fajla - koristi backend proxy
-  const handleDownloadDocument = (doc) => {
-    const a = document.createElement('a');
-    a.href = getDocDownloadUrl(doc);
-    a.download = doc.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // Download sa pravim imenom fajla - koristi backend proxy (traži token, pa ide kao blob)
+  const handleDownloadDocument = async (doc) => {
+    try {
+      const response = await techniciansAPI.getDocumentFile(id, doc._id, true);
+      const url = window.URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Greška pri preuzimanju dokumenta:', error);
+      toast.error('Greška pri preuzimanju dokumenta');
+    }
   };
 
   const handleChangePassword = async () => {
@@ -1238,15 +1265,17 @@ const TechnicianDetail = () => {
             </div>
             {/* Preview Content */}
             <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center">
-              {getPreviewType(previewDoc) === 'image' ? (
+              {previewLoading ? (
+                <p className="text-slate-500 p-12">Učitavanje dokumenta...</p>
+              ) : previewUrl && getPreviewType(previewDoc) === 'image' ? (
                 <img
-                  src={getDocViewUrl(previewDoc)}
+                  src={previewUrl}
                   alt={previewDoc.name}
                   className="max-w-full max-h-[80vh] object-contain p-4"
                 />
-              ) : getPreviewType(previewDoc) === 'pdf' ? (
+              ) : previewUrl && getPreviewType(previewDoc) === 'pdf' ? (
                 <iframe
-                  src={getDocViewUrl(previewDoc)}
+                  src={previewUrl}
                   title={previewDoc.name}
                   className="w-full h-full min-h-[80vh] border-0"
                 />

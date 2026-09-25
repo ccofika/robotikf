@@ -14,7 +14,7 @@ import {
   CheckCircleIcon
 } from '../../components/icons/SvgIcons';
 import { Button } from '../../components/ui/button-1';
-import axios from 'axios';
+import api from '../../services/api';
 import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 
@@ -46,8 +46,6 @@ const DefectiveEquipment = () => {
   // Restore equipment state
   const [restoringEquipmentId, setRestoringEquipmentId] = useState(null);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -67,7 +65,7 @@ const DefectiveEquipment = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/api/defective-equipment?statsOnly=true`);
+      const response = await api.get('/api/defective-equipment?statsOnly=true');
       if (response.data.success) {
         setStats(response.data.stats);
       }
@@ -87,7 +85,7 @@ const DefectiveEquipment = () => {
         category: categoryFilter
       });
 
-      const response = await axios.get(`${apiUrl}/api/defective-equipment?${params.toString()}`);
+      const response = await api.get(`/api/defective-equipment?${params.toString()}`);
 
       if (response.data.success) {
         setEquipment(response.data.data);
@@ -105,7 +103,7 @@ const DefectiveEquipment = () => {
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, debouncedSearchTerm, categoryFilter, pagination.currentPage, pagination.limit]);
+  }, [debouncedSearchTerm, categoryFilter, pagination.currentPage, pagination.limit]);
 
   const handlePageChange = useCallback((newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -181,8 +179,8 @@ const DefectiveEquipment = () => {
     setRestoringEquipmentId(equipmentId);
 
     try {
-      const response = await axios.put(
-        `${apiUrl}/api/defective-equipment/${equipmentId}/restore`,
+      const response = await api.put(
+        `/api/defective-equipment/${equipmentId}/restore`,
         { performedByName: 'Admin' }
       );
 

@@ -103,15 +103,25 @@ const EquipmentUpload = () => {
     }
   };
   
-  const downloadTemplate = () => {
-    // Kreiranje Excel šablona za download
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    const link = document.createElement('a');
-    link.href = `${API_URL}/api/equipment/template`;
-    link.download = 'oprema-sablon.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadTemplate = async () => {
+    // Šablon ide kroz api instancu (ruta traži token), pa se preuzima kao blob
+    try {
+      const response = await equipmentAPI.getTemplate();
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'oprema-sablon.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Greška pri preuzimanju šablona:', error);
+      toast.error('Greška pri preuzimanju šablona');
+    }
   };
   
   return (

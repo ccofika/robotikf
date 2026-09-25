@@ -243,7 +243,8 @@ const DashboardSection = ({
       }
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${endpoint}?${params.toString()}`
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${endpoint}?${params.toString()}`,
+        { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }
       );
 
       if (!response.ok) {
