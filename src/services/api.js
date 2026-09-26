@@ -128,6 +128,9 @@ export const workOrdersAPI = {
   getEvidence: (id) => api.get(`/api/workorders/${id}/evidence`),
   verify: (id, data) => api.put(`/api/workorders/${id}/verify`, data),
   returnIncorrect: (id, data) => api.put(`/api/workorders/${id}/return-incorrect`, data),
+  // Reklamacija: pregled odbitaka pre potvrde i evidentiranje (skidanje tehničara + novi tehničar)
+  getComplaintPreview: (id, params) => api.get(`/api/workorders/${id}/complaint-preview`, { params }),
+  fileComplaint: (id, data) => api.post(`/api/workorders/${id}/complaint`, data),
   updateCustomerStatus: (id, data) => api.put(`/api/workorders/${id}/customer-status`, data),
   aiVerify: (id) => api.post(`/api/workorders/${id}/ai-verify`),
   createBulk: (formData) => api.post('/api/workorders/upload', formData, {
@@ -373,6 +376,9 @@ export const financesAPI = {
   excludeFromFinances: (workOrderId) => api.post(`/api/finances/exclude-from-finances/${workOrderId}`),
   confirmDiscount: (data) => api.post('/api/finances/confirm-discount', data),
   saveTechnicianPaymentSettings: (data) => api.post('/api/finances/technician-payment-settings', data),
+  // Mesečni obračun tehničara (tabela za period + slanje na email, slanje samo superadmin)
+  getTechnicianStatement: (technicianId, params) => api.get(`/api/finances/technician-statement/${technicianId}`, { params }),
+  sendTechnicianStatement: (technicianId, data) => api.post(`/api/finances/technician-statement/${technicianId}/send`, data),
 };
 
 export const searchAPI = {

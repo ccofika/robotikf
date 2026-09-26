@@ -31,6 +31,7 @@ import BasicEquipmentManager from './pages/BasicEquipment/BasicEquipmentManager'
 import TechniciansList from './pages/TechniciansInventory/TechniciansList';
 import AddTechnician from './pages/TechniciansInventory/AddTechnician';
 import TechnicianDetail from './pages/TechniciansInventory/TechnicianDetail';
+import TechnicianMonthlyStatement from './pages/TechniciansInventory/TechnicianMonthlyStatement';
 import AssignEquipment from './pages/TechniciansInventory/AssignEquipment';
 import AssignMaterial from './pages/TechniciansInventory/AssignMaterial';
 import TechniciansGPS from './pages/TechniciansInventory/TechniciansGPS';
@@ -150,6 +151,10 @@ const AppRouteDefinitions = ({ user, isAdminLike, isSupervisorLike, logout }) =>
     } />
     <Route path="/technicians/:id" element={
       isAdminLike(user?.role) ? <TechnicianDetail /> : <Navigate to="/access-denied" />
+    } />
+    {/* Mesečni obračun tehničara — isti pristup kao stranica Finansije */}
+    <Route path="/technicians/:id/obracun" element={
+      isSupervisorLike(user?.role) ? <TechnicianMonthlyStatement /> : <Navigate to="/access-denied" />
     } />
     <Route path="/technicians/:id/assign-equipment" element={
       isAdminLike(user?.role) ? <AssignEquipment /> : <Navigate to="/access-denied" />

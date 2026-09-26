@@ -100,6 +100,11 @@ const TechnicianDetail = () => {
   const previewRequestRef = useRef(0);
   const fileInputRef = useRef(null);
 
+  // Mesečni obračun vide isti korisnici kao stranicu Finansije (supervisor i superadmin)
+  const storedUser = localStorage.getItem('user');
+  const currentUserRole = storedUser ? JSON.parse(storedUser).role : null;
+  const canViewStatement = currentUserRole === 'supervisor' || currentUserRole === 'superadmin';
+
   useEffect(() => {
     fetchTechnicianData();
     fetchDocuments();
@@ -732,6 +737,18 @@ const TechnicianDetail = () => {
               >
                 Snimci poziva
               </Button>
+              {canViewStatement && (
+                <Link to={`/technicians/${id}/obracun`}>
+                  <Button
+                    type="secondary"
+                    size="medium"
+                    prefix={<CalendarIcon size={16} />}
+                    className="w-full"
+                  >
+                    Mesečni obračun
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -39,6 +39,7 @@ import { toast } from '../../utils/toast';
 import { cn } from '../../utils/cn';
 import { getTimRowClasses } from '../../utils/tim';
 import AIVerificationModal from '../../components/AIVerificationModal';
+import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
 import FancyDataTable from '../../components/fancy-table/FancyDataTable';
 
 const NewDesign = () => {
@@ -1333,6 +1334,8 @@ const WorkOrdersSection = () => {
   const [loadingAIVerification, setLoadingAIVerification] = useState(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiVerificationResult, setAIVerificationResult] = useState(null);
+  // Vraćanje posle AI preporuke ide kroz istu potvrdu sa umanjenjem zarade kao ručno vraćanje
+  const [aiReturnModal, setAiReturnModal] = useState({ isOpen: false, orderId: null, comment: '' });
 
   // Fancy table states
   const [fancyTableData, setFancyTableData] = useState([]);
@@ -2019,46 +2022,43 @@ const WorkOrdersSection = () => {
   };
 
   // Reject AI recommendation
-  const handleRejectAI = async () => {
+  const handleRejectAI = () => {
     if (!aiVerificationResult) return;
 
-    try {
-      const orderId = aiVerificationResult.orderId;
+    setAiReturnModal({
+      isOpen: true,
+      orderId: aiVerificationResult.orderId,
+      comment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
+    });
+    setShowAIModal(false);
+    setAIVerificationResult(null);
+  };
 
-      await workOrdersAPI.returnIncorrect(orderId, {
-        adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
-      });
+  // Posle potvrde vraćanja: skloni nalog iz liste za verifikaciju i ažuriraj status u listama
+  const handleAIReturned = () => {
+    const orderId = aiReturnModal.orderId;
+    setAiReturnModal({ isOpen: false, orderId: null, comment: '' });
 
-      toast.info('Radni nalog je vraćen tehničaru');
+    setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
 
-      setVerificationOrders(prev => prev.filter(order => order._id !== orderId));
+    const updateOrderInArray = (ordersArray, setOrdersFunc) => {
+      const updatedOrders = [...ordersArray];
+      const updatedIndex = updatedOrders.findIndex(order => order._id === orderId);
 
-      const updateOrderInArray = (ordersArray, setOrdersFunc) => {
-        const updatedOrders = [...ordersArray];
-        const updatedIndex = updatedOrders.findIndex(order => order._id === orderId);
-
-        if (updatedIndex !== -1) {
-          updatedOrders[updatedIndex] = {
-            ...updatedOrders[updatedIndex],
-            status: 'nezavrsen',
-            verified: false
-          };
-          setOrdersFunc(updatedOrders);
-          return true;
-        }
-        return false;
-      };
-
-      if (!updateOrderInArray(recentWorkOrders, setRecentWorkOrders)) {
-        updateOrderInArray(olderWorkOrders, setOlderWorkOrders);
+      if (updatedIndex !== -1) {
+        updatedOrders[updatedIndex] = {
+          ...updatedOrders[updatedIndex],
+          status: 'nezavrsen',
+          verified: false
+        };
+        setOrdersFunc(updatedOrders);
+        return true;
       }
+      return false;
+    };
 
-      setShowAIModal(false);
-      setAIVerificationResult(null);
-
-    } catch (error) {
-      console.error('Error rejecting AI recommendation:', error);
-      toast.error('Greška pri vraćanju radnog naloga');
+    if (!updateOrderInArray(recentWorkOrders, setRecentWorkOrders)) {
+      updateOrderInArray(olderWorkOrders, setOlderWorkOrders);
     }
   };
 
@@ -3021,6 +3021,15 @@ const WorkOrdersSection = () => {
         loading={loadingAIVerification !== null}
         onAccept={handleAcceptAI}
         onReject={handleRejectAI}
+      />
+
+      <ReturnWorkOrderModal
+        isOpen={aiReturnModal.isOpen}
+        workOrderId={aiReturnModal.orderId}
+        initialComment={aiReturnModal.comment}
+        source="ai"
+        onClose={() => setAiReturnModal({ isOpen: false, orderId: null, comment: '' })}
+        onReturned={handleAIReturned}
       />
     </div>
   );

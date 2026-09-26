@@ -13,6 +13,9 @@ import jsPDF from 'jspdf';
 // eslint-disable-next-line no-unused-vars
 import html2canvas from 'html2canvas';
 import AIVerificationModal from '../../components/AIVerificationModal';
+import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
+import ComplaintModal from '../../components/ComplaintModal';
+import { getPenaltyInfo, formatRsd } from '../../utils/rejectionPenalty';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 
 // EditableField extracted outside to prevent remount on parent re-render (fixes cursor jump)
@@ -94,6 +97,22 @@ const EditableField = ({ field, value, displayValue, type = 'text', options, pla
   );
 };
 
+// Polja forme za izmenu naloga iz podataka sa servera
+const buildFormData = (data) => ({
+  date: data.date ? new Date(data.date).toISOString().split('T')[0] : '',
+  time: data.time || '09:00',
+  municipality: data.municipality,
+  address: data.address,
+  type: data.type,
+  technicianId: data.technicianId?._id || data.technicianId || '',
+  technician2Id: data.technician2Id?._id || data.technician2Id || '',
+  details: data.details || '',
+  comment: data.comment || '',
+  status: data.status || 'nezavrsen',
+  customerEmail: data.customerEmail || '',
+  tim: data.tim || ''
+});
+
 const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) => {
   const params = useParams();
   const id = modalWorkOrderId || params.id;
@@ -133,8 +152,9 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const [supportCalls, setSupportCalls] = useState([]);
   const [sameAddressOrders, setSameAddressOrders] = useState([]);
   const [verifying, setVerifying] = useState(false);
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [adminComment, setAdminComment] = useState('');
+  // Potvrda vraćanja (ručno ili posle AI preporuke) sa checkbox-om za umanjenje zarade
+  const [returnModal, setReturnModal] = useState({ isOpen: false, initialComment: '', source: 'manual' });
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [orderStatuses, setOrderStatuses] = useState({});
   const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
 
@@ -167,20 +187,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         ]);
 
         setWorkOrder(workOrderRes.data);
-        setFormData({
-          date: workOrderRes.data.date ? new Date(workOrderRes.data.date).toISOString().split('T')[0] : '',
-          time: workOrderRes.data.time || '09:00',
-          municipality: workOrderRes.data.municipality,
-          address: workOrderRes.data.address,
-          type: workOrderRes.data.type,
-          technicianId: workOrderRes.data.technicianId?._id || workOrderRes.data.technicianId || '',
-          technician2Id: workOrderRes.data.technician2Id?._id || workOrderRes.data.technician2Id || '',
-          details: workOrderRes.data.details || '',
-          comment: workOrderRes.data.comment || '',
-          status: workOrderRes.data.status || 'nezavrsen',
-          customerEmail: workOrderRes.data.customerEmail || '',
-          tim: workOrderRes.data.tim || ''
-        });
+        setFormData(buildFormData(workOrderRes.data));
         setTechnicians(techniciansRes.data);
 
         // Postavi slike i materijale
@@ -453,31 +460,32 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     }
   };
 
-  // Handle return as incorrect
-  const handleReturnIncorrect = async () => {
-    if (!workOrder || !adminComment.trim()) return;
+  // Ponovo učitaj nalog posle vraćanja/reklamacije (menjaju status, tehničare, termin i istoriju)
+  const reloadWorkOrder = async () => {
+    const response = await workOrdersAPI.getOne(id);
+    setWorkOrder(response.data);
+    setFormData(buildFormData(response.data));
+    setImages(response.data.images || []);
+    signalDataChanged();
+  };
 
+  // Posle potvrde u modalu za vraćanje naloga
+  const handleReturned = async () => {
+    setReturnModal({ isOpen: false, initialComment: '', source: 'manual' });
     try {
-      setVerifying(true);
-
-      await workOrdersAPI.returnIncorrect(workOrder._id, {
-        adminComment: adminComment.trim()
-      });
-
-      toast.success('Radni nalog je vraćen tehničaru!');
-      setShowReturnModal(false);
-      setAdminComment('');
-
-      const response = await workOrdersAPI.getOne(id);
-      setWorkOrder(response.data);
-      setFormData(prev => ({ ...prev, status: response.data.status }));
-      signalDataChanged();
-
+      await reloadWorkOrder();
     } catch (error) {
-      console.error('Greška pri vraćanju radnog naloga:', error);
-      toast.error('Neuspešno vraćanje radnog naloga!');
-    } finally {
-      setVerifying(false);
+      console.error('Greška pri osvežavanju radnog naloga:', error);
+    }
+  };
+
+  // Posle evidentirane reklamacije
+  const handleComplaintFiled = async () => {
+    setShowComplaintModal(false);
+    try {
+      await reloadWorkOrder();
+    } catch (error) {
+      console.error('Greška pri osvežavanju radnog naloga:', error);
     }
   };
 
@@ -591,30 +599,18 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     }
   };
 
-  // Reject AI recommendation (return to technician)
-  const handleRejectAI = async () => {
+  // Reject AI recommendation (return to technician) — ista potvrda sa umanjenjem kao ručno vraćanje
+  const handleRejectAI = () => {
     if (!aiVerificationResult) return;
 
-    try {
-      const orderId = aiVerificationResult.orderId;
-
-      await api.put(`/api/workorders/${orderId}/return-incorrect`, {
-        adminComment: `AI VERIFIKACIJA:\n\n${aiVerificationResult.reason}`
-      });
-
-      toast.info('Radni nalog je vraćen tehničaru');
-
-      const response = await workOrdersAPI.getOne(id);
-      setWorkOrder(response.data);
-      setFormData(prev => ({ ...prev, status: response.data.status }));
-
-      setShowAIModal(false);
-      setAIVerificationResult(null);
-
-    } catch (error) {
-      console.error('Error rejecting AI recommendation:', error);
-      toast.error('Greška pri vraćanju radnog naloga');
-    }
+    const reason = aiVerificationResult.reason;
+    setShowAIModal(false);
+    setAIVerificationResult(null);
+    setReturnModal({
+      isOpen: true,
+      initialComment: `AI VERIFIKACIJA:\n\n${reason}`,
+      source: 'ai'
+    });
   };
 
   // Funkcija za generisanje PDF-a
@@ -989,6 +985,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   }
 
   const statusConfig = getStatusConfig(formData.status);
+  const penaltyInfo = getPenaltyInfo(workOrder);
+  const hasAssignedTechnician = !!(workOrder?.technicianId || workOrder?.technician2Id);
   const techName = technicians.find(t => t._id === formData.technicianId)?.name;
   const tech2Name = technicians.find(t => t._id === formData.technician2Id)?.name;
 
@@ -1416,6 +1414,12 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                   Slike
                   <span className="text-xs bg-slate-100 text-slate-500 px-2 rounded-full ml-0.5">{images.length}</span>
                 </p>
+                {workOrder?.missingPhotosComment && (
+                  <div className="mb-3 border-l-2 border-amber-400 bg-amber-50/70 rounded-r px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold mb-0.5">Razlog za nedostajuće slike</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{workOrder.missingPhotosComment}</p>
+                  </div>
+                )}
                 {images.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-4">Nema slika</p>
                 ) : (
@@ -1700,6 +1704,125 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
               </div>
             )}
 
+            {/* Vraćanja naloga na ispravku i umanjenje zarade */}
+            {workOrder?.rejectionHistory && workOrder.rejectionHistory.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs uppercase tracking-wider text-rose-500 font-medium flex items-center gap-1.5">
+                    <AlertIcon size={13} className="text-rose-500" />
+                    Vraćanja naloga
+                  </p>
+                  <span className={cn(
+                    "text-[11px] font-semibold px-2 py-0.5 rounded-full",
+                    penaltyInfo.current > 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
+                  )}>
+                    Trenutni minus: {penaltyInfo.current}%
+                  </span>
+                </div>
+                <div className="space-y-2.5 max-h-72 overflow-y-auto">
+                  {[...workOrder.rejectionHistory].reverse().map((rejection, index) => {
+                    const cycleNumber = rejection.cycle || 0;
+                    const numberInCycle = workOrder.rejectionHistory
+                      .filter(r => (r.cycle || 0) === cycleNumber)
+                      .findIndex(r => r._id === rejection._id) + 1;
+                    const isOldCycle = cycleNumber !== (workOrder.penaltyCycle || 0);
+                    return (
+                      <div key={rejection._id || index} className={cn(
+                        "rounded-lg p-3.5 border",
+                        isOldCycle ? "bg-slate-50 border-slate-200 opacity-80" : "bg-rose-50 border-rose-100/80"
+                      )}>
+                        <div className="flex items-center justify-between mb-1.5 gap-2">
+                          <span className="text-xs font-mono text-rose-700">
+                            {new Date(rejection.rejectedAt).toLocaleString('sr-RS')}
+                          </span>
+                          <span className={cn(
+                            "text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide",
+                            rejection.penaltyApplied ? "bg-rose-200/70 text-rose-800" : "bg-slate-200 text-slate-600"
+                          )}>
+                            Vraćanje #{numberInCycle} · {rejection.penaltyApplied ? `minus ${rejection.penaltyPercentAfter}%` : 'bez umanjenja'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{rejection.comment}</p>
+                        <p className="text-[11px] text-slate-500 mt-1.5">
+                          {rejection.rejectedByName || 'Admin'}
+                          {rejection.source === 'ai' && ' · AI verifikacija'}
+                          {rejection.technicianNames?.length > 0 && ` · ${rejection.technicianNames.join(', ')}`}
+                          {isOldCycle && ' · pre reklamacije'}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Reklamacije */}
+            {workOrder?.complaints && workOrder.complaints.length > 0 && (
+              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
+                <p className="text-xs uppercase tracking-wider text-red-600 font-medium mb-3 flex items-center gap-1.5">
+                  <AlertIcon size={13} className="text-red-600" />
+                  Reklamacije
+                </p>
+                <div className="space-y-2.5 max-h-80 overflow-y-auto">
+                  {[...workOrder.complaints].reverse().map((complaint, index) => (
+                    <div key={complaint._id || index} className="bg-red-50 rounded-lg p-3.5 border border-red-100/80">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <span className="text-xs font-mono text-red-700">
+                          {new Date(complaint.createdAt).toLocaleString('sr-RS')}
+                        </span>
+                        <span className="text-[10px] bg-red-200/70 text-red-800 px-2 py-0.5 rounded font-semibold uppercase tracking-wide">
+                          {complaint.createdByName || 'Admin'}
+                        </span>
+                      </div>
+                      {complaint.reason && (
+                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap mb-2">{complaint.reason}</p>
+                      )}
+                      <div className="space-y-1 text-xs text-slate-600">
+                        {complaint.removedTechnicians?.map((t, i) => (
+                          <div key={i}>
+                            <p>
+                              <span className="font-semibold text-slate-800">Sklonjen: {t.name}</span>
+                              {t.deductionAmount > 0
+                                ? <span className="text-red-700 font-semibold"> · ukupan odbitak {formatRsd(t.deductionAmount)}</span>
+                                : <span className="text-amber-700"> · bez odbitka</span>}
+                            </p>
+                            {t.orderDeductionAmount > 0 && (
+                              <p className="text-[11px] text-slate-600 pl-2">Ovaj nalog se ne plaća: -{formatRsd(t.orderDeductionAmount)}</p>
+                            )}
+                            {t.extraDeductionKind === 'complaint_extra' && t.extraDeductionAmount > 0 && (
+                              <p className="text-[11px] text-slate-600 pl-2">
+                                Skinut i poslednji nalog iste kategorije: <span className="font-semibold">{t.extraTisJobId || t.extraTisId}</span>
+                                {t.extraAddress && ` · ${t.extraAddress}`}: -{formatRsd(t.extraDeductionAmount)}
+                              </p>
+                            )}
+                            {t.extraDeductionKind === 'complaint_extra_fallback' && t.extraDeductionAmount > 0 && (
+                              <p className="text-[11px] text-slate-600 pl-2">
+                                Dodatni odbitak (nema drugog naloga iste kategorije): -{formatRsd(t.extraDeductionAmount)}
+                              </p>
+                            )}
+                            {!t.extraDeductionKind && t.note && <p className="text-[11px] text-slate-500">{t.note}</p>}
+                          </div>
+                        ))}
+                        <p>
+                          <span className="font-semibold text-slate-800">Ispravlja: {complaint.newTechnicianName}</span>
+                          {complaint.fixDate && (
+                            <span> · termin {new Date(complaint.fixDate).toLocaleDateString('sr-RS')} {complaint.fixTime || ''}</span>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {complaint.fixStatus === 'paid' && `Ispravka plaćena: ${formatRsd(complaint.fixAmount)}`}
+                          {complaint.fixStatus === 'pending' && 'Isplata za ispravku čeka verifikaciju naloga'}
+                          {complaint.fixStatus === 'included' && 'Ispravka ulazi u redovan obračun naloga pri verifikaciji'}
+                          {complaint.fixStatus === 'not_applicable' && (complaint.fixNote || 'Isplata za ispravku nije kreirana')}
+                          {complaint.fixStatus === 'paid' && complaint.fixNote && ` · ${complaint.fixNote}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Postpone History */}
             {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (
               <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
@@ -1803,6 +1926,15 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
               <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 flex-shrink-0">
                 <CheckCircleIcon size={14} />
                 <span className="hidden sm:inline">Verifikovan</span>
+              </span>
+            )}
+
+            {penaltyInfo.current > 0 && (
+              <span
+                className="text-xs bg-rose-100 text-rose-700 px-3 py-2 rounded-lg font-semibold flex-shrink-0"
+                title={`Nalog vraćen ${penaltyInfo.rejectionsInCycle} ${penaltyInfo.rejectionsInCycle === 1 ? 'put' : 'puta'} — umanjenje zarade tehničaru`}
+              >
+                Minus {penaltyInfo.current}%
               </span>
             )}
 
@@ -1928,7 +2060,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                   <span className="hidden lg:inline">{verifying ? 'Verifikuje...' : 'Verifikuj'}</span>
                 </button>
                 <button
-                  onClick={() => setShowReturnModal(true)}
+                  onClick={() => setReturnModal({ isOpen: true, initialComment: '', source: 'manual' })}
                   disabled={verifying}
                   className="px-3 py-2 text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
                   title="Vrati nalog"
@@ -1951,6 +2083,19 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                 </button>
                 <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
               </>
+            )}
+
+            {/* Reklamacija — dostupna na svakom nalogu koji ima tehničara */}
+            {hasAssignedTechnician && (
+              <button
+                onClick={() => setShowComplaintModal(true)}
+                disabled={saving}
+                className="px-3 py-2 text-sm text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+                title="Reklamacija — dodeli nalog drugom tehničaru"
+              >
+                <UserCheckIcon size={16} />
+                <span className="hidden sm:inline">Reklamacija</span>
+              </button>
             )}
 
             {/* PDF */}
@@ -2181,64 +2326,25 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         </div>
       )}
 
-      {/* Return Work Order Modal */}
-      {showReturnModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <div className="p-6 border-b border-slate-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Vraćanje radnog naloga</h3>
-                <button
-                  onClick={() => {
-                    setShowReturnModal(false);
-                    setAdminComment('');
-                  }}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <XIcon size={20} className="text-slate-400" />
-                </button>
-              </div>
-              <p className="text-sm text-slate-600 mt-2">
-                Unesite razlog vraćanja radnog naloga tehničaru
-              </p>
-            </div>
+      {/* Return Work Order Modal — potvrda sa checkbox-om za umanjenje zarade */}
+      <ReturnWorkOrderModal
+        isOpen={returnModal.isOpen}
+        workOrderId={workOrder?._id}
+        workOrder={workOrder}
+        initialComment={returnModal.initialComment}
+        source={returnModal.source}
+        onClose={() => setReturnModal({ isOpen: false, initialComment: '', source: 'manual' })}
+        onReturned={handleReturned}
+      />
 
-            <div className="p-6">
-              <textarea
-                value={adminComment}
-                onChange={(e) => setAdminComment(e.target.value)}
-                placeholder="Razlog vraćanja radnog naloga..."
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                rows={4}
-              />
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex space-x-3">
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={() => {
-                  setShowReturnModal(false);
-                  setAdminComment('');
-                }}
-                className="flex-1"
-                disabled={verifying}
-              >
-                Odustani
-              </Button>
-              <Button
-                type="primary"
-                size="medium"
-                onClick={handleReturnIncorrect}
-                className="flex-1"
-                disabled={verifying || !adminComment.trim()}
-              >
-                {verifying ? 'Vraćanje...' : 'Vrati nalog'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reklamacija — sklanjanje tehničara i dodela ispravke drugom tehničaru */}
+      <ComplaintModal
+        isOpen={showComplaintModal}
+        workOrder={workOrder}
+        technicians={technicians}
+        onClose={() => setShowComplaintModal(false)}
+        onFiled={handleComplaintFiled}
+      />
 
       {/* Customer Status Modal */}
       {customerStatusModal.isOpen && (

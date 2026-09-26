@@ -1094,7 +1094,10 @@ const Finances = () => {
                               {tech.totalEarnings.toLocaleString()} RSD
                             </div>
                             <div className="text-xs text-slate-500">
-                              Prosek: {Math.round(tech.totalEarnings / tech.workOrdersCount).toLocaleString()} RSD
+                              {/* Tehničar može u periodu imati samo odbitak za reklamaciju (0 naloga) */}
+                              Prosek: {tech.workOrdersCount > 0
+                                ? `${Math.round(tech.totalEarnings / tech.workOrdersCount).toLocaleString()} RSD`
+                                : '—'}
                             </div>
                           </>
                         )}
@@ -1326,6 +1329,27 @@ const Finances = () => {
                             {visibleColumns.tisJobId && (
                               <td className="px-6 py-4 text-sm font-medium text-slate-900">
                                 {transaction.workOrderId?.tisJobId || transaction.tisJobId || '-'}
+                                {transaction.entryType === 'complaint_deduction' && (
+                                  <span className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-red-700 bg-red-100 px-1.5 py-0.5 rounded w-fit">
+                                    {transaction.deductionKind === 'complaint_order'
+                                      ? 'Reklamacija — ne plaća se'
+                                      : transaction.deductionKind === 'complaint_extra'
+                                        ? `Skinut zbog reklamacije ${transaction.relatedTisJobId || transaction.relatedTisId || ''}`
+                                        : transaction.deductionKind === 'complaint_extra_fallback'
+                                          ? 'Reklamacija — dodatni odbitak'
+                                          : 'Reklamacija — odbitak'}
+                                  </span>
+                                )}
+                                {transaction.entryType === 'complaint_fix' && (
+                                  <span className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded w-fit">
+                                    Ispravka po reklamaciji
+                                  </span>
+                                )}
+                                {transaction.rejectionPenaltyPercent > 0 && (
+                                  <span className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded w-fit">
+                                    Vraćan · minus {transaction.rejectionPenaltyPercent}%
+                                  </span>
+                                )}
                               </td>
                             )}
                             {visibleColumns.municipality && (
@@ -1352,8 +1376,16 @@ const Finances = () => {
                                           <span className="font-medium text-slate-900 truncate" title={tech.name || tech.technicianId?.name}>
                                             {tech.name || tech.technicianId?.name || 'Unknown'}
                                           </span>
-                                          <span className="text-xs text-green-700 font-mono ml-2">
+                                          <span className={`text-xs font-mono ml-2 ${tech.earnings < 0 ? 'text-red-700' : 'text-green-700'}`}>
                                             {formatCurrency(tech.earnings)}
+                                            {tech.penaltyPercent > 0 && (
+                                              <span
+                                                className="ml-1 text-rose-700 font-semibold"
+                                                title={`Umanjeno ${tech.penaltyPercent}% (${formatCurrency(tech.penaltyAmount || 0)}) zbog vraćanja naloga`}
+                                              >
+                                                (-{tech.penaltyPercent}%)
+                                              </span>
+                                            )}
                                           </span>
                                         </div>
                                       ))}
