@@ -29,6 +29,16 @@ export const getPenaltyInfo = (workOrder) => {
   };
 };
 
+// Minus koji superadmin može ručno da postavi (samo koraci od 10%, 100% = nalog se ne plaća)
+export const PENALTY_OPTIONS = [0, 10, 20, 30, 40, 50, 100];
+
+// Iznos posle minusa (isto zaokruživanje kao backend applyPenalty)
+export const applyPenaltyPercent = (gross, percent) => {
+  const p = Math.min(Math.max(Number(percent) || 0, 0), 100);
+  const g = Math.round((Number(gross) || 0) * 100) / 100;
+  return Math.round(g * (100 - p)) / 100;
+};
+
 export const formatRsd = (value) => {
   const amount = Math.round((Number(value) || 0) * 100) / 100;
   return `${amount.toLocaleString('sr-RS', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} RSD`;
