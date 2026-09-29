@@ -1,0 +1,249 @@
+/* =============================================================================
+   Objekti: lista (stanje sada + put pripreme + ljudi), put pripreme (6 tačaka na liniji:
+   kvadrat sređeno, trougao fali), forma objekta, detalj objekta (tagovi, plan obilaska, zadaci,
+   radnici, adrese za izveštaj), čarobnjak za NFC tag. Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+/* ---------- put pripreme ---------- */
+.sx-ready { display: grid; gap: 8px; min-width: 0; }
+.sx-ready__line { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; }
+.sx-ready__line::before { content: ''; position: absolute; left: calc(100% / 12); right: calc(100% / 12); top: 6px; height: 2px; margin-top: -1px; background: var(--sx-line-2); }
+.sx-ready.is-compact .sx-ready__line { max-width: 190px; }
+.sx-ready__step { position: relative; display: grid; justify-items: center; gap: 8px; min-width: 0; text-align: center; animation: sx-fade 160ms linear calc(120ms + var(--i) * 30ms) backwards; }
+.sx-ready__node { position: relative; z-index: 1; display: block; width: 12px; height: 12px; border-radius: 3px; background: var(--sx-btn-primary-bg); box-shadow: 0 0 0 3px var(--sx-surface); transition: transform var(--hover-out) var(--ease-move); }
+.sx-ready__step.is-miss .sx-ready__node { width: 14px; height: 12px; border-radius: 0; background: var(--sx-warn); box-shadow: none; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+button.sx-ready__node { cursor: pointer; }
+@media (hover: hover) and (pointer: fine) {
+  button.sx-ready__node:hover { transform: scale(1.35); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+.sx-ready__label { display: grid; gap: 1px; min-width: 0; padding: 0 4px; }
+.sx-ready__label b { font-size: 12.5px; font-weight: 650; color: var(--sx-text); }
+.sx-ready__label span { font-size: 12px; line-height: 1.3; color: var(--sx-muted); overflow-wrap: anywhere; }
+.sx-ready__step.is-miss .sx-ready__label span { color: var(--sx-warn-text); font-weight: 600; }
+.sx-ready__text { font-size: 12.5px; font-weight: 600; color: var(--sx-text-2); }
+.sx-ready__text.is-miss { color: var(--sx-warn-text); }
+/* detalj objekta: put pripreme je traka sa dugmadima (klik vodi u tab gde se sređuje) */
+.sx-readybar { margin-top: 22px; padding: 16px 12px 14px; }
+.sx-readybar .sx-ready__line::before { top: 7px; }
+.sx-readybar .sx-ready__step { cursor: pointer; }
+.sx-readybar .sx-ready__node { width: 14px; height: 14px; }
+.sx-readybar .sx-ready__step.is-miss .sx-ready__node { width: 16px; height: 14px; }
+
+/* ---------- lista objekata ---------- */
+.sx-facs__list { container: facs / inline-size; overflow: hidden; }
+.sx-facs__skel { display: grid; gap: 1px; overflow: hidden; background: var(--sx-line); }
+.sx-facrow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(180px, 1.25fr) minmax(190px, 1.25fr) minmax(210px, 1.1fr) minmax(130px, 0.75fr) 22px;
+  align-items: center;
+  gap: 14px 22px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--sx-line);
+  cursor: pointer;
+  transition: background-color var(--hover-out) var(--ease-move);
+  animation: sx-fade 180ms linear calc(min(var(--i, 0), 12) * 24ms) backwards, sx-row-in 320ms var(--ease-enter) calc(min(var(--i, 0), 12) * 24ms) backwards;
+}
+.sx-facrow:first-child { border-top: 0; }
+.sx-facrow:focus-visible { outline-offset: -3px; border-radius: var(--sx-radius-card); }
+.sx-facrow.is-archived { background: var(--sx-surface-2); }
+.sx-facrow.is-archived .sx-facrow__name { color: var(--sx-muted); }
+@media (hover: hover) and (pointer: fine) {
+  .sx-facrow:hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+  .sx-facrow:hover .sx-facrow__go { transform: translateX(3px); color: var(--sx-text); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+.sx-facrow__id { display: grid; gap: 3px; min-width: 0; }
+.sx-facrow__name { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 17px; letter-spacing: -0.012em; line-height: 1.2; color: var(--sx-text); overflow-wrap: anywhere; }
+.sx-facrow__sub { font-size: 12.5px; color: var(--sx-muted); }
+.sx-facrow__now, .sx-facrow__ready, .sx-facrow__people { display: grid; gap: 5px; min-width: 0; align-content: start; }
+.sx-facrow__now .sx-sign { font-weight: 600; color: var(--sx-text); white-space: normal; }
+.sx-facrow__now .sx-sign.is-bad { color: var(--sx-bad-text); }
+.sx-facrow__now .sx-sign.is-warn { color: var(--sx-warn-text); }
+.sx-facrow__nowsub { font-size: 12px; line-height: 1.35; color: var(--sx-muted); }
+.sx-facrow__pv { font-size: 13.5px; font-weight: 600; color: var(--sx-text); }
+.sx-facrow__go { color: var(--sx-faint); transition: transform var(--hover-out) var(--ease-move), color var(--hover-out) var(--ease-move); }
+.sx-facs__foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--sx-faint); }
+.sx-facs__foot .sx-led { transform: scale(0.8); }
+@container facs (max-width: 900px) {
+  .sx-facrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 22px; grid-template-areas: "id now go" "ready people go"; }
+  .sx-facrow__id { grid-area: id; }
+  .sx-facrow__now { grid-area: now; }
+  .sx-facrow__ready { grid-area: ready; }
+  .sx-facrow__people { grid-area: people; }
+  .sx-facrow__go { grid-area: go; }
+}
+@container facs (max-width: 540px) {
+  .sx-facrow { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "id go" "now now" "ready ready" "people people"; gap: 12px; padding: 16px; }
+}
+
+/* ---------- forma objekta ---------- */
+.sx-facform .sx-fieldset:first-child { padding-top: 0; }
+.sx-facform__foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+/* ---------- čarobnjak za NFC tag ---------- */
+.sx-mb { margin-bottom: 14px; }
+.sx-steps { position: relative; display: flex; gap: 0; margin: 2px 0 20px; }
+.sx-steps__item { position: relative; flex: 1 1 0; display: grid; justify-items: center; gap: 6px; min-width: 0; text-align: center; }
+.sx-steps__item + .sx-steps__item::before { content: ''; position: absolute; top: 12px; right: 50%; width: 100%; height: 2px; margin-top: -1px; background: var(--sx-line-2); z-index: 0; }
+.sx-steps__item.is-done + .sx-steps__item::before, .sx-steps__item.is-on::before { background: var(--sx-btn-primary-bg); }
+.sx-steps__node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sx-line-3);
+  background: var(--sx-surface);
+  font-family: var(--sx-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sx-muted);
+  transition: background-color var(--dur-3) linear, border-color var(--dur-3) linear, color var(--dur-3) linear;
+}
+.sx-steps__item.is-done .sx-steps__node { border-radius: 7px; border-color: var(--sx-btn-primary-bg); background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-steps__item.is-on .sx-steps__node { border: 2px solid var(--sx-accent); color: var(--sx-accent-text); box-shadow: 0 0 0 4px var(--sx-accent-soft); }
+.sx-steps__label { font-size: 12px; font-weight: 600; color: var(--sx-muted); }
+.sx-steps__item.is-on .sx-steps__label, .sx-steps__item.is-done .sx-steps__label { color: var(--sx-text); }
+.sx-wiz__body { animation: sx-fade 180ms linear both, sx-rise 360ms var(--ease-enter) both; }
+.sx-wiz__body > .sx-field + .sx-field { margin-top: 16px; }
+
+.sx-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 10px; }
+.sx-tile {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  text-align: left;
+  color: var(--sx-text);
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+.sx-tile b { margin-top: 6px; font-size: 14.5px; font-weight: 650; }
+.sx-tile > span:last-child { font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
+.sx-tile__icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--sx-surface-3); color: var(--sx-text); transition: background-color var(--dur-3) linear, color var(--dur-3) linear; }
+.sx-tile.is-on { border-color: var(--sx-btn-primary-bg); box-shadow: inset 0 0 0 1px var(--sx-btn-primary-bg); }
+.sx-tile.is-on .sx-tile__icon { background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-tile:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) {
+  .sx-tile:hover:not(.is-on):not(:disabled) { border-color: var(--sx-line-3); background: var(--sx-surface-2); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+
+/* očitavanje: ikonica sa talasima dok se čeka tag (samo transform i providnost) */
+.sx-scan { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 16px; padding: 16px; border-radius: 16px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.sx-scan__icon { position: relative; display: grid; place-items: center; width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%; background: var(--sx-surface); border: 1px solid var(--sx-line-2); color: var(--sx-text); }
+.sx-scan__icon i { position: absolute; inset: -1px; border-radius: 50%; border: 1.5px solid var(--sx-accent); opacity: 0; }
+.sx-scan.is-scanning .sx-scan__icon i { animation: sx-wave 1.6s var(--ease-enter) infinite; }
+.sx-scan.is-scanning .sx-scan__icon i + i { animation-delay: 0.8s; }
+@keyframes sx-wave { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.8); opacity: 0; } }
+.sx-scan.is-ok .sx-scan__icon { background: var(--sx-ok); border-color: var(--sx-ok); color: #fff; animation: sx-pop 300ms var(--ease-pop) both; }
+.sx-scan.is-err .sx-scan__icon { border-color: var(--sx-warn); }
+.sx-scan__text { flex: 1 1 240px; display: grid; gap: 3px; min-width: 0; }
+.sx-scan__text b { font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.sx-scan__text span { font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
+.sx-uidfield { position: relative; display: flex; align-items: center; }
+.sx-uidfield > svg { position: absolute; left: 14px; color: var(--sx-faint); pointer-events: none; }
+.sx-uidfield .sx-input { padding-left: 40px; }
+
+.sx-done { display: grid; justify-items: center; gap: 8px; padding: 12px 8px 6px; text-align: center; }
+.sx-done__icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--sx-ok); color: #fff; animation: sx-pop 320ms var(--ease-pop) both; }
+.sx-done b { margin-top: 6px; font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 18px; color: var(--sx-text); }
+.sx-done span { max-width: 52ch; font-size: 13.5px; line-height: 1.5; color: var(--sx-muted); }
+
+/* ---------- detalj objekta ---------- */
+.sx-fac__tabs { margin-top: 26px; }
+.sx-fac__body { animation: sx-fade 160ms linear both, sx-rise 360ms var(--ease-enter) both; }
+.sx-grow { flex: 1 1 auto; }
+.sx-ssec__lead.is-warn { color: var(--sx-warn-text); font-weight: 600; }
+.sx-bullets { display: grid; gap: 8px; }
+.sx-bullets li { position: relative; padding-left: 20px; font-size: 13.5px; line-height: 1.45; color: var(--sx-text-2); }
+.sx-bullets li::before { content: ''; position: absolute; left: 2px; top: 6px; width: 8px; height: 8px; border-radius: 2px; background: var(--sx-btn-primary-bg); }
+.sx-now { display: grid; gap: 6px; }
+.sx-now .sx-sign { font-size: 14.5px; font-weight: 650; color: var(--sx-text); white-space: normal; }
+.sx-now .sx-sign.is-bad { color: var(--sx-bad-text); }
+.sx-now .sx-sign.is-warn { color: var(--sx-warn-text); }
+.sx-now__sub { font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
+.sx-now__sub b { color: var(--sx-text); }
+.sx-now__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sx-now .sx-note { margin-top: 4px; }
+.sx-rulelist { display: grid; }
+.sx-rulelist__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 0; border-top: 1px solid var(--sx-line); }
+.sx-rulelist__row:first-child { border-top: 0; padding-top: 0; }
+.sx-rulelist__row > div { display: grid; gap: 2px; flex: 1 1 200px; min-width: 0; }
+.sx-rulelist__row b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.sx-rulelist__row span { font-size: 12.5px; line-height: 1.4; color: var(--sx-muted); }
+.sx-panel__foot .sx-inline { width: 100%; }
+
+/* traka iznad liste u tabu (pretraga, filter, glavna radnja) */
+.sx-tabbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.sx-tabbar .sx-search { flex: 0 1 320px; }
+.sx-tabbar__end { margin-left: auto; }
+@media (max-width: 767px) { .sx-tabbar .sx-search { flex: 1 1 100%; } .sx-tabbar__end { margin-left: 0; } }
+
+.sx-tagitem.is-retired .sx-item__main b { color: var(--sx-muted); }
+.sx-tagitem { animation: sx-fade 160ms linear calc(min(var(--i, 0), 12) * 18ms) backwards, sx-row-in 280ms var(--ease-enter) calc(min(var(--i, 0), 12) * 18ms) backwards; }
+
+/* ---------- plan obilaska ---------- */
+.sx-planline { position: relative; margin: 4px 0 14px; padding: 4px 2px 0; }
+.sx-planline__bar { position: relative; height: 26px; }
+.sx-planline__track { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; border-radius: 2px; background: var(--sx-line-2); }
+.sx-planline__node {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--sx-surface);
+  border: 2px solid var(--sx-btn-primary-bg);
+  animation: sx-pop 300ms var(--ease-pop) calc(120ms + var(--n, 0) * 20ms) backwards;
+}
+.sx-planline__node.is-bad { width: 14px; height: 12px; margin: -7px 0 0 -7px; border: 0; border-radius: 0; background: var(--sx-warn); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.sx-planline__hours { position: relative; height: 16px; margin-top: 4px; }
+.sx-planline__hours span { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--sx-font-mono); font-size: 10.5px; color: var(--sx-muted); }
+.sx-planline__hours span:first-child { transform: none; }
+.sx-planline__hours span:last-child { transform: translateX(-100%); }
+.sx-planrows { display: grid; gap: 6px; }
+.sx-planrow { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px; border-radius: 12px; transition: background-color var(--dur-2) linear; }
+.sx-planrow .sx-dt--time { max-width: none; }
+.sx-planrow .sx-select { width: 100%; }
+.sx-planrow.is-bad { background: color-mix(in oklab, var(--sx-warn) 8%, var(--sx-surface)); }
+.sx-planrow__why { grid-column: 1 / -1; padding: 0 6px 4px; font-size: 12px; font-weight: 600; color: var(--sx-warn-text); }
+@container page (max-width: 420px) { .sx-planrow { grid-template-columns: 104px minmax(0, 1fr) auto; } }
+
+.sx-genlist { display: grid; gap: 2px; max-height: 280px; overflow-y: auto; padding: 4px; border-radius: 14px; border: 1px solid var(--sx-line); }
+.sx-genrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 10px; }
+.sx-genrow.is-off .sx-genrow__name { color: var(--sx-muted); }
+.sx-genrow__name { min-width: 0; font-size: 13.5px; color: var(--sx-text); overflow-wrap: anywhere; }
+.sx-genrow__name b { margin-right: 8px; color: var(--sx-muted); }
+.sx-genrow__move { display: inline-flex; gap: 2px; }
+.sx-genpreview { margin-top: 16px; padding: 12px 14px 10px; border-radius: 14px; background: var(--sx-surface-2); border: 1px solid var(--sx-line); }
+.sx-genpreview .sx-planline { margin-bottom: 8px; }
+.sx-genpreview .sx-planline__node { background: var(--sx-surface-2); }
+
+/* ---------- zadaci ---------- */
+.sx-standlist { display: grid; gap: 8px; }
+.sx-standrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 10px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface); }
+.sx-standrow__move { display: grid; gap: 2px; }
+.sx-standrow__main { display: grid; gap: 10px; min-width: 0; }
+.sx-occ { grid-template-columns: 64px minmax(0, 1fr) auto; }
+.sx-occ__time { display: grid; gap: 1px; }
+.sx-occ__time b { font-size: 14px; color: var(--sx-text); }
+.sx-occ__time span { font-size: 11.5px; color: var(--sx-muted); }
+.sx-occ__time.is-late b { color: var(--sx-warn-text); }
+@container page (max-width: 520px) { .sx-occ { grid-template-columns: 56px minmax(0, 1fr); } }
+
+/* put pripreme na uskom prostoru: dve kolone, znak levo od natpisa (bez linije) */
+@container page (max-width: 640px) {
+  .sx-readybar { padding: 14px 16px; }
+  .sx-readybar .sx-ready__line { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+  .sx-readybar .sx-ready__line::before { display: none; }
+  .sx-readybar .sx-ready__step { grid-template-columns: 16px minmax(0, 1fr); justify-items: start; align-items: start; gap: 10px; text-align: left; }
+  .sx-readybar .sx-ready__node { margin-top: 3px; }
+  .sx-readybar .sx-ready__label { padding: 0; }
+}

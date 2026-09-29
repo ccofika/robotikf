@@ -1,0 +1,61 @@
+/* =============================================================================
+   Detalj smene (fioka) i tok smene na liniji (ShiftLine), niz događaja sa vremenom.
+   Linija je svetla verzija reda sa table obilazaka: isti znakovi (sx-node), druge boje podloge.
+   Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+.sx-sheet__when { display: inline-flex; align-items: center; gap: 6px; color: var(--sx-text-2); }
+.sx-ssec__lead { margin-bottom: 12px; font-size: 13px; line-height: 1.5; color: var(--sx-muted); }
+.sx-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sx-inline > .sx-select, .sx-inline > .sx-input { flex: 1 1 220px; width: auto; }
+.sx-mt { margin-top: 12px; }
+.sx-warn-inline { font-weight: 600; color: var(--sx-warn-text); }
+
+/* ---------- tok smene ---------- */
+.sx-sline {
+  --row-bg: var(--sx-surface);
+  --sx-board-node: var(--sx-line-3);
+  --sx-board-now: var(--sx-accent);
+  position: relative;
+  padding: 6px 2px 0;
+}
+.sx-sline__bar { position: relative; height: 34px; }
+.sx-sline__track { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: repeating-linear-gradient(90deg, var(--sx-line-3) 0 3px, transparent 3px 8px); }
+.sx-sline__duty { position: absolute; top: 50%; height: 3px; margin-top: -1.5px; border-radius: 3px; background: var(--sx-text); transform-origin: left center; animation: sx-draw-x 900ms var(--ease-enter) 120ms backwards; }
+.sx-sline__late { position: absolute; top: 50%; height: 2px; margin-top: -1px; background: repeating-linear-gradient(90deg, var(--sx-warn) 0 4px, transparent 4px 7px); }
+.sx-sline__notin { position: absolute; top: 50%; height: 3px; margin-top: -1.5px; background: repeating-linear-gradient(90deg, var(--sx-bad) 0 5px, transparent 5px 9px); }
+.sx-sline__mark { position: absolute; top: 50%; width: 2px; height: 18px; margin: -9px 0 0 -1px; border-radius: 2px; background: var(--sx-text); }
+.sx-sline__mark.is-out { height: 12px; margin-top: -6px; background: var(--sx-text-2); }
+.sx-sline__task { position: absolute; top: calc(50% + 9px); width: 8px; height: 8px; margin-left: -4px; border-radius: 2px; transform: rotate(45deg); border: 1.5px solid var(--sx-accent); background: var(--sx-surface); }
+.sx-sline__task.is-done { background: var(--sx-ok); border-color: var(--sx-ok); }
+.sx-sline__task.is-off { border-color: var(--sx-line-3); }
+.sx-sline__now { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--sx-accent); }
+.sx-sline__hours { position: relative; height: 18px; margin-top: 6px; }
+.sx-sline__hours span { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--sx-font-mono); font-size: 10.5px; color: var(--sx-muted); }
+.sx-sline__hours span:first-child { transform: none; }
+.sx-sline__hours span:last-child { transform: translateX(-100%); }
+.sx-sline .sx-node { animation-delay: calc(200ms + var(--n, 0) * 30ms); }
+
+/* ---------- niz događaja sa vremenom ---------- */
+.sx-events { display: grid; }
+.sx-event {
+  display: grid;
+  grid-template-columns: 46px 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--sx-line);
+  animation: sx-fade 160ms linear calc(min(var(--i, 0), 12) * 18ms) backwards, sx-row-in 280ms var(--ease-enter) calc(min(var(--i, 0), 12) * 18ms) backwards;
+}
+.sx-event:first-child { border-top: 0; padding-top: 2px; }
+.sx-event > time { padding-top: 1px; font-size: 12.5px; font-weight: 600; color: var(--sx-text); }
+.sx-event > .sx-led { margin-top: 5px; justify-self: center; }
+.sx-event__body { display: grid; gap: 2px; min-width: 0; }
+.sx-event__body b { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.sx-event__body > span { font-size: 12.5px; line-height: 1.45; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.sx-event__quote { color: var(--sx-muted) !important; font-style: italic; }
+.sx-event__flags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.sx-thumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; color: var(--sx-muted); }
+.sx-thumbs a { display: block; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; border: 1px solid var(--sx-line); }
+.sx-thumbs img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) { .sx-thumbs a:hover img { transform: scale(1.06); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); } }

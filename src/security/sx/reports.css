@@ -1,0 +1,66 @@
+/* =============================================================================
+   Izveštaji: tabela smena (obilazak kao traka, slanje i kontrola kao znak + tekst) i izveštaj
+   kao papirni Dnevnik rada (blokovi sa natpisom u tri kolone, događaji sa vremenom), mejl i kontrola.
+   Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+.sx-rep__range { display: inline-flex; align-items: center; gap: 8px; }
+.sx-rep__range .sx-dt { width: 150px; }
+.sx-rep__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: -4px 0 16px; }
+.sx-rep__shift { grid-template-columns: 26px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.sx-rep__shift .sx-rep__icon { grid-row: span 2; }
+.sx-rep__shift b, .sx-rep__shift span { white-space: nowrap; }
+.sx-rep__icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--sx-line-2); background: var(--sx-surface); color: var(--sx-text); }
+.sx-rep__icon.is-night { background: var(--sx-btn-primary-bg); border-color: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-rep__auth { margin-left: 8px; vertical-align: 1px; }
+.sx-rep__prog { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sx-rep__bar { position: relative; width: 64px; height: 6px; border-radius: 6px; background: var(--sx-surface-3); overflow: hidden; }
+.sx-rep__bar i { position: absolute; inset: 0; border-radius: 6px; background: var(--sx-ok); transform-origin: left center; transition: transform 700ms var(--ease-enter); }
+.sx-rep__bar.is-warn i { background: var(--sx-warn); }
+.sx-rep__bar.is-bad i { background: var(--sx-bad); }
+.sx-rep__send { display: inline-grid; gap: 2px; }
+.sx-rep__send small { max-width: 200px; font-size: 11.5px; color: var(--sx-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--sx-line); }
+@media (max-width: 767px) { .sx-rep__range { width: 100%; } .sx-rep__range .sx-dt { flex: 1 1 0; width: auto; max-width: none; } }
+
+/* ---------- izveštaj u dijalogu ---------- */
+.sx-repmodal__tabs { margin: -4px -22px 0; padding: 0 12px; }
+.sx-doc { display: grid; border-radius: 16px; border: 1px solid var(--sx-line-2); background: var(--sx-surface); overflow: hidden; }
+.sx-doc__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; padding: 18px 20px; border-bottom: 2px solid var(--sx-text); }
+.sx-doc__title { margin-top: 8px; font-family: var(--sx-font-display); font-weight: 690; font-stretch: 116%; font-size: 22px; letter-spacing: -0.015em; color: var(--sx-text); }
+.sx-doc__addr { display: block; margin-top: 2px; font-size: 13px; color: var(--sx-muted); }
+.sx-doc__tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.sx-doc__sec { display: grid; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--sx-line); }
+.sx-doc__head + .sx-doc__sec { border-top: 0; }
+.sx-doc__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; }
+@container page (max-width: 640px) { .sx-doc__grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .sx-doc__grid { grid-template-columns: minmax(0, 1fr); } }
+.sx-doc__cell { display: grid; gap: 3px; min-width: 0; }
+.sx-doc__cell b { font-size: 14px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.sx-doc__cell > span:not(.sx-label) { font-size: 12.5px; line-height: 1.45; color: var(--sx-muted); overflow-wrap: anywhere; }
+.sx-doc__events { display: grid; }
+.sx-doc__ev { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px dashed var(--sx-line-2); font-size: 13px; line-height: 1.45; color: var(--sx-text-2); }
+.sx-doc__ev:first-child { border-top: 0; }
+.sx-doc__ev time { font-weight: 600; color: var(--sx-text); }
+.sx-doc__ev em { margin-left: 8px; padding: 1px 6px; border-radius: 5px; background: var(--sx-surface-3); font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--sx-muted); }
+.sx-doc__ev.is-alarm em { background: color-mix(in oklab, var(--sx-bad) 12%, var(--sx-surface)); color: var(--sx-bad-text); }
+.sx-doc__auth { display: grid; gap: 3px; padding: 8px 0; font-size: 13px; line-height: 1.45; color: var(--sx-text-2); }
+.sx-doc__auth b { font-weight: 650; color: var(--sx-text); }
+
+.sx-mail { border-radius: 16px; border: 1px solid var(--sx-line-2); overflow: hidden; }
+.sx-mail__head { display: grid; gap: 6px; padding: 14px 16px; background: var(--sx-surface-2); border-bottom: 1px solid var(--sx-line); font-size: 13px; color: var(--sx-text-2); }
+.sx-mail__head span { display: inline-block; width: 64px; color: var(--sx-muted); }
+.sx-mail__head em { font-style: normal; color: var(--sx-warn-text); font-weight: 600; }
+.sx-mail__body { padding: 16px; font-size: 13.5px; line-height: 1.6; color: var(--sx-text-2); }
+
+/* ---------- satnica ---------- */
+.sx-pay__month { min-width: 150px; text-transform: capitalize; }
+.sx-pay__bad { color: var(--sx-bad-text); font-weight: 700; }
+.sx-pay__warn { color: var(--sx-warn-text); font-weight: 700; }
+.sx-table td.sx-pay__total { font-weight: 700; color: var(--sx-text); }
+.sx-ratecell { display: inline-flex; justify-content: flex-end; }
+.sx-ratecell .sx-numfield { height: 32px; }
+.sx-ratecell .sx-numfield.is-default .sx-numfield__in { font-weight: 500; }
+.sx-pay .sx-table td, .sx-pay .sx-table th { padding-left: 10px; padding-right: 10px; }
+.sx-pay .sx-table td:first-child, .sx-pay .sx-table th:first-child { padding-left: 20px; }
+.sx-pay .sx-table td:last-child, .sx-pay .sx-table th:last-child { padding-right: 20px; }

@@ -3,5 +3,10 @@
     "env": {
       "CI": "false"
     }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "feature/security-module": false
+    }
   }
 }

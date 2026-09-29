@@ -1,0 +1,430 @@
+/* =============================================================================
+   Robotik Security - dizajn sistem (postupak iz veštine awwwards-research-robotik-design-skill)
+
+   Motiv: OBILAZAK. Smena je linija, kontrolne tačke su čvorovi na njoj. Očitana tačka je pun
+          "otisak", tačka koja tek dolazi je prsten, propuštena tačka prekida liniju.
+   Boje:  SAMO semantički tokeni (--sx-*). Vrednosti su u tokens.css (paleta "Papir i tuš");
+          nijedna komponenta nema upisanu boju.
+   Znaci: lampica stanja i kontrolna tačka imaju oblik po ISO 3864 (kvadrat u redu, trougao
+          upozorenje, osmougao alarm, krug informacija i "sledeće", crtica bez stanja), pa se
+          stanje razlikuje i bez boje (daltonizam, crno-beli PDF).
+   Fontovi: Roboto Flex (osa širine: široki naslovi, uske velike brojke), Golos Text (tekst i
+          natpisi), Geist Mono (vreme, UID taga, brojači). Sva tri imaju ćirilicu.
+   Sve klase imaju prefiks sx- (ostatak aplikacije ima globalni CSS).
+   ============================================================================= */
+
+.sx, .sx-portal {
+  /* kretanje: iste vrednosti kao motion.jsx (izmerene na referentnim sajtovima, skraćene za alat) */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-move: cubic-bezier(0.7, 0, 0.3, 1);
+  --ease-exit: cubic-bezier(0.36, 0, 0.66, 0);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-dome: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-quint: cubic-bezier(0.86, 0, 0.07, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 300ms;
+  --dur-4: 450ms;
+  --dur-5: 700ms;
+  --hover-in: 280ms;
+  --hover-out: 420ms;
+
+  --sx-font-display: "Roboto Flex Variable", "Roboto Flex", ui-sans-serif, system-ui, sans-serif;
+  --sx-font-ui: "Golos Text Variable", "Golos Text", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sx-font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --sx-radius-card: 18px;
+  --sx-radius-field: 12px;
+
+  color: var(--sx-text);
+  font-family: var(--sx-font-ui);
+  font-size: 14.5px;
+  line-height: 1.5;
+  font-feature-settings: "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: left;
+}
+
+/* ---------- osnova (samo unutar Security dela) ---------- */
+.sx *, .sx *::before, .sx *::after,
+.sx-portal *, .sx-portal *::before, .sx-portal *::after { box-sizing: border-box; }
+:is(.sx, .sx-portal) :where(h1, h2, h3, h4, h5, p, figure, blockquote, dl, dd) { margin: 0; }
+:is(.sx, .sx-portal) :where(ul, ol) { margin: 0; padding: 0; list-style: none; }
+:is(.sx, .sx-portal) :where(button) { font: inherit; color: inherit; letter-spacing: inherit; background: none; border: 0 solid transparent; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
+:is(.sx, .sx-portal) :where(input, select, textarea) { font: inherit; color: inherit; letter-spacing: inherit; }
+:is(.sx, .sx-portal) :where(a) { color: inherit; text-decoration: none; }
+/* Tailwind preflight daje svg display:block, pa ikonica u rečenici prelazi u novi red */
+:is(.sx, .sx-portal) :where(svg) { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+:is(.sx, .sx-portal) :where(td, th, time, .sx-num) { font-variant-numeric: tabular-nums; }
+:is(.sx, .sx-portal) ::selection { background: var(--sx-selection); }
+:is(.sx, .sx-portal) :focus-visible { outline: 2px solid var(--sx-accent); outline-offset: 2px; }
+:is(.sx, .sx-portal) :is(input, textarea, select):focus-visible { outline: none; }
+.sx * { scrollbar-width: thin; scrollbar-color: var(--sx-scroll) transparent; }
+
+/* Montaža ima fade na .app i drugu pozadinu tela; dok je Security otvoren, to se ne vidi */
+.app:has(> .sx-app) { animation: none; }
+body:has(.sx-app) { background: var(--sx-bg); }
+
+/* ---------- tipografija ---------- */
+.sx-title {
+  font-family: var(--sx-font-display);
+  font-weight: 720;
+  font-stretch: 128%;
+  letter-spacing: -0.028em;
+  line-height: 0.98;
+  color: var(--sx-text);
+}
+.sx-num {
+  font-family: var(--sx-font-display);
+  font-weight: 650;
+  font-stretch: 62%;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.sx-mono {
+  font-family: var(--sx-font-mono);
+  font-size: 0.9em;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+/* natpis (kolona, brojka, grupa): tekstualni font, verzal, blago razmaknut */
+.sx-label {
+  font-family: var(--sx-font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--sx-muted);
+}
+.sx-muted { color: var(--sx-muted); }
+
+/* natpis iznad naslova: trasa sa kontrolnom tačkom (motiv), pa mesto u aplikaciji */
+.sx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sx-font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sx-muted);
+}
+.sx-eyebrow::before {
+  content: '';
+  width: 22px;
+  height: 8px;
+  flex-shrink: 0;
+  background:
+    radial-gradient(circle at calc(100% - 4px) 50%, var(--sx-accent) 0 3px, transparent 3.5px),
+    linear-gradient(var(--sx-accent), var(--sx-accent)) 0 50% / calc(100% - 8px) 2px no-repeat;
+}
+
+/* ---------- lampica stanja: znak po ISO 3864 ---------- */
+.sx-led {
+  --c: var(--sx-idle);
+  position: relative;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--c);
+}
+.sx-led[data-tone="ok"] { --c: var(--sx-ok); width: 9px; height: 9px; border-radius: 2.5px; }
+.sx-led[data-tone="warn"] { --c: var(--sx-warn); width: 11px; height: 10px; border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.sx-led[data-tone="bad"] { --c: var(--sx-bad); width: 11px; height: 11px; border-radius: 0; clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+.sx-led[data-tone="info"] { --c: var(--sx-info); }
+.sx-led[data-tone="idle"] { --c: var(--sx-idle); width: 10px; height: 3px; border-radius: 2px; }
+.sx-led--lg { width: 12px; height: 12px; }
+.sx-led--lg[data-tone="ok"] { width: 12px; height: 12px; border-radius: 3px; }
+.sx-led--lg[data-tone="warn"] { width: 15px; height: 13px; }
+.sx-led--lg[data-tone="bad"] { width: 14px; height: 14px; }
+/* "živa" lampica: krug i kvadrat dobijaju prsten koji se širi i nestaje (samo transform i opacity);
+   trougao i osmougao su isečeni (clip-path), pa pulsira sam znak */
+.sx-led[data-live="true"]::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c);
+  opacity: 0;
+  animation: sx-led-ring 2.4s var(--ease-enter) infinite;
+}
+.sx-led[data-tone="ok"][data-live="true"]::after { border-radius: 5px; }
+.sx-led[data-tone="warn"][data-live="true"]::after,
+.sx-led[data-tone="bad"][data-live="true"]::after { display: none; }
+.sx-led[data-tone="warn"][data-live="true"],
+.sx-led[data-tone="bad"][data-live="true"] { animation: sx-sign-pulse 1.6s ease-in-out infinite; }
+@keyframes sx-led-ring {
+  0% { transform: scale(0.7); opacity: 0.7; }
+  70%, 100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes sx-sign-pulse { 50% { opacity: 0.45; } }
+
+/* stanje kao pilula: lampica + tekst */
+.sx-state {
+  --c: var(--sx-idle);
+  --t: var(--sx-text-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 11px 0 9px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--c) 12%, var(--sx-surface));
+  color: var(--t);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sx-state[data-tone="ok"] { --c: var(--sx-ok); --t: var(--sx-ok-text); }
+.sx-state[data-tone="warn"] { --c: var(--sx-warn); --t: var(--sx-warn-text); }
+.sx-state[data-tone="bad"] { --c: var(--sx-bad); --t: var(--sx-bad-text); }
+.sx-state[data-tone="info"] { --c: var(--sx-info); --t: var(--sx-info-text); }
+
+/* mala oznaka (flag očitavanja) */
+.sx-flag {
+  --c: var(--sx-idle);
+  --t: var(--sx-text-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in oklab, var(--c) 30%, var(--sx-surface));
+  background: color-mix(in oklab, var(--c) 8%, var(--sx-surface));
+  color: var(--t);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sx-flag svg { width: 12px; height: 12px; }
+.sx-flag[data-tone="warn"] { --c: var(--sx-warn); --t: var(--sx-warn-text); }
+.sx-flag[data-tone="bad"] { --c: var(--sx-bad); --t: var(--sx-bad-text); }
+.sx-flag[data-tone="info"] { --c: var(--sx-info); --t: var(--sx-info-text); }
+
+/* ---------- kartica ---------- */
+.sx-card {
+  position: relative;
+  background: var(--sx-surface);
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-radius-card);
+  box-shadow: var(--sx-shadow-card);
+}
+.sx-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 0;
+}
+.sx-card__title {
+  font-family: var(--sx-font-display);
+  font-weight: 660;
+  font-stretch: 112%;
+  font-size: 17px;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+  color: var(--sx-text);
+}
+.sx-card__sub { margin-top: 3px; font-size: 13px; color: var(--sx-muted); }
+.sx-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--sx-surface-3);
+  font-family: var(--sx-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sx-text-2);
+}
+
+/* ---------- dugmad: pilula sa "kupolom" (ulazi odozdo, izlazi kroz vrh) ---------- */
+.sx-btn {
+  --fill: var(--sx-btn-fill);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  color: var(--sx-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  isolation: isolate;
+  transition-property: color, border-color, background-color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+  cursor: pointer;
+  user-select: none;
+}
+.sx-btn svg { width: 16px; height: 16px; }
+.sx-btn--sm { height: 32px; padding: 0 12px; font-size: 12.5px; gap: 6px; }
+.sx-btn--sm svg { width: 14px; height: 14px; }
+.sx-btn--lg { height: 46px; padding: 0 22px; font-size: 14.5px; }
+.sx-btn--icon { width: 38px; padding: 0; }
+.sx-btn--sm.sx-btn--icon { width: 32px; }
+.sx-btn--primary { --fill: var(--sx-btn-primary-fill); background: var(--sx-btn-primary-bg); border-color: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-btn--danger { --fill: color-mix(in oklab, var(--sx-bad-strong) 82%, black); background: var(--sx-bad-strong); border-color: var(--sx-bad-strong); color: var(--sx-on-bad); }
+.sx-btn--ghost { --fill: var(--sx-surface-3); background: transparent; border-color: transparent; color: var(--sx-text-2); }
+.sx-btn--dark { --fill: var(--sx-rail-hover-strong); background: var(--sx-rail-hover); border-color: var(--sx-rail-line); color: var(--sx-rail-strong); }
+.sx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sx-btn__aside { font-weight: 500; font-size: 0.86em; color: var(--sx-muted); }
+.sx-btn--primary .sx-btn__aside, .sx-btn--danger .sx-btn__aside { color: inherit; opacity: 0.72; }
+.sx-btn.is-busy { color: transparent !important; }
+.sx-btn.is-busy::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--sx-muted);
+  border-right-color: transparent;
+  border-left-color: transparent;
+  animation: sx-spin 0.8s linear infinite;
+}
+.sx-btn--primary.is-busy::after { border-color: var(--sx-btn-primary-text); border-right-color: transparent; border-left-color: transparent; }
+.sx-btn--danger.is-busy::after { border-color: var(--sx-on-bad); border-right-color: transparent; border-left-color: transparent; }
+
+.sx-fill::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -25%;
+  top: -50%;
+  width: 150%;
+  height: 200%;
+  border-radius: 50%;
+  background: var(--fill);
+  transform: translate3d(0, 76%, 0);
+  pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .sx-fill:hover:not(:disabled)::before {
+    transform: translate3d(0, 0, 0);
+    transition: transform 320ms var(--ease-dome);
+  }
+  .sx-btn:hover:not(:disabled) { transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+  .sx-btn:not(.sx-btn--primary):not(.sx-btn--danger):not(.sx-btn--dark):not(.sx-btn--ghost):hover:not(:disabled) { border-color: var(--sx-line-3); }
+}
+.sx-fill:focus-visible::before { transform: translate3d(0, 0, 0); transition: transform 320ms var(--ease-dome); }
+.sx-fill.is-leaving::before { animation: sx-dome-leave 320ms var(--ease-dome) forwards; }
+@keyframes sx-dome-leave {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, -76%, 0); }
+}
+.sx-fill:active:not(:disabled) { transform: scale(0.97); transition: transform var(--dur-1); }
+
+/* na dodir: dugmad najmanje 40-44 px */
+@media (hover: none) {
+  .sx-btn { height: 44px; }
+  .sx-btn--sm { height: 40px; padding: 0 14px; }
+  .sx-btn--icon { width: 44px; }
+}
+
+/* ---------- ostalo ---------- */
+.sx-kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid var(--sx-line);
+  background: var(--sx-surface-2);
+  font-family: var(--sx-font-mono);
+  font-size: 10px;
+  color: var(--sx-muted);
+}
+.sx-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--sx-surface-3);
+  color: var(--sx-text-2);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.sx-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--sx-surface-3);
+}
+.sx-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--sx-shimmer), transparent);
+  animation: sx-shimmer 1.3s ease-in-out infinite;
+}
+.sx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 0 6px;
+  color: var(--sx-muted);
+  font-size: 13.5px;
+}
+.sx-empty b { color: var(--sx-text); font-weight: 650; font-size: 14px; }
+
+/* tekst reči koja izranja iz maske (naslov) */
+.sx-split { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+
+/* okretanje slova na hover (meni) */
+.sx-roll { display: inline-block; white-space: pre; }
+.sx-roll__ch { display: inline-block; height: 1.25em; line-height: 1.25em; overflow: hidden; vertical-align: top; }
+.sx-roll__in {
+  display: inline-block;
+  position: relative;
+  transition: transform 500ms cubic-bezier(0.165, 0.84, 0.44, 1);
+  transition-delay: calc(var(--i) * 20ms);
+}
+.sx-roll__in::after { content: attr(data-ch); position: absolute; left: 0; top: 100%; }
+@media (hover: hover) and (pointer: fine) {
+  .sx-roll-host:hover .sx-roll__in { transform: translateY(-100%); }
+}
+.sx-roll-host:focus-visible .sx-roll__in { transform: translateY(-100%); }
+
+/* ---------- ključni kadrovi ---------- */
+@keyframes sx-spin { to { transform: rotate(360deg); } }
+@keyframes sx-shimmer { 100% { transform: translateX(100%); } }
+@keyframes sx-fade { from { opacity: 0; } }
+@keyframes sx-fade-out { to { opacity: 0; } }
+/* pomeraj i providnost su odvojeni: providnost ide linearno (expo-out na providnosti skoči ~43% u prvom kadru) */
+@keyframes sx-rise { from { transform: translate3d(0, 12px, 0); } }
+@keyframes sx-row-in { from { transform: translate3d(0, 10px, 0); } }
+@keyframes sx-pop { from { transform: scale(0); } }
+@keyframes sx-draw-x { from { transform: scaleX(0); } }
+
+/* smanjeno kretanje: bez pomeranja, samo kratko pretapanje */
+@media (prefers-reduced-motion: reduce) {
+  .sx *, .sx *::before, .sx *::after, .sx-portal *, .sx-portal *::before, .sx-portal *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .sx-led[data-live="true"]::after, .sx-skeleton::after { animation: none !important; }
+}

@@ -1,0 +1,199 @@
+/* =============================================================================
+   Slojevi: dijalog (vizir), obaveštenja (toast), oblačić, brzi predlozi teksta
+   z-index: šina 40, gornja traka 50, meni na telefonu 70, fioka 10040, dijalog 10060,
+            potvrda 10070, kalendar i liste 10080, iskačući meni 10090, oblačić 10120, toast 20000
+   Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+/* ---------- dijalog ---------- */
+.sx-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--sx-scrim);
+  animation: sx-backdrop-in 200ms linear both;
+}
+@keyframes sx-backdrop-in { from { background-color: transparent; } }
+.sx-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100dvh - 32px);
+  border-radius: 22px;
+  background: var(--sx-surface);
+  box-shadow: var(--sx-shadow-dialog);
+  overflow: hidden;
+  animation: sx-visor 420ms var(--ease-enter) backwards;
+}
+.sx-dialog:focus { outline: none; }
+.sx-dialog-backdrop--confirm { z-index: 10070; }
+.sx-dialog--sm { max-width: 420px; }
+.sx-dialog--sm .sx-dialog__head { padding-bottom: 12px; }
+.sx-dialog--sm .sx-dialog__body:empty { display: none; }
+.sx-dialog--lg { max-width: 640px; }
+.sx-dialog--xl { max-width: 920px; }
+@keyframes sx-visor {
+  from { clip-path: ellipse(120% 0% at 50% 0%); transform: translateY(10px); }
+  to { clip-path: ellipse(120% 100% at 50% 20%); transform: none; }
+}
+.sx-dialog__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 22px 22px 6px; }
+.sx-dialog__titles { min-width: 0; }
+.sx-dialog__eyebrow { margin-bottom: 8px; }
+.sx-dialog__title {
+  font-family: var(--sx-font-display);
+  font-weight: 680;
+  font-stretch: 116%;
+  font-size: 21px;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  color: var(--sx-text);
+}
+.sx-dialog__desc { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--sx-muted); }
+.sx-dialog__close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin: -6px -8px 0 0;
+  border-radius: 50%;
+  color: var(--sx-muted);
+  transition-property: background-color, color, transform;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sx-dialog__close:hover { background: var(--sx-surface-3); color: var(--sx-text); transform: rotate(90deg); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+.sx-dialog__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 22px 18px; font-size: 14.5px; line-height: 1.55; color: var(--sx-text-2); }
+.sx-dialog__foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 22px 20px; border-top: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.sx-dialog__foot .sx-btn { height: 44px; padding: 0 20px; }
+@media (max-width: 479px) {
+  .sx-dialog-backdrop { place-items: end center; padding: 0; }
+  .sx-dialog { max-width: none; max-height: calc(100dvh - 12px); border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom); animation: sx-sheet 350ms var(--ease-move) backwards; }
+  .sx-dialog__foot .sx-btn { flex: 1 1 140px; }
+}
+@keyframes sx-sheet { from { transform: translate3d(0, 100%, 0); } }
+
+/* sažetak predmeta u dijalogu (npr. alarm koji se rešava) */
+.sx-subject {
+  --c: var(--sx-idle);
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--sx-line);
+  background: var(--sx-surface-2);
+  font-size: 13.5px;
+  overflow: hidden;
+}
+.sx-subject::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c); }
+.sx-subject[data-tone="bad"] { --c: var(--sx-bad); }
+.sx-subject[data-tone="warn"] { --c: var(--sx-warn); }
+.sx-subject[data-tone="info"] { --c: var(--sx-accent); }
+.sx-subject b { color: var(--sx-text); font-weight: 650; }
+
+/* polja, padajuće liste, pilule izbora, kalendar i vreme su u forms.css */
+
+/* brzi predlozi teksta (razlog rešavanja alarma, vreme zadatka) */
+.sx-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sx-suggest button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--sx-line-3);
+  font-size: 12.5px;
+  color: var(--sx-text-2);
+  transition-property: border-color, color, background-color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sx-suggest button:hover { border-style: solid; border-color: var(--sx-accent); color: var(--sx-accent-text); background: var(--sx-accent-soft); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+
+/* dijalog "Novi zadatak": dan i vreme u jednom redu */
+.sx-task-when { display: flex; flex-wrap: wrap; gap: 16px 28px; margin-top: 18px; }
+.sx-task-when > .sx-field { margin-top: 0; }
+.sx-task-when + .sx-field { margin-top: 18px; }
+.sx-task-time { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sx-task-time .sx-suggest { margin-top: 0; }
+
+/* ---------- obaveštenja (toast) ---------- */
+.sx-toasts {
+  position: fixed;
+  z-index: 20000;
+  top: 16px;
+  left: 50%;
+  width: min(440px, calc(100% - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+html[data-sx-shell="mobile"] .sx-toasts { top: 66px; }
+.sx-toast {
+  --c: var(--sx-info);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 10px 14px 16px;
+  border-radius: 16px;
+  background: var(--sx-toast-bg);
+  color: var(--sx-toast-text);
+  box-shadow: var(--sx-shadow-toast);
+  overflow: hidden;
+  pointer-events: auto;
+  transform-origin: 50% 0;
+}
+.sx-toast[data-tone="ok"] { --c: var(--sx-ok); }
+.sx-toast[data-tone="bad"] { --c: var(--sx-bad); }
+.sx-toast[data-tone="warn"] { --c: var(--sx-warn); }
+.sx-toast.is-enter { animation: sx-toast-in 600ms cubic-bezier(0.4, 1.6, 0.65, 1) both; }
+.sx-toast.is-exit { animation: sx-toast-out 450ms cubic-bezier(0.42, 0, 0.47, -0.55) both; }
+.sx-toast__timer { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--c); transform-origin: right center; animation: sx-toast-timer linear forwards; }
+.sx-toast.is-paused .sx-toast__timer, .sx-toast.is-exit .sx-toast__timer { animation-play-state: paused; }
+.sx-toast__mark { margin-top: 5px; }
+.sx-toast__body { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.sx-toast__type { font-family: var(--sx-font-ui); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sx-toast-muted); }
+.sx-toast__title { font-size: 14px; font-weight: 650; line-height: 1.35; color: var(--sx-toast-text); overflow-wrap: anywhere; }
+.sx-toast__text { font-size: 13px; line-height: 1.45; color: var(--sx-toast-muted); overflow-wrap: anywhere; }
+.sx-toast__count { align-self: center; padding: 2px 8px; border-radius: 999px; background: color-mix(in oklab, var(--sx-toast-text) 12%, transparent); font-family: var(--sx-font-mono); font-size: 11px; color: var(--sx-toast-text); }
+.sx-toast__close { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; color: var(--sx-toast-muted); transition: color var(--dur-2), background-color var(--dur-2); }
+.sx-toast__close:hover { color: var(--sx-toast-text); background: color-mix(in oklab, var(--sx-toast-text) 10%, transparent); }
+@keyframes sx-toast-in { from { opacity: 0; transform: translateY(calc(-100% - 20px)); } to { opacity: 1; transform: none; } }
+@keyframes sx-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(calc(-100% + 20px)) scale(0); } }
+@keyframes sx-toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .sx-toast.is-enter { animation: sx-fade 150ms linear both; }
+  .sx-toast.is-exit { animation: sx-fade-out 150ms linear both; }
+}
+
+/* ---------- oblačić ---------- */
+.sx-tip {
+  position: fixed;
+  z-index: 10120;
+  left: 0;
+  top: 0;
+  max-width: 280px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: var(--sx-tip-bg);
+  box-shadow: 0 10px 24px -12px rgb(0 0 0 / 0.5);
+  font: 500 12.5px/1.4 "Golos Text Variable", "Golos Text", ui-sans-serif, system-ui, sans-serif;
+  color: var(--sx-tip-text);
+  pointer-events: none;
+  opacity: 0;
+  translate: 0 3px;
+  transition: opacity 120ms linear, translate 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: pre-line;
+}
+.sx-tip.is-below { translate: 0 -3px; }
+.sx-tip.is-right { translate: -3px 0; }
+.sx-tip.is-on { opacity: 1; translate: 0 0; }
+@media (prefers-reduced-motion: reduce) { .sx-tip { translate: none; transition: opacity 80ms linear; } }

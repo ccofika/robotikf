@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronsUpDown, ChevronRight } from 'lucide-react'
+import { ChevronsUpDown, ChevronRight, Shield as ShieldIcon } from 'lucide-react'
 import {
   Avatar,
   AvatarFallback,
@@ -191,6 +191,11 @@ export function ShadcnSidebar({ className }: SidebarProps) {
       title: "Dashboard",
       href: "/",
       icon: ChartIcon
+    },
+    {
+      title: "Security",
+      href: "/security",
+      icon: ShieldIcon
     },
     {
       title: "Oprema",

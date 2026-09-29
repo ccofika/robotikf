@@ -3,7 +3,7 @@ import api from '../services/api';
 // Web push pretplata za admine — registruje service worker, traži dozvolu
 // i šalje pretplatu backendu. Poziva se posle logina i pri svakom učitavanju.
 
-const ADMIN_ROLES = ['admin', 'superadmin', 'supervisor'];
+const ADMIN_ROLES = ['admin', 'superadmin', 'supervisor', 'coordinator'];
 
 // VAPID javni ključ (base64url) → Uint8Array za pushManager.subscribe
 function urlBase64ToUint8Array(base64String) {

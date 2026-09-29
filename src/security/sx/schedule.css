@@ -1,0 +1,233 @@
+/* =============================================================================
+   Raspored: nedeljna mreža (radnici x dani), red pokrivenosti, smena kao karta (dnevna = papir,
+   noćna = tuš, nacrt = šrafura), izbor smene na mestu klika, raspored po danima na uskom prostoru,
+   pregled ciklusa. Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+.sx-weeknav { gap: 4px; }
+.sx-weeknav__label { min-width: 200px; text-align: center; font-family: var(--sx-font-mono); font-size: 13px; font-weight: 600; color: var(--sx-text); }
+.sx-sched__stats { margin-top: 6px; }
+.sx-sched__box { min-width: 0; }
+.sx-sched__box > * + * { margin-top: 20px; }
+
+/* ---------- smena kao karta ---------- */
+.sx-shift {
+  --bg: var(--sx-surface);
+  --fg: var(--sx-text);
+  --bd: var(--sx-line-2);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 9px;
+  border: 1px solid var(--bd);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12.5px;
+  text-align: left;
+  transition-property: border-color, background-color, transform;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+.sx-shift.is-night { --bg: var(--sx-btn-primary-bg); --fg: var(--sx-btn-primary-text); --bd: var(--sx-btn-primary-bg); }
+.sx-shift.is-draft { --bd: var(--sx-line-3); border-style: dashed; background: repeating-linear-gradient(135deg, var(--sx-surface-3) 0 3px, var(--sx-surface) 3px 7px); }
+.sx-shift.is-night.is-draft { --bd: var(--sx-btn-primary-bg); --fg: var(--sx-text); background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--sx-btn-primary-bg) 16%, transparent) 0 3px, var(--sx-surface) 3px 7px); }
+.sx-shift__icon { flex-shrink: 0; opacity: 0.85; }
+.sx-shift__time { font-family: var(--sx-font-mono); font-weight: 600; font-size: 12.5px; letter-spacing: 0; white-space: nowrap; }
+.sx-shift__who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.sx-shift__draft { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sx-muted); white-space: nowrap; }
+.sx-shift.is-night.is-draft .sx-shift__draft { color: var(--sx-text-2); }
+.sx-shift__led { margin-left: auto; }
+.sx-shift.is-night .sx-shift__led[data-tone="ok"] { --c: #52c77a; }
+.sx-shift.is-fresh { animation: sx-pop 320ms var(--ease-pop) both; }
+.sx-shift.is-compact { height: 26px; }
+.sx-shift.is-static { width: auto; cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  button.sx-shift:hover { --bd: var(--sx-text-2); transform: translateY(-1px); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+  button.sx-shift.is-night:not(.is-draft):hover { --bg: var(--sx-btn-primary-fill); --bd: var(--sx-btn-primary-fill); }
+}
+
+/* ---------- nedeljna mreža ---------- */
+.sx-wk { --who: clamp(190px, 19%, 250px); overflow: hidden; }
+.sx-wk__row { display: grid; grid-template-columns: var(--who) repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--sx-line); }
+.sx-wk__row:not(.sx-wk__row--head):not(.sx-wk__row--cover) { animation: sx-fade 180ms linear calc(var(--i, 0) * 30ms) backwards, sx-row-in 320ms var(--ease-enter) calc(var(--i, 0) * 30ms) backwards; }
+.sx-wk__row--head { border-top: 0; background: var(--sx-surface); }
+.sx-wk__corner { display: flex; align-items: flex-end; padding: 14px 16px 12px 20px; }
+.sx-wk__day { display: grid; justify-items: center; align-content: end; gap: 3px; padding: 12px 6px 10px; border-left: 1px solid var(--sx-line); }
+.sx-wk__dow { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sx-muted); }
+.sx-wk__date { padding: 2px 8px; border-radius: 8px; font-family: var(--sx-font-mono); font-size: 14px; font-weight: 600; color: var(--sx-text); }
+.sx-wk__day.is-weekend .sx-wk__date { color: var(--sx-text-2); }
+.sx-wk__day.is-today .sx-wk__dow { color: var(--sx-text); }
+.sx-wk__day.is-today .sx-wk__date { background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-wk__hol { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--sx-warn-text); }
+
+.sx-wk__row--cover { background: var(--sx-surface-2); }
+.sx-wk__who { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 14px 12px 20px; }
+.sx-wk__who .sx-avatar { width: 30px; height: 30px; font-size: 11px; }
+.sx-wk__whotext { display: grid; gap: 2px; min-width: 0; }
+.sx-wk__whotext b, .sx-wk__who--cover b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-wk__whotext > span, .sx-wk__who--cover span { font-size: 12px; line-height: 1.35; color: var(--sx-muted); }
+.sx-wk__who--cover { display: grid; gap: 2px; align-content: center; }
+.sx-wk__facicon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; background: var(--sx-surface-3); color: var(--sx-text-2); }
+
+.sx-wk__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 70px;
+  padding: 8px;
+  border-left: 1px solid var(--sx-line);
+  cursor: pointer;
+  transition: background-color var(--hover-out) var(--ease-move), box-shadow var(--hover-out) var(--ease-move);
+}
+.sx-wk__cell.is-today { background: color-mix(in oklab, var(--sx-btn-primary-bg) 3%, var(--sx-surface)); }
+.sx-wk__cell--cover { min-height: 0; gap: 5px; cursor: default; padding: 8px 6px; }
+.sx-wk__cell--cover.is-today { background: color-mix(in oklab, var(--sx-btn-primary-bg) 4%, var(--sx-surface-2)); }
+.sx-wk__cell.is-on { box-shadow: inset 0 0 0 2px var(--sx-btn-primary-bg); }
+.sx-wk__cell:focus-visible { outline-offset: -3px; }
+.sx-wk__add { display: grid; place-items: center; flex: 1; border-radius: 9px; border: 1px dashed transparent; color: transparent; transition: color var(--hover-out) var(--ease-move), border-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) {
+  .sx-wk__cell:not(.sx-wk__cell--cover):hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+  .sx-wk__cell.is-empty:hover .sx-wk__add { border-color: var(--sx-line-3); color: var(--sx-muted); transition-duration: var(--hover-in); }
+}
+.sx-wk__cell.is-empty:focus-visible .sx-wk__add, .sx-wk__cell.is-on .sx-wk__add { border-color: var(--sx-line-3); color: var(--sx-muted); }
+
+/* pokrivenost: Dan / Noć sa imenom ili upozorenje */
+.sx-cov {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--sx-surface);
+  border: 1px solid var(--sx-line);
+  font-size: 12px;
+  color: var(--sx-text-2);
+  text-align: left;
+}
+.sx-cov em { font-style: normal; font-weight: 700; font-size: 11px; color: var(--sx-text); }
+.sx-cov > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-cov .sx-led { transform: scale(0.85); }
+.sx-cov.is-gap { border: 1px dashed color-mix(in oklab, var(--sx-warn) 70%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-warn) 7%, var(--sx-surface)); color: var(--sx-warn-text); font-weight: 600; cursor: pointer; transition: background-color var(--hover-out) var(--ease-move), border-color var(--hover-out) var(--ease-move); }
+.sx-cov.is-gap em { color: var(--sx-warn-text); }
+.sx-cov.is-gap.is-on { border-style: solid; border-color: var(--sx-warn); }
+@media (hover: hover) and (pointer: fine) {
+  .sx-cov.is-gap:hover { background: color-mix(in oklab, var(--sx-warn) 16%, var(--sx-surface)); border-style: solid; transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+
+/* ---------- po danima (uzak prostor) ---------- */
+.sx-agenda { display: grid; gap: 12px; }
+.sx-agenda__day { padding: 14px 16px 12px; animation: sx-fade 180ms linear calc(var(--i, 0) * 30ms) backwards, sx-rise 360ms var(--ease-enter) calc(var(--i, 0) * 30ms) backwards; }
+.sx-agenda__day.is-today { box-shadow: inset 0 0 0 1.5px var(--sx-btn-primary-bg), var(--sx-shadow-card); }
+.sx-agenda__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 8px; }
+.sx-agenda__head b { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 110%; font-size: 16px; color: var(--sx-text); }
+.sx-agenda__head .sx-mono { font-size: 13px; color: var(--sx-muted); }
+.sx-agenda__slot { display: grid; grid-template-columns: minmax(0, 132px) minmax(0, 1fr); gap: 8px 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--sx-line); }
+.sx-agenda__slot:only-of-type, .sx-agenda__head + .sx-agenda__slot:not(.is-day):not(.is-night) { grid-template-columns: minmax(0, 1fr); }
+.sx-agenda__type { display: inline-flex; align-items: center; gap: 7px; padding-top: 7px; font-size: 13px; font-weight: 600; color: var(--sx-text); }
+.sx-agenda__type .sx-mono { font-weight: 500; color: var(--sx-muted); }
+.sx-agenda__people { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.sx-agenda__person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--sx-text);
+}
+.sx-agenda__slot.is-night .sx-agenda__person { background: var(--sx-btn-primary-bg); border-color: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-agenda__person.is-draft { border-style: dashed; background: repeating-linear-gradient(135deg, var(--sx-surface-3) 0 3px, var(--sx-surface) 3px 7px); color: var(--sx-text); }
+.sx-agenda__slot.is-night .sx-agenda__person.is-draft { border-color: var(--sx-btn-primary-bg); background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--sx-btn-primary-bg) 16%, transparent) 0 3px, var(--sx-surface) 3px 7px); color: var(--sx-text); }
+.sx-agenda__person em { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sx-muted); }
+.sx-agenda__person.is-fresh { animation: sx-pop 320ms var(--ease-pop) both; }
+.sx-agenda__gap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in oklab, var(--sx-warn) 70%, var(--sx-surface));
+  background: color-mix(in oklab, var(--sx-warn) 7%, var(--sx-surface));
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sx-warn-text);
+}
+.sx-agenda__gap.is-quiet { border-color: var(--sx-line-3); background: transparent; color: var(--sx-text-2); font-weight: 550; }
+@media (hover: none) { .sx-agenda__person, .sx-agenda__gap { height: 42px; } }
+
+/* ---------- izbor smene / radnika (iskačući panel na mestu klika) ---------- */
+.sx-slotpop { width: 300px; display: grid; gap: 4px; padding: 14px; }
+.sx-slotpop__title { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 17px; letter-spacing: -0.01em; color: var(--sx-text); }
+.sx-slotpop__sub { font-size: 12.5px; color: var(--sx-muted); }
+.sx-slotpop__types { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.sx-slotpop__type {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  color: var(--sx-text);
+  text-align: left;
+  transition-property: border-color, background-color, transform;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+.sx-slotpop__type b { margin-top: 4px; font-size: 14px; font-weight: 650; }
+.sx-slotpop__type .sx-mono { font-size: 12.5px; color: var(--sx-muted); }
+.sx-slotpop__type.is-night { background: var(--sx-btn-primary-bg); border-color: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.sx-slotpop__type.is-night .sx-mono { color: color-mix(in oklab, var(--sx-btn-primary-text) 70%, transparent); }
+.sx-slotpop__type:disabled { opacity: 0.6; cursor: wait; }
+@media (hover: hover) and (pointer: fine) {
+  .sx-slotpop__type:hover:not(:disabled) { border-color: var(--sx-text); transform: translateY(-1px); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+  .sx-slotpop__type.is-night:hover:not(:disabled) { background: var(--sx-btn-primary-fill); border-color: var(--sx-btn-primary-fill); }
+}
+.sx-slotpop__guards { display: grid; gap: 2px; margin: 8px -6px 0; max-height: 280px; overflow-y: auto; }
+.sx-slotpop__guard { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; text-align: left; transition: background-color var(--hover-out) var(--ease-move); }
+.sx-slotpop__guard .sx-avatar { width: 30px; height: 30px; font-size: 11px; }
+.sx-slotpop__guard span { display: grid; gap: 1px; min-width: 0; }
+.sx-slotpop__guard b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.sx-slotpop__guard small { font-size: 12px; color: var(--sx-muted); }
+@media (hover: hover) and (pointer: fine) { .sx-slotpop__guard:hover:not(:disabled) { background: var(--sx-surface-3); transition-duration: var(--hover-in); } }
+.sx-slotpop .sx-note { margin-top: 10px; }
+
+/* ---------- oznake ispod mreže ---------- */
+.sx-sched__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 16px; font-size: 12.5px; color: var(--sx-muted); }
+.sx-sched__legend .sx-shift { height: 26px; }
+.sx-sched__legend .sx-sign { font-size: 12.5px; color: var(--sx-muted); }
+.sx-sched__rule { flex-basis: 100%; margin-top: 2px; }
+
+/* ---------- pregled ciklusa ---------- */
+.sx-cycle { display: grid; gap: 4px; margin-top: 18px; padding: 12px; border-radius: 14px; background: var(--sx-surface-2); border: 1px solid var(--sx-line); overflow-x: auto; }
+.sx-cycle__row { display: grid; grid-template-columns: minmax(110px, 1.4fr) repeat(8, minmax(34px, 1fr)); gap: 4px; align-items: center; }
+.sx-cycle__row--head > span { display: grid; justify-items: center; gap: 1px; font-size: 10.5px; color: var(--sx-muted); white-space: nowrap; }
+.sx-cycle__row--head b { font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.sx-cycle__who { font-size: 12.5px; font-weight: 600; color: var(--sx-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-cycle__cell { display: grid; place-items: center; height: 28px; border-radius: 7px; border: 1px dashed var(--sx-line-2); font-family: var(--sx-font-mono); font-size: 12px; font-weight: 700; }
+.sx-cycle__cell.is-day { border: 1px solid var(--sx-line-3); background: var(--sx-surface); color: var(--sx-text); }
+.sx-cycle__cell.is-night { border: 1px solid var(--sx-btn-primary-bg); background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+
+/* ---------- učitavanje ---------- */
+.sx-sched__skel { display: grid; gap: 1px; padding: 0; overflow: hidden; }
+.sx-sched__skel div { height: 70px; background: var(--sx-surface); position: relative; overflow: hidden; }
+.sx-sched__skel div::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, var(--sx-surface-3), transparent); animation: sx-shimmer 1.3s ease-in-out infinite; }
+
+@media (max-width: 767px) {
+  .sx-weeknav { width: 100%; justify-content: space-between; }
+  .sx-weeknav__label { min-width: 0; flex: 1; }
+}

@@ -1,0 +1,120 @@
+/* =============================================================================
+   Boje Security dela: paleta "Papir i tuš" (izbor korisnika 29.9.2026, po uzoru na Vercel Geist).
+   Belo i crno, sive bez tona, boja samo gde nosi značenje (stanja, akcija, "sada").
+   Istraživanje i ostalih 6 paleta: preprod-security\research\palete (rangiranje, snimci, kontrast).
+   Kontrast (WCAG 2.x): tekst 17,9:1, sporedni tekst 5,7:1, stanja >= 5,1:1, glavno dugme 17,9:1.
+   Nijedna komponenta nema upisanu boju: sve ide kroz ove tokene.
+   ============================================================================= */
+
+.sx, .sx-portal, .sx-tip {
+  color-scheme: light;
+
+  /* površine */
+  --sx-bg: #fafafa;
+  --sx-surface: #ffffff;
+  --sx-surface-2: #f7f7f7;
+  --sx-surface-3: #efefef;
+  --sx-field: #ffffff;
+  --sx-line: #ebebeb;
+  --sx-line-2: #e0e0e0;
+  --sx-line-3: #c9c9c9;
+
+  /* tekst */
+  --sx-text: #171717;
+  --sx-text-2: #404040;
+  --sx-muted: #666666;
+  --sx-faint: #8f8f8f;
+
+  /* pomoćno */
+  --sx-selection: rgb(0 114 245 / 0.16);
+  --sx-scroll: #d4d4d4;
+  --sx-shimmer: rgb(255 255 255 / 0.7);
+  --sx-scrim: rgb(0 0 0 / 0.36);
+
+  /* senke */
+  --sx-shadow-card: 0 0 0 1px rgb(0 0 0 / 0.02), 0 2px 2px rgb(0 0 0 / 0.02), 0 8px 16px -8px rgb(0 0 0 / 0.06);
+  --sx-shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.06), 0 16px 32px -12px rgb(0 0 0 / 0.16);
+  --sx-shadow-dialog: 0 0 0 1px rgb(0 0 0 / 0.06), 0 32px 64px -24px rgb(0 0 0 / 0.28);
+  --sx-shadow-toast: 0 18px 40px -18px rgb(0 0 0 / 0.45);
+  --sx-shadow-board: 0 30px 60px -40px rgb(0 0 0 / 0.5);
+
+  /* akcija i fokus */
+  --sx-accent: #0072f5;
+  --sx-accent-text: #0062d1;
+  --sx-accent-soft: #ebf5ff;
+  --sx-on-accent: #ffffff;
+
+  /* dugmad: glavno je tuš (crno), kupola ga posvetli */
+  --sx-btn-fill: #f2f2f2;
+  --sx-btn-primary-bg: #171717;
+  --sx-btn-primary-text: #ffffff;
+  --sx-btn-primary-fill: #3d3d3d;
+
+  /* stanja (EN 54 smisao: zeleno u redu, žuto upozorenje, crveno alarm) */
+  --sx-ok: #1e9e53;
+  --sx-ok-text: #107a3c;
+  --sx-warn: #f5a524;
+  --sx-warn-text: #a35d00;
+  --sx-warn-strong: #f5a524;
+  --sx-on-warn: #1f1300;
+  --sx-bad: #e5484d;
+  --sx-bad-text: #c71f28;
+  --sx-bad-strong: #d42a31;
+  --sx-on-bad: #ffffff;
+  --sx-info: #0072f5;
+  --sx-info-text: #0062d1;
+  --sx-idle: #a1a1a1;
+
+  /* šina (desktop) i meni na telefonu */
+  --sx-rail-bg: #ffffff;
+  --sx-rail-line: #ebebeb;
+  --sx-rail-text: #666666;
+  --sx-rail-strong: #171717;
+  --sx-rail-muted: #8f8f8f;
+  --sx-rail-faint: #a8a8a8;
+  --sx-rail-hover: #f5f5f5;
+  --sx-rail-hover-strong: #ececec;
+  --sx-rail-active: rgb(0 0 0 / 0.05);
+  --sx-rail-route: #e3e3e3;
+  --sx-rail-node: #cfcfcf;
+  --sx-rail-stamp: #171717;
+  --sx-rail-accent-text: #171717;
+  --sx-rail-avatar: #f0f0f0;
+
+  /* znak: tuš + plava tačka "sada", bez podloge */
+  --sx-mark-ink: #171717;
+  --sx-mark-now: #0072f5;
+
+  /* tabla obilazaka: crna, kao ekran nadzornog centra */
+  --sx-board-bg: #0a0a0a;
+  --sx-board-hi: #151515;
+  --sx-board-edge: #1f1f1f;
+  --sx-board-line: #1c1c1c;
+  --sx-board-grid: rgb(255 255 255 / 0.03);
+  --sx-board-text: #ededed;
+  --sx-board-text-2: #c7c7c7;
+  --sx-board-muted: #8f8f8f;
+  --sx-board-faint: #5e5e5e;
+  --sx-board-track: #2e2e2e;
+  --sx-board-past: #262626;
+  --sx-board-duty-a: rgb(237 237 237 / 0.22);
+  --sx-board-duty-b: rgb(237 237 237 / 0.88);
+  --sx-board-head: #ffffff;
+  --sx-board-node: #454545;
+  --sx-board-now: #3291ff;
+  --sx-board-now-text: #000000;
+  --sx-board-hover: rgb(255 255 255 / 0.03);
+  --sx-board-pop: #1a1a1a;
+  --sx-board-btn: rgb(255 255 255 / 0.08);
+  --sx-board-ok: #52c77a;
+  --sx-board-warn: #ffb224;
+  --sx-board-bad: #ff6166;
+  --sx-board-info: #52a8ff;
+
+  /* obaveštenja i oblačići: tuš */
+  --sx-toast-bg: #171717;
+  --sx-toast-text: #ededed;
+  --sx-toast-muted: #a1a1a1;
+  --sx-tip-bg: #171717;
+  --sx-tip-text: #ededed;
+}

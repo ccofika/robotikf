@@ -388,8 +388,9 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
         break
 
       default:
-        // For unknown notification types, navigate to dashboard
-        navigate('/')
+        // Security obaveštenja vode na svoju stranicu, ostalo na dashboard
+        if (notification.targetPage && notification.targetPage.startsWith('/security')) navigate(notification.targetPage)
+        else navigate('/')
         break
     }
 

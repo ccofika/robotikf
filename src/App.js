@@ -1,5 +1,5 @@
 // Kompletna zamena za fajl: src/App.js
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { toast, ToastProvider } from './components/ui/toast';
 import './styles/main.css'; // <-- DODAJ OVU LINIJU
@@ -69,6 +69,10 @@ import VehicleFleet from './pages/VehicleFleet/VehicleFleet';
 import NewDesign from './pages/NewDesign/NewDesign';
 // API Services
 import { techniciansAPI } from './services/api';
+
+// Robotik Security (poseban izgled, učitava se tek kad se otvori /security)
+const SecurityApp = lazy(() => import('./security/SecurityApp'));
+const SECURITY_ROLES = ['guard', 'coordinator'];
 
 // Route Guard Component for overdue work orders
 const OverdueRouteGuard = ({ children }) => {
@@ -274,6 +278,32 @@ const AppRoutes = ({ user, isAdminLike, isSupervisorLike, logout }) => {
   );
 };
 
+// Security deo ima svoj izgled (bez bočnog menija Montaže). Radnik obezbeđenja i koordinator vide samo njega.
+const AppFrame = ({ user, isAdminLike, isSupervisorLike, logout }) => {
+  const location = useLocation();
+  const inSecurity = location.pathname === '/security' || location.pathname.startsWith('/security/');
+  const securityUser = !!user && SECURITY_ROLES.includes(user.role);
+  if (inSecurity && !user) return <Navigate to="/login" replace />;
+  if (securityUser && !inSecurity && location.pathname !== '/login') return <Navigate to="/security" replace />;
+  if (inSecurity) {
+    return (
+      <Suspense fallback={<div className="loading" style={{ background: '#0b0b0b', color: '#8b949e', minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Učitavanje...</div>}>
+        <Routes>
+          <Route path="/security/*" element={<SecurityApp user={user} logout={logout} />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+  return (
+    <>
+      {user && <ShadcnSidebar />}
+      <WorkOrderModalProvider>
+        <AppRoutes user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
+      </WorkOrderModalProvider>
+    </>
+  );
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -400,10 +430,7 @@ function App() {
         <ToastProvider>
           <Router>
             <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
-              {user && <ShadcnSidebar />}
-              <WorkOrderModalProvider>
-                <AppRoutes user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
-              </WorkOrderModalProvider>
+              <AppFrame user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
 
             {/* Komponenta za potvrđivanje opreme - prikazuje se kao overlay kad je potrebno */}
             {showEquipmentConfirmation && user?.role === 'technician' && (

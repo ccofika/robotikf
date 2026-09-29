@@ -1,0 +1,83 @@
+/* =============================================================================
+   Alarmi: dnevnik po danima (vreme, znak, šta se desilo, kome je poslato, radnje) i pravila
+   kao lestvica eskalacije (znak u redu -> upozorenje -> alarm, sa brojevima u rečenici).
+   Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+.sx-alarms__tabs { margin-top: 24px; }
+.sx-alarms .sx-stats { margin-top: 0; }
+
+/* ---------- dnevnik ---------- */
+.sx-alday { overflow: hidden; }
+.sx-alday__head { display: flex; align-items: baseline; gap: 10px; padding: 14px 20px 12px; border-bottom: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.sx-alday__head b { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 110%; font-size: 15.5px; color: var(--sx-text); }
+.sx-alday__head .sx-mono { font-size: 12.5px; color: var(--sx-muted); }
+.sx-alday__head .sx-count { margin-left: auto; }
+.sx-allist { display: grid; }
+.sx-alrow {
+  --c: var(--sx-warn);
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px 16px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--sx-line);
+  animation: sx-fade 160ms linear calc(min(var(--i, 0), 12) * 20ms) backwards, sx-row-in 300ms var(--ease-enter) calc(min(var(--i, 0), 12) * 20ms) backwards;
+}
+.sx-alrow:first-child { border-top: 0; }
+.sx-alrow::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c); }
+.sx-alrow.is-bad { --c: var(--sx-bad); background: linear-gradient(90deg, color-mix(in oklab, var(--sx-bad) 6%, var(--sx-surface)), var(--sx-surface) 45%); }
+.sx-alrow.is-warn { --c: var(--sx-warn); }
+.sx-alrow.is-info { --c: var(--sx-accent); }
+.sx-alrow.is-ok, .sx-alrow.is-done { --c: var(--sx-line-2); }
+.sx-alrow.is-done .sx-alrow__title { color: var(--sx-text-2); }
+.sx-alrow__time { padding-top: 1px; font-size: 13px; font-weight: 600; color: var(--sx-text); }
+.sx-alrow__led { margin-top: 5px; justify-self: center; }
+.sx-alrow__main { display: grid; gap: 3px; min-width: 0; }
+.sx-alrow__top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.sx-alrow__kind { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sx-text-2); }
+.sx-alrow.is-bad .sx-alrow__kind { color: var(--sx-bad-text); }
+.sx-alrow.is-warn .sx-alrow__kind { color: var(--sx-warn-text); }
+.sx-alrow__ago { font-family: var(--sx-font-mono); font-size: 11.5px; color: var(--sx-faint); }
+.sx-alrow__title { font-size: 14.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.sx-alrow__msg { font-size: 13px; line-height: 1.45; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.sx-alrow__meta { font-size: 12.5px; color: var(--sx-muted); }
+.sx-alrow__note { justify-self: start; margin-top: 2px; padding: 5px 10px; border-radius: 9px; font-size: 12.5px; line-height: 1.4; background: var(--sx-surface-2); color: var(--sx-text-2); }
+.sx-alrow__note.is-warn { background: color-mix(in oklab, var(--sx-warn) 10%, var(--sx-surface)); }
+.sx-alrow__note.is-info { background: var(--sx-accent-soft); color: var(--sx-accent-text); }
+.sx-alrow__note.is-ok { background: color-mix(in oklab, var(--sx-ok) 9%, var(--sx-surface)); color: var(--sx-ok-text); }
+.sx-alrow__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 320px; }
+@container page (max-width: 760px) {
+  .sx-alrow { grid-template-columns: 46px 14px minmax(0, 1fr); padding: 14px 16px; }
+  .sx-alrow__actions { grid-column: 3; justify-content: flex-start; max-width: none; margin-top: 6px; }
+}
+.sx-alclear { display: flex; align-items: flex-start; gap: 14px; padding: 4px 0; }
+.sx-alclear .sx-led { margin-top: 4px; }
+.sx-alclear b { display: block; font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.sx-alclear span { font-size: 13px; color: var(--sx-muted); }
+
+/* ---------- prekidač svih alarma ---------- */
+.sx-kill { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 16px 20px; }
+.sx-kill__icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: color-mix(in oklab, var(--sx-ok) 12%, var(--sx-surface)); color: var(--sx-ok-text); flex-shrink: 0; transition: background-color var(--dur-3) linear, color var(--dur-3) linear; }
+.sx-kill__text { flex: 1 1 260px; display: grid; gap: 2px; }
+.sx-kill__text b { font-size: 15px; font-weight: 650; color: var(--sx-text); }
+.sx-kill__text span { font-size: 13px; color: var(--sx-muted); }
+.sx-kill.is-off { border-color: color-mix(in oklab, var(--sx-bad) 40%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 5%, var(--sx-surface)); }
+.sx-kill.is-off .sx-kill__icon { background: var(--sx-bad-strong); color: var(--sx-on-bad); }
+.sx-kill.is-off .sx-kill__text b { color: var(--sx-bad-text); }
+
+/* ---------- lestvica eskalacije ---------- */
+.sx-ladder { position: relative; display: grid; gap: 0; }
+.sx-ladder::before { content: ''; position: absolute; left: 7px; top: 14px; bottom: 14px; width: 2px; background: linear-gradient(180deg, var(--sx-ok), var(--sx-warn) 50%, var(--sx-bad)); opacity: 0.45; border-radius: 2px; }
+.sx-rung { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 14px; padding: 10px 0; }
+.sx-rung__mark { display: grid; place-items: center; height: 24px; }
+.sx-rung__mark .sx-led { box-shadow: 0 0 0 4px var(--sx-surface); }
+.sx-rung__mark .sx-led[data-tone="warn"], .sx-rung__mark .sx-led[data-tone="bad"] { box-shadow: none; }
+.sx-rung__body { display: grid; gap: 4px; min-width: 0; }
+.sx-rung__title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 24px; font-size: 14px; font-weight: 650; color: var(--sx-text); }
+.sx-rung__text { font-size: 13px; line-height: 1.6; color: var(--sx-text-2); }
+.sx-rung__text > svg { margin-right: 6px; vertical-align: -2px; color: var(--sx-muted); }
+.sx-rung .sx-numfield { height: 32px; margin: 0 2px; }
+.sx-rule-days, .sx-inline > .sx-rule-days { width: 96px; flex: 0 0 96px; }
+.sx-rulelist__row b svg { vertical-align: -2px; color: var(--sx-muted); }
