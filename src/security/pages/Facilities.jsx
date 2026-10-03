@@ -60,14 +60,19 @@ export function ReadyRoute({ steps, onStep, compact, testId }) {
   );
 }
 
+// Polja ove forme. Čuvaju se SAMO ona: ostalo (mejl adrese za izveštaj, plan obilaska, pravila) ima svoje
+// kartice, a slanje celog objekta iz memorije strane bi pregazilo ono što je neko drugi u međuvremenu promenio.
+const FORM_KEYS = ['name', 'type', 'address', 'city', 'description', 'instructions', 'contactName', 'contactPhone'];
+const pickForm = (f) => Object.fromEntries(FORM_KEYS.map((k) => [k, f[k] == null ? '' : f[k]]));
+
 export function FacilityForm({ initial = {}, onSave, onCancel, busy, submitText = 'Sačuvaj', lock = [], autoFocus = false, footer = true, formId }) {
-  const [f, setF] = useState({ name: '', type: '', address: '', city: '', description: '', instructions: '', contactName: '', contactPhone: '', ...initial });
-  useEffect(() => { setF({ name: '', type: '', address: '', city: '', description: '', instructions: '', contactName: '', contactPhone: '', ...initial }); // eslint-disable-next-line react-hooks/exhaustive-deps
+  const [f, setF] = useState(() => pickForm(initial));
+  useEffect(() => { setF(pickForm(initial)); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial._id, initial.updatedAt]);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const ro = (k) => lock.includes(k);
   return (
-    <form id={formId} onSubmit={(e) => { e.preventDefault(); if (f.name.trim().length >= 2) onSave(f); }} className="sx-facform">
+    <form id={formId} onSubmit={(e) => { e.preventDefault(); if (f.name.trim().length >= 2) onSave(pickForm(f)); }} className="sx-facform">
       <div className="sx-fieldset">
         <h3 className="sx-fieldset__title">Osnovno</h3>
         <div className="sx-form">

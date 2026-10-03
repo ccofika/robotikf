@@ -1,7 +1,7 @@
 // Detalj smene (fioka sa bilo koje stranice, ?smena=ID): ko, kad, stanje i šta se desilo, redom:
 // tok smene na liniji, vremena, zamena radnika, obilazak, zadaci, zapažanja, alarmi, NFC očitavanja.
 // Radnje u zaglavlju: objava, ručna prijava/odjava (kad telefon ili tag ne rade), izveštaj, poziv, brisanje.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Sun, Moon, UserRoundCog, Trash2, LogIn, LogOut, FileText, Send, Phone, Scale, Nfc, Camera } from 'lucide-react';
 import { sec, errText, errData, fileUrl } from '../api';
 import Sheet, { SheetSection } from '../sx/Sheet';
@@ -33,6 +33,10 @@ export default function ShiftDrawer({ id, onClose }) {
   const [busy, setBusy] = useState(false);
   const now = useTick(30000);
 
+  // onClose roditelj pravi iznova pri svakom osvežavanju: preko ref-a, da se fioka ne učitava ponovo i ne briše
+  // izbor radnika za zamenu ili otvoren dijalog za ručni upis dok korisnik radi u njoj
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const load = useCallback(async () => {
     if (!id) return;
     try {
@@ -40,8 +44,8 @@ export default function ShiftDrawer({ id, onClose }) {
       setD(s);
       const g = await sec.workers({ role: 'guard' });
       setGuards(g.filter((w) => w._id !== (s.workerId && s.workerId._id)));
-    } catch (e) { toast.bad('Smena nije učitana', errText(e)); onClose(); }
-  }, [id, toast, onClose]);
+    } catch (e) { toast.bad('Smena nije učitana', errText(e)); onCloseRef.current(); }
+  }, [id, toast]);
   useEffect(() => { if (id) { setD(null); setSwapTo(''); setSwapMsg(null); setPunch(null); load(); } }, [id, load]);
 
   const changed = () => { window.dispatchEvent(new Event('sec:changed')); load(); };

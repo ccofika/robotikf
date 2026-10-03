@@ -22,6 +22,8 @@ export const sec = {
   archiveFacility: (id, force) => d(api.post(`/api/security/facilities/${id}/archive`, { force })),
   restoreFacility: (id) => d(api.post(`/api/security/facilities/${id}/restore`)),
   setPeople: (id, role, workerIds) => d(api.put(`/api/security/facilities/${id}/people`, { role, workerIds })),
+  // dodaje ili skida samo navedene radnike (ne ceo spisak sa strane, koji je možda zastareo)
+  changePeople: (id, role, { add = [], remove = [] }) => d(api.put(`/api/security/facilities/${id}/people`, { role, add, remove })),
   setRoundPlan: (id, plan) => d(api.put(`/api/security/facilities/${id}/round-plan`, plan)),
   setStandingTasks: (id, tasks) => d(api.put(`/api/security/facilities/${id}/standing-tasks`, { tasks })),
   setReportEmails: (id, emails) => d(api.put(`/api/security/facilities/${id}/report-emails`, { emails })),

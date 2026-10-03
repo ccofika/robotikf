@@ -60,8 +60,13 @@ export default function Reports() {
     try { const res = await sec.reportPdf(r._id); const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000); }
     catch (e) { toast.bad('PDF nije napravljen', errText(e)); }
   };
+  // dok se izveštaj šalje, ponovni klik ne šalje još jedan mejl
+  const [sending, setSending] = useState(() => new Set());
   const resend = async (r) => {
+    if (sending.has(r._id)) return;
+    setSending((s) => new Set(s).add(r._id));
     try { const res = await sec.sendReport(r._id); toast.ok('Izveštaj je poslat', (res.to || []).join(', ')); list.reload(); } catch (e) { toast.bad('Slanje nije uspelo', errText(e)); }
+    finally { setSending((s) => { const n = new Set(s); n.delete(r._id); return n; }); }
   };
   const closeReport = () => { setOpen(null); if (params.get('smena-izvestaj')) { const n = new URLSearchParams(params); n.delete('smena-izvestaj'); setParams(n, { replace: true }); } list.reload(); };
 
@@ -129,7 +134,7 @@ export default function Reports() {
                       <td className="is-actions is-end" onClick={(e) => e.stopPropagation()}>
                         <span className="sx-rowacts">
                           {r.status !== 'missed' && <Btn size="sm" variant="ghost" icon={FileDown} onClick={() => pdf(r)} aria-label="Preuzmi PDF" title="PDF" />}
-                          {r.status === 'done' && <Btn size="sm" variant="ghost" icon={Send} onClick={() => resend(r)} aria-label="Pošalji ponovo" title="Pošalji ponovo" data-testid="rep-resend" />}
+                          {r.status === 'done' && <Btn size="sm" variant="ghost" icon={Send} onClick={() => resend(r)} busy={sending.has(r._id)} disabled={sending.has(r._id)} aria-label="Pošalji ponovo" title="Pošalji ponovo" data-testid="rep-resend" />}
                         </span>
                       </td>
                     </tr>

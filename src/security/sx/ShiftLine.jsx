@@ -18,8 +18,11 @@ export default function ShiftLine({ s, now = Date.now(), tolMin = 5, className }
   const live = now > start && now < end;
   const dutyEnd = outAt || (s.status === 'active' ? Math.min(now, end) : null);
   const notIn = !inAt && (s.status === 'missed' || (s.status === 'planned' && now > start));
+  // Oznake sati na pravim mestima: svaka 3 sata od početka, pa kraj smene. U noći promene sata smena traje
+  // 13 h ili 11 h, pa fiksne četvrtine (i "početak + 12 h" na kraju) pokazuju pogrešno vreme.
   const hours = [];
-  for (let h = 0; h <= 12; h += 3) hours.push(start + h * 3600000);
+  for (let t = start; t < end - 90 * 60000; t += 3 * 3600000) hours.push(t);
+  hours.push(end);
   return (
     <div className={cx('sx-sline', className)} aria-hidden="true">
       <div className="sx-sline__bar">
@@ -37,7 +40,7 @@ export default function ShiftLine({ s, now = Date.now(), tolMin = 5, className }
         {live && <span className="sx-sline__now" style={{ left: pos(now) }} />}
       </div>
       <div className="sx-sline__hours">
-        {hours.map((t, i) => <span key={t} style={{ left: `${(i / 4) * 100}%` }}>{hm(t)}</span>)}
+        {hours.map((t) => <span key={t} style={{ left: pos(t) }}>{hm(t)}</span>)}
       </div>
     </div>
   );

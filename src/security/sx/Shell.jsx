@@ -9,7 +9,7 @@ import {
   Activity, CalendarDays, Building2, Users, Siren, FileText, Wallet, Wrench, Bell, Search, LogOut,
   ChevronsLeft, ClipboardList, Plus, Nfc, SlidersHorizontal, CornerDownLeft, ArrowRight, X
 } from 'lucide-react';
-import { sec } from '../api';
+import { sec, errText } from '../api';
 import { useSec } from '../SecurityApp';
 import { usePoll, useHotkey } from '../hooks';
 import { cx, Btn, Led, Kbd, Avatar, useTick, agoText } from './ui';
@@ -17,7 +17,7 @@ import { RollText, EASE_MOVE, EASE_OUT } from './motion';
 import { useLayer } from './layer';
 import { useToast } from './toast';
 import SignalBar from './SignalBar';
-import { parts } from '../lib/time';
+import { parts, addDays, localToInstant } from '../lib/time';
 import { groupAlarms } from '../pages/live/model';
 import BrandMark from './BrandMark';
 
@@ -54,14 +54,19 @@ function useMobile() {
 }
 
 
-// Smena koja je u toku: dnevna 07-19 ili noćna 19-07, koliko je prošlo
+// Smena koja je u toku: dnevna 07-19 ili noćna 19-07, koliko je prošlo. Računa se po stvarnim trenucima početka
+// i kraja: noć promene sata traje 13 h (oktobar) ili 11 h (mart), pa fiksnih 720 minuta greši za sat.
 function shiftNow(now) {
   const p = parts(now);
   const min = Number(p.hh) * 60 + Number(p.mm);
   const day = min >= 7 * 60 && min < 19 * 60;
-  const elapsed = day ? min - 7 * 60 : (min >= 19 * 60 ? min - 19 * 60 : min + 5 * 60);
-  const left = 720 - elapsed;
-  return { day, pct: Math.min(100, Math.max(0, (elapsed / 720) * 100)), left, p };
+  const startYmd = day || min >= 19 * 60 ? p.ymd : addDays(p.ymd, -1);
+  const start = localToInstant(startYmd, day ? '07:00' : '19:00').getTime();
+  const end = localToInstant(day ? startYmd : addDays(startYmd, 1), day ? '19:00' : '07:00').getTime();
+  const t = new Date(now).getTime();
+  const total = (end - start) / 60000;
+  const elapsed = (t - start) / 60000;
+  return { day, pct: Math.min(100, Math.max(0, (elapsed / total) * 100)), left: Math.max(0, Math.round(total - elapsed)), p };
 }
 const leftText = (m) => { const h = Math.floor(m / 60), r = m % 60; return h ? `${h} h${r ? ` ${r} min` : ''}` : `${r} min`; };
 
@@ -98,7 +103,8 @@ export default function Shell({ children }) {
 
   const ack = async (a) => {
     try { await sec.ackAlarm(a._id); toast.ok('Alarm preuzet', `${a.facilityName}: svi vide da neko reaguje.`); alarms.reload(); window.dispatchEvent(new Event('sec:changed')); }
-    catch (e) { toast.bad('Alarm nije preuzet', e.message); }
+    // poruka servera (npr. "Alarm je već rešen: Očitano 12:03"), ne tehnički "status code 409"
+    catch (e) { toast.bad('Alarm nije preuzet', errText(e)); alarms.reload(); }
   };
 
   const items = NAV.filter((n) => !n.admin || isAdmin);

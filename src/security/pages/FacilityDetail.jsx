@@ -195,15 +195,17 @@ function PeopleTab({ f, reload, isAdmin }) {
   const [add, setAdd] = useState('');
   const [addCoord, setAddCoord] = useState('');
   useEffect(() => { sec.workers({ active: 'all' }).then(setAll).catch(() => {}); }, []);
-  const ids = (role) => (role === 'guard' ? f.guards : f.coordinators).map((w) => w._id);
-  const setPeople = async (role, list, text) => {
-    try { await sec.setPeople(f._id, role, list); toast.ok(text); reload(); } catch (e) { toast.bad('Nije uspelo', errText(e)); }
+  // Menja se samo izabrani radnik: ceo spisak sa ove strane je možda zastareo (drugi admin je u međuvremenu
+  // dodao ili premestio radnike) i njegovo slanje bi ih skinulo sa objekta
+  const changePeople = async (role, change, text) => {
+    try { await sec.changePeople(f._id, role, change); toast.ok(text); reload(); } catch (e) { toast.bad('Nije uspelo', errText(e)); }
   };
   const remove = async (w, role) => {
     const ok = await confirm({ eyebrow: f.name, title: `Ukloni ${w.name} sa objekta?`, text: role === 'guard' ? 'Buduće smene na ovom objektu ostaju u rasporedu dok ih ne izmeniš. Dosije i istorija ostaju.' : 'Više ne dobija MASTER ALARM za ovaj objekat i ne vidi ga na sajtu.', tone: 'danger', confirmLabel: 'Ukloni sa objekta' });
     if (!ok) return;
-    setPeople(role, ids(role).filter((x) => x !== w._id), `${w.name} više nije na objektu`);
+    changePeople(role, { remove: [w._id] }, `${w.name} više nije na objektu`);
   };
+  const ids = (role) => (role === 'guard' ? f.guards : f.coordinators).map((w) => w._id);
   const freeGuards = all.filter((w) => w.role === 'guard' && w.isActive && !ids('guard').includes(w._id));
   const freeCoords = all.filter((w) => w.role === 'coordinator' && w.isActive && !ids('coordinator').includes(w._id));
   return (
@@ -215,7 +217,7 @@ function PeopleTab({ f, reload, isAdmin }) {
               <option value="">Dodeli radnika</option>
               {freeGuards.map((w) => <option key={w._id} value={w._id}>{w.name}{(w.facilityIds || []).length ? ` · ${(w.facilityIds || []).map((x) => x.name).join(', ')}` : ''}</option>)}
             </Select>
-            <Btn variant="primary" icon={Plus} disabled={!add} onClick={() => { setPeople('guard', [...ids('guard'), add], 'Radnik je dodeljen objektu'); setAdd(''); }} data-testid="assign-guard-go">Dodeli</Btn>
+            <Btn variant="primary" icon={Plus} disabled={!add} onClick={() => { changePeople('guard', { add: [add] }, 'Radnik je dodeljen objektu'); setAdd(''); }} data-testid="assign-guard-go">Dodeli</Btn>
           </div>
         )}>
         {!f.guards.length ? <Note tone="warn">Objekat nema radnika, pa ne može da se napravi raspored.</Note> : <div className="sx-list">{f.guards.map((w) => <Person key={w._id} w={w} role="guard" f={f} isAdmin={isAdmin} onDossier={openWorker} onRemove={remove} />)}</div>}
@@ -227,7 +229,7 @@ function PeopleTab({ f, reload, isAdmin }) {
               <option value="">Dodeli koordinatora</option>
               {freeCoords.map((w) => <option key={w._id} value={w._id}>{w.name}</option>)}
             </Select>
-            <Btn variant="primary" icon={Plus} disabled={!addCoord} onClick={() => { setPeople('coordinator', [...ids('coordinator'), addCoord], 'Koordinator je dodeljen'); setAddCoord(''); }}>Dodeli</Btn>
+            <Btn variant="primary" icon={Plus} disabled={!addCoord} onClick={() => { changePeople('coordinator', { add: [addCoord] }, 'Koordinator je dodeljen'); setAddCoord(''); }}>Dodeli</Btn>
           </div>
         )}>
         {!f.coordinators.length ? <Note tone="warn">Objekat nema koordinatora. MASTER ALARM tada dobijaju samo administratori.</Note> : <div className="sx-list">{f.coordinators.map((w) => <Person key={w._id} w={w} role="coordinator" f={f} isAdmin={isAdmin} onDossier={openWorker} onRemove={remove} />)}</div>}

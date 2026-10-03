@@ -120,7 +120,9 @@ export default function Schedule() {
     ? guards.map((g) => ({ key: g._id, workerId: g._id, facilityId, title: g.name, person: g, others: (g.facilityIds || []).filter((f) => f._id !== facilityId) }))
     : (worker ? (worker.facilityIds || []).map((f) => ({ key: f._id, workerId, facilityId: f._id, title: f.name })) : []);
   const shiftsFor = (row, date) => list.filter((s) => s.date === date && (view === 'facility' ? s.worker && s.worker._id === row.workerId : s.facility && s.facility._id === row.facilityId));
-  const hoursOf = (row) => list.filter((s) => (view === 'facility' ? s.worker && s.worker._id === row.workerId : s.facility && s.facility._id === row.facilityId)).length * 12;
+  // Sati po stvarnom trajanju smene: noć promene sata ima 13 h (oktobar) ili 11 h (mart), ne 12
+  const hoursIn = (arr) => Math.round(arr.reduce((h, s) => h + (new Date(s.plannedEnd) - new Date(s.plannedStart)) / 3600000, 0));
+  const hoursOf = (row) => hoursIn(list.filter((s) => (view === 'facility' ? s.worker && s.worker._id === row.workerId : s.facility && s.facility._id === row.facilityId)));
   const cover = (date, type) => list.filter((s) => s.date === date && s.type === type);
   const gaps = view === 'facility' ? days.flatMap((d) => ['day', 'night'].filter((t) => !cover(d, t).length).map((t) => ({ date: d, type: t }))) : [];
 
@@ -132,12 +134,10 @@ export default function Schedule() {
     if (!cur || !cur.workerId) return;
     setBusy(true);
     try {
-      if (assign) {
-        const current = guards.map((g) => g._id);
-        await sec.setPeople(cur.facilityId, 'guard', [...new Set([...current, cur.workerId])]);
-        refreshFacilities();
-      }
-      const created = await sec.createShift({ facilityId: cur.facilityId, workerId: cur.workerId, date: cur.date, type, force });
+      // "Dodeli i dodaj": server sam dodaje radnika objektu. Ne šalje se ceo spisak radnika sa ove strane: mogao je da
+      // zastari (drugi admin je u međuvremenu dodao ili premestio radnike), pa bi ih ova radnja skinula sa objekta.
+      const created = await sec.createShift({ facilityId: cur.facilityId, workerId: cur.workerId, date: cur.date, type, force, assign });
+      if (assign) refreshFacilities();
       setFresh(new Set([created._id]));
       toast.ok(`${TYPES[type].label} smena dodata`, `${DAY_SHORT[dowOfYmd(cur.date)]} ${fmtYmdShort(cur.date)}. Radnik je vidi posle objave.`);
       closePop();
@@ -181,7 +181,7 @@ export default function Schedule() {
 
   const narrow = width > 0 && width < 760;
   const covered = view === 'facility' ? 14 - gaps.length : null;
-  const totalHours = list.length * 12;
+  const totalHours = hoursIn(list);
 
   return (
     <div className="sx-page sx-sched" data-testid="page-schedule">

@@ -12,6 +12,26 @@ export function parts(date) {
   return { ymd: `${p.year}-${p.month}-${p.day}`, hh: pad(hour), mm: p.minute, dow: DOWS[p.weekday], y: +p.year, m: +p.month, d: +p.day };
 }
 
+// Offset Srbije u minutima za dati trenutak (+60 zimi, +120 leti)
+function belgradeOffsetMin(date) {
+  const p = parts(date);
+  const asUTC = Date.UTC(p.y, p.m - 1, p.d, Number(p.hh), Number(p.mm));
+  return Math.round((asUTC - Math.floor(date.getTime() / 60000) * 60000) / 60000);
+}
+
+// 'YYYY-MM-DD' + 'HH:mm' po vremenu u Srbiji -> Date, isto kao na serveru (services/security/time.js).
+// U noći promene sata noćna smena 19-07 traje 13 h (oktobar) ili 11 h (mart), pa se trajanje ne računa "na 12 h".
+export function localToInstant(ymd, hhmm) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const [h, mi] = (hhmm || '00:00').split(':').map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, mi);
+  const off1 = belgradeOffsetMin(new Date(guess));
+  let inst = new Date(guess - off1 * 60000);
+  const off2 = belgradeOffsetMin(inst);
+  if (off2 !== off1) inst = new Date(guess - off2 * 60000);
+  return inst;
+}
+
 export const DAY_SHORT = ['ned', 'pon', 'uto', 'sre', 'čet', 'pet', 'sub'];
 export const DAY_LONG = ['nedelja', 'ponedeljak', 'utorak', 'sreda', 'četvrtak', 'petak', 'subota'];
 export const MONTHS = ['januar', 'februar', 'mart', 'april', 'maj', 'jun', 'jul', 'avgust', 'septembar', 'oktobar', 'novembar', 'decembar'];

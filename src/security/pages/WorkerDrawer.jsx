@@ -1,7 +1,7 @@
 // Dosije radnika (fioka sa bilo koje stranice, ?radnik=ID): brojke za 30 dana, pa tabovi
 // Dosije (hronologija + beleška), Podaci (lični, ugovor, satnica, objekti), Licence i dokumenti,
 // Smene (sledeće i poslednjih 30 dana) i Nalog (aktivan, lozinka, uloga; samo administrator).
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Phone, Send, Upload, FileText, Download, Trash2, Plus, KeyRound, Copy, Check, Sun, Moon, Pencil, Smartphone, UserX, UserCheck, ShieldCheck } from 'lucide-react';
 import { sec, errText } from '../api';
 import { useSec } from '../SecurityApp';
@@ -12,7 +12,7 @@ import { Tabs, Note, KV, Stat } from '../sx/layout';
 import { Field, Input, Textarea, Choice, Switch, DateField, NumberField, Checkbox, ToggleChips, FileButton } from '../sx/forms';
 import { confirm } from '../sx/confirm';
 import { useToast } from '../sx/toast';
-import { fmtDate, fmtDateTime, hm, dayWord, rsd } from '../lib/time';
+import { fmtDate, fmtDateTime, hm, dayWord, rsd, todayYmd } from '../lib/time';
 
 const DAY = 86400000;
 const KIND = { late: 'Kašnjenje', master: 'MASTER ALARM', cp_late: 'Obilazak', cp_snooze: 'Odložen alarm', cp_admin: 'Obilazak, alarm adminu', early_leave: 'Rana odjava', no_clock_out: 'Bez odjave', missed: 'Propuštena smena', contract: 'Ugovor', license: 'Licenca', note: 'Beleška' };
@@ -33,7 +33,11 @@ export default function WorkerDrawer({ id, onClose }) {
   const toast = useToast();
   const [w, setW] = useState(null);
   const [tab, setTab] = useState('dosije');
-  const load = useCallback(() => (id ? sec.worker(id).then(setW).catch((e) => { toast.bad('Dosije nije učitan', errText(e)); onClose(); }) : null), [id, toast, onClose]);
+  // onClose roditelj pravi iznova pri svakom osvežavanju: preko ref-a, da se dosije ne učitava ponovo i ne briše
+  // ono što admin upravo kuca u formi
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const load = useCallback(() => (id ? sec.worker(id).then(setW).catch((e) => { toast.bad('Dosije nije učitan', errText(e)); onCloseRef.current(); }) : null), [id, toast]);
   useEffect(() => { if (id) { setW(null); setTab('dosije'); load(); } // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -138,11 +142,23 @@ function DataTab({ w, reload, isAdmin }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const dirty = JSON.stringify(f) !== JSON.stringify(init());
   const ro = !isAdmin;
-  const extend = (m) => { const base = f.until && new Date(f.until) > new Date() ? new Date(f.until) : new Date(); base.setMonth(base.getMonth() + m); setF({ ...f, indefinite: false, until: base.toISOString().slice(0, 10) }); };
+  // Produženje računa samo sa datumima (bez sati i zone pregledača): ranije je setMonth + toISOString u zoni
+  // Srbije gubio dan, a 31. januar + 3 meseca je davao 1. maj umesto 30. aprila
+  const extend = (m) => {
+    const base = f.until && f.until > todayYmd() ? f.until : todayYmd();
+    const [y, mo, d] = base.split('-').map(Number);
+    const t = new Date(Date.UTC(y, mo - 1 + m, 1));
+    const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+    t.setUTCDate(Math.min(d, last));
+    setF({ ...f, indefinite: false, until: t.toISOString().slice(0, 10) });
+  };
   const save = async () => {
     setBusy(true);
     try {
-      const body = { name: f.name, phone: f.phone, email: f.email, address: f.address, birthDate: f.birthDate || null, notes: f.notes, contract: { from: f.from || null, until: f.indefinite ? null : f.until || null }, hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate), facilityIds: f.facilityIds };
+      const body = { name: f.name, phone: f.phone, email: f.email, address: f.address, birthDate: f.birthDate || null, notes: f.notes, contract: { from: f.from || null, until: f.indefinite ? null : f.until || null }, hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate) };
+      // objekti se šalju samo ako su ovde promenjeni: inače bi čuvanje (npr. telefona) vratilo stari spisak objekata
+      // i poništilo dodelu koju je drugi admin u međuvremenu uradio na stranici objekta
+      if (JSON.stringify([...f.facilityIds].sort()) !== JSON.stringify([...init().facilityIds].sort())) body.facilityIds = f.facilityIds;
       if (!/^•/.test(f.jmbg)) body.jmbg = f.jmbg;
       await sec.updateWorker(w._id, body); toast.ok('Podaci su sačuvani'); reload();
     } catch (e) { toast.bad('Podaci nisu sačuvani', errText(e)); } finally { setBusy(false); }

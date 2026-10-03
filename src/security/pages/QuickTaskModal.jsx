@@ -11,12 +11,19 @@ import { useToast } from '../sx/toast';
 import { todayYmd, parts, addDays, fmtYmdShort, DAY_SHORT, dowOfYmd } from '../lib/time';
 
 const pad2 = (n) => String(n).padStart(2, '0');
-// Za sat vremena, zaokruženo na sledećih pola sata
-function defaultTime() {
-  const p = parts(new Date(Date.now() + 60 * 60000));
-  const total = (Math.ceil((Number(p.hh) * 60 + Number(p.mm)) / 30) * 30) % 1440;
-  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+// Trenutak za `min` minuta, zaokružen naviše na `step` minuta, kao { day, time }: dan je 0 (danas), 1 (sutra)...
+// Dan se računa zajedno sa vremenom: u 23:10 "za 1 h" je sutra u 00:30, ne danas u 00:30 (to je već prošlo).
+function after(min, step) {
+  const p = parts(new Date(Date.now() + min * 60000));
+  let total = Math.ceil((Number(p.hh) * 60 + Number(p.mm)) / step) * step;
+  let ymd = p.ymd;
+  if (total >= 1440) { total -= 1440; ymd = addDays(ymd, 1); }
+  let day = 0;
+  while (day < 3 && addDays(todayYmd(), day) !== ymd) day++;
+  return { day: Math.min(day, 2), time: `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}` };
 }
+// Za sat vremena, zaokruženo na sledećih pola sata
+const defaultWhen = () => after(60, 30);
 // "930" -> 09:30, "2330" -> 23:30, "18" -> 18:00
 function normTime(raw) {
   const d = String(raw || '').replace(/[^0-9]/g, '');
@@ -26,11 +33,7 @@ function normTime(raw) {
   if (h > 23 || m > 59) return null;
   return `${pad2(h)}:${pad2(m)}`;
 }
-function inMinutes(min) {
-  const p = parts(new Date(Date.now() + min * 60000));
-  const total = Math.ceil((Number(p.hh) * 60 + Number(p.mm)) / 5) * 5 % 1440;
-  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
-}
+const inMinutes = (min) => after(min, 5);
 
 function Choice({ value, onChange, options, layoutId, label }) {
   return (
@@ -53,9 +56,10 @@ export default function QuickTaskModal({ prefill = {}, onClose }) {
   const toast = useToast();
   const fromShift = !!prefill.shiftId;
   const [facilityId, setFacilityId] = useState(prefill.facilityId || (facilities.length === 1 ? facilities[0]._id : ''));
-  const [day, setDay] = useState(0);
-  const [time, setTime] = useState(defaultTime());
-  const [draft, setDraft] = useState(time);
+  const [initial] = useState(defaultWhen);
+  const [day, setDay] = useState(initial.day);
+  const [time, setTime] = useState(initial.time);
+  const [draft, setDraft] = useState(initial.time);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const today = todayYmd();
@@ -121,7 +125,7 @@ export default function QuickTaskModal({ prefill = {}, onClose }) {
               onChange={(e) => { let v = e.target.value.replace(/[^0-9:]/g, ''); if (/^\d{4}$/.test(v)) v = `${v.slice(0, 2)}:${v.slice(2)}`; setDraft(v); const n = normTime(v); if (n && /^\d{2}:\d{2}$/.test(v)) setTime(n); }}
               onBlur={() => { const n = normTime(draft); if (n) setT(n); else if (n === '') setDraft(time); }} />
             <div className="sx-suggest">
-              {[30, 60, 120].map((m) => <button type="button" key={m} onClick={() => setT(inMinutes(m))}>{m < 60 ? `za ${m} min` : `za ${m / 60} h`}</button>)}
+              {[30, 60, 120].map((m) => <button type="button" key={m} onClick={() => { const w = inMinutes(m); setT(w.time); if (!fromShift) setDay(w.day); }}>{m < 60 ? `za ${m} min` : `za ${m / 60} h`}</button>)}
             </div>
           </div>
           <span className="sx-field__hint">24 h, može i kucanjem: 2330 je 23:30.</span>

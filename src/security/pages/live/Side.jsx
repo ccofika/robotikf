@@ -81,7 +81,8 @@ export function ResolveDialog({ g, onClose, onDone }) {
   const kind = KIND[a.kind] || { label: a.title };
   const submit = async () => {
     setBusy(true);
-    try { await onDone(g, note.trim()); onClose(); } finally { setBusy(false); }
+    // greška je već prikazana (poruka "Alarm nije rešen"); dijalog ostaje otvoren da se pokuša ponovo
+    try { await onDone(g, note.trim()); onClose(); } catch (e) { /* prikazano */ } finally { setBusy(false); }
   };
   return (
     <Dialog

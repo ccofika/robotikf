@@ -151,10 +151,16 @@ export function nextAcross(facilities, now) {
   return best;
 }
 
-// Zadaci svih smena sada (povremeni zadaci), otvoreni prvi po roku
+// Zadaci svih smena sada (povremeni zadaci), otvoreni prvi po roku. Zadatak za objekat kad je više radnika u smeni
+// stoji kod svake od tih smena (vide ga svi), a u spisku se pojavljuje jednom.
 export function tasksOf(facilities) {
   const list = [];
-  for (const f of facilities) for (const s of f.shifts || []) for (const t of s.tasks || []) list.push({ ...t, facilityName: f.name, facilityId: f._id, shiftId: s._id, workerName: s.worker ? s.worker.name : '' });
+  const seen = new Set();
+  for (const f of facilities) for (const s of f.shifts || []) for (const t of s.tasks || []) {
+    if (seen.has(String(t._id))) continue;
+    seen.add(String(t._id));
+    list.push({ ...t, facilityName: f.name, facilityId: f._id, shiftId: s._id, workerName: s.worker ? s.worker.name : '' });
+  }
   const open = list.filter((t) => t.status === 'open').sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
   const done = list.filter((t) => t.status === 'done').sort((a, b) => new Date(b.doneAt) - new Date(a.doneAt));
   return { open, done };
