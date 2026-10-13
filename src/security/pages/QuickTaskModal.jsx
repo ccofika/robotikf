@@ -8,7 +8,7 @@ import { useSec } from '../SecurityApp';
 import Dialog from '../sx/Dialog';
 import { Btn, cx } from '../sx/ui';
 import { useToast } from '../sx/toast';
-import { todayYmd, parts, addDays, fmtYmdShort, DAY_SHORT, dowOfYmd } from '../lib/time';
+import { todayYmd, parts, addDays, fmtYmdShort, DAY_SHORT, dowOfYmd, localToInstant } from '../lib/time';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 // Trenutak za `min` minuta, zaokružen naviše na `step` minuta, kao { day, time }: dan je 0 (danas), 1 (sutra)...
@@ -34,6 +34,9 @@ function normTime(raw) {
   return `${pad2(h)}:${pad2(m)}`;
 }
 const inMinutes = (min) => after(min, 5);
+// Ukucano vreme: danas ako još nije prošlo (5 min unazad, kao na serveru), inače sutra. U 22:40 je podrazumevano
+// "Sutra 00:00", a ukucano 23:10 je i dalje danas (ranije je ostajao "Sutra" i zadatak je išao 24 h kasnije).
+const dayFor = (time) => (localToInstant(todayYmd(), time).getTime() >= Date.now() - 5 * 60000 ? 0 : 1);
 
 function Choice({ value, onChange, options, layoutId, label }) {
   return (
@@ -58,6 +61,7 @@ export default function QuickTaskModal({ prefill = {}, onClose }) {
   const [facilityId, setFacilityId] = useState(prefill.facilityId || (facilities.length === 1 ? facilities[0]._id : ''));
   const [initial] = useState(defaultWhen);
   const [day, setDay] = useState(initial.day);
+  const [dayPicked, setDayPicked] = useState(false);
   const [time, setTime] = useState(initial.time);
   const [draft, setDraft] = useState(initial.time);
   const [text, setText] = useState('');
@@ -68,6 +72,8 @@ export default function QuickTaskModal({ prefill = {}, onClose }) {
   const ready = text.trim().length >= 3 && !badTime && time && (fromShift || facilityId);
 
   const setT = (v) => { setTime(v); setDraft(v); };
+  // dok dan nije izabran ručno, prati ukucano vreme
+  const follow = (t) => { if (!fromShift && !dayPicked) setDay(dayFor(t)); };
   const submit = async () => {
     if (!ready) return;
     setBusy(true);
@@ -115,15 +121,15 @@ export default function QuickTaskModal({ prefill = {}, onClose }) {
         {!fromShift && (
           <div className="sx-field">
             <span className="sx-field__label">Dan</span>
-            <Choice label="Dan" value={day} onChange={setDay} layoutId="sx-task-day" options={days.map((d, i) => ({ ...d, testId: `task-day-${i}` }))} />
+            <Choice label="Dan" value={day} onChange={(v) => { setDay(v); setDayPicked(true); }} layoutId="sx-task-day" options={days.map((d, i) => ({ ...d, testId: `task-day-${i}` }))} />
           </div>
         )}
         <div className="sx-field">
           <label className="sx-field__label" htmlFor="sx-task-time">Vreme</label>
           <div className="sx-task-time">
             <input id="sx-task-time" className={cx('sx-input sx-input--time', badTime && 'is-bad')} value={draft} inputMode="numeric" maxLength={5} autoComplete="off" placeholder="00:00" data-testid="task-time"
-              onChange={(e) => { let v = e.target.value.replace(/[^0-9:]/g, ''); if (/^\d{4}$/.test(v)) v = `${v.slice(0, 2)}:${v.slice(2)}`; setDraft(v); const n = normTime(v); if (n && /^\d{2}:\d{2}$/.test(v)) setTime(n); }}
-              onBlur={() => { const n = normTime(draft); if (n) setT(n); else if (n === '') setDraft(time); }} />
+              onChange={(e) => { let v = e.target.value.replace(/[^0-9:]/g, ''); if (/^\d{4}$/.test(v)) v = `${v.slice(0, 2)}:${v.slice(2)}`; setDraft(v); const n = normTime(v); if (n && /^\d{2}:\d{2}$/.test(v)) { setTime(n); follow(n); } }}
+              onBlur={() => { const n = normTime(draft); if (n) { setT(n); follow(n); } else if (n === '') setDraft(time); }} />
             <div className="sx-suggest">
               {[30, 60, 120].map((m) => <button type="button" key={m} onClick={() => { const w = inMinutes(m); setT(w.time); if (!fromShift) setDay(w.day); }}>{m < 60 ? `za ${m} min` : `za ${m / 60} h`}</button>)}
             </div>
