@@ -15,6 +15,7 @@ import html2canvas from 'html2canvas';
 import AIVerificationModal from '../../components/AIVerificationModal';
 import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
 import ComplaintModal from '../../components/ComplaintModal';
+import PenaltyAdjustModal from '../../components/PenaltyAdjustModal';
 import { getPenaltyInfo, formatRsd } from '../../utils/rejectionPenalty';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 
@@ -155,6 +156,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   // Potvrda vraćanja (ručno ili posle AI preporuke) sa checkbox-om za umanjenje zarade
   const [returnModal, setReturnModal] = useState({ isOpen: false, initialComment: '', source: 'manual' });
   const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [showPenaltyModal, setShowPenaltyModal] = useState(false);
   const [orderStatuses, setOrderStatuses] = useState({});
   const [customerStatusModal, setCustomerStatusModal] = useState({ isOpen: false, orderId: null });
 
@@ -482,6 +484,16 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   // Posle evidentirane reklamacije
   const handleComplaintFiled = async () => {
     setShowComplaintModal(false);
+    try {
+      await reloadWorkOrder();
+    } catch (error) {
+      console.error('Greška pri osvežavanju radnog naloga:', error);
+    }
+  };
+
+  // Posle promene minusa (superadmin)
+  const handlePenaltyAdjusted = async () => {
+    setShowPenaltyModal(false);
     try {
       await reloadWorkOrder();
     } catch (error) {
@@ -950,6 +962,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const currentUserRole = storedUser ? JSON.parse(storedUser).role : null;
   const canViewRecordings = currentUserRole === 'supervisor' || currentUserRole === 'superadmin';
   const canViewEditLog = currentUserRole === 'superadmin';
+  const canAdjustPenalty = currentUserRole === 'superadmin';
 
   // ─── Loading State ─────────────────────────────────────────
   if (loading) {
@@ -1707,20 +1720,62 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
             {/* Vraćanja naloga na ispravku i umanjenje zarade */}
             {workOrder?.rejectionHistory && workOrder.rejectionHistory.length > 0 && (
               <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 gap-2">
                   <p className="text-xs uppercase tracking-wider text-rose-500 font-medium flex items-center gap-1.5">
                     <AlertIcon size={13} className="text-rose-500" />
                     Vraćanja naloga
                   </p>
-                  <span className={cn(
-                    "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-                    penaltyInfo.current > 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
-                  )}>
-                    Trenutni minus: {penaltyInfo.current}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-[11px] font-semibold px-2 py-0.5 rounded-full",
+                      penaltyInfo.current > 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
+                    )}>
+                      Trenutni minus: {penaltyInfo.current}%
+                    </span>
+                    {canAdjustPenalty && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPenaltyModal(true)}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors"
+                        title="Poništi ili promeni minus (i na već verifikovanom nalogu)"
+                      >
+                        Promeni minus
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2.5 max-h-72 overflow-y-auto">
-                  {[...workOrder.rejectionHistory].reverse().map((rejection, index) => {
+                  {[
+                    ...workOrder.rejectionHistory.map(item => ({ kind: 'rejection', at: item.rejectedAt, item })),
+                    ...(workOrder.penaltyAdjustments || []).map(item => ({ kind: 'adjustment', at: item.adjustedAt, item }))
+                  ].sort((a, b) => new Date(b.at) - new Date(a.at)).map(({ kind, item }, index) => {
+                    if (kind === 'adjustment') {
+                      const isOldAdjustmentCycle = (item.cycle || 0) !== (workOrder.penaltyCycle || 0);
+                      return (
+                        <div key={item._id || `adj-${index}`} className={cn(
+                          "rounded-lg p-3.5 border",
+                          isOldAdjustmentCycle ? "bg-slate-50 border-slate-200 opacity-80" : "bg-amber-50 border-amber-200"
+                        )}>
+                          <div className="flex items-center justify-between mb-1.5 gap-2">
+                            <span className="text-xs font-mono text-amber-800">
+                              {new Date(item.adjustedAt).toLocaleString('sr-RS')}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide bg-amber-200/70 text-amber-900">
+                              Minus promenjen · {item.percentBefore}% → {item.percentAfter}%
+                            </span>
+                          </div>
+                          {item.reason && (
+                            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{item.reason}</p>
+                          )}
+                          <p className="text-[11px] text-slate-500 mt-1.5">
+                            {item.adjustedByName || 'Superadmin'}
+                            {item.financeUpdated ? ' · isplata preračunata' : ' · primenjuje se pri verifikaciji'}
+                            {isOldAdjustmentCycle && ' · pre reklamacije'}
+                          </p>
+                        </div>
+                      );
+                    }
+                    const rejection = item;
                     const cycleNumber = rejection.cycle || 0;
                     const numberInCycle = workOrder.rejectionHistory
                       .filter(r => (r.cycle || 0) === cycleNumber)
@@ -2345,6 +2400,16 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         onClose={() => setShowComplaintModal(false)}
         onFiled={handleComplaintFiled}
       />
+
+      {/* Promena minusa — samo superadmin (poništavanje ili drugi procenat) */}
+      {canAdjustPenalty && (
+        <PenaltyAdjustModal
+          isOpen={showPenaltyModal}
+          workOrderId={workOrder?._id}
+          onClose={() => setShowPenaltyModal(false)}
+          onAdjusted={handlePenaltyAdjusted}
+        />
+      )}
 
       {/* Customer Status Modal */}
       {customerStatusModal.isOpen && (

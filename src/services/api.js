@@ -131,6 +131,9 @@ export const workOrdersAPI = {
   // Reklamacija: pregled odbitaka pre potvrde i evidentiranje (skidanje tehničara + novi tehničar)
   getComplaintPreview: (id, params) => api.get(`/api/workorders/${id}/complaint-preview`, { params }),
   fileComplaint: (id, data) => api.post(`/api/workorders/${id}/complaint`, data),
+  // Superadmin: poništavanje ili promena minusa (preračunava i već obračunatu isplatu)
+  getRejectionPenalty: (id) => api.get(`/api/workorders/${id}/rejection-penalty`),
+  updateRejectionPenalty: (id, data) => api.put(`/api/workorders/${id}/rejection-penalty`, data),
   updateCustomerStatus: (id, data) => api.put(`/api/workorders/${id}/customer-status`, data),
   aiVerify: (id) => api.post(`/api/workorders/${id}/ai-verify`),
   createBulk: (formData) => api.post('/api/workorders/upload', formData, {

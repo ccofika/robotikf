@@ -1350,6 +1350,14 @@ const Finances = () => {
                                     Vraćan · minus {transaction.rejectionPenaltyPercent}%
                                   </span>
                                 )}
+                                {transaction.penaltyAdjustedAt && (
+                                  <span
+                                    className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded w-fit"
+                                    title={`Minus promenio ${transaction.penaltyAdjustedByName || 'superadmin'} ${new Date(transaction.penaltyAdjustedAt).toLocaleString('sr-RS')}`}
+                                  >
+                                    Minus promenjen · {transaction.penaltyPercentOriginal ?? 0}% → {transaction.rejectionPenaltyPercent || 0}%
+                                  </span>
+                                )}
                               </td>
                             )}
                             {visibleColumns.municipality && (
