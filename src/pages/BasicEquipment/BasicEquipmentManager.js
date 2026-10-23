@@ -796,7 +796,7 @@ const BasicEquipmentManager = () => {
                           </div>
                           <div>
                             <h4 className="font-semibold text-slate-900">{technician.name}</h4>
-                            <p className="text-xs text-slate-600">Tehničar</p>
+                            <p className="text-xs text-slate-600">{technician.deletedAt ? 'Obrisan tehničar' : 'Tehničar'}</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -877,7 +877,7 @@ const BasicEquipmentManager = () => {
                     required
                   >
                     <option value="">Izaberite tehničara</option>
-                    {technicians.map(tech => (
+                    {technicians.filter(tech => !tech.deletedAt).map(tech => (
                       <option key={tech._id} value={tech._id}>
                         {tech.name}
                       </option>

@@ -117,7 +117,7 @@ const Dashboard = () => {
       setStats({
         equipment: equipment.data.total || equipment.data.length || 0,
         materials: materials.data.total || materials.data.length || 0,
-        technicians: techniciansRes.data.total || techniciansRes.data.length || 0,
+        technicians: techniciansRes.data.total || techniciansRes.data.filter?.(t => !t.deletedAt).length || 0,
         workOrders: {
           total: workOrderStats.data.total || 0,
           completed: workOrderStats.data.completed || 0,

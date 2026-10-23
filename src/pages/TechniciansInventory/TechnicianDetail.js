@@ -669,7 +669,7 @@ const TechnicianDetail = () => {
                   <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                     technician.isActive === false ? 'bg-red-500' : 'bg-green-500'
                   }`} />
-                  {technician.isActive === false ? 'Neaktivan' : 'Aktivan'}
+                  {technician.deletedAt ? 'Obrisan' : technician.isActive === false ? 'Neaktivan' : 'Aktivan'}
                 </span>
               </div>
               <div className="space-y-1 text-sm text-slate-600">

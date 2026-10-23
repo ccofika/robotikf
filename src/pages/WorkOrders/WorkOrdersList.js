@@ -222,7 +222,7 @@ const WorkOrdersList = () => {
               >
                 <option value="">Svi tehničari</option>
                 <option value="unassigned">Nedodeljeni</option>
-                {technicians.map(tech => (
+                {technicians.filter(tech => !tech.deletedAt).map(tech => (
                   <option key={tech._id} value={tech._id}>
                     {tech.name}
                   </option>

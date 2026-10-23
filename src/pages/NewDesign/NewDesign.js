@@ -113,7 +113,7 @@ const NewDesign = () => {
       setStats({
         equipment: equipment.data.total || equipment.data.length || 0,
         materials: materials.data.total || materials.data.length || 0,
-        technicians: techniciansRes.data.total || techniciansRes.data.length || 0,
+        technicians: techniciansRes.data.total || techniciansRes.data.filter?.(t => !t.deletedAt).length || 0,
         workOrders: {
           total: workOrderStats.data.total || 0,
           completed: workOrderStats.data.completed || 0,
@@ -1687,7 +1687,7 @@ const WorkOrdersSection = () => {
   const groupWorkOrdersByTechnician = () => {
     const techWorkOrders = {};
 
-    technicians.forEach(tech => {
+    technicians.filter(tech => !tech.deletedAt).forEach(tech => {
       techWorkOrders[tech._id] = {
         technicianInfo: tech,
         workOrders: []
@@ -2316,7 +2316,7 @@ const WorkOrdersSection = () => {
                   className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                 >
                   <option value="">Svi tehničari</option>
-                  {technicians.map(tech => (
+                  {technicians.filter(tech => !tech.deletedAt).map(tech => (
                     <option key={tech._id} value={tech._id}>
                       {tech.name}
                     </option>

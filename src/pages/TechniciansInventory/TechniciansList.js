@@ -81,7 +81,7 @@ const TechniciansList = () => {
 
     try {
       const response = await techniciansAPI.getAll();
-      setTechnicians(response.data);
+      setTechnicians(response.data.filter(t => !t.deletedAt));
     } catch (error) {
       console.error('Greška pri učitavanju tehničara:', error);
       setError('Greška pri učitavanju tehničara. Pokušajte ponovo.');
@@ -176,7 +176,7 @@ const TechniciansList = () => {
   }, [allReviews, reviewStatsMap]);
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Da li ste sigurni da želite da obrišete tehničara "${name}"?`)) {
+    if (window.confirm(`Da li ste sigurni da želite da obrišete tehničara "${name}"?\n\nNestaće iz spiskova i neće moći da se prijavi. Instalirana oprema, zaduženja, nalozi i istorija ostaju kako jesu.`)) {
       // OPTIMISTIC UPDATE - immediately remove from UI
       const originalTechnicians = [...technicians];
       setTechnicians(prev => prev.filter(tech => tech._id !== id));

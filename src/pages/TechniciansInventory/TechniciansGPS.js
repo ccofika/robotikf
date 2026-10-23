@@ -231,7 +231,7 @@ const TechniciansGPS = () => {
     const fetchTechnicians = async () => {
       try {
         const response = await techniciansAPI.getAll();
-        const techs = response.data.filter(t => t.role === 'technician');
+        const techs = response.data.filter(t => t.role === 'technician' && !t.deletedAt);
         setTechnicians(techs);
       } catch (error) {
         console.error('Greška pri učitavanju tehničara:', error);

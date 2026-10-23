@@ -16,6 +16,8 @@ const WorkOrdersByTechnician = () => {
   const navigate = useNavigate();
   const { refreshCounter } = useWorkOrderModal();
   const [technicians, setTechnicians] = useState([]);
+  // Obrisani tehničari ostaju u "technicians" samo zbog imena na starim nalozima
+  const activeTechnicians = technicians.filter(t => !t.deletedAt);
 
   // Work orders state
   const [recentWorkOrders, setRecentWorkOrders] = useState([]);
@@ -409,7 +411,7 @@ const WorkOrdersByTechnician = () => {
   const groupWorkOrdersByTechnician = () => {
     const techWorkOrders = {};
 
-    technicians.forEach(tech => {
+    activeTechnicians.forEach(tech => {
       techWorkOrders[tech._id] = {
         technicianInfo: tech,
         workOrders: []
@@ -1186,7 +1188,7 @@ const WorkOrdersByTechnician = () => {
           <ToolsIcon size={18} className="text-blue-400" />
           <h1 className="text-[15px] font-semibold text-white">Radni nalozi</h1>
           <div className="w-px h-5 bg-white/20 hidden sm:block" />
-          <span className="text-[11px] text-slate-400 hidden sm:inline">{technicians.length} tehničara</span>
+          <span className="text-[11px] text-slate-400 hidden sm:inline">{activeTechnicians.length} tehničara</span>
           <span className="text-[11px] text-slate-500 hidden sm:inline">&middot;</span>
           <span className="text-[11px] text-slate-400 hidden sm:inline">{getAllWorkOrders().length} naloga</span>
         </div>
@@ -1318,7 +1320,7 @@ const WorkOrdersByTechnician = () => {
             className="h-8 px-2.5 pr-7 bg-white border border-slate-200 rounded-md text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all appearance-none"
           >
             <option value="">Svi tehničari</option>
-            {technicians.map(tech => (
+            {activeTechnicians.map(tech => (
               <option key={tech._id} value={tech._id}>
                 {tech.name}
               </option>

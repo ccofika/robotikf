@@ -82,9 +82,9 @@ const EditEquipment = () => {
     return (
       <>
         <option value="magacin">Magacin</option>
-        {technicians.map(tech => (
+        {technicians.filter(tech => !tech.deletedAt || equipment.location === `tehnicar-${tech._id}`).map(tech => (
           <option key={tech._id} value={`tehnicar-${tech._id}`}>
-            Tehničar: {tech.name}
+            Tehničar: {tech.name}{tech.deletedAt ? ' (obrisan)' : ''}
           </option>
         ))}
       </>

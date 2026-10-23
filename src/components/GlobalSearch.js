@@ -300,7 +300,7 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
                     )}
                   </div>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${tech.isActive ? 'text-emerald-700 bg-emerald-50' : 'text-slate-500 bg-slate-100'}`}>
-                    {tech.isActive ? 'Aktivan' : 'Neaktivan'}
+                    {tech.deletedAt ? 'Obrisan' : tech.isActive ? 'Aktivan' : 'Neaktivan'}
                   </span>
                   <ChevronRightIcon size={14} className="text-slate-300 flex-shrink-0" />
                 </div>
