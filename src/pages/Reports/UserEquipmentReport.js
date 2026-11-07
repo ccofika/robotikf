@@ -8,6 +8,7 @@ import { saveAs } from 'file-saver';
 import { toast } from '../../utils/toast';
 import './ExportSpecificationModern.css';
 import './UserEquipmentReport.css';
+import { localYmd } from '../../utils/localDate';
 
 const UserEquipmentReport = () => {
   const [equipment, setEquipment] = useState([]);
@@ -116,7 +117,7 @@ const UserEquipmentReport = () => {
       });
       
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(blob, `oprema-korisnika-${new Date().toISOString().slice(0,10)}.xlsx`);
+      saveAs(blob, `oprema-korisnika-${localYmd()}.xlsx`);
       toast.success('Izveštaj je uspešno preuzet!');
     } catch (err) {
       console.error('Error generating report:', err);

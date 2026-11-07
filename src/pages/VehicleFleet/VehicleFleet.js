@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Input } from '../../components/ui/input';
 import { vehiclesAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
+import { localYmd } from '../../utils/localDate';
 
 const VehicleFleet = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -57,7 +58,7 @@ const VehicleFleet = () => {
   });
 
   const [newService, setNewService] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: localYmd(),
     partsPrice: '',
     laborPrice: '',
     price: '',
@@ -268,7 +269,7 @@ const VehicleFleet = () => {
       setShowAddServiceModal(false);
       setSelectedVehicle(null);
       setNewService({
-        date: new Date().toISOString().split('T')[0],
+        date: localYmd(),
         partsPrice: '',
         laborPrice: '',
         price: '',

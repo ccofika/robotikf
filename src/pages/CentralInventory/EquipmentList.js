@@ -8,6 +8,7 @@ import { toast } from '../../utils/toast';
 import { equipmentAPI, techniciansAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
 import { describeAssignment, formatAssignedAt } from '../../utils/equipmentAssignment';
+import { localYmd } from '../../utils/localDate';
 
 const EquipmentList = () => {
   const navigate = useNavigate();
@@ -301,7 +302,7 @@ const EquipmentList = () => {
       });
 
       // Build filename
-      const dateStr = new Date().toISOString().slice(0, 10);
+      const dateStr = localYmd();
       let locationLabel = 'oprema';
       if (locationFilter === 'magacin') {
         locationLabel = 'magacin';

@@ -5,10 +5,11 @@ import { Button } from '../../components/ui/button-1';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { cn } from '../../utils/cn';
+import { localYmd } from '../../utils/localDate';
 
 const AddWorkOrder = () => {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0], // Današnji datum
+    date: localYmd(), // Današnji datum
     time: '09:00',
     municipality: '',
     address: '',

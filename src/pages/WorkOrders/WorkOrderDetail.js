@@ -18,6 +18,7 @@ import ComplaintModal from '../../components/ComplaintModal';
 import PenaltyAdjustModal from '../../components/PenaltyAdjustModal';
 import { getPenaltyInfo, formatRsd } from '../../utils/rejectionPenalty';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
+import { localYmd } from '../../utils/localDate';
 
 // EditableField extracted outside to prevent remount on parent re-render (fixes cursor jump)
 const EditableField = ({ field, value, displayValue, type = 'text', options, placeholder, rows, isEditing, editVal, onEditValChange, onStartEdit, onConfirm, onCancel, editRefProp }) => {
@@ -859,7 +860,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         }
       }
 
-      const fileName = `Radni_Nalog_${workOrder.tisId || workOrder._id}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Radni_Nalog_${workOrder.tisId || workOrder._id}_${localYmd()}.pdf`;
       pdf.save(fileName);
 
       toast.success('PDF je uspesno generisan i downloadovan!');

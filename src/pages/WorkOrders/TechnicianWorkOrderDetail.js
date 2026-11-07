@@ -15,6 +15,7 @@ import MaterialsModal from './components/MaterialsModal';
 import UsedMaterialsList from './components/UsedMaterialsList';
 import InstalledEquipmentList from './components/InstalledEquipmentList';
 import './TechnicianWorkOrderDetail.css';
+import { localYmd } from '../../utils/localDate';
 
 const TechnicianWorkOrderDetail = () => {
   const { id } = useParams();
@@ -910,7 +911,7 @@ const TechnicianWorkOrderDetail = () => {
           return;
         }
         
-        const formattedDate = updatedData.postponeDate.toISOString().split('T')[0];
+        const formattedDate = localYmd(updatedData.postponeDate);
         updatedData.postponeDate = formattedDate;
         
         console.log('Sending postponement data:', {
@@ -2182,13 +2183,13 @@ const TechnicianWorkOrderDetail = () => {
                       <input
                         type="date"
                         id="postponeDate"
-                        value={formData.postponeDate ? formData.postponeDate.toISOString().split('T')[0] : ''}
+                        value={formData.postponeDate ? localYmd(formData.postponeDate) : ''}
                         onChange={(e) => {
                           const selectedDate = new Date(e.target.value);
                           handleDateChange(selectedDate);
                         }}
-                        min={new Date().toISOString().split('T')[0]}
-                        max={new Date(Date.now() + (48 * 60 * 60 * 1000)).toISOString().split('T')[0]}
+                        min={localYmd()}
+                        max={localYmd(new Date(Date.now() + (48 * 60 * 60 * 1000)))}
                         disabled={saving || isWorkOrderCompleted}
                         className="form-control date-input-mobile"
                       />

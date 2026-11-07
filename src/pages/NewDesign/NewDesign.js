@@ -41,6 +41,7 @@ import { getTimRowClasses } from '../../utils/tim';
 import AIVerificationModal from '../../components/AIVerificationModal';
 import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
 import FancyDataTable from '../../components/fancy-table/FancyDataTable';
+import { localYmd } from '../../utils/localDate';
 
 const NewDesign = () => {
   const { user } = useContext(AuthContext);
@@ -2573,20 +2574,20 @@ const WorkOrdersSection = () => {
 
                                 switch(value) {
                                   case 'today':
-                                    newDate = today.toISOString().split('T')[0];
+                                    newDate = localYmd(today);
                                     break;
                                   case 'yesterday':
                                     const yesterday = new Date(today);
                                     yesterday.setDate(yesterday.getDate() - 1);
-                                    newDate = yesterday.toISOString().split('T')[0];
+                                    newDate = localYmd(yesterday);
                                     break;
                                   case 'thisWeek':
                                     const weekStart = new Date(today);
                                     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                                    newDate = weekStart.toISOString().split('T')[0];
+                                    newDate = localYmd(weekStart);
                                     break;
                                   case 'thisMonth':
-                                    newDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                                    newDate = localYmd(new Date(today.getFullYear(), today.getMonth(), 1));
                                     break;
                                   default:
                                     newDate = '';
@@ -2754,7 +2755,7 @@ const WorkOrdersSection = () => {
                                       const url = window.URL.createObjectURL(blob);
                                       const a = document.createElement('a');
                                       a.href = url;
-                                      a.download = `radni-nalozi-${technicianWorkOrders[selectedTechnicianId]?.technicianInfo.name}-${new Date().toISOString().split('T')[0]}.csv`;
+                                      a.download = `radni-nalozi-${technicianWorkOrders[selectedTechnicianId]?.technicianInfo.name}-${localYmd()}.csv`;
                                       a.click();
                                     }}
                                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"

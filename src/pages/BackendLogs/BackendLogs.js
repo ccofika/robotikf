@@ -27,6 +27,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import AIAnalysisSection from './components/AIAnalysisSection';
 import AITechnicianAnalysisSection from './components/AITechnicianAnalysisSection';
 import DateTimePicker from '../../components/ui/DateTimePicker';
+import { localYmd } from '../../utils/localDate';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -425,7 +426,7 @@ const BackendLogs = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `admin-aktivnosti-${new Date().toISOString().split('T')[0]}.xlsx`);
+      link.setAttribute('download', `admin-aktivnosti-${localYmd()}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();

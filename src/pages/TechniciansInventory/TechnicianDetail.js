@@ -6,6 +6,7 @@ import { toast } from '../../utils/toast';
 import { techniciansAPI, reviewsAPI, supportCallsAPI } from '../../services/api';
 import { describeAssignment } from '../../utils/equipmentAssignment';
 import { SUPPORT_TYPES, supportTypeLabel, supportTypeStyle } from '../../utils/supportCalls';
+import { localYmd } from '../../utils/localDate';
 
 // SVG Icons
 const MicIcon = ({ size = 20, className = '' }) => (
@@ -61,7 +62,7 @@ const TechnicianDetail = () => {
 
   // Call Recordings Modal State
   const [showRecordingsModal, setShowRecordingsModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(localYmd());
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
   const [includeWorkOrders, setIncludeWorkOrders] = useState(true);
@@ -443,10 +444,10 @@ const TechnicianDetail = () => {
   const handleOpenRecordingsModal = () => {
     setShowRecordingsModal(true);
     const today = new Date();
-    setSelectedDate(today.toISOString().split('T')[0]);
+    setSelectedDate(localYmd(today));
     setCurrentMonth(today.getMonth() + 1);
     setCurrentYear(today.getFullYear());
-    fetchRecordings(today.toISOString().split('T')[0]);
+    fetchRecordings(localYmd(today));
     fetchRecordingDates(today.getMonth() + 1, today.getFullYear());
   };
 

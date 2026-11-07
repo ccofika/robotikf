@@ -42,6 +42,7 @@ import { cn } from '../../utils/cn';
 import DashboardSection from './components/DashboardSectionNew';
 import TechnicianLogsSection from './components/TechnicianLogsSection';
 import UserLogsSection from './components/UserLogsSection';
+import { localYmd } from '../../utils/localDate';
 
 const Logs = () => {
   const [searchParams] = useSearchParams();
@@ -852,7 +853,7 @@ const Logs = () => {
     console.log('🔵 exportToCSV called');
     try {
       const csv = convertToCSV(data);
-      downloadFile(csv, `logs_export_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv;charset=utf-8;');
+      downloadFile(csv, `logs_export_${localYmd()}.csv`, 'text/csv;charset=utf-8;');
       console.log('✅ CSV export completed');
     } catch (error) {
       console.error('❌ CSV Export error:', error);
@@ -895,7 +896,7 @@ const Logs = () => {
       worksheet['!cols'] = wscols;
 
       // Generate Excel file
-      XLSX.writeFile(workbook, `logs_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(workbook, `logs_export_${localYmd()}.xlsx`);
       console.log('✅ Excel export completed');
     } catch (error) {
       console.error('❌ Excel Export error:', error);
@@ -971,7 +972,7 @@ const Logs = () => {
       }
 
       // Save PDF
-      const filename = `logs_export_${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = `logs_export_${localYmd()}.pdf`;
       console.log('Saving PDF as:', filename);
       doc.save(filename);
       console.log('✅ PDF export completed successfully');
@@ -984,7 +985,7 @@ const Logs = () => {
   const exportToJSON = (data) => {
     try {
       const json = JSON.stringify(data, null, 2);
-      downloadFile(json, `logs_export_${new Date().toISOString().split('T')[0]}.json`, 'application/json;charset=utf-8;');
+      downloadFile(json, `logs_export_${localYmd()}.json`, 'application/json;charset=utf-8;');
     } catch (error) {
       console.error('JSON Export error:', error);
       toast.error('Greška pri kreiranju JSON fajla');
@@ -1109,18 +1110,18 @@ const Logs = () => {
     const today = new Date();
     switch (preset) {
       case 'today':
-        setDateFrom(today.toISOString().split('T')[0]);
-        setDateTo(today.toISOString().split('T')[0]);
+        setDateFrom(localYmd(today));
+        setDateTo(localYmd(today));
         break;
       case 'week':
         const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        setDateFrom(weekAgo.toISOString().split('T')[0]);
-        setDateTo(today.toISOString().split('T')[0]);
+        setDateFrom(localYmd(weekAgo));
+        setDateTo(localYmd(today));
         break;
       case 'month':
         const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        setDateFrom(monthAgo.toISOString().split('T')[0]);
-        setDateTo(today.toISOString().split('T')[0]);
+        setDateFrom(localYmd(monthAgo));
+        setDateTo(localYmd(today));
         break;
       case 'all':
         setDateFrom('');
@@ -1510,7 +1511,7 @@ const Logs = () => {
                 onClick={() => applyQuickFilter('today')}
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  dateFrom === new Date().toISOString().split('T')[0] && dateTo === new Date().toISOString().split('T')[0]
+                  dateFrom === localYmd() && dateTo === localYmd()
                     ? "bg-purple-500 text-white shadow-sm"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 )}
