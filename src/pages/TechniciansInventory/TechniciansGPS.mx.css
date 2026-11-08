@@ -1,0 +1,23 @@
+/* GPS lokacije: mapa u panelu, legenda, lista tehničara, oblačić markera (boje samo iz tokena) */
+.mx-gps-mappanel { overflow: hidden; }
+.mx-gps-map { height: 500px; }
+.mx-gps-map .leaflet-container { font-family: inherit; }
+@media (max-width: 639px) { .mx-gps-map { height: 360px; } }
+
+.mx-gps-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; width: 100%; font-size: 13px; color: var(--sx-text-2); }
+.mx-gps-legend > span:not(.sx-label) { display: inline-flex; align-items: center; gap: 7px; }
+
+/* lista uz mapu: iste visine kao mapa sa legendom, pomera se sama */
+@container page (min-width: 980px) {
+  .mx-gps-list { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+  .mx-gps-list .sx-item__side { flex-direction: column; align-items: flex-end; gap: 2px; }
+}
+.mx-gps-phone, .mx-gps-acc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sx-muted); }
+
+.mx-gps-dot { margin: 0 8px; color: var(--sx-accent-text); }
+.mx-gps-fail { margin-left: 8px; font-weight: 600; color: var(--sx-bad-text); }
+
+.mx-gps-pop { display: grid; gap: 6px; min-width: 220px; font-size: 13px; color: var(--sx-text-2); }
+.mx-gps-pop b { margin-bottom: 4px; font-size: 16px; font-weight: 650; color: var(--sx-text); }
+.mx-gps-pop span { display: inline-flex; align-items: center; gap: 7px; }
+.mx-gps-pop small { margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--sx-line); font-size: 11.5px; color: var(--sx-faint); }

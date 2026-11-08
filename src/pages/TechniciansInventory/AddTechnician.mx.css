@@ -1,0 +1,3 @@
+/* Novi tehničar: ime preko cele širine, lozinke u dve kolone (na uskom ekranu jedna ispod druge) */
+.sx-form.mx-addtech { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container page (max-width: 560px) { .sx-form.mx-addtech { grid-template-columns: minmax(0, 1fr); } }
