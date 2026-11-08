@@ -1,18 +1,6 @@
 import React from 'react';
-import {
-  ActivityIcon,
-  CheckCircleIcon,
-  UsersIcon,
-  ClockIcon,
-  TrendingUpIcon,
-  BarChartIcon,
-  AlertTriangleIcon,
-  MapPinIcon,
-  DollarSignIcon,
-  UserCheckIcon,
-  CalendarIcon,
-  PieChartIcon
-} from '../icons/SvgIcons';
+import { MapPin, TriangleAlert, Clock, DollarSign, UserCheck, ArrowUpRight } from 'lucide-react';
+import { cx, Sign } from '../../security/sx/ui';
 
 const KPICards = ({ kpiData, onCardClick, activeCard }) => {
   // KPI configuration with proper icons and descriptions
@@ -20,45 +8,40 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
     {
       id: 'map',
       title: 'Interactive Map',
-      icon: MapPinIcon,
+      icon: MapPin,
       description: 'Interaktivna mapa aktivnosti',
-      color: 'bg-orange-500',
       data: kpiData?.map || null,
       metrics: ['mapActivities', 'geoDistribution', 'locationInsights']
     },
     {
       id: 'cancellation',
       title: 'Cancellation Analysis',
-      icon: AlertTriangleIcon,
+      icon: TriangleAlert,
       description: 'Analiza otkazanih radnih naloga',
-      color: 'bg-red-500',
       data: kpiData?.cancellation || null,
       metrics: ['totalCancelled', 'cancellationReasons', 'trendAnalysis']
     },
     {
       id: 'hourly',
       title: 'Hourly Activity',
-      icon: ClockIcon,
+      icon: Clock,
       description: 'Distribucija aktivnosti po satima',
-      color: 'bg-indigo-500',
       data: kpiData?.hourly || null,
       metrics: ['hourlyDistribution', 'peakHours', 'workPatterns']
     },
     {
       id: 'financial',
       title: 'Financial Analysis',
-      icon: DollarSignIcon,
+      icon: DollarSign,
       description: 'Finansijska analiza i troškovi',
-      color: 'bg-yellow-500',
       data: kpiData?.financial || null,
       metrics: ['totalRevenue', 'costAnalysis', 'profitMargins']
     },
     {
       id: 'technician',
       title: 'Technician Comparison',
-      icon: UserCheckIcon,
+      icon: UserCheck,
       description: 'Poređenje performansi tehničara',
-      color: 'bg-teal-500',
       data: kpiData?.technician || null,
       metrics: ['technicianStats', 'performanceMetrics', 'efficiency']
     }
@@ -74,17 +57,9 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
     return value || 'N/A';
   };
 
-  const getStatusIcon = (hasData) => {
-    return hasData ? (
-      <CheckCircleIcon className="w-4 h-4 text-green-500" />
-    ) : (
-      <ClockIcon className="w-4 h-4 text-gray-400" />
-    );
-  };
-
   return (
-    <div className="kpi-cards-grid">
-      {kpiConfig.map((config) => {
+    <div className="mx-logdash-kpis">
+      {kpiConfig.map((config, i) => {
         const IconComponent = config.icon;
         const isActive = activeCard === config.id;
         const hasData = config.data !== null;
@@ -92,63 +67,39 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
         return (
           <div
             key={config.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onCardClick(config.id)}
-            className={`kpi-card ${isActive ? 'active' : ''}`}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCardClick(config.id); } }}
+            className={cx('sx-card mx-logdash-kpi', isActive && 'is-active')}
+            style={{ '--i': i }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className={`kpi-card-icon ${config.color}`}>
-                <IconComponent className="w-6 h-6" />
-              </div>
-              {getStatusIcon(hasData)}
+            <div className="mx-logdash-kpi__top">
+              <span className="sx-item__icon"><IconComponent size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+              <ArrowUpRight className="mx-logdash-kpi__go" size={18} strokeWidth={1.8} aria-hidden="true" />
             </div>
 
-            {/* Title */}
-            <h3 className="kpi-card-title">
-              {config.title}
-            </h3>
+            <h3 className="sx-card__title">{config.title}</h3>
+            <p className="mx-logdash-kpi__desc">{config.description}</p>
 
-            {/* Description */}
-            <p className="kpi-card-description">
-              {config.description}
-            </p>
-
-            {/* Status and Stats */}
-            <div className="kpi-card-status">
+            {/* Stanje podataka */}
+            <div className="mx-logdash-kpi__status">
               {hasData ? (
-                <div>
-                  {config.data.isStatsOnly ? (
-                    <div>
-                      <span style={{color: '#3b82f6', fontWeight: '500', fontSize: '14px'}}>
-                        {config.data.total} stavki
-                      </span>
-                      <span style={{color: '#6b7280', fontSize: '12px', display: 'block'}}>
-                        Kliknite za detalje
-                      </span>
-                    </div>
-                  ) : (
-                    <div>
-                      <span style={{color: '#22c55e', fontWeight: '500'}}>Data Loaded</span>
-                      <span style={{color: '#374151', fontSize: '12px', display: 'block'}}>
-                        Ready
-                      </span>
-                    </div>
-                  )}
-                </div>
+                config.data.isStatsOnly ? (
+                  <>
+                    <Sign tone="info">{config.data.total} stavki</Sign>
+                    <small>Kliknite za detalje</small>
+                  </>
+                ) : (
+                  <>
+                    <Sign tone="ok">Data Loaded</Sign>
+                    <small>Ready</small>
+                  </>
+                )
               ) : (
-                <span style={{color: '#6b7280'}}>Click to load</span>
+                <Sign tone="idle">Click to load</Sign>
               )}
             </div>
-
-            {/* Active indicator */}
-            {isActive && (
-              <div className="kpi-card-indicator" style={{background: '#3b82f6'}}></div>
-            )}
-
-            {/* Data loaded indicator */}
-            {hasData && !isActive && (
-              <div className="kpi-card-indicator" style={{background: '#22c55e'}}></div>
-            )}
           </div>
         );
       })}
