@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, Pencil, Trash2, RefreshCw, Wrench, Users, ArrowLeftRight } from 'lucide-react';
+import { Plus, Minus, Pencil, Trash2, RefreshCw, Wrench, User, X } from 'lucide-react';
 import { basicEquipmentAPI, techniciansAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
-import { Btn, Sign, Avatar } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat, KV, Tabs } from '../../security/sx/layout';
+import { Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Toolbar, Panel, Note, Stat, KV } from '../../security/sx/layout';
 import { Field, Input, Select, Choice, SearchField } from '../../security/sx/forms';
-import Dialog from '../../security/sx/Dialog';
 import { confirm } from '../../security/sx/confirm';
 import { Pager, ColumnMenu, Loading } from '../../montaza/ui';
 import './BasicEquipmentManager.mx.css';
@@ -259,17 +258,22 @@ const BasicEquipmentManager = () => {
 
       {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
-      <Tabs
-        ariaLabel="Prikaz"
-        layoutId="mx-be-tabs"
-        value={viewMode}
-        onChange={setViewMode}
-        items={[
-          { key: 'inventory', label: 'Inventar', icon: Wrench },
-          { key: 'technicians', label: 'Po tehničarima', icon: Users },
-          { key: 'assign', label: 'Zaduženje/Razduženje', icon: ArrowLeftRight }
-        ]}
-      />
+      {/* Izbor prikaza u traci kao ranije: pilule po sredini, na telefonu jedan red koji se pomera */}
+      <div className="mx-be-viewbar">
+        <Choice
+          size="sm"
+          scroll
+          label="Prikaz"
+          layoutId="mx-be-view"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { value: 'inventory', label: 'Inventar', icon: Wrench },
+            { value: 'technicians', label: 'Po tehničarima', icon: User },
+            { value: 'assign', label: 'Zaduženje/Razduženje', icon: Plus }
+          ]}
+        />
+      </div>
 
       {/* Inventar */}
       {viewMode === 'inventory' && (
@@ -284,6 +288,71 @@ const BasicEquipmentManager = () => {
               sub={`${technicians.filter(tech => tech.basicEquipment && tech.basicEquipment.length > 0).length} tehničara`}
             />
           </div>
+
+          {/* Dodavanje i izmena: kartica iznad tabele kao ranije; dugmad su kao ranije "submit" dugmad forme (Odustani je prvo) */}
+          {showAddForm && (
+            <form onSubmit={handleSubmit} className="mx-be-addform">
+              <Panel
+                title={editingItem ? 'Izmeni osnovnu opremu' : 'Dodaj novu osnovnu opremu'}
+                actions={<Btn size="sm" variant="ghost" icon={X} onClick={resetForm} aria-label="Zatvori" />}
+                footer={<>
+                  <Btn type="submit" variant="ghost" onClick={resetForm}>Odustani</Btn>
+                  <Btn type="submit" variant="primary" onClick={handleSubmit} busy={loading}>
+                    {loading ? 'Čuvanje...' : editingItem ? 'Ažuriraj' : 'Dodaj'}
+                  </Btn>
+                </>}
+              >
+                <div className="sx-form">
+                  <Field label="Vrsta osnovne opreme:" htmlFor="type">
+                    <Input
+                      type="text"
+                      id="type"
+                      value={formData.type}
+                      onChange={(e) => setFormData({...formData, type: e.target.value})}
+                      placeholder="Unesite vrstu osnovne opreme"
+                      disabled={loading}
+                      autoFocus
+                      required
+                    />
+                  </Field>
+                  <Field label="Serijski broj (S/N):" htmlFor="serialNumber">
+                    <Input
+                      type="text"
+                      id="serialNumber"
+                      value={formData.serialNumber}
+                      onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+                      placeholder="Unesite serijski broj"
+                      disabled={loading}
+                      mono
+                    />
+                  </Field>
+                  <Field label="Količina:" htmlFor="quantity">
+                    <Input
+                      type="number"
+                      id="quantity"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 0})}
+                      min="0"
+                      disabled={loading}
+                      required
+                    />
+                  </Field>
+                  <Field label="Cena (RSD):" htmlFor="price">
+                    <Input
+                      type="number"
+                      id="price"
+                      value={formData.price}
+                      onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                      min="0"
+                      step="0.01"
+                      disabled={loading}
+                      placeholder="0.00"
+                    />
+                  </Field>
+                </div>
+              </Panel>
+            </form>
+          )}
 
           <Toolbar>
             <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po nazivu osnovne opreme..." />
@@ -352,80 +421,18 @@ const BasicEquipmentManager = () => {
             )}
           </Panel>
 
-          {/* Dodavanje i izmena (ranije forma iznad tabele); dugmad su kao ranije "submit" dugmad forme (Odustani je prvo) */}
-          <Dialog
-            open={showAddForm}
-            onClose={resetForm}
-            eyebrow="Osnovna oprema"
-            title={editingItem ? 'Izmeni osnovnu opremu' : 'Dodaj novu osnovnu opremu'}
-            testId="basic-equipment-dialog"
-            footer={<>
-              <Btn type="submit" form="mx-be-form" variant="ghost" onClick={resetForm}>Odustani</Btn>
-              <Btn type="submit" form="mx-be-form" variant="primary" onClick={handleSubmit} busy={loading}>
-                {loading ? 'Čuvanje...' : editingItem ? 'Ažuriraj' : 'Dodaj'}
-              </Btn>
-            </>}
-          >
-            <form id="mx-be-form" onSubmit={handleSubmit} className="sx-form">
-              <Field label="Vrsta osnovne opreme:" htmlFor="type">
-                <Input
-                  type="text"
-                  id="type"
-                  value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value})}
-                  placeholder="Unesite vrstu osnovne opreme"
-                  disabled={loading}
-                  autoFocus
-                  required
-                />
-              </Field>
-              <Field label="Serijski broj (S/N):" htmlFor="serialNumber">
-                <Input
-                  type="text"
-                  id="serialNumber"
-                  value={formData.serialNumber}
-                  onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
-                  placeholder="Unesite serijski broj"
-                  disabled={loading}
-                  mono
-                />
-              </Field>
-              <Field label="Količina:" htmlFor="quantity">
-                <Input
-                  type="number"
-                  id="quantity"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 0})}
-                  min="0"
-                  disabled={loading}
-                  required
-                />
-              </Field>
-              <Field label="Cena (RSD):" htmlFor="price">
-                <Input
-                  type="number"
-                  id="price"
-                  value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
-                  min="0"
-                  step="0.01"
-                  disabled={loading}
-                  placeholder="0.00"
-                />
-              </Field>
-            </form>
-          </Dialog>
         </>
       )}
 
       {/* Po tehničarima */}
       {viewMode === 'technicians' && (
         <>
-          <Toolbar>
-            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži tehničare..." />
-          </Toolbar>
-
-          <Panel title="Osnovna oprema po tehničarima">
+          {/* kao ranije: naslov i pretraga u zaglavlju iste kartice */}
+          <Panel
+            title="Osnovna oprema po tehničarima"
+            className="mx-be-techpanel"
+            actions={<SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži tehničare..." />}
+          >
             {filteredTechnicians.length === 0 ? (
               <div className="sx-empty-block mx-be-empty">
                 <b>Nema tehničara sa zaduženom osnovnom opremom</b>
@@ -444,10 +451,12 @@ const BasicEquipmentManager = () => {
                   return (
                     <div key={technician._id} className="mx-be-tech">
                       <div className="mx-be-tech__head">
-                        <div className="sx-cell sx-cell--who">
-                          <Avatar name={technician.name} />
-                          <b>{technician.name}</b>
-                          <span>{technician.deletedAt ? 'Obrisan tehničar' : 'Tehničar'}</span>
+                        <div className="mx-be-who">
+                          <span className="sx-item__icon"><User size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+                          <div className="sx-cell">
+                            <b>{technician.name}</b>
+                            <span>{technician.deletedAt ? 'Obrisan tehničar' : 'Tehničar'}</span>
+                          </div>
                         </div>
                         <div className="mx-be-tech__total">
                           <span className="sx-label">Ukupna cena</span>
@@ -525,7 +534,9 @@ const BasicEquipmentManager = () => {
                   </Select>
                 </Field>
 
-                <Field label="Tip operacije:">
+                {/* kao ranije: natpis i izbor u istom redu */}
+                <div className="sx-field mx-be-op">
+                  <span className="sx-field__label">Tip operacije:</span>
                   <Choice
                     size="sm"
                     label="Tip operacije"
@@ -538,7 +549,7 @@ const BasicEquipmentManager = () => {
                     }}
                     options={[{ value: 'assign', label: 'Zaduženje' }, { value: 'return', label: 'Razduženje' }]}
                   />
-                </Field>
+                </div>
 
                 <Field label="Osnovna oprema:" htmlFor="mx-be-item">
                   <Select

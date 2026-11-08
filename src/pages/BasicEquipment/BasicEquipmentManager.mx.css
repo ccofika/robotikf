@@ -2,7 +2,8 @@
 .mx-be-techs { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); }
 .mx-be-tech { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px 16px 6px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
 .mx-be-tech__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-bottom: 10px; border-bottom: 1px solid var(--sx-line); }
-.mx-be-tech__head .sx-cell--who { flex: 1 1 200px; }
+.mx-be-who { display: flex; align-items: center; gap: 12px; flex: 1 1 200px; min-width: 0; }
+.mx-be-who .sx-cell b { white-space: nowrap; }
 .mx-be-tech__total { display: grid; justify-items: end; gap: 3px; margin-left: auto; }
 .mx-be-tech__total b { font-size: 17px; font-weight: 650; color: var(--sx-text); white-space: nowrap; }
 .sx-item.mx-be-item { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; }
@@ -13,3 +14,19 @@
 .mx-be-current { display: grid; gap: 6px; }
 .mx-be-prow { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--sx-surface); font-size: 13px; color: var(--sx-text-2); }
 .mx-be-prow b { color: var(--sx-text); }
+/* traka za izbor prikaza (kao ranije dugmad u traci): pilule po sredini */
+.mx-be-viewbar { margin-bottom: 20px; padding: 12px 14px; border-radius: var(--sx-radius-card); border: 1px solid var(--sx-line); background: var(--sx-surface); box-shadow: var(--sx-shadow-card); }
+.mx-be-viewbar > .sx-choice { justify-content: center; gap: 8px; }
+.sx-head + .mx-be-viewbar { margin-top: 26px; }
+@media (max-width: 767px) {
+  .mx-be-viewbar { padding: 8px 0; overflow: hidden; }
+  .mx-be-viewbar > .sx-choice.sx-choice--scroll { justify-content: flex-start; margin: 0; padding: 2px 14px; }
+}
+/* forma za dodavanje iznad tabele, pretraga u zaglavlju kartice po tehničarima */
+.mx-be-addform { margin-bottom: 20px; }
+.mx-be-techpanel > .sx-panel__head { flex-wrap: wrap; align-items: center; }
+.mx-be-techpanel > .sx-panel__head .sx-panel__actions { flex: 0 1 420px; }
+.mx-be-techpanel > .sx-panel__head .sx-panel__actions .sx-search { flex: 1 1 auto; }
+@container page (max-width: 560px) { .mx-be-techpanel > .sx-panel__head .sx-panel__actions { flex-basis: 100%; } }
+/* tip operacije: natpis i pilule u istom redu, kao ranije natpis i radio dugmad */
+.sx-field.mx-be-op { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
