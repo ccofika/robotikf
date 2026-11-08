@@ -1,66 +1,68 @@
 /* =============================================================================
    Logovi, tab Dashboard (DashboardSectionNew i KPI prikazi iz components/ui).
-   Samo dodaci koje sx nema; boje samo iz tokena (security/sx/tokens.css).
+   Raspored je isti kao ranije (iste kartice, isti delovi, isti redosled); menja se samo izgled.
+   Boje samo iz tokena (security/sx/tokens.css). Napomena: sx osnova (button, h1-h5, p) se učitava
+   posle ovog fajla, pa pravila za te elemente imaju dva nivoa, a razmak oko naslova ide kroz padding.
    ============================================================================= */
 
 /* ---------- okvir taba ---------- */
-/* kontejner "page" (iste širine kao .sx-page): sx pravila po širini rade i kad okvir stranice nije sx-page */
-.mx-logdash { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; container: page / inline-size; }
-.mx-logdash__head { display: grid; gap: 6px; }
-.mx-logdash__title { font-family: var(--sx-font-display); font-weight: 690; font-stretch: 118%; font-size: clamp(22px, 0.5vw + 17px, 26px); letter-spacing: -0.02em; line-height: 1.12; color: var(--sx-text); }
-.mx-logdash__lead { max-width: 72ch; font-size: 14px; line-height: 1.5; color: var(--sx-muted); }
+/* kontejner "page" (iste širine kao .sx-page): sx pravila po širini rade i kad okvir stranice nije sx-page;
+   donji razmak da fiksiran dok ne prekrije poslednje kartice */
+.mx-logdash { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; min-width: 0; padding-bottom: 72px; container: page / inline-size; }
+.mx-logdash__head { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.mx-logdash__title { font-family: var(--sx-font-display); font-weight: 700; font-stretch: 118%; font-size: clamp(24px, 0.8vw + 18px, 30px); letter-spacing: -0.02em; line-height: 1.12; color: var(--sx-text); text-wrap: balance; }
+.mx-logdash__lead { max-width: 72ch; font-size: 14.5px; line-height: 1.5; color: var(--sx-muted); text-wrap: balance; }
+.mx-logdash__active { animation: sx-fade 160ms linear both, sx-rise 360ms var(--ease-enter) both; }
+.mx-logdash__active > .sx-panel__head .sx-card__title { font-size: 20px; }
 
-/* otvoreni KPI: traka sa nazivom i X, pa prikaz */
-.mx-logdash__active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; animation: sx-fade 160ms linear both, sx-rise 360ms var(--ease-enter) both; }
-.mx-logdash__bar { display: flex; align-items: center; gap: 12px; min-width: 0; padding-bottom: 12px; border-bottom: 1px solid var(--sx-line); }
-.mx-logdash__kpi { flex: 1 1 auto; min-width: 0; font-family: var(--sx-font-display); font-weight: 680; font-stretch: 116%; font-size: 20px; letter-spacing: -0.016em; line-height: 1.2; color: var(--sx-text); }
-
-/* ---------- KPI kartice (izbor prikaza) ---------- */
-.mx-logdash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px; }
+/* ---------- KPI kartice ---------- */
+.mx-logdash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 20px; }
 .mx-logdash-kpi {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   min-width: 0;
-  padding: 16px 18px;
+  padding: 22px;
   cursor: pointer;
   transition: border-color var(--hover-out) var(--ease-move), background-color var(--hover-out) var(--ease-move);
   animation: sx-fade 160ms linear calc(var(--i, 0) * 40ms) backwards, sx-rise 380ms var(--ease-enter) calc(var(--i, 0) * 40ms) backwards;
 }
-.mx-logdash-kpi__top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
-.mx-logdash-kpi__go { color: var(--sx-faint); transition: color var(--hover-out) var(--ease-move), transform var(--hover-out) var(--ease-move); }
-.mx-logdash-kpi__desc { font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
-.mx-logdash-kpi__status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--sx-line); }
-.mx-logdash-kpi > .mx-logdash-kpi__desc { padding-bottom: 12px; }
-.mx-logdash-kpi__status small { font-size: 12px; color: var(--sx-muted); }
+.mx-logdash-kpi__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.mx-logdash-kpi__top .sx-item__icon { width: 44px; height: 44px; border-radius: 13px; }
+.mx-logdash-kpi__state.is-ok { color: var(--sx-ok-text); }
+.mx-logdash-kpi__state.is-idle { color: var(--sx-faint); }
+.mx-logdash-kpi .mx-logdash-kpi__title { padding-bottom: 6px; font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 18px; letter-spacing: -0.012em; line-height: 1.2; color: var(--sx-text); }
+.mx-logdash-kpi .mx-logdash-kpi__desc { padding-bottom: 16px; font-size: 13.5px; line-height: 1.45; color: var(--sx-muted); }
+.mx-logdash-kpi__status { display: grid; justify-items: start; gap: 2px; margin-top: auto; }
+.mx-logdash-kpi__status small { display: block; font-size: 12px; color: var(--sx-muted); }
+.mx-logdash-kpi__dot { position: absolute; top: 10px; right: 10px; }
 .mx-logdash-kpi.is-active { border-color: var(--sx-btn-primary-bg); }
 @media (hover: hover) and (pointer: fine) {
-  .mx-logdash-kpi:hover { border-color: var(--sx-line-3); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
-  .mx-logdash-kpi:hover .mx-logdash-kpi__go { color: var(--sx-text); transform: translate(2px, -2px); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+  .mx-logdash-kpi:hover { border-color: var(--sx-line-3); background: var(--sx-surface-2); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
 }
 .mx-logdash-kpi:active { transform: scale(0.99); }
 
-/* ---------- stanje (tri kratke činjenice) ---------- */
-.mx-logdash-status { display: flex; flex-wrap: wrap; gap: 1px; border: 1px solid var(--sx-line); border-radius: var(--sx-radius-card); background: var(--sx-line); overflow: hidden; }
-.mx-logdash-status__item { flex: 1 1 220px; display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px 18px; background: var(--sx-surface); }
+/* ---------- stanje: tri kartice ---------- */
+.mx-logdash-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
+.mx-logdash-status__item { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 16px 18px; box-shadow: none; }
 .mx-logdash-status__text { display: grid; gap: 2px; min-width: 0; }
-.mx-logdash-status__text h3 { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-status__text h3 { font-size: 14px; font-weight: 650; color: var(--sx-text); }
 .mx-logdash-status__text p { font-size: 13px; color: var(--sx-muted); }
 
-/* ---------- dok: tamna pilula koja se lepi uz dno ekrana ---------- */
+/* ---------- dok: fiksiran na dnu ekrana (kao ranije), na sredini glavnog dela strane (bez šine levo) ---------- */
 .mx-logdash-dock {
-  position: sticky;
-  bottom: 16px;
-  z-index: 30;
-  justify-self: center;
+  position: fixed;
+  bottom: 20px;
+  left: calc(var(--sx-rail-w, 0px) + (100vw - var(--sx-rail-w, 0px)) / 2);
+  transform: translateX(-50%);
+  z-index: 45; /* iznad sadržaja, ispod gornje trake (50), menija na telefonu (70) i dijaloga */
   display: flex;
   gap: 4px;
-  max-width: 100%;
   padding: 6px;
   border-radius: 999px;
   background: var(--sx-toast-bg);
   box-shadow: var(--sx-shadow-toast);
 }
+@media (max-width: 768px) { .mx-logdash-dock { bottom: 10px; } }
 .mx-logdash-dock .mx-logdash-dock__btn {
   position: relative;
   display: grid;
@@ -82,36 +84,65 @@
 
 /* ---------- dijalog opštine ---------- */
 /* dijalog je u portalu (bez kontejnera "page"), pa se kolone brojki zadaju ovde */
-.sx-stats.mx-logdash-dlgstats { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; box-shadow: none; }
+.sx-stats.mx-logdash-dlgstats { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 20px; box-shadow: none; }
 .mx-logdash-dlgstats .sx-stat { padding: 12px 14px 11px; }
 .mx-logdash-dlgstats .sx-stat::before { left: 14px; right: 14px; }
 .mx-logdash-dlgstats .sx-stat__num { font-size: 28px; }
 @media (max-width: 479px) { .sx-stats.mx-logdash-dlgstats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.mx-logdash-dlg__title { padding-bottom: 8px; font-size: 14px; font-weight: 650; color: var(--sx-text); }
-.mx-logdash-wo { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--sx-line); }
-.mx-logdash-wo:first-child { border-top: 0; padding-top: 4px; }
+.sx-dialog .mx-logdash-dlg__title { padding-bottom: 12px; font-size: 15px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-wos { display: grid; gap: 12px; }
+.mx-logdash-wo { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface); }
 .mx-logdash-wo__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .mx-logdash-wo__head b { color: var(--sx-text); font-weight: 650; overflow-wrap: anywhere; }
-.mx-logdash-wo__kv .sx-kv__row { grid-template-columns: 96px minmax(0, 1fr); padding: 6px 0; font-size: 13px; }
-.mx-logdash-dlg__more { padding-top: 12px; border-top: 1px solid var(--sx-line); font-size: 13px; color: var(--sx-muted); }
+.mx-logdash-wo__kv .sx-kv__row { grid-template-columns: 96px minmax(0, 1fr); padding: 5px 0; font-size: 13px; }
+.sx-dialog .mx-logdash-dlg__more { padding-top: 14px; text-align: center; font-size: 13px; color: var(--sx-muted); }
+.sx-dialog .mx-logdash-dlg__empty { padding: 28px 0; text-align: center; font-size: 13.5px; color: var(--sx-muted); }
 
 /* =============================================================================
-   KPI prikazi (components/ui: mapa, otkazivanja, sati, finansije, tehničari)
+   KPI prikaz: jedna kartica sa delovima (zaglavlje, traka brojki, sadržaj, podnožje), kao ranije
    ============================================================================= */
-.mx-logdash-sec { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
-.mx-logdash-sec__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
-.mx-logdash-sec__titles { flex: 1 1 320px; min-width: 0; }
-.mx-logdash-sec__title { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 17px; letter-spacing: -0.012em; line-height: 1.2; color: var(--sx-text); }
-.mx-logdash-sec__lead { padding-top: 3px; font-size: 13.5px; line-height: 1.45; color: var(--sx-muted); }
-.mx-logdash-sec__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.mx-logdash-sec__tools .sx-select { width: auto; min-width: 150px; white-space: nowrap; }
-.mx-logdash-sec__tools .sx-btn[aria-pressed="true"] { background: var(--sx-surface-3); border-color: var(--sx-line-3); }
-.mx-logdash-sec .sx-stats + *, .mx-logdash-sec .sx-tabs + * { margin-top: 0; }
-.mx-logdash-sec .sx-empty-block h4 { font-size: 15px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-comp { min-width: 0; overflow: hidden; border: 1px solid var(--sx-line); border-radius: 16px; background: var(--sx-surface); }
+.mx-logdash-comp__head { display: grid; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-logdash-comp__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.mx-logdash-comp__id { display: flex; align-items: center; gap: 12px; flex: 1 1 300px; min-width: 0; }
+.mx-logdash-comp__titles { display: grid; gap: 3px; min-width: 0; }
+.mx-logdash-comp .mx-logdash-comp__title { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 18px; letter-spacing: -0.012em; line-height: 1.2; color: var(--sx-text); }
+.mx-logdash-comp .mx-logdash-comp__lead { font-size: 13.5px; line-height: 1.45; color: var(--sx-muted); }
+.mx-logdash-comp__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mx-logdash-comp__tools .sx-select { width: auto; min-width: 150px; white-space: nowrap; }
+.mx-logdash-comp__tools .sx-btn[aria-pressed="true"] { background: var(--sx-surface-3); border-color: var(--sx-line-3); }
+.mx-logdash-comp__band { display: grid; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-logdash-comp__band .sx-stats { box-shadow: none; }
+.mx-logdash-comp__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; min-width: 0; padding: 20px; }
+.mx-logdash-comp__foot { display: grid; gap: 4px; padding: 16px 20px; border-top: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-logdash-comp .sx-stats + * { margin-top: 0; }
+/* iznosi (npr. "169.684 RSD", sa nedeljivim razmakom) na uskom ekranu manjim slovima, bez prelamanja reči */
 @container page (max-width: 560px) {
-  .mx-logdash-sec__tools { width: 100%; }
-  .mx-logdash-sec__tools .sx-select { flex: 1 1 140px; min-width: 0; }
+  .mx-logdash-comp .sx-stat__num { font-size: 20px; }
+  .mx-logdash-comp .mx-logdash-mini b { font-size: 20px; }
+  .mx-logdash-comp .mx-logdash-mini b.mx-logdash-stat-text { font-size: 16px; }
 }
+@container page (max-width: 560px) {
+  .mx-logdash-comp__head, .mx-logdash-comp__band, .mx-logdash-comp__foot { padding-left: 14px; padding-right: 14px; }
+  .mx-logdash-comp__body { padding: 14px; }
+  .mx-logdash-comp__tools { width: 100%; }
+  .mx-logdash-comp__tools .sx-select { flex: 1 1 140px; min-width: 0; }
+}
+/* naslov odeljka u sadržaju (h3/h4) i red naslov + dodatak desno */
+.mx-logdash-comp .mx-logdash-h { font-family: var(--sx-font-display); font-weight: 660; font-stretch: 112%; font-size: 16px; letter-spacing: -0.01em; line-height: 1.25; color: var(--sx-text); }
+.mx-logdash-headrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.mx-logdash-headrow .sx-select { flex: 0 0 auto; width: auto; min-width: 130px; }
+.mx-logdash-comp .mx-logdash-h + * { margin-top: 0; }
+.mx-logdash-sub { display: grid; gap: 14px; min-width: 0; }
+
+/* prazno stanje i greška (centrirano, kao ranije) */
+.mx-logdash-comp .mx-logdash-empty, .mx-logdash-empty { display: grid; justify-items: center; gap: 8px; padding: 28px 12px; text-align: center; }
+.mx-logdash-empty .sx-item__icon { width: 48px; height: 48px; border-radius: 14px; margin-bottom: 4px; }
+.mx-logdash-empty h4 { font-size: 16px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-empty p { max-width: 60ch; font-size: 13.5px; line-height: 1.5; color: var(--sx-muted); }
+.mx-logdash-empty .sx-btn { margin-top: 6px; }
+.mx-logdash-empty.is-bad .sx-item__icon { background: color-mix(in oklab, var(--sx-bad) 12%, var(--sx-surface)); color: var(--sx-bad-text); }
+.mx-logdash-empty .mx-logdash-warn { color: var(--sx-warn-text); }
 
 /* brojka koja je tekst (naziv razloga, opštine) */
 .mx-logdash-stat-text { font-family: var(--sx-font-ui); font-size: 17px; font-weight: 650; font-stretch: 100%; letter-spacing: -0.005em; line-height: 1.25; overflow-wrap: anywhere; }
@@ -119,79 +150,150 @@
 .mx-logdash-stats2 .sx-stat__num { font-size: clamp(24px, 0.6vw + 18px, 30px); }
 .mx-logdash-stats2 .sx-label { display: inline-flex; align-items: center; gap: 6px; }
 
-/* mali sažetak u panelu (vrednost iznad natpisa) */
-.mx-logdash-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 1px; margin-bottom: 18px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-line); overflow: hidden; }
-.mx-logdash-mini > div { display: grid; gap: 2px; min-width: 0; padding: 10px 14px; background: var(--sx-surface-2); }
-.mx-logdash-mini b { font-family: var(--sx-font-mono); font-size: 15px; font-weight: 600; color: var(--sx-text); overflow-wrap: anywhere; }
-.mx-logdash-mini span { font-size: 12px; color: var(--sx-muted); }
-@container page (max-width: 560px) { .mx-logdash-mini > div:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+/* mali sažetak (vrednost iznad natpisa) */
+.mx-logdash-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr)); gap: 12px; }
+.mx-logdash-mini > div { display: grid; align-content: center; gap: 4px; min-width: 0; padding: 12px 14px; border-radius: 12px; background: var(--sx-surface-2); }
+.mx-logdash-mini b { font-family: var(--sx-font-display); font-weight: 650; font-stretch: 62%; font-size: 28px; letter-spacing: -0.01em; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--sx-text); }
+.mx-logdash-mini b.mx-logdash-stat-text { font-family: var(--sx-font-ui); font-stretch: 100%; font-size: 17px; line-height: 1.25; overflow-wrap: anywhere; }
+.mx-logdash-mini span { font-size: 12.5px; color: var(--sx-muted); }
+.mx-logdash-mini.is-center > div { justify-items: center; text-align: center; }
+.mx-logdash-mini.is-plain > div { padding: 4px 8px; background: transparent; }
 
-/* grafikon (recharts): ose, mreža, oblačić */
-.mx-logdash-chart { width: 100%; height: 280px; min-width: 0; }
-.mx-logdash-chart--tall { height: 320px; }
-.mx-logdash-chart .recharts-cartesian-axis-tick-value { font-family: var(--sx-font-mono); font-size: 11px; }
-.mx-logdash-chart .recharts-surface:focus, .mx-logdash-chart .recharts-wrapper:focus { outline: none; }
-.mx-logdash-tip { min-width: 150px; padding: 9px 11px; border-radius: 10px; background: var(--sx-tip-bg); box-shadow: var(--sx-shadow-pop); font-size: 12.5px; line-height: 1.45; color: var(--sx-tip-text); }
+/* unutrašnja kartica (okvir grafikona) */
+.mx-logdash-box { min-width: 0; padding: 18px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface); }
+.mx-logdash-box--flush { padding: 0; overflow: hidden; }
+.mx-logdash-box__head { padding: 16px 18px; border-bottom: 1px solid var(--sx-line); }
+.mx-logdash-box__body { padding: 18px; }
+
+/* legenda (kvadratić boje + tekst) */
+.mx-logdash-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-size: 12.5px; color: var(--sx-text-2); }
+.mx-logdash-legend.is-center { justify-content: center; }
+.mx-logdash-legend__item { display: inline-flex; align-items: center; gap: 7px; }
+.mx-logdash-legend__item::before { content: ''; width: 10px; height: 10px; flex-shrink: 0; border-radius: 3px; background: var(--c); }
+.mx-logdash-legend__item.is-dot::before { width: 8px; height: 8px; border-radius: 50%; }
+
+/* oblačić (tamno, kao sx oblačić); prikazuje se na hover stubića */
+.mx-logdash-tip { min-width: 150px; padding: 9px 11px; border-radius: 10px; background: var(--sx-tip-bg); box-shadow: var(--sx-shadow-pop); font-size: 12.5px; line-height: 1.45; text-align: left; white-space: nowrap; color: var(--sx-tip-text); }
 .mx-logdash-tip__title { display: block; margin-bottom: 4px; font-weight: 650; }
 .mx-logdash-tip__row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
 .mx-logdash-tip__row b { font-family: var(--sx-font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
 .mx-logdash-tip__key { display: inline-flex; align-items: center; gap: 7px; color: var(--sx-toast-muted); }
-.mx-logdash-tip__key[style]::before { content: ''; width: 10px; height: 2px; border-radius: 1px; background: var(--c); }
+.mx-logdash-tip__key.has-key::before { content: ''; width: 10px; height: 2px; border-radius: 1px; background: var(--c); }
 .mx-logdash-tip__sep { margin: 6px 0 4px; border-top: 1px solid color-mix(in oklab, var(--sx-tip-text) 18%, transparent); }
-.mx-logdash-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-size: 12.5px; color: var(--sx-text-2); }
-.mx-logdash-legend__item { display: inline-flex; align-items: center; gap: 7px; }
-.mx-logdash-legend__item::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.mx-logdash-tip__big { font-family: var(--sx-font-mono); font-size: 16px; font-weight: 650; }
 
-/* sati u danu ispod grafikona (poravnato sa stubićima) */
-.mx-logdash-periods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 2px 8px 0 36px; }
-.mx-logdash-periods > span { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: 8px; border-top: 2px solid var(--sx-line-2); font-size: 12px; line-height: 1.3; text-align: center; color: var(--sx-muted); }
-.mx-logdash-periods svg { flex-shrink: 0; color: var(--sx-faint); }
-@container page (max-width: 560px) { .mx-logdash-periods > span { flex-direction: column; gap: 3px; } }
+/* boje delova dana (noć, jutro, popodne, veče) i serija finansija (prihod, profit, troškovi) */
+.mx-logdash-c--night { --c: var(--sx-idle); }
+.mx-logdash-c--morning { --c: var(--sx-warn); }
+.mx-logdash-c--afternoon { --c: var(--sx-ok); }
+.mx-logdash-c--evening { --c: var(--sx-accent); }
+.mx-logdash-c--revenue { --c: var(--sx-ok); }
+.mx-logdash-c--profit { --c: var(--sx-accent); }
+.mx-logdash-c--cost { --c: var(--sx-bad); }
+
+/* ---------- grafikon po satima (24 stubića, oznaka broja iznad, oblačić na hover) ---------- */
+.mx-logdash-hchart { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); padding-top: 26px; }
+.mx-logdash-hchart__y { position: relative; height: 256px; font-family: var(--sx-font-mono); font-size: 11px; line-height: 1; color: var(--sx-muted); }
+.mx-logdash-hchart__y span { position: absolute; right: 8px; transform: translateY(-50%); }
+.mx-logdash-hchart__plot { position: relative; height: 256px; border-left: 1px solid var(--sx-line-2); border-bottom: 1px solid var(--sx-line-2); }
+.mx-logdash-hchart__grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--sx-line); }
+.mx-logdash-hchart__bars { position: absolute; inset: 0; display: flex; align-items: stretch; }
+.mx-logdash-hchart__col { position: relative; display: flex; flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: flex-end; align-items: center; padding: 0 2px; }
+.mx-logdash-hchart__bar { width: 100%; max-width: 28px; border-radius: 4px 4px 0 0; background: var(--c); transition: filter var(--hover-out) var(--ease-move); }
+.mx-logdash-hchart__badge { position: relative; display: inline-grid; place-items: center; min-width: 22px; height: 18px; margin-bottom: 4px; padding: 0 4px; border-radius: 999px; background: var(--sx-btn-primary-bg); font-family: var(--sx-font-mono); font-size: 10.5px; font-weight: 600; color: var(--sx-btn-primary-text); cursor: default; }
+.mx-logdash-hchart__badge .mx-logdash-tip { position: absolute; top: calc(100% + 6px); left: 50%; z-index: 5; display: none; transform: translateX(-50%); }
+.mx-logdash-hchart__badge.is-start .mx-logdash-tip { left: 0; transform: none; }
+.mx-logdash-hchart__badge.is-end .mx-logdash-tip { left: auto; right: 0; transform: none; }
+.mx-logdash-hchart__badge:hover .mx-logdash-tip { display: block; }
+.mx-logdash-hchart__col:hover .mx-logdash-hchart__bar { filter: brightness(1.12); transition-duration: var(--hover-in); }
+.mx-logdash-hchart__x { grid-column: 2; display: flex; padding-top: 6px; }
+.mx-logdash-hchart__x > span { flex: 1 1 0; min-width: 0; text-align: center; font-family: var(--sx-font-mono); font-size: 11px; color: var(--sx-muted); }
+.mx-logdash-hchart__x > span.is-mark { color: var(--sx-text); font-weight: 600; }
+.mx-logdash-hchart__legend { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--sx-line); }
+@container page (max-width: 640px) {
+  .mx-logdash-hchart { grid-template-columns: 32px minmax(0, 1fr); }
+  .mx-logdash-hchart__col { padding: 0 1px; }
+  .mx-logdash-hchart__badge { min-width: 0; height: 15px; padding: 0 2px; font-size: 9px; }
+}
+
+/* ---------- finansijski trend (dan = tri stubića, oblačić na hover, kosi datumi) ---------- */
+.mx-logdash-fchart { display: grid; grid-template-columns: auto minmax(0, 1fr); padding: 16px 16px 8px; border: 1px solid var(--sx-line); border-radius: 12px; }
+.mx-logdash-fchart__y { position: relative; height: 280px; padding-right: 10px; font-family: var(--sx-font-mono); font-size: 11px; line-height: 1; white-space: nowrap; color: var(--sx-muted); }
+.mx-logdash-fchart__y span { position: absolute; right: 10px; transform: translateY(-50%); }
+.mx-logdash-fchart__y .mx-logdash-fchart__ysize { position: static; visibility: hidden; transform: none; }
+.mx-logdash-fchart__plot { position: relative; height: 280px; border-bottom: 1px solid var(--sx-line-2); }
+.mx-logdash-fchart__grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--sx-line); }
+.mx-logdash-fchart__bars { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; }
+.mx-logdash-fchart__day { position: relative; display: flex; flex: 0 1 60px; min-width: 0; align-items: flex-end; justify-content: center; gap: 3px; cursor: default; }
+.mx-logdash-fchart__bar { flex: 0 1 16px; min-width: 3px; border-radius: 4px 4px 0 0; background: var(--c); transition: filter var(--hover-out) var(--ease-move); }
+.mx-logdash-fchart__day:hover .mx-logdash-fchart__bar { filter: brightness(1.1); transition-duration: var(--hover-in); }
+.mx-logdash-fchart__day .mx-logdash-tip { position: absolute; bottom: calc(100% + 8px); left: 50%; z-index: 5; display: none; transform: translateX(-50%); }
+.mx-logdash-fchart__day.is-start .mx-logdash-tip { left: 0; transform: none; }
+.mx-logdash-fchart__day.is-end .mx-logdash-tip { left: auto; right: 0; transform: none; }
+.mx-logdash-fchart__day:hover .mx-logdash-tip { display: block; }
+.mx-logdash-fchart__legend { padding-top: 0; }
+.mx-logdash-fchart__x { grid-column: 2; display: flex; justify-content: space-between; gap: 4px; height: 48px; padding-top: 8px; }
+.mx-logdash-fchart__x > span { display: flex; flex: 0 1 60px; min-width: 0; justify-content: center; }
+.mx-logdash-fchart__x > span > span { transform: rotate(-45deg); transform-origin: top right; font-family: var(--sx-font-mono); font-size: 10.5px; white-space: nowrap; color: var(--sx-muted); }
+@container page (max-width: 640px) {
+  .mx-logdash-fchart { padding: 12px 10px 6px; }
+  .mx-logdash-fchart__x { height: 64px; }
+  .mx-logdash-fchart__x > span > span { transform: rotate(180deg); transform-origin: center; writing-mode: vertical-rl; }
+  .mx-logdash-fchart__day { gap: 1px; }
+  .mx-logdash-fchart__y { font-size: 9.5px; padding-right: 6px; }
+  .mx-logdash-fchart__y span { right: 6px; }
+}
 
 /* traka udela (razlog otkazivanja, završenost) */
 .mx-logdash-meter { position: relative; height: 6px; border-radius: 999px; background: var(--sx-surface-3); overflow: hidden; }
 .mx-logdash-meter > i { position: absolute; inset: 0; border-radius: inherit; background: var(--sx-text); transform-origin: left; animation: sx-draw-x 600ms var(--ease-enter) backwards; }
 .mx-logdash-meter.is-ok > i { background: var(--sx-ok); }
 
-/* činjenice u redu (ikonica + tekst) */
-.mx-logdash-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--sx-muted); }
-.mx-logdash-facts > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.mx-logdash-facts svg { color: var(--sx-faint); }
+/* činjenice (ikonica + tekst) u mreži */
+.mx-logdash-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; font-size: 13px; color: var(--sx-text-2); }
+.mx-logdash-facts > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.mx-logdash-facts svg { flex-shrink: 0; color: var(--sx-faint); }
+@container page (max-width: 760px) { .mx-logdash-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* otkazivanja: razlozi */
-.mx-logdash-reason { display: grid; gap: 10px; padding: 16px 0; border-top: 1px solid var(--sx-line); }
-.mx-logdash-reason:first-child { border-top: 0; padding-top: 0; }
-.mx-logdash-reason:last-child { padding-bottom: 0; }
+/* otkazivanja: kartice razloga */
+.mx-logdash-reasons { display: grid; gap: 14px; }
+.mx-logdash-reason { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); }
 .mx-logdash-reason__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.mx-logdash-reason__name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-logdash-reason__name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 16px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
 .mx-logdash-reason__num { display: grid; justify-items: end; flex-shrink: 0; }
-.mx-logdash-reason__num b { font-size: 22px; }
+.mx-logdash-reason__num b { font-size: 24px; }
 .mx-logdash-reason__num span { font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-muted); }
-.mx-logdash-reason__recent { font-size: 12.5px; font-weight: 600; color: var(--sx-text-2); }
+.mx-logdash-reason__recent { padding-top: 10px; border-top: 1px solid var(--sx-line); font-size: 12.5px; font-weight: 600; color: var(--sx-text-2); }
 .mx-logdash-trend.is-bad { color: var(--sx-bad-text); }
 .mx-logdash-trend.is-good { color: var(--sx-ok-text); }
 .mx-logdash-trend.is-flat { color: var(--sx-faint); }
-.mx-logdash-note__title { padding-bottom: 2px; font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-comp__foot .mx-logdash-foot__title { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-comp__foot .mx-logdash-foot__title svg { color: var(--sx-faint); }
+.mx-logdash-comp__foot p { font-size: 13px; color: var(--sx-muted); }
 
 /* sati: vrhunski sati */
-.mx-logdash-peaks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px; }
+.mx-logdash-peaks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
 .mx-logdash-peak { display: grid; gap: 12px; min-width: 0; padding: 14px 16px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); }
 .mx-logdash-peak__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mx-logdash-peak__time { display: inline-flex; align-items: center; gap: 8px; font-family: var(--sx-font-mono); font-size: 17px; font-weight: 600; color: var(--sx-text); }
-.mx-logdash-peak__time svg { color: var(--sx-faint); }
-.mx-logdash-peak .sx-kv__row { padding: 6px 0; }
-.mx-logdash-period { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.mx-logdash-period svg { color: var(--sx-faint); }
+.mx-logdash-peak__time svg, .mx-logdash-period svg { color: var(--sx-faint); }
+.mx-logdash-rows { display: grid; gap: 6px; font-size: 13px; }
+.mx-logdash-rows > div { display: flex; justify-content: space-between; gap: 12px; min-width: 0; }
+.mx-logdash-rows > div > span:first-child { color: var(--sx-muted); }
+.mx-logdash-rows > div > b, .mx-logdash-rows > div > span:last-child:not(:first-child) { font-weight: 600; color: var(--sx-text); text-align: right; overflow-wrap: anywhere; }
+.mx-logdash-period { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.mx-logdash-period b { font-family: var(--sx-font-mono); font-weight: 600; color: var(--sx-text); }
 
-/* mapa (leaflet) u panelu */
-.mx-logdash-geo { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sx-accent-text); }
-.mx-logdash-geo__warn { padding-top: 6px; color: var(--sx-warn-text); }
-.mx-logdash-map { position: relative; z-index: 0; height: 340px; overflow: hidden; border-radius: var(--sx-radius-card); }
+/* tabela po satima u okviru (vodoravni skrol unutar okvira na uskom ekranu) */
+.mx-logdash-tablebox { border: 1px solid var(--sx-line); border-radius: 14px; overflow: hidden; }
+
+/* mapa (leaflet) */
+.mx-logdash-map { position: relative; z-index: 0; height: 320px; overflow: hidden; border: 1px solid var(--sx-line); border-radius: 14px; }
 .mx-logdash-map .leaflet-container { height: 100%; width: 100%; font-family: var(--sx-font-ui); background: var(--sx-surface-2); }
 .mx-logdash-map .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: var(--sx-shadow-pop); }
 .mx-logdash-map .leaflet-popup-content { margin: 12px 14px; min-width: 190px; font-size: 12.5px; line-height: 1.45; color: var(--sx-text-2); }
 .mx-logdash-map .leaflet-popup-tip { box-shadow: none; }
-.mx-logdash-pop__title { padding-bottom: 8px; font-size: 14px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-pop .mx-logdash-pop__title { padding-bottom: 8px; font-size: 14px; font-weight: 650; color: var(--sx-text); }
 .mx-logdash-pop .sx-kv__row { grid-template-columns: minmax(0, 1fr) auto; padding: 4px 0; font-size: 12.5px; }
 .mx-logdash-pop .sx-kv dd { text-align: right; font-weight: 600; }
 .mx-logdash-pop__sub { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sx-line); }
@@ -207,44 +309,78 @@
 .mx-logdash-dot.is-medium { background: var(--sx-warn); }
 .mx-logdash-dot.is-low { background: var(--sx-ok); }
 .mx-logdash-dotlabel { display: inline-flex; align-items: center; gap: 7px; }
+.mx-logdash-geo { display: inline-flex; align-items: center; gap: 10px; padding: 4px 0 12px; font-size: 13px; color: var(--sx-accent-text); }
+.mx-logdash-filters { padding: 16px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); }
+.mx-logdash-filters .sx-form { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
 
-/* mapa: kartice opština */
-.mx-logdash-places { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
-.mx-logdash-place { display: grid; gap: 12px; min-width: 0; padding: 16px 18px; cursor: pointer; transition: border-color var(--hover-out) var(--ease-move); }
-@media (hover: hover) and (pointer: fine) { .mx-logdash-place:hover { border-color: var(--sx-line-3); transition-duration: var(--hover-in); } }
-.mx-logdash-place__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.mx-logdash-place__name { display: grid; gap: 4px; min-width: 0; font-size: 12px; color: var(--sx-text-2); }
-.mx-logdash-place__head h4 { font-size: 15px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+/* mapa: kartice opština (do 6) */
+.mx-logdash-places { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.mx-logdash-place { display: grid; gap: 12px; min-width: 0; padding: 16px 18px; cursor: pointer; box-shadow: none; transition: border-color var(--hover-out) var(--ease-move), background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) { .mx-logdash-place:hover { border-color: var(--sx-line-3); background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+.mx-logdash-place__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mx-logdash-place__name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.mx-logdash-place .mx-logdash-place__name h4 { font-size: 15px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
 .mx-logdash-place__region { font-size: 12px; color: var(--sx-muted); text-align: right; }
-.mx-logdash-place__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; font-size: 13px; }
+.mx-logdash-place__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; font-size: 13px; }
 .mx-logdash-place__grid > span { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--sx-muted); }
-.mx-logdash-place__grid b { margin-left: auto; font-family: var(--sx-font-mono); font-weight: 600; color: var(--sx-text); }
-.mx-logdash-place__grid svg { color: var(--sx-faint); }
+.mx-logdash-place__grid b { font-family: var(--sx-font-mono); font-weight: 600; color: var(--sx-text); }
+.mx-logdash-place__grid svg { flex-shrink: 0; color: var(--sx-faint); }
 .mx-logdash-place__foot { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--sx-line); }
 .mx-logdash-place__foot > div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--sx-muted); }
 
-/* tehničari: rang lista */
-.mx-logdash-tech { display: grid; gap: 14px; padding: 18px 0; border-top: 1px solid var(--sx-line); }
-.mx-logdash-tech:first-child { border-top: 0; padding-top: 0; }
-.mx-logdash-tech:last-child { padding-bottom: 0; }
+/* mapa: pregled po regionima (siva podloga, kartice regiona) */
+.mx-logdash-regions { display: grid; gap: 14px; padding: 16px; border-radius: 14px; background: var(--sx-surface-2); }
+.mx-logdash-regions__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 14px; }
+.mx-logdash-region { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--sx-line); border-radius: 12px; background: var(--sx-surface); }
+.mx-logdash-region .mx-logdash-region__name { font-size: 14px; font-weight: 650; color: var(--sx-text); }
+
+/* tehničari: rang kartice */
+.mx-logdash-techs { display: grid; gap: 14px; }
+.mx-logdash-tech { display: grid; gap: 16px; padding: 18px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); }
 .mx-logdash-tech__head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 14px; }
-.mx-logdash-tech__rank { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--sx-surface-3); font-family: var(--sx-font-mono); font-size: 13px; font-weight: 600; color: var(--sx-muted); }
-.mx-logdash-tech__rank.is-top { background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.mx-logdash-tech__rank { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; border: 1px solid var(--sx-line-2); background: var(--sx-surface); font-family: var(--sx-font-mono); font-size: 14px; font-weight: 600; color: var(--sx-muted); }
+.mx-logdash-tech__rank.is-top { border-color: var(--sx-btn-primary-bg); background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
 .mx-logdash-tech__who { display: grid; gap: 4px; min-width: 0; }
-.mx-logdash-tech__who h4 { font-size: 15px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-logdash-tech .mx-logdash-tech__who h4 { font-size: 16px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
 .mx-logdash-tech__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; color: var(--sx-muted); }
-.mx-logdash-tech__score { display: grid; justify-items: end; gap: 2px; }
-.mx-logdash-tech__score b { font-size: 30px; }
-.mx-logdash-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr)); gap: 12px 16px; padding: 12px 14px; border-radius: 14px; background: var(--sx-surface-2); }
+.mx-logdash-tech__score { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.mx-logdash-tech__score b { font-size: 32px; }
+.mx-logdash-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; }
 .mx-logdash-metric { display: grid; gap: 2px; min-width: 0; }
-.mx-logdash-metric b { font-size: 15px; font-weight: 650; color: var(--sx-text); font-variant-numeric: tabular-nums; }
+.mx-logdash-metric b { font-size: 16px; font-weight: 650; color: var(--sx-text); font-variant-numeric: tabular-nums; }
 .mx-logdash-metric small { font-size: 12px; color: var(--sx-muted); }
-.mx-logdash-tags { display: grid; gap: 6px; }
+.mx-logdash-tags { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--sx-line); }
 .mx-logdash-tags > div { display: flex; flex-wrap: wrap; gap: 4px; }
+@container page (max-width: 760px) { .mx-logdash-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container page (max-width: 560px) {
   .mx-logdash-tech__head { grid-template-columns: auto minmax(0, 1fr); }
   .mx-logdash-tech__score { grid-column: 1 / -1; grid-template-columns: auto auto; justify-content: start; align-items: baseline; gap: 8px; }
 }
 
-/* finansije */
-.mx-logdash-fin__tabs { margin-top: -4px; }
+/* finansije: kartice po tehničaru, opštini, usluzi */
+.mx-logdash-fin__list { display: grid; gap: 14px; }
+.mx-logdash-fin__tech { display: grid; grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)); gap: 14px 16px; padding: 16px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); }
+.mx-logdash-fin__tech .mx-logdash-fin__name { font-size: 15px; font-weight: 650; color: var(--sx-text); }
+.mx-logdash-fin__tech .mx-logdash-metric b.is-ok { color: var(--sx-ok-text); }
+.mx-logdash-fin__grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 14px; }
+.mx-logdash-fin__grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 14px; }
+.mx-logdash-fin__card { display: grid; align-content: start; gap: 12px; padding: 16px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); }
+.mx-logdash-fin__cardhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mx-logdash-fin__card .mx-logdash-fin__name { font-size: 15px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-logdash-fin__center { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.mx-logdash-fin__center .mx-logdash-fin__name { font-size: 16px; }
+.mx-logdash-fin__center p { font-size: 13px; color: var(--sx-muted); }
+.mx-logdash-fin__big { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.mx-logdash-fin__big b { font-size: 22px; }
+.mx-logdash-fin__big b.is-sm { font-size: 18px; }
+@container page (max-width: 760px) { .mx-logdash-fin__tech { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mx-logdash-fin__tech > :first-child { grid-column: 1 / -1; } }
+.mx-logdash-note__title { padding-bottom: 2px; font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+
+/* sati: delovi dana u traci brojki (boja dela dana gore, kao legenda grafikona) */
+.mx-logdash-tods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.mx-logdash-tod { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 14px 10px 12px; border: 1px solid var(--sx-line); border-radius: 12px; background: var(--sx-surface); box-shadow: inset 0 3px 0 var(--c); text-align: center; }
+.mx-logdash-tod__label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--sx-text-2); }
+.mx-logdash-tod__label svg { flex-shrink: 0; color: var(--sx-faint); }
+.mx-logdash-tod b { font-size: 24px; }
+.mx-logdash-tod small { font-size: 12px; color: var(--sx-muted); }
+@container page (max-width: 640px) { .mx-logdash-tods { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

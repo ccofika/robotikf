@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { X, CircleCheck, TrendingUp, ChartColumn } from 'lucide-react';
 import { Btn, Sign } from '../../../security/sx/ui';
-import { Stat, KV } from '../../../security/sx/layout';
+import { Panel, Stat, KV } from '../../../security/sx/layout';
 import Dialog from '../../../security/sx/Dialog';
 import { Loading } from '../../../montaza/ui';
 import { cn } from '../../../utils/cn';
@@ -459,8 +459,8 @@ const DashboardSection = ({
   const renderKPIContent = (kpiType) => {
     if (!kpiType || !memoizedKpiData[kpiType]) {
       return (
-        <div className="sx-empty-block">
-          <span>Nema podataka za prikazivanje</span>
+        <div className="mx-logdash-empty">
+          <p>Nema podataka za prikazivanje</p>
         </div>
       );
     }
@@ -470,9 +470,9 @@ const DashboardSection = ({
     // Show loading message if we only have stats and are loading full data
     if (data.isStatsOnly) {
       return (
-        <div className="sx-empty-block">
-          <b><span className="sx-mono">{data.total}</span> ukupno stavki</b>
-          <span>Učitavanje detaljnih podataka...</span>
+        <div className="mx-logdash-empty">
+          <span className="sx-tag is-info"><b className="sx-mono">{data.total}</b> ukupno stavki</span>
+          <p>Učitavanje detaljnih podataka...</p>
         </div>
       );
     }
@@ -532,8 +532,8 @@ const DashboardSection = ({
         );
       default:
         return (
-          <div className="sx-empty-block">
-            <span>Nepoznat tip KPI-a: {kpiType}</span>
+          <div className="mx-logdash-empty">
+            <p>Nepoznat tip KPI-a: {kpiType}</p>
           </div>
         );
     }
@@ -640,12 +640,14 @@ const DashboardSection = ({
 
   return (
     <div className="mx-logdash" data-testid="logs-dashboard">
+
+      {/* Welcome Section */}
       <header className="mx-logdash__head">
         <h1 className="mx-logdash__title">Dashboard Analitike</h1>
         <p className="mx-logdash__lead">Izaberite KPI koji želite da analizirate koristeći dock na dnu stranice</p>
       </header>
 
-      {/* KPI kartice - dok nijedan KPI nije otvoren */}
+      {/* KPI Title Cards - Show initially */}
       {!activeKPI && (
         <KPICards
           kpiData={kpiData}
@@ -654,41 +656,42 @@ const DashboardSection = ({
         />
       )}
 
-      {/* Otvoreni KPI */}
+      {/* Active KPI Content - Only show when KPI is selected */}
       {activeKPI && (
-        <section className="mx-logdash__active">
-          <div className="mx-logdash__bar">
-            <h2 className="mx-logdash__kpi">
-              {dashboardTitles.find(t => t.id === activeKPI)?.title}
-            </h2>
-            <Btn size="sm" variant="ghost" icon={X} onClick={handleKPIClose} aria-label="Zatvori" title="Zatvori" />
-          </div>
-
+        <Panel
+          className="mx-logdash__active"
+          title={dashboardTitles.find(t => t.id === activeKPI)?.title}
+          actions={<Btn size="sm" variant="ghost" icon={X} onClick={handleKPIClose} aria-label="Zatvori" title="Zatvori" />}
+        >
           {kpiLoading[activeKPI] ? (
             <Loading rows={4} h={64} text="Učitavanje podataka..." />
           ) : (
-            renderKPIContent(activeKPI)
+            <div className="w-full">
+              {renderKPIContent(activeKPI)}
+            </div>
           )}
-        </section>
+        </Panel>
       )}
 
-      {/* Stanje */}
+      {/* Status Information */}
       <div className="mx-logdash-status">
-        <div className="mx-logdash-status__item">
+        <div className="sx-card mx-logdash-status__item">
           <span className="sx-item__icon"><CircleCheck size={18} strokeWidth={1.8} aria-hidden="true" /></span>
           <div className="mx-logdash-status__text">
             <h3>Dashboard Status</h3>
             <Sign tone="ok">Sistem je operativan</Sign>
           </div>
         </div>
-        <div className="mx-logdash-status__item">
+
+        <div className="sx-card mx-logdash-status__item">
           <span className="sx-item__icon"><TrendingUp size={18} strokeWidth={1.8} aria-hidden="true" /></span>
           <div className="mx-logdash-status__text">
             <h3>Performance</h3>
             <p>Optimizovano za brzinu</p>
           </div>
         </div>
-        <div className="mx-logdash-status__item">
+
+        <div className="sx-card mx-logdash-status__item">
           <span className="sx-item__icon"><ChartColumn size={18} strokeWidth={1.8} aria-hidden="true" /></span>
           <div className="mx-logdash-status__text">
             <h3>Data Freshness</h3>
@@ -697,7 +700,7 @@ const DashboardSection = ({
         </div>
       </div>
 
-      {/* Dock - lepi se uz dno ekrana */}
+      {/* Dashboard Dock - Fixed at bottom */}
       <DashboardDock
         onKPISelect={handleKPISelect}
         activeKPI={activeKPI}
@@ -716,7 +719,7 @@ const DashboardSection = ({
         subtitle={selectedChartData?.subtitle}
       />
 
-      {/* Opština (klik na mapi) */}
+      {/* Municipality Modal */}
       <Dialog
         open={municipalityModal.isOpen}
         onClose={closeMunicipalityModal}
@@ -738,7 +741,7 @@ const DashboardSection = ({
         </h3>
 
         {municipalityModal.workOrders.length > 0 ? (
-          <div className="sx-list">
+          <div className="mx-logdash-wos">
             {municipalityModal.workOrders.slice(0, 20).map((wo, index) => (
               <div key={wo._id || index} className="mx-logdash-wo">
                 <div className="mx-logdash-wo__head">
@@ -765,9 +768,9 @@ const DashboardSection = ({
             )}
           </div>
         ) : (
-          <div className="sx-empty-block">
-            <span>Nema dostupnih radnih naloga za ovu opštinu</span>
-          </div>
+          <p className="mx-logdash-dlg__empty">
+            Nema dostupnih radnih naloga za ovu opštinu
+          </p>
         )}
       </Dialog>
     </div>

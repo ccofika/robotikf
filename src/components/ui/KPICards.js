@@ -1,6 +1,6 @@
 import React from 'react';
-import { MapPin, TriangleAlert, Clock, DollarSign, UserCheck, ArrowUpRight } from 'lucide-react';
-import { cx, Sign } from '../../security/sx/ui';
+import { MapPin, TriangleAlert, Clock, DollarSign, UserCheck, CircleCheck } from 'lucide-react';
+import { cx, Sign, Led } from '../../security/sx/ui';
 
 const KPICards = ({ kpiData, onCardClick, activeCard }) => {
   // KPI configuration with proper icons and descriptions
@@ -57,6 +57,14 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
     return value || 'N/A';
   };
 
+  const getStatusIcon = (hasData) => {
+    return hasData ? (
+      <CircleCheck size={16} strokeWidth={1.9} className="mx-logdash-kpi__state is-ok" aria-hidden="true" />
+    ) : (
+      <Clock size={16} strokeWidth={1.9} className="mx-logdash-kpi__state is-idle" aria-hidden="true" />
+    );
+  };
+
   return (
     <div className="mx-logdash-kpis">
       {kpiConfig.map((config, i) => {
@@ -74,15 +82,19 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
             className={cx('sx-card mx-logdash-kpi', isActive && 'is-active')}
             style={{ '--i': i }}
           >
+            {/* Header */}
             <div className="mx-logdash-kpi__top">
-              <span className="sx-item__icon"><IconComponent size={18} strokeWidth={1.8} aria-hidden="true" /></span>
-              <ArrowUpRight className="mx-logdash-kpi__go" size={18} strokeWidth={1.8} aria-hidden="true" />
+              <span className="sx-item__icon"><IconComponent size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+              {getStatusIcon(hasData)}
             </div>
 
-            <h3 className="sx-card__title">{config.title}</h3>
+            {/* Title */}
+            <h3 className="mx-logdash-kpi__title">{config.title}</h3>
+
+            {/* Description */}
             <p className="mx-logdash-kpi__desc">{config.description}</p>
 
-            {/* Stanje podataka */}
+            {/* Status and Stats */}
             <div className="mx-logdash-kpi__status">
               {hasData ? (
                 config.data.isStatsOnly ? (
@@ -100,6 +112,12 @@ const KPICards = ({ kpiData, onCardClick, activeCard }) => {
                 <Sign tone="idle">Click to load</Sign>
               )}
             </div>
+
+            {/* Active indicator */}
+            {isActive && <Led tone="info" live className="mx-logdash-kpi__dot" />}
+
+            {/* Data loaded indicator */}
+            {hasData && !isActive && <Led tone="ok" live className="mx-logdash-kpi__dot" />}
           </div>
         );
       })}

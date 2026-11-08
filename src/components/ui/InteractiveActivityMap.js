@@ -2,9 +2,9 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { RefreshCw, Download, Funnel, Search, TriangleAlert, ChartColumn, Users, Clock, TrendingUp, TrendingDown } from 'lucide-react';
+import { MapPin, RefreshCw, Download, Funnel, Search, TriangleAlert, ChartColumn, Users, Clock, TrendingUp } from 'lucide-react';
 import { cx, Btn, Led } from '../../security/sx/ui';
-import { Panel, Note, Stat, KV } from '../../security/sx/layout';
+import { KV } from '../../security/sx/layout';
 import { Field, Select } from '../../security/sx/forms';
 import { Loading } from '../../montaza/ui';
 import { logsAPI } from '../../services/api';
@@ -535,143 +535,155 @@ const InteractiveActivityMap = ({
 
   if (loading || geocodingLoading) {
     return (
-      <div className="mx-logdash-sec">
-        {geocodingLoading && (
-          <span className="mx-logdash-geo">
-            <Led tone="info" live />
-            <span>Geocoding municipalities...</span>
-          </span>
-        )}
-        <Loading rows={1} h={320} />
-        <Loading rows={2} h={56} />
+      <div className={cx('mx-logdash-comp', className)}>
+        <div className="mx-logdash-comp__body">
+          {geocodingLoading && (
+            <span className="mx-logdash-geo">
+              <Led tone="info" live />
+              <span>Geocoding municipalities...</span>
+            </span>
+          )}
+          <Loading rows={1} h={320} />
+          <Loading rows={1} h={64} />
+        </div>
       </div>
     );
   }
 
   if (error || geocodingError) {
     return (
-      <Note tone="bad" icon={TriangleAlert} actions={onRefresh && (
-        <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
-      )}>
-        <h4 className="mx-logdash-note__title">Greška pri učitavanju mape</h4>
-        <p>{error || geocodingError}</p>
-        {geocodingError && (
-          <p className="mx-logdash-geo__warn">
-            Geocoding failed, using fallback coordinates. Map may show approximate locations.
-          </p>
-        )}
-      </Note>
+      <div className={cx('mx-logdash-comp', className)}>
+        <div className="mx-logdash-empty is-bad">
+          <span className="sx-item__icon"><TriangleAlert size={22} strokeWidth={1.8} aria-hidden="true" /></span>
+          <h4>Greška pri učitavanju mape</h4>
+          <p>{error || geocodingError}</p>
+          {geocodingError && (
+            <p className="mx-logdash-warn">
+              Geocoding failed, using fallback coordinates. Map may show approximate locations.
+            </p>
+          )}
+          {onRefresh && (
+            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className={cx('mx-logdash-sec', className)}>
-      {/* Zaglavlje */}
-      <div className="mx-logdash-sec__head">
-        <div className="mx-logdash-sec__titles">
-          <h3 className="mx-logdash-sec__title">Interaktivna mapa aktivnosti</h3>
-          <p className="mx-logdash-sec__lead">Heatmap analiza aktivnosti po lokacijama u Srbiji</p>
-        </div>
+    <div className={cx('mx-logdash-comp', className)}>
+      {/* Header */}
+      <div className="mx-logdash-comp__head">
+        <div className="mx-logdash-comp__row">
+          <div className="mx-logdash-comp__id">
+            <span className="sx-item__icon"><MapPin size={18} strokeWidth={1.9} aria-hidden="true" /></span>
+            <div className="mx-logdash-comp__titles">
+              <h3 className="mx-logdash-comp__title">Interaktivna mapa aktivnosti</h3>
+              <p className="mx-logdash-comp__lead">Heatmap analiza aktivnosti po lokacijama u Srbiji</p>
+            </div>
+          </div>
 
-        <div className="mx-logdash-sec__tools">
-          {onTimeRangeChange && (
-            <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
-              <option value="7d">Poslednja 7 dana</option>
-              <option value="30d">Poslednja 30 dana</option>
-              <option value="90d">Poslednja 3 meseca</option>
-              <option value="180d">Poslednja 6 meseci</option>
-              <option value="365d">Poslednja godina</option>
+          <div className="mx-logdash-comp__tools">
+            {onTimeRangeChange && (
+              <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
+                <option value="7d">Poslednja 7 dana</option>
+                <option value="30d">Poslednja 30 dana</option>
+                <option value="90d">Poslednja 3 meseca</option>
+                <option value="180d">Poslednja 6 meseci</option>
+                <option value="365d">Poslednja godina</option>
+              </Select>
+            )}
+
+            <Select size="sm" value={mapView} onChange={(e) => setMapView(e.target.value)} aria-label="Prikaz mape">
+              <option value="heatmap">Heatmap</option>
+              <option value="pins">Lokacije</option>
+              <option value="clusters">Klasteri</option>
             </Select>
-          )}
 
-          <Select size="sm" value={mapView} onChange={(e) => setMapView(e.target.value)} aria-label="Prikaz mape">
-            <option value="heatmap">Heatmap</option>
-            <option value="pins">Lokacije</option>
-            <option value="clusters">Klasteri</option>
-          </Select>
+            <Btn size="sm" icon={Funnel} onClick={() => setShowFilters(!showFilters)} aria-pressed={showFilters}>
+              Filteri
+            </Btn>
 
-          <Btn size="sm" icon={Funnel} onClick={() => setShowFilters(!showFilters)} aria-pressed={showFilters}>
-            Filteri
-          </Btn>
+            {onExport && (
+              <Btn size="sm" icon={Download} onClick={() => onExport(mapAnalysis)}>Export</Btn>
+            )}
 
-          {onExport && (
-            <Btn size="sm" icon={Download} onClick={() => onExport(mapAnalysis)}>Export</Btn>
-          )}
-
-          {onRefresh && (
-            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
-          )}
+            {onRefresh && (
+              <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
+            )}
+          </div>
         </div>
+
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className="mx-logdash-filters">
+            <div className="sx-form">
+              <Field label="Pretraži opštine" htmlFor="mx-logdash-map-q">
+                <div className="sx-search">
+                  <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+                  <input
+                    id="mx-logdash-map-q"
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Unesite naziv opštine..."
+                  />
+                </div>
+              </Field>
+
+              <Field label="Opština" htmlFor="mx-logdash-map-mun">
+                <Select id="mx-logdash-map-mun" value={selectedMunicipality} onChange={(e) => setSelectedMunicipality(e.target.value)}>
+                  <option value="all">Sve opštine</option>
+                  {Object.keys(municipalityCoordinates).map(municipality => (
+                    <option key={municipality} value={municipality}>{municipality}</option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field label="Tip aktivnosti" htmlFor="mx-logdash-map-type">
+                <Select id="mx-logdash-map-type" value={selectedActivityType} onChange={(e) => setSelectedActivityType(e.target.value)}>
+                  <option value="all">Sve aktivnosti</option>
+                  {mapAnalysis.activityTypes.map(type => (
+                    <option key={type.type} value={type.type}>{type.type}</option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field label="Gustina" htmlFor="mx-logdash-map-density">
+                <Select id="mx-logdash-map-density" value={densityThreshold} onChange={(e) => setDensityThreshold(e.target.value)}>
+                  <option value="all">Sve gustine</option>
+                  <option value="high">Visoka gustina</option>
+                  <option value="medium">Srednja gustina</option>
+                  <option value="low">Niska gustina</option>
+                  <option value="minimal">Minimalna gustina</option>
+                </Select>
+              </Field>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Advanced Filters */}
-      {showFilters && (
-        <Panel>
-          <div className="sx-form">
-            <Field label="Pretraži opštine" htmlFor="mx-logdash-map-q">
-              <div className="sx-search">
-                <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
-                <input
-                  id="mx-logdash-map-q"
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Unesite naziv opštine..."
-                />
-              </div>
-            </Field>
-
-            <Field label="Opština" htmlFor="mx-logdash-map-mun">
-              <Select id="mx-logdash-map-mun" value={selectedMunicipality} onChange={(e) => setSelectedMunicipality(e.target.value)}>
-                <option value="all">Sve opštine</option>
-                {Object.keys(municipalityCoordinates).map(municipality => (
-                  <option key={municipality} value={municipality}>{municipality}</option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field label="Tip aktivnosti" htmlFor="mx-logdash-map-type">
-              <Select id="mx-logdash-map-type" value={selectedActivityType} onChange={(e) => setSelectedActivityType(e.target.value)}>
-                <option value="all">Sve aktivnosti</option>
-                {mapAnalysis.activityTypes.map(type => (
-                  <option key={type.type} value={type.type}>{type.type}</option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field label="Gustina" htmlFor="mx-logdash-map-density">
-              <Select id="mx-logdash-map-density" value={densityThreshold} onChange={(e) => setDensityThreshold(e.target.value)}>
-                <option value="all">Sve gustine</option>
-                <option value="high">Visoka gustina</option>
-                <option value="medium">Srednja gustina</option>
-                <option value="low">Niska gustina</option>
-                <option value="minimal">Minimalna gustina</option>
-              </Select>
-            </Field>
-          </div>
-        </Panel>
-      )}
-
       {/* Statistics Overview */}
-      <div className="sx-stats">
-        <Stat label="Ukupno aktivnosti" value={mapAnalysis.statistics.totalActivities} />
-        <Stat label="Aktivne opštine" value={mapAnalysis.statistics.activeMunicipalities} />
-        <Stat label="Ukupno tehničara" value={mapAnalysis.statistics.totalTechnicians} />
-        <Stat label="Najaktivnija opština" value={<span className="mx-logdash-stat-text">{mapAnalysis.statistics.mostActiveMunicipality}</span>} />
+      <div className="mx-logdash-comp__band">
+        <div className="mx-logdash-mini is-center is-plain">
+          <div><b>{mapAnalysis.statistics.totalActivities}</b><span>Ukupno aktivnosti</span></div>
+          <div><b>{mapAnalysis.statistics.activeMunicipalities}</b><span>Aktivne opštine</span></div>
+          <div><b>{mapAnalysis.statistics.totalTechnicians}</b><span>Ukupno tehničara</span></div>
+          <div><b className="mx-logdash-stat-text">{mapAnalysis.statistics.mostActiveMunicipality}</b><span>Najaktivnija opština</span></div>
+        </div>
       </div>
 
       {/* Map Visualization */}
-      {mapAnalysis.municipalityData.length === 0 ? (
-        <Panel>
-          <div className="sx-empty-block">
+      <div className="mx-logdash-comp__body">
+        {mapAnalysis.municipalityData.length === 0 ? (
+          <div className="mx-logdash-empty">
+            <span className="sx-item__icon"><MapPin size={22} strokeWidth={1.8} aria-hidden="true" /></span>
             <h4>Nema podataka za mapu</h4>
-            <span>Nema aktivnosti za izabrani period i filtere.</span>
+            <p>Nema aktivnosti za izabrani period i filtere.</p>
           </div>
-        </Panel>
-      ) : (
-        <>
-          {/* Interactive Leaflet Map */}
-          <Panel pad={false} className="mx-logdash-mappanel">
+        ) : (
+          <div className="mx-logdash-sub">
+            {/* Interactive Leaflet Map */}
             <div className="mx-logdash-map">
               <MapContainer
                 center={[44.2619, 20.5819]} // Center of Serbia
@@ -699,8 +711,8 @@ const InteractiveActivityMap = ({
                     fillColor={DENSITY_HEX[municipality.density] || DENSITY_HEX.minimal}
                     color="white"
                     weight={2}
-                    opacity={0.9}
-                    fillOpacity={0.7}
+                    opacity={0.8}
+                    fillOpacity={0.6}
                     eventHandlers={{
                       click: () => handleLocationClick(municipality)
                     }}
@@ -812,87 +824,71 @@ const InteractiveActivityMap = ({
                 </div>
               </MapContainer>
             </div>
-          </Panel>
 
-          {/* Municipality Cards Grid */}
-          <div className="mx-logdash-places">
-            {mapAnalysis.municipalityData.slice(0, 6).map((municipality, i) => (
-              <div
-                key={municipality.municipality}
-                role="button"
-                tabIndex={0}
-                className="sx-card mx-logdash-place"
-                style={{ '--i': i }}
-                onClick={() => handleLocationClick(municipality)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLocationClick(municipality); } }}
-              >
-                <div className="mx-logdash-place__head">
-                  <div className="mx-logdash-place__name">
-                    <h4>{municipality.municipality}</h4>
-                    <span className="mx-logdash-dotlabel">
-                      <span className={cx('mx-logdash-dot', `is-${municipality.density}`)} />
-                      <span>{getDensityLabel(municipality.density)}</span>
+            {/* Municipality Cards Grid */}
+            <div className="mx-logdash-places">
+              {mapAnalysis.municipalityData.slice(0, 6).map((municipality) => (
+                <div
+                  key={municipality.municipality}
+                  role="button"
+                  tabIndex={0}
+                  className="sx-card mx-logdash-place"
+                  onClick={() => handleLocationClick(municipality)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLocationClick(municipality); } }}
+                >
+                  <div className="mx-logdash-place__head">
+                    <div className="mx-logdash-place__name">
+                      <span className={cx('mx-logdash-dot', `is-${municipality.density}`)} title={getDensityLabel(municipality.density)} />
+                      <h4>{municipality.municipality}</h4>
+                    </div>
+                    <div className="mx-logdash-place__region">{municipality.coordinates.region}</div>
+                  </div>
+
+                  <div className="mx-logdash-place__grid">
+                    <span><ChartColumn size={14} strokeWidth={1.9} aria-hidden="true" />Aktivnosti:<b>{municipality.totalActivities}</b></span>
+                    <span><Users size={14} strokeWidth={1.9} aria-hidden="true" />Tehničari:<b>{municipality.technicians.length}</b></span>
+                    <span><Clock size={14} strokeWidth={1.9} aria-hidden="true" />Prosek:<b>{Math.round(municipality.averageResponseTime)}min</b></span>
+                    <span>
+                      <TrendingUp size={14} strokeWidth={1.9} aria-hidden="true" className={municipality.trend > 0 ? 'mx-logdash-trend is-good' : 'mx-logdash-trend is-bad'} />
+                      Trend:<b className={municipality.trend > 0 ? 'mx-logdash-trend is-good' : 'mx-logdash-trend is-bad'}>
+                        {municipality.trend > 0 ? '+' : ''}{(municipality.trend * 100).toFixed(1)}%
+                      </b>
                     </span>
                   </div>
-                  <div className="mx-logdash-place__region">{municipality.coordinates.region}</div>
-                </div>
 
-                <div className="mx-logdash-place__grid">
-                  <span><ChartColumn size={14} strokeWidth={1.9} aria-hidden="true" />Aktivnosti:<b>{municipality.totalActivities}</b></span>
-                  <span><Users size={14} strokeWidth={1.9} aria-hidden="true" />Tehničari:<b>{municipality.technicians.length}</b></span>
-                  <span><Clock size={14} strokeWidth={1.9} aria-hidden="true" />Prosek:<b>{Math.round(municipality.averageResponseTime)}min</b></span>
-                  <span>
-                    {municipality.trend > 0
-                      ? <TrendingUp size={14} strokeWidth={1.9} aria-hidden="true" className="mx-logdash-trend is-good" />
-                      : <TrendingDown size={14} strokeWidth={1.9} aria-hidden="true" className="mx-logdash-trend is-bad" />}
-                    Trend:<b className={municipality.trend > 0 ? 'mx-logdash-trend is-good' : 'mx-logdash-trend is-bad'}>
-                      {municipality.trend > 0 ? '+' : ''}{(municipality.trend * 100).toFixed(1)}%
-                    </b>
-                  </span>
-                </div>
-
-                <div className="mx-logdash-place__foot">
-                  <div>
-                    <span>Završeno: {municipality.completionRate.toFixed(1)}%</span>
-                    <span>Hitno: {municipality.urgencyRate.toFixed(1)}%</span>
-                  </div>
-                  <div className="mx-logdash-meter is-ok" aria-hidden="true">
-                    <i style={{ width: `${municipality.completionRate}%` }} />
+                  <div className="mx-logdash-place__foot">
+                    <div>
+                      <span>Završeno: {municipality.completionRate.toFixed(1)}%</span>
+                      <span>Hitno: {municipality.urgencyRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="mx-logdash-meter is-ok" aria-hidden="true">
+                      <i style={{ width: `${municipality.completionRate}%` }} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Region Summary */}
-          <Panel pad={false} title="Pregled po regionima">
-            <div className="sx-tablewrap">
-              <table className="sx-table">
-                <thead>
-                  <tr>
-                    <th><span className="sx-sr">Region</span></th>
-                    <th className="is-num">Aktivnosti</th>
-                    <th className="is-num">Opštine</th>
-                    <th className="is-num">Tehničari</th>
-                    <th className="is-num">Prosečno vreme</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mapAnalysis.regionData.filter(region => region.totalActivities > 0).map((region, i) => (
-                    <tr key={region.region} style={{ '--i': i }}>
-                      <td className="is-head"><div className="sx-cell"><b>{region.region}</b></div></td>
-                      <td data-label="Aktivnosti" className="is-num">{region.totalActivities}</td>
-                      <td data-label="Opštine" className="is-num">{region.municipalities.length}</td>
-                      <td data-label="Tehničari" className="is-num">{region.technicians.length}</td>
-                      <td data-label="Prosečno vreme" className="is-num">{Math.round(region.averageResponseTime)}min</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              ))}
             </div>
-          </Panel>
-        </>
-      )}
+
+            {/* Region Summary */}
+            <div className="mx-logdash-regions">
+              <h4 className="mx-logdash-h">Pregled po regionima</h4>
+              <div className="mx-logdash-regions__grid">
+                {mapAnalysis.regionData.filter(region => region.totalActivities > 0).map(region => (
+                  <div key={region.region} className="mx-logdash-region">
+                    <h5 className="mx-logdash-region__name">{region.region}</h5>
+                    <div className="mx-logdash-rows">
+                      <div><span>Aktivnosti:</span><b>{region.totalActivities}</b></div>
+                      <div><span>Opštine:</span><b>{region.municipalities.length}</b></div>
+                      <div><span>Tehničari:</span><b>{region.technicians.length}</b></div>
+                      <div><span>Prosečno vreme:</span><b>{Math.round(region.averageResponseTime)}min</b></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
