@@ -24,7 +24,10 @@
 .mx-fancy .mx-fancy__res .sx-sign { flex-basis: 100%; }
 .mx-fancy .mx-fancy__total { font-size: 13px; color: var(--sx-muted); }
 .mx-fancy .mx-fancy__spin > svg { animation: sx-spin 0.9s linear infinite; }
-.mx-fancy .sx-toolbar { padding-top: 0; background: none; }
+.mx-fancy .mx-fancy__toolbar + .sx-panel { margin-top: 16px; }
+.mx-fancy .mx-fancy__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; }
+.mx-fancy .mx-fancy__group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* tabela kao ranije: vodoravni skrol unutar kartice */
+.mx-fancy .mx-fancy__scroll { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+.mx-fancy .mx-fancy__empty { justify-items: center; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .mx-fancy .mx-fancy__spin > svg { animation: none; } }
-/* kartice na uskom prostoru: dugi nizovi bez razmaka (npr. adresa "GRAD,OPŠTINA,ULICA") se lome umesto da prelivaju */
-@container tbl (max-width: 760px) { .mx-fancy .sx-table td { overflow-wrap: anywhere; } }

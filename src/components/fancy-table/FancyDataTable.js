@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, X, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { cx, Btn, Sign } from '../../security/sx/ui';
-import { Panel, Toolbar } from '../../security/sx/layout';
+import { Panel } from '../../security/sx/layout';
 import { Field, Select, SearchField, DateField, Checkbox } from '../../security/sx/forms';
-import { Pager, Loading } from '../../montaza/ui';
+import { Loading } from '../../montaza/ui';
 import './FancyDataTable.mx.css';
 
 const FancyDataTable = ({
@@ -159,35 +159,41 @@ const FancyDataTable = ({
 
         {/* Sadržaj */}
         <div className="mx-fancy__main">
-          <Toolbar sticky={false}>
-            <Btn size="sm" icon={Filter} onClick={() => setShowFilters(!showFilters)}>
-              {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
-            </Btn>
-            <span className="mx-fancy__total">
-              {pagination?.totalCount || 0} rezultata
-            </span>
-            <div className="sx-toolbar__end">
-              {hasActiveFilters() && (
-                <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Resetuj</Btn>
-              )}
-              <Btn
-                size="sm"
-                icon={RefreshCw}
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className={isRefreshing ? 'mx-fancy__spin' : undefined}
-              >
-                Osveži
-              </Btn>
+          {/* Traka (kartica kao ranije) */}
+          <Panel className="mx-fancy__toolbar">
+            <div className="mx-fancy__bar">
+              <div className="mx-fancy__group">
+                <Btn size="sm" icon={Filter} onClick={() => setShowFilters(!showFilters)}>
+                  {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
+                </Btn>
+                <span className="mx-fancy__total">
+                  {pagination?.totalCount || 0} rezultata
+                </span>
+              </div>
+
+              <div className="mx-fancy__group">
+                {hasActiveFilters() && (
+                  <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Resetuj</Btn>
+                )}
+                <Btn
+                  size="sm"
+                  icon={RefreshCw}
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  className={isRefreshing ? 'mx-fancy__spin' : undefined}
+                >
+                  Osveži
+                </Btn>
+              </div>
             </div>
-          </Toolbar>
+          </Panel>
 
           <Panel pad={false}>
             {loading ? (
               <Loading text="Učitavanje..." />
             ) : (
               <>
-                <div className="sx-tablewrap">
+                <div className="mx-fancy__scroll">
                   <table className="sx-table">
                     <thead>
                       <tr>
@@ -201,8 +207,8 @@ const FancyDataTable = ({
                     <tbody>
                       {data.length === 0 ? (
                         <tr>
-                          <td colSpan={columns.length} className="is-wide">
-                            <div className="sx-empty-block">
+                          <td colSpan={columns.length}>
+                            <div className="sx-empty-block mx-fancy__empty">
                               <b>Nema rezultata</b>
                               {hasActiveFilters() && (
                                 <Btn size="sm" onClick={clearAllFilters}>Obriši filtere</Btn>
@@ -220,11 +226,10 @@ const FancyDataTable = ({
                             onClick={() => row.onClick?.()}
                             onKeyDown={(e) => { if (e.key === 'Enter') row.onClick?.(); }}
                           >
-                            {columns.map((column, ci) => (
+                            {columns.map((column) => (
                               <td
                                 key={column.id}
-                                className={cx(ci === 0 && 'is-head', column.cellClassName)}
-                                data-label={ci > 0 && typeof column.header === 'string' ? column.header : undefined}
+                                className={column.cellClassName}
                               >
                                 {column.cell ? column.cell(row) : row[column.id]}
                               </td>
@@ -236,15 +241,48 @@ const FancyDataTable = ({
                   </table>
                 </div>
 
-                {/* Strane: "Prikazano X - Y od Z" kao ranije (bez dodatne reči) */}
+                {/* Strane */}
                 {pagination && pagination.totalPages > 1 && (
-                  <Pager
-                    page={pagination.currentPage}
-                    total={pagination.totalCount}
-                    perPage={pagination.limit}
-                    onPage={onPageChange}
-                    label=""
-                  />
+                  <div className="mx-pager">
+                    <div className="mx-pager__text">
+                      Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount}
+                    </div>
+                    <div className="mx-pager__btns">
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(1)} disabled={!pagination.hasPreviousPage}>
+                        &laquo;
+                      </Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage}>
+                        &lsaquo;
+                      </Btn>
+
+                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                        .filter(number => {
+                          return (
+                            number === 1 ||
+                            number === pagination.totalPages ||
+                            Math.abs(number - pagination.currentPage) <= 1
+                          );
+                        })
+                        .map(number => (
+                          <Btn
+                            key={number}
+                            size="sm"
+                            variant={pagination.currentPage === number ? 'primary' : 'ghost'}
+                            className="mx-pager__num"
+                            onClick={() => onPageChange(number)}
+                          >
+                            {number}
+                          </Btn>
+                        ))}
+
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage}>
+                        &rsaquo;
+                      </Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(pagination.totalPages)} disabled={!pagination.hasNextPage}>
+                        &raquo;
+                      </Btn>
+                    </div>
+                  </div>
                 )}
               </>
             )}
