@@ -122,3 +122,5 @@
 .mx-daterange { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .mx-daterange .sx-dt { width: 170px; }
 .mx-daterange__sep { font-size: 13px; color: var(--sx-muted); }
+/* brojke: neparan broj na uskom prostoru, poslednja zauzima ceo red (bez sive rupe) */
+@container page (max-width: 560px) { .mx-app .sx-stats > .sx-stat:last-child:nth-child(odd) { grid-column: 1 / -1; } }
