@@ -1,0 +1,16 @@
+/* Export evidencije: dodaci uz sx (raspored panela, oznake sadržaja, glavno dugme). Boje samo iz tokena. */
+.mx-export > * + * { margin-top: 20px; }
+.mx-export-period { display: grid; justify-items: start; gap: 12px; }
+.sx-stats.mx-export-stats { box-shadow: none; }
+
+.mx-export-sheet { display: grid; gap: 8px; }
+.mx-export-sheet__title { font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.mx-export-sheet__text { max-width: 80ch; font-size: 13.5px; line-height: 1.55; color: var(--sx-muted); }
+.mx-export-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+.mx-export-go { display: grid; justify-items: center; gap: 14px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--sx-line); }
+.mx-export-spin { animation: sx-spin 0.8s linear infinite; }
+/* dug natpis glavnog dugmeta na telefonu ide u dva reda umesto da se seče */
+@media (max-width: 639px) {
+  .mx-export-go .sx-btn { width: 100%; height: auto; min-height: 46px; padding: 10px 18px; white-space: normal; text-align: center; }
+}

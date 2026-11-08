@@ -1,0 +1,119 @@
+/* Dashboard Montaže u izgledu Security dela: samo dodaci koje sx nema. Boje samo iz tokena.
+   Ovaj fajl se učitava pre sx CSS-a, zato izmene sx klasa idu kroz složenije selektore. */
+
+.mx-dashboard > * + * { margin-top: 20px; }
+.mx-dashboard .sx-cols { align-items: stretch; }
+
+/* zaglavlje: pretraga i osveži desno; iskačući rezultati moraju biti iznad sadržaja ispod */
+.mx-dashboard-head { position: relative; z-index: 30; }
+.mx-dashboard-head .sx-head__actions { flex-wrap: nowrap; }
+.mx-dashboard-head .sx-head__actions .sx-btn { flex: 0 0 auto; }
+
+/* glavne brojke (linkovi): natpis levo, sitna oznaka desno */
+.mx-dashboard-stat__top { display: flex; flex-direction: row-reverse; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.mx-dashboard-stat__corner { font-size: 11.5px; color: var(--sx-faint); white-space: nowrap; }
+.mx-dashboard-up { font-weight: 600; color: var(--sx-ok-text); }
+
+/* stubići po statusu */
+.mx-dashboard-bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(10px, 3cqw, 32px); height: 250px; }
+.mx-dashboard-bar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 8px 8px;
+  border-radius: 14px;
+  transition: background-color var(--hover-out) var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mx-dashboard-bar:hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); }
+  .mx-dashboard-bar:hover .mx-dashboard-bar__label { color: var(--sx-text); }
+}
+.mx-dashboard-bar__val { font-size: 24px; color: var(--sx-text); }
+.mx-dashboard-bar__track { display: flex; align-items: flex-end; width: 100%; height: 100%; }
+.mx-dashboard-bar__fill { --c: var(--sx-idle); display: block; width: 100%; border-radius: 10px 10px 4px 4px; background: var(--c); }
+.mx-dashboard-bar__fill[data-tone="ok"] { --c: var(--sx-ok); }
+.mx-dashboard-bar__fill[data-tone="warn"] { --c: var(--sx-warn); }
+.mx-dashboard-bar__fill[data-tone="info"] { --c: var(--sx-accent); }
+.mx-dashboard-bar__label { font-size: 12.5px; font-weight: 550; color: var(--sx-muted); transition: color var(--hover-out) var(--ease-move); }
+@container page (max-width: 560px) { .mx-dashboard-bars { height: 210px; } }
+
+/* završeni / u toku (desno od stubića) */
+.sx-stats.mx-dashboard-side { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+.mx-dashboard-side .sx-stat__sub { display: grid; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--sx-line); }
+
+/* red "naziv ... vrednost" i traka udela */
+.mx-dashboard-kv { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--sx-muted); }
+.mx-dashboard-kv b { font-weight: 650; color: var(--sx-text); }
+.mx-dashboard-meter { --c: var(--sx-btn-primary-bg); display: block; height: 6px; border-radius: 999px; background: var(--sx-surface-3); overflow: hidden; }
+.mx-dashboard-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--c); }
+.mx-dashboard-meter[data-tone="ok"] { --c: var(--sx-ok); }
+.mx-dashboard-meter[data-tone="info"] { --c: var(--sx-accent); }
+
+/* tri panela: status, aktivnost, ocene */
+.mx-dashboard-trio { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@container page (min-width: 760px) {
+  .mx-dashboard-trio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mx-dashboard-trio > :last-child { grid-column: 1 / -1; }
+}
+@container page (min-width: 1180px) {
+  .mx-dashboard-trio { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); }
+  .mx-dashboard-trio > :last-child { grid-column: auto; }
+}
+
+/* redovi statusa (dugmad) */
+.sx-list > .sx-item.mx-dashboard-row { grid-template-columns: auto minmax(0, 1fr) auto; width: calc(100% + 24px); padding: 11px 12px; text-align: left; }
+.mx-dashboard-row .sx-item__main b { font-weight: 550; }
+.mx-dashboard-row .sx-item__side { grid-column: auto; flex-wrap: nowrap; justify-content: flex-end; gap: 12px; }
+.mx-dashboard-row__pct { font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-faint); }
+.mx-dashboard-row__val { min-width: 3ch; text-align: right; font-family: var(--sx-font-mono); font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-dashboard-row__chev { color: var(--sx-faint); }
+
+/* resursi */
+.mx-dashboard-res { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--sx-line); }
+.mx-dashboard-res__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mx-dashboard-res__item { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 10px 4px; border-radius: 12px; text-align: center; transition: background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) { .mx-dashboard-res__item:hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+.mx-dashboard-res__item span { font-size: 12px; color: var(--sx-muted); }
+.mx-dashboard-res__item b { font-size: 22px; color: var(--sx-text); }
+
+/* nedavna aktivnost */
+.mx-dashboard-act .sx-item__main b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; font-weight: 550; }
+.mx-dashboard-act__who { font-weight: 550; color: var(--sx-text-2); }
+
+/* ocene */
+.mx-dashboard-stars { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.mx-dashboard-star { color: var(--sx-line-3); }
+.mx-dashboard-star.is-on { color: var(--sx-warn); fill: currentColor; }
+.mx-dashboard-rev { display: grid; gap: 16px; }
+.mx-dashboard-rev__score { display: flex; align-items: center; gap: 12px; }
+.mx-dashboard-rev__num { font-size: 42px; color: var(--sx-text); }
+.mx-dashboard-rev__max { margin-left: 4px; font-size: 12px; color: var(--sx-faint); }
+.mx-dashboard-rev__meters { display: grid; gap: 6px; }
+.mx-dashboard-rev__meters .mx-dashboard-meter + .mx-dashboard-kv { margin-top: 8px; }
+.mx-dashboard-rev__total { padding-bottom: 14px; border-bottom: 1px solid var(--sx-line); }
+.mx-dashboard-rev__list { display: grid; gap: 12px; }
+.mx-dashboard-rev__item { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: start; gap: 10px; }
+.sx-avatar.mx-dashboard-rev__ava { width: 26px; height: 26px; font-size: 10.5px; }
+.mx-dashboard-rev__main { display: grid; gap: 2px; min-width: 0; }
+.mx-dashboard-rev__line { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.mx-dashboard-rev__line b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 650; color: var(--sx-text); }
+.mx-dashboard-rev__comment { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--sx-muted); }
+/* širok panel (ocene preko cele širine): poslednje ocene u desnoj koloni */
+.mx-dashboard-revpanel .sx-panel__body { container: rev / inline-size; }
+@container rev (min-width: 620px) {
+  .mx-dashboard-rev { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 40px; align-items: start; }
+  .mx-dashboard-rev__list { grid-column: 2; grid-row: 1 / span 3; }
+}
+
+/* finansije: brojke + dugme */
+.sx-stat.mx-dashboard-fin__go { align-content: center; justify-items: center; }
+
+/* vozni park: brojke u panelu (bez senke, manje) */
+.sx-stats.mx-dashboard-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); box-shadow: none; }
+.mx-dashboard-mini .sx-stat__num { font-size: 26px; }
+
+/* brze akcije */
+.mx-dashboard-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mx-dashboard-actions .sx-btn { justify-content: flex-start; width: 100%; min-width: 0; }

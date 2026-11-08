@@ -1,16 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  SearchIcon,
-  ClipboardIcon,
-  BoxIcon,
-  ToolsIcon,
-  UsersIcon,
-  MapPinIcon,
-  ChevronRightIcon
-} from './icons/SvgIcons';
+import { Search, ClipboardList, Package, Cable, HardHat, MapPin, ChevronRight } from 'lucide-react';
 import { searchAPI } from '../services/api';
-import { getTimRowClasses } from '../utils/tim';
+import { getTimRowStyle } from '../utils/tim';
+import { cx } from '../security/sx/ui';
+import './GlobalSearch.mx.css';
+
+// Naslov grupe rezultata: ikonica, naziv, broj
+const Group = ({ icon: Icon, label, count, children }) => (
+  <div className="mx-gsearch__group">
+    <div className="mx-gsearch__head">
+      <Icon size={13} strokeWidth={1.9} aria-hidden="true" />
+      <span>{label}</span>
+      <span className="mx-gsearch__count">{count}</span>
+    </div>
+    {children}
+  </div>
+);
 
 const GlobalSearch = ({ onFocusChange, expanded }) => {
   const navigate = useNavigate();
@@ -103,25 +109,26 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
   const hasResults = results && totalResults > 0;
   const hasQuery = query.trim().length >= 2;
 
+  // Tonovi kao u ostatku Montaže: nalog zavrsen ok, nezavrsen warn, odlozen info, otkazan bad
   const statusLabels = {
-    zavrsen: { label: 'Završen', color: 'text-emerald-700 bg-emerald-50' },
-    nezavrsen: { label: 'U toku', color: 'text-blue-700 bg-blue-50' },
-    odlozen: { label: 'Odložen', color: 'text-amber-700 bg-amber-50' },
-    otkazan: { label: 'Otkazan', color: 'text-red-700 bg-red-50' }
+    zavrsen: { label: 'Završen', tone: 'ok' },
+    nezavrsen: { label: 'U toku', tone: 'warn' },
+    odlozen: { label: 'Odložen', tone: 'info' },
+    otkazan: { label: 'Otkazan', tone: 'bad' }
   };
 
-  const equipmentLocationColors = {
-    warehouse: 'text-slate-600 bg-slate-100',
-    technician: 'text-violet-700 bg-violet-50',
-    user: 'text-blue-700 bg-blue-50',
-    defective: 'text-red-700 bg-red-50'
+  // Oprema: u magacinu bez tona, kod tehničara info, kod korisnika ok, neispravna bad
+  const equipmentLocationTones = {
+    warehouse: '',
+    technician: 'info',
+    user: 'ok',
+    defective: 'bad'
   };
 
   return (
-    <div ref={containerRef} className={`relative transition-all duration-300 ease-in-out ${expanded ? 'flex-1' : 'w-72'}`}>
-      {/* Search Input */}
-      <div className="relative">
-        <SearchIcon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+    <div ref={containerRef} className={cx('mx-gsearch', expanded && 'is-expanded')}>
+      <div className="sx-search">
+        <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
         <input
           ref={inputRef}
           type="text"
@@ -129,95 +136,62 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
           onChange={handleInputChange}
           onFocus={handleFocus}
           placeholder={isFocused ? "Pretraži radne naloge, opremu, materijale, tehničare..." : "Pretraži..."}
-          className={`
-            pl-9 pr-4 py-2 text-sm rounded-xl w-full
-            transition-all duration-300
-            ${isFocused
-              ? 'bg-white border-2 border-slate-900 shadow-sm focus:outline-none'
-              : 'bg-slate-50 border-2 border-transparent hover:bg-slate-100 focus:outline-none'
-            }
-          `}
+          data-testid="global-search"
         />
-        {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
-          </div>
-        )}
+        {loading && <span className="mx-gsearch__spin" aria-hidden="true" />}
       </div>
 
-      {/* Dropdown */}
       {isOpen && hasQuery && (
-        <div className={`absolute top-full mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 max-h-[70vh] overflow-y-auto ${expanded ? 'left-0 right-0' : 'right-0 w-[420px]'}`}>
+        <div className="sx-popover mx-gsearch__pop" data-testid="global-search-results">
 
           {!hasResults && !loading && (
-            <div className="px-4 py-8 text-center">
-              <SearchIcon size={20} className="text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">Nema rezultata za "{query}"</p>
-              <p className="text-xs text-slate-400 mt-1">Probajte sa drugim pojmom</p>
+            <div className="sx-empty mx-gsearch__empty">
+              <b>Nema rezultata za "{query}"</b>
+              <span>Probajte sa drugim pojmom</span>
             </div>
           )}
 
           {loading && !results && (
-            <div className="px-4 py-6 text-center">
-              <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-2"></div>
-              <p className="text-xs text-slate-500">Pretraživanje...</p>
+            <div className="mx-gsearch__wait" role="status">
+              <span className="mx-gsearch__spin" aria-hidden="true" />
+              <span>Pretraživanje...</span>
             </div>
           )}
 
-          {/* Work Orders */}
           {results?.workOrders?.length > 0 && (
-            <div>
-              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                <ClipboardIcon size={12} className="text-slate-500" />
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Radni nalozi</span>
-                <span className="text-[10px] text-slate-400 ml-auto">{results.workOrders.length}</span>
-              </div>
-              <div className="grid grid-cols-1">
-                {results.workOrders.map((wo) => {
-                  const st = statusLabels[wo.status] || { label: wo.status, color: 'text-slate-600 bg-slate-100' };
-                  return (
-                    <div
-                      key={wo._id}
-                      onClick={() => handleNavigate(`/work-orders/${wo._id}`, { state: { backgroundLocation: location } })}
-                      className={`px-4 py-2.5 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50 ${getTimRowClasses(wo.tim, 'hover:bg-slate-50')}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-semibold text-slate-900">
-                            {wo.tisJobId || wo.tisId || '—'}
-                          </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${st.color}`}>
-                            {st.label}
-                          </span>
-                          {wo.type && (
-                            <span className="text-[10px] text-slate-400">{wo.type}</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500 truncate mt-0.5">
-                          {wo.address}{wo.municipality ? `, ${wo.municipality}` : ''}
-                        </p>
-                      </div>
-                      {wo.userName && (
-                        <span className="text-[11px] text-slate-400 flex-shrink-0 hidden sm:inline">{wo.userName}</span>
-                      )}
-                      <ChevronRightIcon size={14} className="text-slate-300 flex-shrink-0" />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <Group icon={ClipboardList} label="Radni nalozi" count={results.workOrders.length}>
+              {results.workOrders.map((wo) => {
+                const st = statusLabels[wo.status] || { label: wo.status, tone: '' };
+                return (
+                  <button
+                    key={wo._id}
+                    type="button"
+                    className="mx-gsearch__item"
+                    style={getTimRowStyle(wo.tim)}
+                    onClick={() => handleNavigate(`/work-orders/${wo._id}`, { state: { backgroundLocation: location } })}
+                  >
+                    <span className="mx-gsearch__main">
+                      <span className="mx-gsearch__line">
+                        <b className="sx-mono">{wo.tisJobId || wo.tisId || '-'}</b>
+                        <span className={cx('sx-tag', st.tone && `is-${st.tone}`)}>{st.label}</span>
+                        {wo.type && <small>{wo.type}</small>}
+                      </span>
+                      <span className="mx-gsearch__sub">
+                        {wo.address}{wo.municipality ? `, ${wo.municipality}` : ''}
+                      </span>
+                    </span>
+                    {wo.userName && <span className="mx-gsearch__aside">{wo.userName}</span>}
+                    <ChevronRight size={14} strokeWidth={1.9} aria-hidden="true" className="mx-gsearch__chev" />
+                  </button>
+                );
+              })}
+            </Group>
           )}
 
-          {/* Equipment */}
           {results?.equipment?.length > 0 && (
-            <div>
-              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                <BoxIcon size={12} className="text-slate-500" />
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Oprema</span>
-                <span className="text-[10px] text-slate-400 ml-auto">{results.equipment.length}</span>
-              </div>
+            <Group icon={Package} label="Oprema" count={results.equipment.length}>
               {results.equipment.map((eq) => {
-                const locColor = equipmentLocationColors[eq.locationtype] || 'text-slate-600 bg-slate-100';
+                const tone = equipmentLocationTones[eq.locationtype] || '';
                 const handleClick = () => {
                   if (eq.locationtype === 'defective') {
                     handleNavigate(`/defective-equipment?search=${encodeURIComponent(eq.serialNumber)}`);
@@ -228,92 +202,61 @@ const GlobalSearch = ({ onFocusChange, expanded }) => {
                   }
                 };
                 return (
-                  <div
-                    key={eq._id}
-                    onClick={handleClick}
-                    className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-semibold text-slate-900">
-                          {eq.serialNumber}
-                        </span>
-                        <span className="text-[10px] text-slate-400">{eq.category}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 truncate mt-0.5">{eq.description}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <MapPinIcon size={10} className="text-slate-400" />
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${locColor}`}>
-                        {eq.locationLabel}
+                  <button key={eq._id} type="button" className="mx-gsearch__item" onClick={handleClick}>
+                    <span className="mx-gsearch__main">
+                      <span className="mx-gsearch__line">
+                        <b className="sx-mono">{eq.serialNumber}</b>
+                        <small>{eq.category}</small>
                       </span>
-                    </div>
-                    <ChevronRightIcon size={14} className="text-slate-300 flex-shrink-0" />
-                  </div>
+                      <span className="mx-gsearch__sub">{eq.description}</span>
+                    </span>
+                    <span className={cx('sx-tag', tone && `is-${tone}`)}>
+                      <MapPin aria-hidden="true" strokeWidth={2} />
+                      {eq.locationLabel}
+                    </span>
+                    <ChevronRight size={14} strokeWidth={1.9} aria-hidden="true" className="mx-gsearch__chev" />
+                  </button>
                 );
               })}
-            </div>
+            </Group>
           )}
 
-          {/* Materials */}
           {results?.materials?.length > 0 && (
-            <div>
-              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                <ToolsIcon size={12} className="text-slate-500" />
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Materijali</span>
-                <span className="text-[10px] text-slate-400 ml-auto">{results.materials.length}</span>
-              </div>
+            <Group icon={Cable} label="Materijali" count={results.materials.length}>
               {results.materials.map((mat) => (
-                <div
-                  key={mat._id}
-                  onClick={() => handleNavigate('/materials')}
-                  className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50"
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-slate-900">{mat.type}</span>
-                  </div>
-                  <span className="text-[11px] text-slate-400 flex-shrink-0">Qty: {mat.quantity}</span>
-                  <ChevronRightIcon size={14} className="text-slate-300 flex-shrink-0" />
-                </div>
+                <button key={mat._id} type="button" className="mx-gsearch__item" onClick={() => handleNavigate('/materials')}>
+                  <span className="mx-gsearch__main">
+                    <b className="mx-gsearch__name">{mat.type}</b>
+                  </span>
+                  <span className="mx-gsearch__aside is-mono">Qty: {mat.quantity}</span>
+                  <ChevronRight size={14} strokeWidth={1.9} aria-hidden="true" className="mx-gsearch__chev" />
+                </button>
               ))}
-            </div>
+            </Group>
           )}
 
-          {/* Technicians */}
           {results?.technicians?.length > 0 && (
-            <div>
-              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-                <UsersIcon size={12} className="text-slate-500" />
-                <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Tehničari</span>
-                <span className="text-[10px] text-slate-400 ml-auto">{results.technicians.length}</span>
-              </div>
+            <Group icon={HardHat} label="Tehničari" count={results.technicians.length}>
               {results.technicians.map((tech) => (
-                <div
-                  key={tech._id}
-                  onClick={() => handleNavigate(`/technicians/${tech._id}`)}
-                  className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50"
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-slate-900">{tech.name}</span>
-                    {tech.phoneNumber && (
-                      <span className="text-[11px] text-slate-400 ml-2">{tech.phoneNumber}</span>
-                    )}
-                  </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${tech.isActive ? 'text-emerald-700 bg-emerald-50' : 'text-slate-500 bg-slate-100'}`}>
+                <button key={tech._id} type="button" className="mx-gsearch__item" onClick={() => handleNavigate(`/technicians/${tech._id}`)}>
+                  <span className="mx-gsearch__main">
+                    <span className="mx-gsearch__line">
+                      <b className="mx-gsearch__name">{tech.name}</b>
+                      {tech.phoneNumber && <small className="sx-mono">{tech.phoneNumber}</small>}
+                    </span>
+                  </span>
+                  <span className={cx('sx-tag', tech.isActive && 'is-ok')}>
                     {tech.deletedAt ? 'Obrisan' : tech.isActive ? 'Aktivan' : 'Neaktivan'}
                   </span>
-                  <ChevronRightIcon size={14} className="text-slate-300 flex-shrink-0" />
-                </div>
+                  <ChevronRight size={14} strokeWidth={1.9} aria-hidden="true" className="mx-gsearch__chev" />
+                </button>
               ))}
-            </div>
+            </Group>
           )}
 
-          {/* Footer */}
           {hasResults && (
-            <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-center">
-              <span className="text-[11px] text-slate-400">
-                {totalResults} rezultat{totalResults === 1 ? '' : 'a'} za "{query}"
-              </span>
+            <div className="mx-gsearch__foot">
+              {totalResults} rezultat{totalResults === 1 ? '' : 'a'} za "{query}"
             </div>
           )}
         </div>
