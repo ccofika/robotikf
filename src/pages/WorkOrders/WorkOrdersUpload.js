@@ -7,7 +7,7 @@ import { PageHead, Panel, Note, KV, Stat } from '../../security/sx/layout';
 import { LinkBtn } from '../../montaza/ui';
 import './WorkOrdersUpload.mx.css';
 
-// Kolone Excel fajla (uputstvo): naziv i opis, kao ranije
+// Kolone Excel fajla (uputstvo): naziv i opis, u dve kolone kao ranije (prvih 8 levo, ostalih 6 desno)
 const COLUMNS = [
   ['Tehnicar 1', 'ime prvog tehničara kome je dodeljen nalog'],
   ['Tehnicar 2', 'ime drugog tehničara (opciono)'],
@@ -139,16 +139,20 @@ const WorkOrdersUpload = () => {
           <p className="mx-woup__lead">
             Excel fajl mora sadržati sledeće kolone (obrađuju se <b>svi sheet-ovi</b> u fajlu):
           </p>
-          <ul className="mx-woup__cols">
-            {COLUMNS.map(([name, text]) => (
-              <li key={name}>
-                <b>{name}</b>
-                {name === 'Tim'
-                  ? <span>tim u koji se nalog svrstava: <b className="mx-woup__tim is-robotik">Robotik</b> (i "Robotik 1", "Robotik 2") ili <b className="mx-woup__tim is-mtel">mtel</b> (i "M telecommunication")</span>
-                  : <span>{text}</span>}
-              </li>
+          <div className="mx-woup__cols">
+            {[COLUMNS.slice(0, 8), COLUMNS.slice(8)].map((col, i) => (
+              <ul key={i}>
+                {col.map(([name, text]) => (
+                  <li key={name} className={name === 'Tim' ? 'is-tim' : undefined}>
+                    <b>{name}</b>
+                    {name === 'Tim'
+                      ? <span>tim u koji se nalog svrstava: <b className="mx-woup__tim is-robotik">Robotik</b> (i "Robotik 1", "Robotik 2") ili <b className="mx-woup__tim is-mtel">mtel</b> (i "M telecommunication")</span>
+                      : <span>{text}</span>}
+                  </li>
+                ))}
+              </ul>
             ))}
-          </ul>
+          </div>
           <Btn icon={Download} onClick={downloadTemplate}>Preuzmi šablon</Btn>
         </Panel>
 
