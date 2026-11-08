@@ -1,15 +1,31 @@
-/* Edit radnih naloga (/edit-work-orders): spisak naloga u panelu; stavka nosi boju tima (utils/tim.js, inline) */
-.mx-woe__list { padding: 8px 20px 12px; }
-.mx-woe__list > .mx-woe__item { margin: 0 -12px; padding: 14px 12px; border-radius: 12px; animation: sx-fade 160ms linear calc(min(var(--i, 0), 14) * 18ms) backwards, sx-row-in 300ms var(--ease-enter) calc(min(var(--i, 0), 14) * 18ms) backwards; }
-.mx-woe__list > .mx-woe__item + .mx-woe__item { margin-top: 2px; border-top-color: transparent; }
+/* Edit radnih naloga (/edit-work-orders): brojke, kartica "Filteri i pretraga", mreža kartica naloga i
+   paginacija, kao ranije; kartica nosi boju tima (utils/tim.js, inline), hover se crta preko nje. */
+.sx-stats + .mx-woe__filters { margin-top: 20px; }
+.mx-woe__selects { margin-top: 16px; }
+.mx-woe__filters .sx-select { width: 100%; }
+
+.mx-woe__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; margin-top: 20px; }
+.mx-woe__card { display: grid; align-content: start; gap: 12px; padding: 18px 20px; cursor: pointer; transition: border-color var(--hover-out) var(--ease-move); animation: sx-fade 160ms linear calc(min(var(--i, 0), 14) * 18ms) backwards, sx-row-in 300ms var(--ease-enter) calc(min(var(--i, 0), 14) * 18ms) backwards; }
 @media (hover: hover) and (pointer: fine) {
-  .mx-woe__list > .mx-woe__item:hover { background-image: linear-gradient(color-mix(in oklab, var(--sx-text) 4%, transparent), color-mix(in oklab, var(--sx-text) 4%, transparent)); }
+  .mx-woe__card:hover { border-color: var(--sx-line-3); background-image: linear-gradient(color-mix(in oklab, var(--sx-text) 3%, transparent), color-mix(in oklab, var(--sx-text) 3%, transparent)); transition-duration: var(--hover-in); }
 }
-.mx-woe__item:focus-visible { outline-offset: -2px; }
-.mx-woe__meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: var(--sx-text-2); }
-.mx-woe__meta > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-.mx-woe__meta svg { width: 14px; height: 14px; color: var(--sx-faint); }
+.mx-woe__card:focus-visible { outline-offset: 2px; }
+.mx-woe__card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mx-woe__card-title { min-width: 0; }
+.sx-page .mx-woe__card-title h3 { font-family: var(--sx-font-display); font-stretch: 112%; font-size: 17px; font-weight: 660; line-height: 1.2; color: var(--sx-text); overflow-wrap: anywhere; }
+.sx-page .mx-woe__card-title p { margin-top: 4px; font-size: 13px; color: var(--sx-muted); }
+.mx-woe__card-body { display: grid; gap: 8px; font-size: 13px; color: var(--sx-text-2); }
+.mx-woe__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; min-width: 0; }
+.mx-woe__row > span { min-width: 0; overflow-wrap: anywhere; }
+.mx-woe__row svg { width: 15px; height: 15px; margin-top: 2px; color: var(--sx-faint); }
+.mx-woe__row > svg + span { flex: 1; margin-left: -8px; }
+.mx-woe__pair { display: inline-flex; align-items: center; gap: 8px; }
+.mx-woe__pair svg { margin-top: 0; }
 .mx-woe__techs { font-weight: 600; color: var(--sx-text); }
-.mx-woe__item .sx-item__side { max-width: 320px; }
-.mx-woe__item .sx-tag { white-space: normal; height: auto; min-height: 22px; padding-block: 2px; }
-@media (max-width: 639px) { .mx-woe__list { padding: 6px 16px 10px; } }
+.mx-woe__type { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--sx-line); }
+.mx-woe__type .sx-tag { white-space: normal; height: auto; min-height: 22px; padding-block: 2px; }
+.mx-woe__empty { display: grid; justify-items: center; gap: 6px; padding: 28px 12px; text-align: center; color: var(--sx-line-3); }
+.mx-woe__empty b { margin-top: 8px; font-size: 16px; font-weight: 650; color: var(--sx-text); }
+.mx-woe__empty span { font-size: 13.5px; color: var(--sx-muted); }
+.mx-woe__pager { margin-top: 20px; }
+.mx-woe__pager .mx-pager { border-top: 0; }

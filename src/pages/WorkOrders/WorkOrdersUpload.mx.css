@@ -2,9 +2,11 @@
    Liste imaju dve klase: osnovni sx stil za ul (margin 0) ima istu težinu i učitava se posle. */
 .mx-woup__lead { font-size: 14px; color: var(--sx-text-2); }
 .mx-woup__lead b { color: var(--sx-text); font-weight: 650; }
-.sx-panel .mx-woup__cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 10px 24px; margin: 14px 0 18px; }
+.mx-woup__cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 10px 24px; margin: 14px 0 18px; }
+.mx-woup__cols > ul { display: grid; align-content: start; gap: 10px; }
 .mx-woup__cols li { display: grid; align-content: start; gap: 1px; padding-left: 14px; position: relative; }
 .mx-woup__cols li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--sx-idle); }
+.mx-woup__cols li.is-tim::before { background: var(--sx-accent); }
 .mx-woup__cols b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
 .mx-woup__cols span { font-size: 13px; color: var(--sx-muted); }
 .mx-woup__tim.is-robotik { color: var(--sx-info-text); }

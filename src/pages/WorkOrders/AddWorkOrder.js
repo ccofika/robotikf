@@ -120,28 +120,6 @@ const AddWorkOrder = () => {
             </Field>
           </div>
 
-          {/* Technicians (prvi <select> na stranici) */}
-          <div className="sx-form">
-            <Field label="Prvi tehničar" htmlFor="technicianId">
-              <Select id="technicianId" name="technicianId" value={formData.technicianId} onChange={handleChange} disabled={loading}>
-                <option value="">-- Izaberite prvog tehničara --</option>
-                {technicians.map(tech => (
-                  <option key={tech._id} value={tech._id}>{tech.name}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Drugi tehničar (opciono)" htmlFor="technician2Id">
-              <Select id="technician2Id" name="technician2Id" value={formData.technician2Id} onChange={handleChange} disabled={loading}>
-                <option value="">-- Izaberite drugog tehničara --</option>
-                {technicians
-                  .filter(tech => tech._id !== formData.technicianId)
-                  .map(tech => (
-                    <option key={tech._id} value={tech._id}>{tech.name}</option>
-                  ))}
-              </Select>
-            </Field>
-          </div>
-
           <Field label="Opština" htmlFor="municipality">
             <Input id="municipality" name="municipality" value={formData.municipality} onChange={handleChange} placeholder="Unesite opštinu" disabled={loading} required />
           </Field>
@@ -167,6 +145,28 @@ const AddWorkOrder = () => {
               <Select id="tim" name="tim" value={formData.tim} onChange={handleChange} disabled={loading}>
                 <option value="robotik">Robotik</option>
                 <option value="mtel">mtel</option>
+              </Select>
+            </Field>
+          </div>
+
+          {/* Technicians */}
+          <div className="sx-form">
+            <Field label="Prvi tehničar" htmlFor="technicianId">
+              <Select id="technicianId" name="technicianId" value={formData.technicianId} onChange={handleChange} disabled={loading}>
+                <option value="">-- Izaberite prvog tehničara --</option>
+                {technicians.map(tech => (
+                  <option key={tech._id} value={tech._id}>{tech.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Drugi tehničar (opciono)" htmlFor="technician2Id">
+              <Select id="technician2Id" name="technician2Id" value={formData.technician2Id} onChange={handleChange} disabled={loading}>
+                <option value="">-- Izaberite drugog tehničara --</option>
+                {technicians
+                  .filter(tech => tech._id !== formData.technicianId)
+                  .map(tech => (
+                    <option key={tech._id} value={tech._id}>{tech.name}</option>
+                  ))}
               </Select>
             </Field>
           </div>

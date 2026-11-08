@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import api, { workOrdersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../utils/toast';
-import { RefreshCw, MapPin, CalendarDays, Clock, UserRound, ClipboardList } from 'lucide-react';
+import { RefreshCw, MapPin, CalendarDays, Clock, UserRound, Filter, TriangleAlert } from 'lucide-react';
 import { getTimRowStyle } from '../../utils/tim';
 import { Btn, Sign } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Stat } from '../../security/sx/layout';
-import { Select, SearchField } from '../../security/sx/forms';
+import { PageHead, Panel, Stat } from '../../security/sx/layout';
+import { Field, Select, SearchField } from '../../security/sx/forms';
 import { Pager, Loading } from '../../montaza/ui';
 import './EditWorkOrders.mx.css';
 
@@ -184,85 +184,115 @@ const EditWorkOrders = () => {
         actions={<Btn icon={RefreshCw} onClick={() => fetchWorkOrders(pagination.currentPage)} disabled={loading}>Osveži</Btn>}
       />
 
+      {/* Stats Card */}
       <div className="sx-stats">
         <Stat label="Ukupno radnih naloga" value={pagination.totalCount} />
         <Stat label="Trenutna stranica" value={`${pagination.currentPage} / ${pagination.totalPages}`} />
         <Stat label="Rezultata po stranici" value={performance.resultsPerPage} />
       </div>
 
-      <Toolbar>
+      {/* Filters Card */}
+      <Panel title={<span className="sx-panel__title-row"><Filter size={17} strokeWidth={1.9} aria-hidden="true" />Filteri i pretraga</span>} className="mx-woe__filters">
         <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po TIS ID, korisniku, adresi..." />
-        <Select size="sm" aria-label="Status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); resetPage(); }}>
-          <option value="">Svi statusi</option>
-          <option value="nezavrsen">Nezavršen</option>
-          <option value="zavrsen">Završen</option>
-          <option value="odlozen">Odložen</option>
-          <option value="otkazan">Otkazan</option>
-        </Select>
-        <Select size="sm" aria-label="Opština" value={municipalityFilter} onChange={(e) => { setMunicipalityFilter(e.target.value); resetPage(); }}>
-          <option value="">Sve opštine</option>
-          {municipalities.map(municipality => (
-            <option key={municipality} value={municipality}>
-              {municipality}
-            </option>
-          ))}
-        </Select>
-        <Select size="sm" aria-label="Tehničar" value={technicianFilter} onChange={(e) => { setTechnicianFilter(e.target.value); resetPage(); }}>
-          <option value="">Svi tehničari</option>
-          {technicians.map(tech => (
-            <option key={tech._id} value={tech._id}>
-              {tech.name}
-            </option>
-          ))}
-        </Select>
-      </Toolbar>
+        <div className="sx-form mx-woe__selects">
+          <Field label="Status:" htmlFor="woe-status">
+            <Select id="woe-status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); resetPage(); }}>
+              <option value="">Svi statusi</option>
+              <option value="nezavrsen">Nezavršen</option>
+              <option value="zavrsen">Završen</option>
+              <option value="odlozen">Odložen</option>
+              <option value="otkazan">Otkazan</option>
+            </Select>
+          </Field>
+          <Field label="Opština:" htmlFor="woe-municipality">
+            <Select id="woe-municipality" value={municipalityFilter} onChange={(e) => { setMunicipalityFilter(e.target.value); resetPage(); }}>
+              <option value="">Sve opštine</option>
+              {municipalities.map(municipality => (
+                <option key={municipality} value={municipality}>
+                  {municipality}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tehničar:" htmlFor="woe-technician">
+            <Select id="woe-technician" value={technicianFilter} onChange={(e) => { setTechnicianFilter(e.target.value); resetPage(); }}>
+              <option value="">Svi tehničari</option>
+              {technicians.map(tech => (
+                <option key={tech._id} value={tech._id}>
+                  {tech.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </Panel>
 
-      <Panel pad={false}>
-        {workOrders.length === 0 ? (
-          <div className="sx-empty-block">
+      {/* Work Orders Grid */}
+      {workOrders.length === 0 ? (
+        <Panel>
+          <div className="mx-woe__empty">
+            <TriangleAlert size={44} strokeWidth={1.4} aria-hidden="true" />
             <b>Nema radnih naloga</b>
             <span>Nema radnih naloga koji odgovaraju filterima</span>
           </div>
-        ) : (
-          <>
-            <div className="sx-list mx-woe__list" data-testid="edit-work-orders-list">
-              {workOrders.map((workOrder, i) => (
-                <div
-                  key={workOrder._id}
-                  role="link"
-                  tabIndex={0}
-                  className="sx-item is-click mx-woe__item"
-                  style={{ '--i': i, ...getTimRowStyle(workOrder.tim) }}
-                  onClick={() => navigate(`/edit-work-orders/${workOrder._id}`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/edit-work-orders/${workOrder._id}`); }}
-                  data-testid="edit-work-order"
-                >
-                  <span className="sx-item__icon"><ClipboardList size={18} strokeWidth={1.8} aria-hidden="true" /></span>
-                  <div className="sx-item__main">
-                    <b>{workOrder.tisId || 'N/A'}</b>
-                    <span>{workOrder.userName || 'N/A'}</span>
-                    <div className="mx-woe__meta">
-                      <span><MapPin aria-hidden="true" strokeWidth={1.8} />{workOrder.address || 'N/A'}, {workOrder.municipality || 'N/A'}</span>
-                      <span><CalendarDays aria-hidden="true" strokeWidth={1.8} /><span className="sx-mono">{formatDate(workOrder.date)}</span></span>
-                      <span><Clock aria-hidden="true" strokeWidth={1.8} /><span className="sx-mono">{workOrder.time}</span></span>
-                      <span className="mx-woe__techs">
-                        <UserRound aria-hidden="true" strokeWidth={1.8} />
-                        {workOrder.technicianId?.name}
-                        {workOrder.technician2Id && `, ${workOrder.technician2Id.name}`}
-                      </span>
-                    </div>
+        </Panel>
+      ) : (
+        <>
+          <div className="mx-woe__grid" data-testid="edit-work-orders-list">
+            {workOrders.map((workOrder, i) => (
+              <div
+                key={workOrder._id}
+                role="link"
+                tabIndex={0}
+                className="sx-card mx-woe__card"
+                style={{ '--i': i, ...getTimRowStyle(workOrder.tim) }}
+                onClick={() => navigate(`/edit-work-orders/${workOrder._id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/edit-work-orders/${workOrder._id}`); }}
+                data-testid="edit-work-order"
+              >
+                <div className="mx-woe__card-head">
+                  <div className="mx-woe__card-title">
+                    <h3>{workOrder.tisId || 'N/A'}</h3>
+                    <p>{workOrder.userName || 'N/A'}</p>
                   </div>
-                  <div className="sx-item__side">
-                    {workOrder.type && <span className="sx-tag">{workOrder.type}</span>}
-                    <Sign tone={STATUS_TONE[workOrder.status] || 'idle'}>{getStatusText(workOrder.status)}</Sign>
-                  </div>
+                  <Sign tone={STATUS_TONE[workOrder.status] || 'idle'}>{getStatusText(workOrder.status)}</Sign>
                 </div>
-              ))}
+
+                <div className="mx-woe__card-body">
+                  <div className="mx-woe__row">
+                    <MapPin aria-hidden="true" strokeWidth={1.8} />
+                    <span>{workOrder.address || 'N/A'}, {workOrder.municipality || 'N/A'}</span>
+                  </div>
+                  <div className="mx-woe__row">
+                    <span className="mx-woe__pair"><CalendarDays aria-hidden="true" strokeWidth={1.8} /><span className="sx-mono">{formatDate(workOrder.date)}</span></span>
+                    <span className="mx-woe__pair"><Clock aria-hidden="true" strokeWidth={1.8} /><span className="sx-mono">{workOrder.time}</span></span>
+                  </div>
+                  <div className="mx-woe__row">
+                    <UserRound aria-hidden="true" strokeWidth={1.8} />
+                    <span className="mx-woe__techs">
+                      {workOrder.technicianId?.name}
+                      {workOrder.technician2Id && `, ${workOrder.technician2Id.name}`}
+                    </span>
+                  </div>
+
+                  {workOrder.type && (
+                    <div className="mx-woe__type">
+                      <span className="sx-tag">{workOrder.type}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {pagination.totalPages > 1 && (
+            <div className="sx-card mx-woe__pager">
+              <Pager page={pagination.currentPage} total={pagination.totalCount} perPage={pagination.limit} onPage={handlePageChange} />
             </div>
-            <Pager page={pagination.currentPage} total={pagination.totalCount} perPage={pagination.limit} onPage={handlePageChange} />
-          </>
-        )}
-      </Panel>
+          )}
+        </>
+      )}
     </div>
   );
 };

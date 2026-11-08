@@ -5,10 +5,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../utils/toast';
-import { ArrowLeft, Plus, Trash2, Package, Cable } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Package, Cable, MapPin, CalendarDays, Clock, UserRound } from 'lucide-react';
 import { getTimLabel } from '../../utils/tim';
 import { cx, Btn, Sign, Avatar } from '../../security/sx/ui';
-import { PageHead, Panel, KV } from '../../security/sx/layout';
+import { PageHead, Panel } from '../../security/sx/layout';
 import { SheetSection } from '../../security/sx/Sheet';
 import { Loading } from '../../montaza/ui';
 import './EditWorkOrderDetail.mx.css';
@@ -397,12 +397,26 @@ const EditWorkOrderDetail = () => {
           actions={<Sign tone={STATUS_TONE[workOrder.status] || 'idle'}>{workOrder.status}</Sign>}
           testId="edit-wo-info"
         >
-          <KV cols={2} items={[
-            { k: 'Adresa', v: `${workOrder.address}, ${workOrder.municipality}` },
-            { k: 'Datum i vreme', v: <span className="sx-mono">{formatDate(workOrder.date)} {workOrder.time}</span> },
-            workOrder.type && { k: 'Tip', v: workOrder.type },
-            { k: 'Tim', v: <span className={cx('sx-tag', workOrder.tim === 'robotik' && 'is-info', workOrder.tim === 'mtel' && 'is-bad')}>{getTimLabel(workOrder.tim)}</span> }
-          ]} />
+          <div className="mx-woed__facts">
+            <div className="mx-woed__fact">
+              <MapPin aria-hidden="true" strokeWidth={1.8} />
+              <div><span>Adresa</span><b>{workOrder.address}, {workOrder.municipality}</b></div>
+            </div>
+            <div className="mx-woed__fact">
+              <CalendarDays aria-hidden="true" strokeWidth={1.8} />
+              <div><span>Datum i vreme</span><b className="sx-mono">{formatDate(workOrder.date)} {workOrder.time}</b></div>
+            </div>
+            {workOrder.type && (
+              <div className="mx-woed__fact">
+                <Clock aria-hidden="true" strokeWidth={1.8} />
+                <div><span>Tip</span><b>{workOrder.type}</b></div>
+              </div>
+            )}
+            <div className="mx-woed__fact">
+              <UserRound aria-hidden="true" strokeWidth={1.8} />
+              <div><span>Tim</span><b><span className={cx('sx-tag', workOrder.tim === 'robotik' && 'is-info', workOrder.tim === 'mtel' && 'is-bad')}>{getTimLabel(workOrder.tim)}</span></b></div>
+            </div>
+          </div>
         </Panel>
 
         {/* Technicians Section */}

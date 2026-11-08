@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Upload, RefreshCw, Download, Eye, Trash2, UserCheck, Check, Sparkles } from 'lucide-react';
+import { Plus, Upload, RefreshCw, Eye, Trash2, UserCheck, Check, Sparkles, Wrench, Menu, UserRound, UserX, ClipboardList } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { getTimRowStyle } from '../../utils/tim';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
@@ -8,7 +8,7 @@ import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import AIVerificationModal from '../../components/AIVerificationModal';
 import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
 import { cx, Btn, Sign, State, Avatar } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Tabs } from '../../security/sx/layout';
+import { Note } from '../../security/sx/layout';
 import { Select, SearchField, DateField, Choice } from '../../security/sx/forms';
 import Dialog from '../../security/sx/Dialog';
 import { confirm } from '../../security/sx/confirm';
@@ -85,6 +85,9 @@ const WorkOrdersByTechnician = () => {
   const [aiVerificationResult, setAIVerificationResult] = useState(null);
   // Vraćanje posle AI preporuke ide kroz istu potvrdu sa umanjenjem zarade kao ručno vraćanje
   const [aiReturnModal, setAiReturnModal] = useState({ isOpen: false, orderId: null, comment: '' });
+
+  // Sidebar state for mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Paginacija
   const [currentPageUnassigned, setCurrentPageUnassigned] = useState(1);
@@ -862,7 +865,7 @@ const WorkOrdersByTechnician = () => {
     }
   };
 
-  // Izbor taba ili tehničara (tab bez tehničara poništava izbor tehničara, kao ranije)
+  // Sidebar click handler (auto-closes on mobile)
   const handleSidebarItemClick = (tab, techId) => {
     handleTabChange(tab);
     if (techId) {
@@ -870,24 +873,26 @@ const WorkOrdersByTechnician = () => {
     } else {
       setSelectedTechnicianId('');
     }
+    setSidebarOpen(false);
   };
 
   // Content header info
   const getContentHeaderInfo = () => {
     if (activeTab === 'technicians' && selectedTechnicianId && technicianWorkOrders[selectedTechnicianId]) {
       const tech = technicianWorkOrders[selectedTechnicianId].technicianInfo;
-      return { title: tech.name, subtitle: tech.phone };
+      return { title: tech.name, subtitle: tech.phone, icon: UserRound };
     }
-    if (activeTab === 'unassigned') return { title: 'Nedodeljeni radni nalozi', subtitle: `${filteredUnassigned.length} naloga` };
-    if (activeTab === 'verification') return { title: 'Za verifikaciju', subtitle: `${filteredVerification.length} naloga` };
-    if (activeTab === 'all') return { title: 'Svi radni nalozi', subtitle: `${filteredAllOrders.length} naloga` };
-    if (activeTab === 'technicians') return { title: 'Tehničari', subtitle: 'Izaberite tehničara iz menija' };
-    return { title: '', subtitle: '' };
+    if (activeTab === 'unassigned') return { title: 'Nedodeljeni radni nalozi', subtitle: `${filteredUnassigned.length} naloga`, icon: UserX };
+    if (activeTab === 'verification') return { title: 'Za verifikaciju', subtitle: `${filteredVerification.length} naloga`, icon: Check };
+    if (activeTab === 'all') return { title: 'Svi radni nalozi', subtitle: `${filteredAllOrders.length} naloga`, icon: ClipboardList };
+    if (activeTab === 'technicians') return { title: 'Tehničari', subtitle: 'Izaberite tehničara iz menija', icon: UserRound };
+    return { title: '', subtitle: '', icon: null };
   };
 
   const isLoading = dashboardLoading && recentLoading;
 
   const head = getContentHeaderInfo();
+  const HeadIcon = head.icon;
   const loadingAny = dashboardLoading || recentLoading || olderLoading;
   const userRole = (() => { const storedUser = localStorage.getItem('user'); return storedUser ? JSON.parse(storedUser).role : null; })();
   const resetPages = () => {
@@ -896,15 +901,6 @@ const WorkOrdersByTechnician = () => {
     setCurrentPageAllOrders(1);
     setTechnicianCurrentPages({});
   };
-  // Broj pogodaka pretrage uz tab (kao značka u starom bočnom meniju)
-  const hit = (key) => (searchTerm && searchMatchCounts[key] > 0 && activeTab !== key ? searchMatchCounts[key] : 0);
-  const tabLabel = (text, n) => (n ? <>{text} <span className="mx-wo__hit">({n})</span></> : text);
-  const tabs = [
-    { key: 'technicians', label: 'Tehničari', count: filteredSidebarTechnicians.length, testId: 'tab-technicians' },
-    { key: 'unassigned', label: tabLabel('Nedodeljeni', hit('unassigned')), count: getAllUnassignedOrders().length, testId: 'tab-unassigned' },
-    { key: 'verification', label: tabLabel('Za verifikaciju', hit('verification')), count: verificationOrders.length, testId: 'tab-verification' },
-    { key: 'all', label: tabLabel('Svi radni nalozi', hit('all')), count: getAllWorkOrders().length, testId: 'tab-all' }
-  ];
 
   const syncRecordings = async () => {
     try {
@@ -917,10 +913,36 @@ const WorkOrdersByTechnician = () => {
     }
   };
 
-  // Spisak tehničara (tab Tehničari): klik bira tehničara, brojke filtriraju po statusu
-  const techList = (
-    <Panel pad={false} className="mx-wo__techs" title="Tehničari" actions={<span className="sx-count">{filteredSidebarTechnicians.length}</span>} testId="wo-technicians">
-      <div className="mx-wo__techlist">
+  // Stavka levog menija (Svi radni nalozi, Za verifikaciju, Nedodeljeni): ikonica, naziv, broj, pogodak pretrage
+  const navItem = (tab, Icon, label, count) => {
+    const on = activeTab === tab;
+    const hit = searchTerm && searchMatchCounts[tab] > 0 && !on;
+    return (
+      <button type="button" onClick={() => handleSidebarItemClick(tab, null)} className={cx('mx-wo__nav', on && 'is-on', hit && 'is-hit')} aria-current={on ? 'true' : undefined} data-testid={`wo-nav-${tab}`}>
+        <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
+        <span className="mx-wo__nav-label">{label}</span>
+        <span className="mx-wo__nav-count">{count}</span>
+        {hit && <span className="mx-wo__hit">({searchMatchCounts[tab]})</span>}
+      </button>
+    );
+  };
+
+  // Render sidebar content (shared between desktop and mobile overlay)
+  const renderSidebarContent = () => (
+    <div className="mx-wo__sidein">
+      <div className="mx-wo__navs">
+        {navItem('all', ClipboardList, 'Svi radni nalozi', getAllWorkOrders().length)}
+        {navItem('verification', Check, 'Za verifikaciju', verificationOrders.length)}
+        {navItem('unassigned', UserX, 'Nedodeljeni', getAllUnassignedOrders().length)}
+        <div className="mx-wo__divider" />
+        <div className="mx-wo__sidehead">
+          <span className="sx-label">Tehničari</span>
+          <span className="mx-wo__sidecount">{filteredSidebarTechnicians.length}</span>
+        </div>
+      </div>
+
+      {/* Technician cards - scrollable */}
+      <div className="mx-wo__techs">
         {filteredSidebarTechnicians.map(([techId, techData]) => {
           const isActive = activeTab === 'technicians' && selectedTechnicianId === techId;
           const tech = techData.technicianInfo;
@@ -929,43 +951,42 @@ const WorkOrdersByTechnician = () => {
           const active = techData.workOrders.filter(o => o.status === 'nezavrsen').length;
           const postponed = techData.workOrders.filter(o => o.status === 'odlozen').length;
           const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
-          const stat = (value, label, status, tone) => (
-            <button type="button" className={cx('mx-wo__stat', tone && `is-${tone}`)} onClick={(e) => handleStatClick(techId, status, e)}>
-              <b>{value}</b><span>{label}</span>
-            </button>
-          );
+          const hit = searchTerm && searchMatchCounts[techId] > 0 && !isActive;
 
           return (
-            <div
+            <button
+              type="button"
               key={techId}
-              role="button"
-              tabIndex={0}
-              aria-pressed={isActive}
-              className={cx('mx-wo__tech', isActive && 'is-on')}
               onClick={() => handleSidebarItemClick('technicians', techId)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) handleSidebarItemClick('technicians', techId); }}
+              className={cx('mx-wo__tech', isActive && 'is-on', hit && 'is-hit')}
+              aria-current={isActive ? 'true' : undefined}
               data-testid="wo-tech"
             >
+              {/* Top row: avatar + name + phone */}
               <div className="mx-wo__tech-top">
                 <Avatar name={tech.name} />
-                <div className="sx-cell">
+                <div className="mx-wo__tech-name">
                   <b>{tech.name}</b>
-                  <span className="sx-mono">{tech.phone}</span>
+                  <span>{tech.phone}</span>
                 </div>
-                {searchTerm && searchMatchCounts[techId] > 0 && !isActive && <span className="mx-wo__hit">({searchMatchCounts[techId]})</span>}
+                {hit && <span className="mx-wo__hit">({searchMatchCounts[techId]})</span>}
               </div>
+
+              {/* Stats row */}
               <div className="mx-wo__stats">
-                {stat(total, 'Sve', '')}
-                {stat(completed, 'OK', 'zavrsen', 'ok')}
-                {stat(active, 'Akt', 'nezavrsen', 'warn')}
-                {stat(postponed, 'Odl', 'odlozen', 'info')}
+                <div className="mx-wo__stat" onClick={(e) => handleStatClick(techId, '', e)}><b>{total}</b><span>Sve</span></div>
+                <div className="mx-wo__stat is-ok" onClick={(e) => handleStatClick(techId, 'zavrsen', e)}><b>{completed}</b><span>OK</span></div>
+                <div className="mx-wo__stat is-warn" onClick={(e) => handleStatClick(techId, 'nezavrsen', e)}><b>{active}</b><span>Akt</span></div>
+                <div className="mx-wo__stat is-info" onClick={(e) => handleStatClick(techId, 'odlozen', e)}><b>{postponed}</b><span>Odl</span></div>
               </div>
+
+              {/* Progress bar */}
               <div className="mx-wo__bar" aria-hidden="true"><span style={{ width: `${completionPct}%` }} /></div>
-            </div>
+            </button>
           );
         })}
       </div>
-    </Panel>
+    </div>
   );
 
   const orders = getCurrentOrders();
@@ -974,158 +995,45 @@ const WorkOrdersByTechnician = () => {
   const showTime = activeTab === 'all' || activeTab === 'technicians';
   const isVerification = activeTab === 'verification';
 
-  const ordersPanel = (
-    <Panel
-      pad={false}
-      className="mx-wo__orders"
-      testId="wo-orders"
-      title={head.title}
-      sub={<>{head.subtitle}{recentLoading && ' (učitavanje...)'}{olderLoading && ' (stariji nalozi...)'}</>}
-      actions={activeTab === 'technicians' && selectedTechnicianId ? (
-        <Choice
-          size="sm"
-          label="Status"
-          layoutId="mx-wo-chips"
-          value={statusFilter}
-          onChange={(v) => {
-            setStatusFilter(v);
-            setTechnicianCurrentPages(prev => ({ ...prev, [selectedTechnicianId]: 1 }));
-          }}
-          options={[
-            { value: '', label: 'Svi' },
-            { value: 'zavrsen', label: 'Završeni' },
-            { value: 'nezavrsen', label: 'Nezavršeni' },
-            { value: 'odlozen', label: 'Odloženi' }
-          ]}
-        />
-      ) : null}
-    >
-      {isLoading ? (
-        <Loading text="Učitavanje podataka..." />
-      ) : activeTab === 'technicians' && !selectedTechnicianId ? (
-        <div className="sx-empty-block">
-          <span>Izaberite tehničara iz menija sa leve strane</span>
-        </div>
-      ) : isVerification && verificationLoading ? (
-        <Loading text="Učitavanje naloga za verifikaciju..." />
-      ) : orders.length === 0 ? (
-        <div className="sx-empty-block">
-          <span>Nema radnih naloga koji odgovaraju filterima</span>
-        </div>
-      ) : (
-        <>
-          <div className="sx-tablewrap">
-            <div className="mx-wo__scroll">
-            <table className="sx-table mx-wo__table" data-testid="wo-table">
-              <thead>
-                <tr>
-                  <th>Datum</th>
-                  {showTime && <th>Vreme</th>}
-                  <th>Opština</th>
-                  <th>Adresa</th>
-                  <th>Korisnik</th>
-                  <th>Tip</th>
-                  <th>Tehničar</th>
-                  {!isVerification && <th>Status</th>}
-                  <th className="is-end">Akcije</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordersToRender.map((order, i) => {
-                  const technician = technicians.find(tech => tech._id === (order.technicianId?._id || order.technicianId));
-                  return (
-                    <tr
-                      key={order._id}
-                      className="is-click"
-                      tabIndex={0}
-                      style={{ '--i': i, ...getTimRowStyle(order.tim) }}
-                      onClick={(e) => navigateToOrderDetails(order._id, e)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) navigateToOrderDetails(order._id, e); }}
-                      data-testid="wo-row"
-                    >
-                      <td className="is-head"><span className="sx-mono mx-strong">{formatDate(order.date)}</span></td>
-                      {showTime && <td data-label="Vreme"><span className="sx-mono">{order.time || '-'}</span></td>}
-                      <td data-label="Opština">{order.municipality}</td>
-                      <td data-label="Adresa" className="is-wide">{order.address}</td>
-                      <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
-                      <td data-label="Tip">{order.type}</td>
-                      <td data-label="Tehničar">{technician ? technician.name : getTechnicianName(order)}</td>
-                      {!isVerification && (
-                        <td data-label="Status">
-                          <span className="mx-inline">
-                            {renderStatusBadge(order.status)}
-                            {order.status === 'zavrsen' && order.verified && (
-                              <span className="sx-tag is-ok mx-wo__verified" title="Verifikovano" aria-label="Verifikovano"><Check strokeWidth={2.4} /></span>
-                            )}
-                          </span>
-                        </td>
-                      )}
-                      <td className="is-actions is-end">
-                        {isVerification ? (
-                          <div className="mx-wo__vacts">
-                            <div className="sx-rowacts">
-                              <LinkBtn size="sm" variant="ghost" icon={Eye} to={`/work-orders/${order._id}?fromVerification=true`} state={{ backgroundLocation: location }} onClick={(e) => e.stopPropagation()}>Detalji</LinkBtn>
-                              <Btn size="sm" icon={UserCheck} onClick={(e) => { e.stopPropagation(); openCustomerStatusModal(order._id); }}>Status</Btn>
-                              <Btn size="sm" variant="primary" icon={Check} onClick={(e) => { e.stopPropagation(); handleVerifyOrder(order._id); }}>Verifikuj</Btn>
-                              <Btn size="sm" icon={loadingAIVerification === order._id ? Spin : Sparkles} disabled={loadingAIVerification === order._id}
-                                onClick={(e) => { e.stopPropagation(); handleAIVerify(order._id); }}>
-                                {loadingAIVerification === order._id ? 'AI...' : 'Verifikuj sa AI'}
-                              </Btn>
-                            </div>
-                            {orderStatuses[order._id]
-                              ? <span className="mx-wo__cstatus">{orderStatuses[order._id]}</span>
-                              : <span className="mx-wo__cstatus is-empty">Kliknite &quot;Status&quot; da postavite</span>}
-                          </div>
-                        ) : (
-                          <div className="sx-rowacts">
-                            <LinkBtn size="sm" variant="ghost" icon={Eye} to={`/work-orders/${order._id}`} state={{ backgroundLocation: location }} onClick={(e) => e.stopPropagation()}>Detalji</LinkBtn>
-                            <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" aria-label="Obriši"
-                              onClick={(e) => { e.stopPropagation(); handleDelete(order._id); }} />
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            </div>
-          </div>
-          <div className="mx-wo__foot">
-            <span className="mx-pager__text">Prikazano {paginatedOrders.length} od {orders.length}</span>
-            <Pager className="mx-wo__pager" page={getCurrentPage()} total={orders.length} perPage={itemsPerPage} onPage={handleCurrentPageChange} />
-          </div>
-        </>
-      )}
-    </Panel>
-  );
-
   return (
     <div className="sx-page mx-wo" data-testid="page-work-orders">
-      <PageHead
-        eyebrow="Montaža · Radni nalozi"
-        title="Radni nalozi"
-        lead={`${activeTechnicians.length} tehničara · ${getAllWorkOrders().length} naloga`}
-        actions={<>
-          <LinkBtn to="/work-orders/add" variant="primary" icon={Plus}>Novi nalog</LinkBtn>
-          <LinkBtn to="/work-orders/upload" icon={Upload}>Import</LinkBtn>
-          {(userRole === 'superadmin' || userRole === 'supervisor') && <Btn icon={RefreshCw} onClick={syncRecordings}>Sync snimke</Btn>}
-        </>}
-      />
+      {/* 1. Gornja traka */}
+      <header className="mx-wo__top">
+        <div className="mx-wo__top-left">
+          {/* Mobile hamburger */}
+          <button type="button" className="mx-wo__burger" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Meni radnih naloga" aria-expanded={sidebarOpen} data-testid="wo-sidebar-toggle">
+            <Menu size={18} strokeWidth={1.9} />
+          </button>
+          <Wrench className="mx-wo__top-icon" size={18} strokeWidth={1.9} aria-hidden="true" />
+          <h1 className="mx-wo__title">Radni nalozi</h1>
+          <span className="mx-wo__top-sep" aria-hidden="true" />
+          <span className="mx-wo__top-meta">{activeTechnicians.length} tehničara</span>
+          <span className="mx-wo__top-meta" aria-hidden="true">&middot;</span>
+          <span className="mx-wo__top-meta">{getAllWorkOrders().length} naloga</span>
+        </div>
+        <div className="mx-wo__top-right">
+          <LinkBtn to="/work-orders/add" size="sm" variant="primary" icon={Plus} aria-label="Novi nalog"><span className="mx-wo__lbl">Novi nalog</span></LinkBtn>
+          <LinkBtn to="/work-orders/upload" size="sm" icon={Upload} aria-label="Import"><span className="mx-wo__lbl">Import</span></LinkBtn>
+          {(userRole === 'superadmin' || userRole === 'supervisor') && (
+            <Btn size="sm" icon={RefreshCw} onClick={syncRecordings} aria-label="Sync snimke"><span className="mx-wo__lbl">Sync snimke</span></Btn>
+          )}
+        </div>
+      </header>
 
-      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+      {/* Error display */}
+      {error && <Note tone="bad" className="mx-wo__error">{error}</Note>}
 
-      <Tabs items={tabs} value={activeTab} onChange={(key) => handleSidebarItemClick(key, null)} ariaLabel="Radni nalozi" layoutId="mx-wo-tabs" testId="wo-tabs" />
-
-      <Toolbar testId="wo-toolbar">
+      {/* 2. Search Strip */}
+      <div className="mx-wo__filters" data-testid="wo-filters">
         <SearchField
+          className="mx-wo__search"
           value={searchTerm}
           onChange={(v) => { setSearchTerm(v); resetPages(); }}
           placeholder="Pretraga po adresi, korisniku, serijskom broju..."
           testId="wo-search"
         />
         {!allLoaded && (
-          <Btn size="sm" icon={allLoadingInProgress ? Spin : Download} onClick={fetchAllWorkOrders} disabled={allLoadingInProgress}>
+          <Btn size="sm" variant="primary" icon={allLoadingInProgress ? Spin : undefined} onClick={fetchAllWorkOrders} disabled={allLoadingInProgress}>
             {allLoadingInProgress ? 'Učitava...' : 'Učitaj sve naloge'}
           </Btn>
         )}
@@ -1154,18 +1062,167 @@ const WorkOrdersByTechnician = () => {
             <option value="desc">Najnovije &rarr; Najstarije</option>
           </Select>
         )}
-        <div className="sx-toolbar__end">
-          <Btn size="sm" variant="ghost" onClick={resetFilters}>Resetuj</Btn>
-          <Btn size="sm" icon={loadingAny ? Spin : RefreshCw} onClick={fetchData} disabled={dashboardLoading || recentLoading}>Osveži</Btn>
-        </div>
-      </Toolbar>
+        <Btn size="sm" variant="ghost" onClick={resetFilters}>Resetuj</Btn>
+        <Btn size="sm" variant="ghost" icon={loadingAny ? Spin : RefreshCw} onClick={fetchData} disabled={dashboardLoading || recentLoading} aria-label="Osveži">
+          <span className="mx-wo__lbl">Osveži</span>
+        </Btn>
+      </div>
 
-      {activeTab === 'technicians' ? (
-        <div className="mx-wo__split">
-          {techList}
-          {ordersPanel}
-        </div>
-      ) : ordersPanel}
+      {/* 3. Main area: Sidebar + Content */}
+      <div className="mx-wo__main">
+        {/* Mobile sidebar overlay backdrop */}
+        {sidebarOpen && <div className="mx-wo__scrim" onClick={() => setSidebarOpen(false)} />}
+
+        {/* Left Sidebar */}
+        <aside className={cx('mx-wo__side', sidebarOpen && 'is-open')} data-testid="wo-sidebar">
+          {renderSidebarContent()}
+        </aside>
+
+        {/* Right Content Area */}
+        <section className="mx-wo__content" data-testid="wo-orders">
+          {isLoading ? (
+            <div className="mx-wo__body"><Loading text="Učitavanje podataka..." rows={6} /></div>
+          ) : (
+            <>
+              {/* Content header */}
+              <div className="mx-wo__head">
+                <div className="mx-wo__head-title">
+                  {HeadIcon && <HeadIcon className="mx-wo__head-icon" size={16} strokeWidth={1.9} aria-hidden="true" />}
+                  <div className="mx-wo__head-text">
+                    <h2>{head.title}</h2>
+                    <p>
+                      {head.subtitle}
+                      {recentLoading && <span className="mx-wo__head-note">(učitavanje...)</span>}
+                      {olderLoading && <span className="mx-wo__head-note">(stariji nalozi...)</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick filter chips for technician view */}
+                {activeTab === 'technicians' && selectedTechnicianId && (
+                  <Choice
+                    size="sm"
+                    label="Status"
+                    layoutId="mx-wo-chips"
+                    value={statusFilter}
+                    onChange={(v) => {
+                      setStatusFilter(v);
+                      setTechnicianCurrentPages(prev => ({ ...prev, [selectedTechnicianId]: 1 }));
+                    }}
+                    options={[
+                      { value: '', label: 'Svi' },
+                      { value: 'zavrsen', label: 'Završeni' },
+                      { value: 'nezavrsen', label: 'Nezavršeni' },
+                      { value: 'odlozen', label: 'Odloženi' }
+                    ]}
+                  />
+                )}
+              </div>
+
+              {/* Table container */}
+              <div className="mx-wo__body">
+                {activeTab === 'technicians' && !selectedTechnicianId ? (
+                  <div className="mx-wo__empty">
+                    <UserRound size={44} strokeWidth={1.4} aria-hidden="true" />
+                    <p>Izaberite tehničara iz menija sa leve strane</p>
+                  </div>
+                ) : isVerification && verificationLoading ? (
+                  <Loading text="Učitavanje naloga za verifikaciju..." rows={6} />
+                ) : orders.length === 0 ? (
+                  <div className="mx-wo__empty">
+                    <ClipboardList size={44} strokeWidth={1.4} aria-hidden="true" />
+                    <p>Nema radnih naloga koji odgovaraju filterima</p>
+                  </div>
+                ) : (
+                  <div className="sx-tablewrap">
+                    <table className="sx-table mx-wo__table" data-testid="wo-table">
+                      <thead>
+                        <tr>
+                          <th>Datum</th>
+                          {showTime && <th>Vreme</th>}
+                          <th>Opština</th>
+                          <th>Adresa</th>
+                          <th>Korisnik</th>
+                          <th>Tip</th>
+                          <th>Tehničar</th>
+                          {!isVerification && <th>Status</th>}
+                          <th>Akcije</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ordersToRender.map((order, i) => {
+                          const technician = technicians.find(tech => tech._id === (order.technicianId?._id || order.technicianId));
+                          return (
+                            <tr
+                              key={order._id}
+                              className="is-click"
+                              tabIndex={0}
+                              style={{ '--i': i, ...getTimRowStyle(order.tim) }}
+                              onClick={(e) => navigateToOrderDetails(order._id, e)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) navigateToOrderDetails(order._id, e); }}
+                              data-testid="wo-row"
+                            >
+                              <td className="is-head"><span className="sx-mono mx-strong">{formatDate(order.date)}</span></td>
+                              {showTime && <td data-label="Vreme"><span className="sx-mono">{order.time || '-'}</span></td>}
+                              <td data-label="Opština">{order.municipality}</td>
+                              <td data-label="Adresa" className="is-wide">{order.address}</td>
+                              <td data-label="Korisnik">{order.userName || 'Nepoznat'}</td>
+                              <td data-label="Tip">{order.type}</td>
+                              <td data-label="Tehničar">{technician ? technician.name : getTechnicianName(order)}</td>
+                              {!isVerification && (
+                                <td data-label="Status">
+                                  <span className="mx-inline">
+                                    {renderStatusBadge(order.status)}
+                                    {order.status === 'zavrsen' && order.verified && (
+                                      <span className="sx-tag is-ok mx-wo__verified" title="Verifikovano" aria-label="Verifikovano"><Check strokeWidth={2.4} /></span>
+                                    )}
+                                  </span>
+                                </td>
+                              )}
+                              <td className="is-actions">
+                                {isVerification ? (
+                                  <div className="mx-wo__vacts">
+                                    <div className="sx-rowacts">
+                                      <LinkBtn size="sm" variant="ghost" icon={Eye} to={`/work-orders/${order._id}?fromVerification=true`} state={{ backgroundLocation: location }} onClick={(e) => e.stopPropagation()}>Detalji</LinkBtn>
+                                      <Btn size="sm" icon={UserCheck} onClick={(e) => { e.stopPropagation(); openCustomerStatusModal(order._id); }}>Status</Btn>
+                                      <Btn size="sm" variant="primary" icon={Check} onClick={(e) => { e.stopPropagation(); handleVerifyOrder(order._id); }}>Verifikuj</Btn>
+                                      <Btn size="sm" icon={loadingAIVerification === order._id ? Spin : Sparkles} disabled={loadingAIVerification === order._id}
+                                        onClick={(e) => { e.stopPropagation(); handleAIVerify(order._id); }}>
+                                        {loadingAIVerification === order._id ? 'AI...' : 'Verifikuj sa AI'}
+                                      </Btn>
+                                    </div>
+                                    {orderStatuses[order._id]
+                                      ? <span className="mx-wo__cstatus">{orderStatuses[order._id]}</span>
+                                      : <span className="mx-wo__cstatus is-empty">Kliknite &quot;Status&quot; da postavite</span>}
+                                  </div>
+                                ) : (
+                                  <div className="sx-rowacts mx-wo__acts">
+                                    <LinkBtn size="sm" variant="ghost" icon={Eye} to={`/work-orders/${order._id}`} state={{ backgroundLocation: location }} onClick={(e) => e.stopPropagation()}>Detalji</LinkBtn>
+                                    <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" aria-label="Obriši"
+                                      onClick={(e) => { e.stopPropagation(); handleDelete(order._id); }} />
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer/Pagination */}
+              {orders.length > 0 && (
+                <div className="mx-wo__foot">
+                  <span className="mx-pager__text">Prikazano {paginatedOrders.length} od {orders.length}</span>
+                  <Pager className="mx-wo__pager" page={getCurrentPage()} total={orders.length} perPage={itemsPerPage} onPage={handleCurrentPageChange} />
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </div>
 
       <Dialog
         open={customerStatusModal.isOpen}
