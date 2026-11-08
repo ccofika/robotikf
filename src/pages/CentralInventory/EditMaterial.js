@@ -123,7 +123,8 @@ const EditMaterial = () => {
       {head}
 
       {/* Sačuvaj je kao ranije "submit" dugme forme sa onClick; Obriši je obično dugme (potvrda je sada asinhrona) */}
-      <form onSubmit={handleSubmit} className="mx-me-form">
+      {/* kao ranije: uska kartica u sredini, polja jedno ispod drugog, Obriši levo, Odustani i Sačuvaj desno */}
+      <form onSubmit={handleSubmit} className="mx-mat-form mx-me-form">
         <Panel
           footer={<>
             <Btn variant="danger" icon={Trash2} onClick={handleDelete} disabled={loading}>Obriši</Btn>
@@ -134,7 +135,7 @@ const EditMaterial = () => {
           </>}
         >
           {error && <Note tone="bad" className="mx-mb">{error}</Note>}
-          <div className="sx-form">
+          <div className="mx-mat-fields">
             <Field label="Vrsta materijala:" htmlFor="type">
               <Input type="text" id="type" name="type" value={formData.type} onChange={handleChange} placeholder="Unesite vrstu materijala" disabled={loading} autoFocus required />
             </Field>

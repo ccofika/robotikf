@@ -1,6 +1,10 @@
-/* Izmena materijala: na telefonu Sačuvaj ide prvo preko cele širine, Obriši i Odustani ispod */
+/* Dodaj i izmeni materijal: kao ranije uska kartica u sredini (max 672 px), polja jedno ispod drugog */
+.mx-mat-form { max-width: 672px; margin-inline: auto; }
+.mx-mat-fields { display: grid; gap: 16px; }
+.mx-mat-fields > .sx-field + .sx-field { margin-top: 0; }
+/* izmena na telefonu: Obriši u prvom redu, Odustani i Sačuvaj izmene ispod (isti redosled, složeno) */
 @media (max-width: 639px) {
   .mx-me-form .sx-panel__foot > .sx-btn { flex: 1 1 120px; }
-  .mx-me-form .sx-panel__foot > .sx-btn--primary { order: -1; flex-basis: 100%; }
+  .mx-me-form .sx-panel__foot > .sx-btn--danger { flex-basis: 100%; }
   .mx-me-form .sx-panel__foot > .mx-right { margin-left: 0; }
 }
