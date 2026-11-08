@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Smartphone, CheckCircle, AlertCircle } from 'lucide-react';
+import { Download, Smartphone } from 'lucide-react';
 import axios from 'axios';
+import { Btn } from '../security/sx/ui';
+import { Panel, Note } from '../security/sx/layout';
+import { Loading } from '../montaza/ui';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -52,73 +55,36 @@ const TechnicianAPKDownload = ({ className = '' }) => {
 
   if (loading) {
     return (
-      <div className={`bg-purple-50 border border-purple-200 rounded-lg p-4 ${className}`}>
-        <div className="flex items-center gap-3">
-          <Smartphone className="text-purple-600 animate-pulse" size={24} />
-          <div className="flex-1">
-            <p className="text-sm text-gray-600">Učitavanje informacija o aplikaciji...</p>
-          </div>
-        </div>
-      </div>
+      <Panel className={className} pad={false}>
+        <Loading rows={1} text="Učitavanje informacija o aplikaciji..." />
+      </Panel>
     );
   }
 
   if (error || !apkInfo) {
-    return (
-      <div className={`bg-gray-50 border border-gray-200 rounded-lg p-4 ${className}`}>
-        <div className="flex items-center gap-3">
-          <AlertCircle className="text-gray-400" size={24} />
-          <div className="flex-1">
-            <p className="text-sm text-gray-500">{error || 'Aplikacija nije dostupna'}</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <Note tone="idle" className={className}>{error || 'Aplikacija nije dostupna'}</Note>;
   }
 
   return (
-    <div className={`bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow ${className}`}>
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-          <Smartphone className="text-white" size={24} />
+    <Panel className={className} testId="apk-download">
+      <div className="sx-item">
+        <span className="sx-item__icon is-ink"><Smartphone size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+        <div className="sx-item__main">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="sx-card__title">Robotik Mobile App</h3>
+            <span className="sx-tag">v3.0.0</span>
+          </div>
+          <span className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>Veličina: {formatFileSize(apkInfo.fileSize)}</span>
+            <span>Objavljena: {formatDate(apkInfo.publishedAt)}</span>
+            <span>Preuzimanja: {apkInfo.downloadCount}</span>
+          </span>
         </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Robotik Mobile App
-            </h3>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-              v3.0.0
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
-            <div className="flex items-center gap-1">
-              <CheckCircle size={14} className="text-green-500" />
-              <span>Veličina: {formatFileSize(apkInfo.fileSize)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <CheckCircle size={14} className="text-green-500" />
-              <span>Objavljena: {formatDate(apkInfo.publishedAt)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Download size={14} className="text-blue-500" />
-              <span>Preuzimanja: {apkInfo.downloadCount}</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleDownload}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Download size={16} />
-            Preuzmi aplikaciju
-          </button>
+        <div className="sx-item__side">
+          <Btn variant="primary" icon={Download} onClick={handleDownload}>Preuzmi aplikaciju</Btn>
         </div>
       </div>
-
-    </div>
+    </Panel>
   );
 };
 
