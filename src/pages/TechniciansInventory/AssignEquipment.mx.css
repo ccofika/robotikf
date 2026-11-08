@@ -1,4 +1,6 @@
-/* Zaduženje opreme: izabrani red, kućica u kartici (telefon), broj izabranih */
+/* Zaduženje opreme: naslov sa brojem u vrhu kartice, traka za izbor, izabrani red, kućica u kartici (telefon) */
+.mx-ae-title { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.mx-panelbar.mx-ae-selbar { background: var(--sx-surface-2); }
 .sx-table tbody tr.mx-ae-on, .sx-table tbody tr.is-click.mx-ae-on:hover { background: var(--sx-accent-soft); }
 .mx-ae-pick { width: 88px; }
 .mx-ae-count { font-size: 13.5px; color: var(--sx-muted); white-space: nowrap; }

@@ -5,7 +5,7 @@ import { toast } from '../../utils/toast';
 import { techniciansAPI, equipmentAPI } from '../../services/api';
 import { describeAssignment } from '../../utils/equipmentAssignment';
 import { cx, Btn, Sign, Count } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Tabs } from '../../security/sx/layout';
+import { PageHead, Panel, Note, Tabs } from '../../security/sx/layout';
 import { SearchField, Checkbox } from '../../security/sx/forms';
 import { Pager, Loading, LinkBtn } from '../../montaza/ui';
 import './AssignEquipment.mx.css';
@@ -251,25 +251,16 @@ const AssignEquipment = () => {
 
       {technician && <Panel title={technician.name} sub="Tehničar" className="mx-mb" />}
 
+      {/* tabovi na sredini, kao ranije */}
       <Tabs
+        className="justify-center"
         items={[{ key: 'assign', label: 'Zaduži opremu', icon: Plus }, { key: 'return', label: 'Razduži opremu', icon: Minus }]}
         value={activeTab}
         onChange={setActiveTab}
       />
 
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži opremu..." />
-        <div className="sx-toolbar__end">
-          <Btn size="sm" onClick={selectAll}>Označi sve</Btn>
-          <Btn size="sm" onClick={deselectAll}>Poništi</Btn>
-          <span className="mx-ae-count">Odabrano: <b>{selectedEquipment.length}</b></span>
-        </div>
-      </Toolbar>
-
       <Panel
         pad={false}
-        title={isAssign ? 'Oprema dostupna za zaduženje' : 'Oprema za razduženje'}
-        actions={<Count>{filteredItems.length}</Count>}
         footer={<>
           <span className="mx-ae-count mx-ae-count--foot">Odabrano: <b>{selectedEquipment.length}</b> stavka</span>
           {isAssign ? (
@@ -283,6 +274,19 @@ const AssignEquipment = () => {
           )}
         </>}
       >
+        {/* kao ranije: naslov sa brojem i pretraga u vrhu kartice, ispod traka za izbor */}
+        <div className="mx-panelbar">
+          <div className="mx-ae-title">
+            <h2 className="sx-card__title">{isAssign ? 'Oprema dostupna za zaduženje' : 'Oprema za razduženje'}</h2>
+            <Count>{filteredItems.length}</Count>
+          </div>
+          <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži opremu..." />
+        </div>
+        <div className="mx-panelbar mx-ae-selbar">
+          <Btn size="sm" onClick={selectAll}>Označi sve</Btn>
+          <Btn size="sm" onClick={deselectAll}>Poništi</Btn>
+          <span className="mx-ae-count">Odabrano: <b>{selectedEquipment.length}</b></span>
+        </div>
         {filteredItems.length === 0 ? (
           <div className="sx-empty-block"><b>{emptyText}</b></div>
         ) : (
