@@ -1,8 +1,8 @@
-// Mesečni obračun tehničara: period (poslednjih 12 meseci ili prilagođeni), brojke, tabela naloga
-// i slanje obračuna na email (samo superadmin).
+// Mesečni obračun tehničara: isti raspored kao ranije (zaglavlje sa povratkom i slanjem, period, brojke, tabela),
+// u izgledu Security dela. Slanje obračuna na email samo superadmin.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Send, RefreshCw } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { ArrowLeft, Send, RefreshCw } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { financesAPI } from '../../services/api';
 import { formatRsd } from '../../utils/rejectionPenalty';
@@ -10,7 +10,7 @@ import { cx, Btn, Sign } from '../../security/sx/ui';
 import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
 import { Field, Input, Choice, DateField } from '../../security/sx/forms';
 import Dialog from '../../security/sx/Dialog';
-import { Loading } from '../../montaza/ui';
+import { Loading, LinkBtn } from '../../montaza/ui';
 import './TechnicianMonthlyStatement.mx.css';
 
 const MONTH_NAMES = ['Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun', 'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'];
@@ -50,7 +50,6 @@ const formatDate = (value) => {
 
 const TechnicianMonthlyStatement = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const monthOptions = useMemo(buildMonthOptions, []);
 
   const storedUser = localStorage.getItem('user');
@@ -169,13 +168,13 @@ const TechnicianMonthlyStatement = () => {
   return (
     <div className="sx-page mx-tobr" data-testid="page-technician-obracun">
       <PageHead
-        back={{ label: 'Nazad na tehničara', onClick: () => navigate(`/technicians/${id}`) }}
         eyebrow="Montaža · Tehničari"
         title="Mesečni obračun"
         lead={`${technician?.name || 'Tehničar'}${periodLabel ? ` · ${periodLabel}` : ''}`}
-        actions={canSend && (
-          <Btn variant="primary" icon={Send} onClick={openSend} disabled={loading || !statement}>Pošalji</Btn>
-        )}
+        actions={<>
+          <LinkBtn to={`/technicians/${id}`} icon={ArrowLeft}>Nazad na tehničara</LinkBtn>
+          {canSend && <Btn variant="primary" icon={Send} onClick={openSend} disabled={loading || !statement}>Pošalji</Btn>}
+        </>}
       />
 
       <div className="sx-stack">
@@ -187,7 +186,6 @@ const TechnicianMonthlyStatement = () => {
             options={[...monthOptions.map((o) => ({ value: o.key, label: o.label })), { value: 'custom', label: 'Prilagođeni period' }]}
             label="Period"
             size="sm"
-            scroll
           />
           {mode === 'custom' && (
             <div className="mx-tobr-custom">
