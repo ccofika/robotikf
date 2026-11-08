@@ -1,26 +1,103 @@
 import React, { useState, useMemo } from 'react';
 import {
-  UserIcon,
-  ChevronRightIcon,
-  MapPinIcon,
-  ClockIcon,
-  CheckIcon,
-  PhoneIcon,
-  TableIcon,
-  CommentIcon,
-  ImageIcon,
-  FilterIcon,
-  DownloadIcon,
-  CalendarIcon,
-  ChartIcon,
-  ChevronDownIcon,
-  SearchIcon,
-  CloseIcon,
-  FileIcon,
-  AlertIcon
-} from '../../../components/icons/SvgIcons';
-import { Button } from '../../../components/ui/button-1';
-import { cn } from '../../../utils/cn';
+  User, ChevronRight, MapPin, Clock, CheckCircle2, Phone, Table2, MessageSquare, Image as ImageIcon,
+  Download, Rows3, LayoutList, ChevronsDown, ChevronsUp, ArrowUpRight
+} from 'lucide-react';
+import { cx, Btn } from '../../../security/sx/ui';
+import { Panel, Stat } from '../../../security/sx/layout';
+import { Checkbox, Choice } from '../../../security/sx/forms';
+import { Pager, Loading } from '../../../montaza/ui';
+import { toast } from '../../../utils/toast';
+
+// Boja akcije (getActionColor) -> ton znaka
+const TONE = { success: 'ok', warning: 'warn', danger: 'bad', info: 'info', neutral: 'idle' };
+
+// Štikliranje grupe; klik ne otvara karticu ispod
+const Pick = ({ checked, onToggle }) => (
+  <span className="mx-logs-pick" onClick={(e) => e.stopPropagation()}>
+    <Checkbox checked={checked} onChange={onToggle} />
+  </span>
+);
+
+// Opis usluge: kompaktni prikaz i kartice su i ranije imali različit tekst
+const serviceText = (info, card) => (card
+  ? [
+    info.type && `Tip: ${info.type}`,
+    info.speed && info.speed,
+    info.package && info.package
+  ].filter(Boolean).join(' | ')
+  : <>{info.type && `Tip: ${info.type}`}{info.speed && ` | ${info.speed}`}</>);
+
+// Aktivnosti jednog korisnika
+const Entries = ({ logs, getActionIcon, getActionColor, card }) => (
+  <div className="mx-logs-entries">
+    {logs.map((log, index) => (
+      <div key={index} className="mx-logs-entry">
+        <span className="mx-logs-entry__icon" data-tone={TONE[getActionColor(log.action)]}>
+          {getActionIcon(log.action)}
+        </span>
+        <div className="mx-logs-entry__body">
+          <div className="mx-logs-entry__top">
+            <b>{log.description || 'Aktivnost'}</b>
+            <span aria-hidden="true">•</span>
+            <span>{log.userName}</span>
+            <span className="mx-logs-entry__time">
+              <Clock size={12} strokeWidth={1.9} aria-hidden="true" />
+              {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+
+          <div className="mx-logs-entry__meta">
+            {log.userInfo && (
+              <span>
+                <User size={12} strokeWidth={1.9} aria-hidden="true" />
+                {typeof log.userInfo === 'object' ? (log.userInfo.name || 'N/A') : log.userInfo}
+              </span>
+            )}
+            {log.address && (
+              <span>
+                <MapPin size={12} strokeWidth={1.9} aria-hidden="true" />
+                {log.address}
+              </span>
+            )}
+            {log.phone && (
+              <span>
+                <Phone size={12} strokeWidth={1.9} aria-hidden="true" />
+                {log.phone}
+              </span>
+            )}
+          </div>
+
+          {log.serviceInfo && (
+            <div className="mx-logs-entry__chips">
+              <span className="sx-tag mx-logs-chip">
+                <Table2 aria-hidden="true" strokeWidth={1.9} />
+                {serviceText(log.serviceInfo, card)}
+              </span>
+            </div>
+          )}
+
+          {(log.comment || (log.images && log.images.length > 0)) && (
+            <div className="mx-logs-entry__chips">
+              {log.comment && (
+                <span className="sx-tag is-info mx-logs-chip is-clip">
+                  <MessageSquare aria-hidden="true" strokeWidth={1.9} />
+                  <span>{log.comment}</span>
+                </span>
+              )}
+              {log.images && log.images.length > 0 && (
+                <span className="sx-tag mx-logs-chip">
+                  <ImageIcon aria-hidden="true" strokeWidth={1.9} />
+                  {log.images.length} slika
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 const UserLogsSection = ({
   logs,
@@ -100,27 +177,21 @@ const UserLogsSection = ({
   // Loading state
   if (loading) {
     return (
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
-        <div className="flex flex-col items-center text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-slate-600">Učitavanje logova korisnika...</p>
-        </div>
-      </div>
+      <Panel pad={false}>
+        <Loading text="Učitavanje logova korisnika..." />
+      </Panel>
     );
   }
 
   // Early return AFTER all hooks
   if (!logs || logs.length === 0) {
     return (
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
-        <div className="flex flex-col items-center text-center">
-          <div className="p-3 bg-slate-50 rounded-xl mb-4">
-            <UserIcon size={64} className="text-slate-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Nema logova korisnika</h3>
-          <p className="text-slate-600">Trenutno nema aktivnosti korisnika za prikazivanje.</p>
+      <Panel pad={false}>
+        <div className="sx-empty-block">
+          <b>Nema logova korisnika</b>
+          <span>Trenutno nema aktivnosti korisnika za prikazivanje.</span>
         </div>
-      </div>
+      </Panel>
     );
   }
 
@@ -162,164 +233,72 @@ const UserLogsSection = ({
 
   const handleExportSelected = () => {
     console.log('Exporting selected items:', Array.from(selectedItems));
-    alert(`Eksportovanje ${selectedItems.size} selektovanih stavki...`);
+    toast.info(`Eksportovanje ${selectedItems.size} selektovanih stavki...`);
+  };
+
+  // Prvi radni nalog u grupi (dugme WO)
+  const openFirstWorkOrder = (e, group) => {
+    e.stopPropagation();
+    const firstLogWithWO = group.logs.find(log => log.workOrderId);
+    if (firstLogWithWO) {
+      const workOrderId = typeof firstLogWithWO.workOrderId === 'object'
+        ? firstLogWithWO.workOrderId._id
+        : firstLogWithWO.workOrderId;
+      window.open(`/work-orders/${workOrderId}`, '_blank');
+    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* QUICK STATS DASHBOARD */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {/* Total Activities */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Aktivnosti</p>
-              <h3 className="text-2xl font-bold text-blue-900">{quickStats.totalActivities}</h3>
-              <p className="text-xs text-blue-600 mt-1">ukupno logova</p>
-            </div>
-            <div className="p-3 bg-blue-200 rounded-lg">
-              <ClockIcon size={24} className="text-blue-700" />
-            </div>
-          </div>
-        </div>
-
-        {/* Active Users */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">Korisnici</p>
-              <h3 className="text-2xl font-bold text-green-900">{quickStats.activeUsers}</h3>
-              <p className="text-xs text-green-600 mt-1">aktivnih</p>
-            </div>
-            <div className="p-3 bg-green-200 rounded-lg">
-              <UserIcon size={24} className="text-green-700" />
-            </div>
-          </div>
-        </div>
-
-        {/* With Work Orders */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-purple-600 uppercase tracking-wider mb-1">Radni nalozi</p>
-              <h3 className="text-2xl font-bold text-purple-900">{quickStats.withWorkOrders}</h3>
-              <p className="text-xs text-purple-600 mt-1">sa WO</p>
-            </div>
-            <div className="p-3 bg-purple-200 rounded-lg">
-              <CheckIcon size={24} className="text-purple-700" />
-            </div>
-          </div>
-        </div>
-
-        {/* With Service Info */}
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-orange-600 uppercase tracking-wider mb-1">Usluge</p>
-              <h3 className="text-2xl font-bold text-orange-900">{quickStats.withServiceInfo}</h3>
-              <p className="text-xs text-orange-600 mt-1">sa info</p>
-            </div>
-            <div className="p-3 bg-orange-200 rounded-lg">
-              <TableIcon size={24} className="text-orange-700" />
-            </div>
-          </div>
-        </div>
-
-        {/* With Images */}
-        <div className="bg-gradient-to-br from-pink-50 to-pink-100 border border-pink-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-pink-600 uppercase tracking-wider mb-1">Slike</p>
-              <h3 className="text-2xl font-bold text-pink-900">{quickStats.withImages}</h3>
-              <p className="text-xs text-pink-600 mt-1">sa slikama</p>
-            </div>
-            <div className="p-3 bg-pink-200 rounded-lg">
-              <ImageIcon size={24} className="text-pink-700" />
-            </div>
-          </div>
-        </div>
+    <div className="mx-logs-sec" data-testid="logs-users">
+      {/* Brojke */}
+      <div className="sx-stats">
+        <Stat label="Aktivnosti" value={quickStats.totalActivities} sub="ukupno logova" />
+        <Stat label="Korisnici" value={quickStats.activeUsers} sub="aktivnih" />
+        <Stat label="Radni nalozi" value={quickStats.withWorkOrders} sub="sa WO" />
+        <Stat label="Usluge" value={quickStats.withServiceInfo} sub="sa info" />
+        <Stat label="Slike" value={quickStats.withImages} sub="sa slikama" />
       </div>
 
-      {/* VIEW CONTROLS & BULK ACTIONS BAR */}
-      <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl shadow-md overflow-hidden">
-        <div className="p-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            {/* Left side - View mode toggles */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-slate-700 mr-2">Prikaz:</span>
-              <div className="inline-flex bg-slate-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('compact')}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center space-x-1",
-                    viewMode === 'compact'
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  )}
-                >
-                  <TableIcon size={14} />
-                  <span>Kompaktno</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('card')}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center space-x-1",
-                    viewMode === 'card'
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  )}
-                >
-                  <FileIcon size={14} />
-                  <span>Kartice</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Middle - Bulk selection info */}
+      {/* Prikaz i grupne radnje (kartica, kao ranije) */}
+      <Panel className="mx-logs-bar" testId="logs-view-bar">
+        <div className="mx-logs-bar__row">
+          <span className="sx-label">Prikaz:</span>
+          <Choice
+            size="sm"
+            label="Prikaz"
+            layoutId="mx-logs-view-users"
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'compact', label: 'Kompaktno', icon: Rows3, testId: 'logs-view-compact' },
+              { value: 'card', label: 'Kartice', icon: LayoutList, testId: 'logs-view-card' }
+            ]}
+          />
+          {selectedItems.size > 0 && (
+            <span className="mx-logs-sel" data-testid="logs-selected">
+              Selektovano: <b>{selectedItems.size}</b>
+              <Btn size="sm" variant="ghost" onClick={() => setSelectedItems(new Set())}>
+                Poništi
+              </Btn>
+            </span>
+          )}
+          <div className="mx-logs-bar__end">
+            <Btn size="sm" icon={expandAll ? ChevronsUp : ChevronsDown} onClick={handleExpandAll} data-testid="logs-expand-all">
+              {expandAll ? 'Zatvori sve' : 'Otvori sve'}
+            </Btn>
             {selectedItems.size > 0 && (
-              <div className="flex items-center space-x-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                <span className="text-sm font-medium text-blue-900">
-                  Selektovano: <span className="font-bold">{selectedItems.size}</span>
-                </span>
-                <button
-                  onClick={() => setSelectedItems(new Set())}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Poništi
-                </button>
-              </div>
+              <Btn size="sm" variant="primary" icon={Download} onClick={handleExportSelected} data-testid="logs-export-selected">
+                Eksportuj ({selectedItems.size})
+              </Btn>
             )}
-
-            {/* Right side - Actions */}
-            <div className="flex items-center space-x-2">
-              <Button
-                type="secondary"
-                size="small"
-                onClick={handleExpandAll}
-                prefix={expandAll ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
-              >
-                {expandAll ? 'Zatvori sve' : 'Otvori sve'}
-              </Button>
-
-              {selectedItems.size > 0 && (
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={handleExportSelected}
-                  prefix={<DownloadIcon size={14} />}
-                >
-                  Eksportuj ({selectedItems.size})
-                </Button>
-              )}
-            </div>
           </div>
         </div>
-      </div>
+      </Panel>
 
-      {/* LOGS DISPLAY - COMPACT VIEW */}
+      {/* Kompaktno: jedan red po grupi, svaka grupa je kartica (kao ranije) */}
       {viewMode === 'compact' && (
-        <div className="space-y-4">
-          {currentGroups.map(([groupKey, group]) => {
+        <div className="mx-logs-cards is-compact" data-testid="logs-compact">
+          {currentGroups.map(([groupKey, group], i) => {
             const totalLogs = group.logs.length;
             const latestLogDate = group.logs.length > 0
               ? new Date(Math.max(...group.logs.map(log => new Date(log.timestamp))))
@@ -329,198 +308,50 @@ const UserLogsSection = ({
             const isExpanded = expandedGroups?.has(groupKey);
 
             return (
-              <div key={groupKey} className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl shadow-md overflow-hidden">
-                {/* Table Row */}
-                <div className={cn(
-                  "grid grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors",
-                  selectedItems.has(groupKey) && "bg-blue-50"
-                )}>
-                  {/* Checkbox */}
-                  <div className="col-span-1 flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(groupKey)}
-                      onChange={() => handleSelectItem(groupKey)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
+              <article key={groupKey} className={cx('sx-card mx-logs-card', selectedItems.has(groupKey) && 'is-selected')} style={{ '--i': i }} data-testid="logs-group">
+                <div className="mx-logs-row">
+                  <Pick checked={selectedItems.has(groupKey)} onToggle={() => handleSelectItem(groupKey)} />
+                  <span className="sx-item__icon"><User size={16} strokeWidth={1.9} aria-hidden="true" /></span>
+                  <div className="sx-cell">
+                    <b>{group.user}</b>
                   </div>
-
-                  {/* User */}
-                  <div className="col-span-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                        <UserIcon size={16} className="text-blue-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 truncate">
-                          {group.user}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div className="col-span-2">
-                    <div className="flex flex-wrap gap-1">
-                      {hasWorkOrders && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          <CheckIcon size={10} className="mr-1" />
-                          WO
-                        </span>
-                      )}
-                      {hasServiceInfo && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          <TableIcon size={10} className="mr-1" />
-                          Usluga
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Activities */}
-                  <div className="col-span-1 text-center">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-semibold bg-slate-100 text-slate-800">
-                      {totalLogs}
-                    </span>
-                  </div>
-
-                  {/* Date */}
-                  <div className="col-span-2">
-                    <div className="flex items-center text-sm text-slate-600">
-                      <ClockIcon size={14} className="mr-1" />
-                      {latestLogDate.toLocaleDateString('sr-RS')}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="col-span-2 flex items-center justify-end space-x-2">
+                  <div className="mx-logs-tags">
                     {hasWorkOrders && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const firstLogWithWO = group.logs.find(log => log.workOrderId);
-                          if (firstLogWithWO) {
-                            const workOrderId = typeof firstLogWithWO.workOrderId === 'object'
-                              ? firstLogWithWO.workOrderId._id
-                              : firstLogWithWO.workOrderId;
-                            window.open(`/work-orders/${workOrderId}`, '_blank');
-                          }
-                        }}
-                        className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
-                      >
-                        WO
-                      </button>
+                      <span className="sx-tag"><CheckCircle2 aria-hidden="true" strokeWidth={1.9} />WO</span>
                     )}
-                    <button
-                      onClick={() => toggleGroup(groupKey)}
-                      className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-md transition-colors font-medium"
-                    >
-                      {isExpanded ? 'Zatvori' : 'Detalji'}
-                    </button>
+                    {hasServiceInfo && (
+                      <span className="sx-tag"><Table2 aria-hidden="true" strokeWidth={1.9} />Usluga</span>
+                    )}
+                  </div>
+                  <span className="sx-count">{totalLogs}</span>
+                  <div className="mx-logs-row__end">
+                    <span className="mx-logs-date">
+                      <Clock size={13} strokeWidth={1.9} aria-hidden="true" />
+                      {latestLogDate.toLocaleDateString('sr-RS')}
+                    </span>
+                    <div className="sx-rowacts">
+                      {hasWorkOrders && (
+                        <Btn size="sm" variant="ghost" iconRight={ArrowUpRight} onClick={(e) => openFirstWorkOrder(e, group)}>
+                          WO
+                        </Btn>
+                      )}
+                      <Btn size="sm" variant="ghost" onClick={() => toggleGroup(groupKey)} aria-expanded={!!isExpanded}>
+                        {isExpanded ? 'Zatvori' : 'Detalji'}
+                      </Btn>
+                    </div>
                   </div>
                 </div>
-
-                {/* Expanded Details - COMPACT VERSION */}
-                {isExpanded && (
-                  <div className="border-t border-slate-200 bg-slate-50/50 max-h-96 overflow-y-auto">
-                    {group.logs.map((log, index) => (
-                      <div key={index} className="px-3 py-2 border-b border-slate-200 last:border-b-0 hover:bg-white/50 transition-colors">
-                        <div className="flex items-start space-x-2">
-                          {/* Action Icon - Smaller */}
-                          <div className={cn(
-                            "p-1.5 rounded-md flex-shrink-0",
-                            getActionColor(log.action) === 'success' && "bg-green-100",
-                            getActionColor(log.action) === 'info' && "bg-blue-100",
-                            getActionColor(log.action) === 'warning' && "bg-yellow-100",
-                            getActionColor(log.action) === 'danger' && "bg-red-100",
-                            getActionColor(log.action) === 'neutral' && "bg-slate-100"
-                          )}>
-                            {getActionIcon(log.action)}
-                          </div>
-
-                          {/* Log Content - Single Line Layout */}
-                          <div className="flex-1 min-w-0">
-                            {/* Main Info - One Line */}
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                <span className="font-semibold text-sm text-slate-900 truncate">{log.description || 'Aktivnost'}</span>
-                                <span className="text-xs text-slate-500">•</span>
-                                <span className="text-xs text-slate-600">{log.userName}</span>
-                                <span className="text-xs text-slate-500 flex items-center flex-shrink-0">
-                                  <ClockIcon size={10} className="mr-0.5" />
-                                  {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Secondary Info - Compact Inline */}
-                            <div className="flex items-center flex-wrap gap-3 text-xs text-slate-600 mb-1">
-                              {log.userInfo && (
-                                <span className="flex items-center">
-                                  <UserIcon size={10} className="mr-1" />
-                                  {typeof log.userInfo === 'object' ? (log.userInfo.name || 'N/A') : log.userInfo}
-                                </span>
-                              )}
-                              {log.address && (
-                                <span className="flex items-center truncate">
-                                  <MapPinIcon size={10} className="mr-1" />
-                                  {log.address}
-                                </span>
-                              )}
-                              {log.phone && (
-                                <span className="flex items-center">
-                                  <PhoneIcon size={10} className="mr-1" />
-                                  {log.phone}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Service Info - INLINE Compact */}
-                            {log.serviceInfo && (
-                              <div className="flex items-center flex-wrap gap-2 mt-1">
-                                <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
-                                  <TableIcon size={10} className="text-orange-600" />
-                                  <span className="text-xs text-orange-800 font-medium">
-                                    {log.serviceInfo.type && `Tip: ${log.serviceInfo.type}`}
-                                    {log.serviceInfo.speed && ` | ${log.serviceInfo.speed}`}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Comments & Images - Inline Compact */}
-                            {(log.comment || (log.images && log.images.length > 0)) && (
-                              <div className="flex items-center flex-wrap gap-2 mt-1">
-                                {log.comment && (
-                                  <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                    <CommentIcon size={10} className="text-blue-600" />
-                                    <span className="text-xs text-blue-800 truncate max-w-md">{log.comment}</span>
-                                  </div>
-                                )}
-                                {log.images && log.images.length > 0 && (
-                                  <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-200">
-                                    <ImageIcon size={10} className="text-green-600" />
-                                    <span className="text-xs text-green-800 font-medium">{log.images.length} slika</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                {isExpanded && <Entries logs={group.logs} getActionIcon={getActionIcon} getActionColor={getActionColor} />}
+              </article>
             );
           })}
         </div>
       )}
 
-      {/* LOGS DISPLAY - CARD VIEW (IMPROVED) */}
+      {/* Kartice: zaglavlje otvara aktivnosti */}
       {viewMode === 'card' && (
-        <div className="space-y-4">
-          {currentGroups.map(([groupKey, group]) => {
+        <div className="mx-logs-cards" data-testid="logs-cards">
+          {currentGroups.map(([groupKey, group], i) => {
             const totalLogs = group.logs.length;
             const latestLogDate = group.logs.length > 0
               ? new Date(Math.max(...group.logs.map(log => new Date(log.timestamp))))
@@ -528,272 +359,71 @@ const UserLogsSection = ({
             const hasWorkOrders = group.logs.some(log => log.workOrderId);
             const hasServiceInfo = group.logs.some(log => log.serviceInfo);
             const hasImages = group.logs.some(log => log.images && log.images.length > 0);
+            const isOpen = expandedGroups?.has(groupKey);
 
             return (
-              <div
+              <article
                 key={groupKey}
-                className={cn(
-                  "bg-white/80 backdrop-blur-xl border rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl",
-                  selectedItems.has(groupKey) ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-200"
-                )}
+                className={cx('sx-card mx-logs-card', selectedItems.has(groupKey) && 'is-selected')}
+                style={{ '--i': i }}
+                data-testid="logs-group"
               >
-                {/* Card Header */}
                 <div
-                  className="p-4 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
+                  className="mx-logs-card__head"
+                  tabIndex={0}
                   onClick={() => toggleGroup(groupKey)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) toggleGroup(groupKey); }}
                 >
-                  <div className="flex items-center justify-between">
-                    {/* Left side - checkbox and info */}
-                    <div className="flex items-center space-x-4 flex-1">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.has(groupKey)}
-                        onChange={() => handleSelectItem(groupKey)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-
-                      <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl border border-blue-300 shadow-sm">
-                        <UserIcon size={20} className="text-blue-700" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-slate-900 text-lg truncate">
-                          {group.user}
-                        </h3>
-                        <div className="flex items-center flex-wrap gap-3 mt-1">
-                          <span className="flex items-center text-sm text-slate-600">
-                            <ClockIcon size={12} className="mr-1" />
-                            {latestLogDate.toLocaleDateString('sr-RS')}
-                          </span>
-                          <span className="text-sm text-slate-600">
-                            • {totalLogs} {totalLogs === 1 ? 'aktivnost' : 'aktivnosti'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Status badges */}
-                      <div className="flex flex-wrap gap-2">
-                        {hasServiceInfo && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                            <TableIcon size={12} className="mr-1" />
-                            Usluga
-                          </span>
-                        )}
-                        {hasImages && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                            <ImageIcon size={12} className="mr-1" />
-                            Slike
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right side - quick actions */}
-                    <div className="flex items-center space-x-2 ml-4">
-                      {hasWorkOrders && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const firstLogWithWO = group.logs.find(log => log.workOrderId);
-                            if (firstLogWithWO) {
-                              const workOrderId = typeof firstLogWithWO.workOrderId === 'object'
-                                ? firstLogWithWO.workOrderId._id
-                                : firstLogWithWO.workOrderId;
-                              window.open(`/work-orders/${workOrderId}`, '_blank');
-                            }
-                          }}
-                          className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md transition-colors font-medium"
-                        >
-                          WO
-                        </button>
+                  <Pick checked={selectedItems.has(groupKey)} onToggle={() => handleSelectItem(groupKey)} />
+                  <span className="sx-item__icon"><User size={18} strokeWidth={1.9} aria-hidden="true" /></span>
+                  <div className="sx-item__main">
+                    <h3 className="mx-logs-card__title">{group.user}</h3>
+                    <span className="mx-logs-card__meta">
+                      <span className="mx-logs-date">
+                        <Clock size={12} strokeWidth={1.9} aria-hidden="true" />
+                        {latestLogDate.toLocaleDateString('sr-RS')}
+                      </span>
+                      <span>• {totalLogs} {totalLogs === 1 ? 'aktivnost' : 'aktivnosti'}</span>
+                    </span>
+                  </div>
+                  <div className="mx-logs-card__end">
+                    <div className="mx-logs-tags">
+                      {hasServiceInfo && (
+                        <span className="sx-tag"><Table2 aria-hidden="true" strokeWidth={1.9} />Usluga</span>
                       )}
-                      <div className={cn(
-                        "p-2 bg-slate-100 rounded-lg transition-all duration-200",
-                        expandedGroups?.has(groupKey) ? "rotate-90 bg-slate-200" : ""
-                      )}>
-                        <ChevronRightIcon size={20} className="text-slate-600" />
-                      </div>
+                      {hasImages && (
+                        <span className="sx-tag"><ImageIcon aria-hidden="true" strokeWidth={1.9} />Slike</span>
+                      )}
                     </div>
+                    {hasWorkOrders && (
+                      <Btn size="sm" className="mx-logs-card__wo" iconRight={ArrowUpRight} onClick={(e) => openFirstWorkOrder(e, group)}>
+                        WO
+                      </Btn>
+                    )}
                   </div>
+                  <span className={cx('mx-logs-chev', isOpen && 'is-open')} aria-hidden="true">
+                    <ChevronRight size={18} strokeWidth={1.9} />
+                  </span>
                 </div>
-
-                {/* Card Content - Expanded Details - COMPACT VERSION */}
-                {expandedGroups?.has(groupKey) && (
-                  <div className="border-t border-slate-200 bg-slate-50/50 max-h-96 overflow-y-auto">
-                    {group.logs.map((log, index) => (
-                      <div key={index} className="px-3 py-2 border-b border-slate-200 last:border-b-0 hover:bg-white/50 transition-colors">
-                        <div className="flex items-start space-x-2">
-                          {/* Action Icon - Smaller */}
-                          <div className={cn(
-                            "p-1.5 rounded-md flex-shrink-0",
-                            getActionColor(log.action) === 'success' && "bg-green-100",
-                            getActionColor(log.action) === 'info' && "bg-blue-100",
-                            getActionColor(log.action) === 'warning' && "bg-yellow-100",
-                            getActionColor(log.action) === 'danger' && "bg-red-100",
-                            getActionColor(log.action) === 'neutral' && "bg-slate-100"
-                          )}>
-                            {getActionIcon(log.action)}
-                          </div>
-
-                          {/* Log Content - Single Line Layout */}
-                          <div className="flex-1 min-w-0">
-                            {/* Main Info - One Line */}
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                <span className="font-semibold text-sm text-slate-900 truncate">{log.description || 'Aktivnost'}</span>
-                                <span className="text-xs text-slate-500">•</span>
-                                <span className="text-xs text-slate-600">{log.userName}</span>
-                                <span className="text-xs text-slate-500 flex items-center flex-shrink-0">
-                                  <ClockIcon size={10} className="mr-0.5" />
-                                  {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Secondary Info - Compact Inline */}
-                            <div className="flex items-center flex-wrap gap-3 text-xs text-slate-600 mb-1">
-                              {log.userInfo && (
-                                <span className="flex items-center">
-                                  <UserIcon size={10} className="mr-1" />
-                                  {typeof log.userInfo === 'object' ? (log.userInfo.name || 'N/A') : log.userInfo}
-                                </span>
-                              )}
-                              {log.address && (
-                                <span className="flex items-center truncate">
-                                  <MapPinIcon size={10} className="mr-1" />
-                                  {log.address}
-                                </span>
-                              )}
-                              {log.phone && (
-                                <span className="flex items-center">
-                                  <PhoneIcon size={10} className="mr-1" />
-                                  {log.phone}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Service Info - INLINE Compact */}
-                            {log.serviceInfo && (
-                              <div className="flex items-center flex-wrap gap-2 mt-1">
-                                <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
-                                  <TableIcon size={10} className="text-orange-600" />
-                                  <span className="text-xs text-orange-800 font-medium">
-                                    {[
-                                      log.serviceInfo.type && `Tip: ${log.serviceInfo.type}`,
-                                      log.serviceInfo.speed && log.serviceInfo.speed,
-                                      log.serviceInfo.package && log.serviceInfo.package
-                                    ].filter(Boolean).join(' | ')}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Comments & Images - Inline Compact */}
-                            {(log.comment || (log.images && log.images.length > 0)) && (
-                              <div className="flex items-center flex-wrap gap-2 mt-1">
-                                {log.comment && (
-                                  <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                    <CommentIcon size={10} className="text-blue-600" />
-                                    <span className="text-xs text-blue-800 truncate max-w-md">{log.comment}</span>
-                                  </div>
-                                )}
-                                {log.images && log.images.length > 0 && (
-                                  <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-200">
-                                    <ImageIcon size={10} className="text-green-600" />
-                                    <span className="text-xs text-green-800 font-medium">{log.images.length} slika</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                {isOpen && <Entries logs={group.logs} getActionIcon={getActionIcon} getActionColor={getActionColor} card />}
+              </article>
             );
           })}
         </div>
       )}
 
-      {/* SERVER-SIDE PAGINATION */}
+      {/* Paginacija (server) */}
       {pagination.totalPages > 1 && onPageChange && (
-        <div className="bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl shadow-md overflow-hidden">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="text-sm text-slate-600">
-                Prikazano <span className="font-semibold text-slate-900">{((pagination.currentPage - 1) * pagination.limit) + 1}</span> - <span className="font-semibold text-slate-900">{Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)}</span> od <span className="font-semibold text-slate-900">{pagination.totalCount}</span> korisnika
-                {performance.queryTime && (
-                  <span className="ml-2 text-slate-400">({performance.queryTime}ms)</span>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => onPageChange(1)}
-                  disabled={!pagination.hasPreviousPage}
-                  className="px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  title="Prva strana"
-                >
-                  &laquo;
-                </button>
-                <button
-                  onClick={() => onPageChange(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPreviousPage}
-                  className="px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  title="Prethodna"
-                >
-                  &lsaquo;
-                </button>
-
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                  .filter(number => {
-                    return (
-                      number === 1 ||
-                      number === pagination.totalPages ||
-                      Math.abs(number - pagination.currentPage) <= 1
-                    );
-                  })
-                  .map((number, idx, arr) => (
-                    <React.Fragment key={number}>
-                      {idx > 0 && arr[idx - 1] !== number - 1 && (
-                        <span className="px-2 text-slate-400">...</span>
-                      )}
-                      <button
-                        onClick={() => onPageChange(number)}
-                        className={cn(
-                          "px-3 py-2 text-sm rounded-lg border font-medium transition-colors",
-                          pagination.currentPage === number
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                            : 'border-slate-300 bg-white hover:bg-slate-50'
-                        )}
-                      >
-                        {number}
-                      </button>
-                    </React.Fragment>
-                  ))}
-
-                <button
-                  onClick={() => onPageChange(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNextPage}
-                  className="px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  title="Sledeća"
-                >
-                  &rsaquo;
-                </button>
-                <button
-                  onClick={() => onPageChange(pagination.totalPages)}
-                  disabled={!pagination.hasNextPage}
-                  className="px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  title="Poslednja strana"
-                >
-                  &raquo;
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Panel pad={false} className="mx-logs-pager">
+          <Pager
+            page={pagination.currentPage}
+            total={pagination.totalCount}
+            perPage={pagination.limit}
+            onPage={onPageChange}
+            label={<>korisnika{performance.queryTime ? <span className="sx-faint"> ({performance.queryTime}ms)</span> : null}</>}
+            testId="logs-pager"
+          />
+        </Panel>
       )}
     </div>
   );

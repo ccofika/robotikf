@@ -1,48 +1,46 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
+import * as Popover from '@radix-ui/react-popover';
+import {
+  BarChart3, HardHat, Users, Play, Pause, Download, Settings, Keyboard, Bell, Zap, Clock, Filter, Rows3, RefreshCw,
+  TrendingUp, TrendingDown, Search, X, RotateCcw, FileText, FileJson, FileSpreadsheet, File,
+  Package, Router, MessageSquare, Image as ImageIcon, CheckCircle2, XCircle
+} from 'lucide-react';
 import { logsAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import {
-  SearchIcon,
-  HardHatIcon,
-  UsersIcon,
-  FilterIcon,
-  ClockIcon,
-  ChartIcon,
-  BarChartIcon,
-  TableIcon,
-  TrendingUpIcon,
-  RefreshIcon,
-  CalendarIcon,
-  MaterialIcon,
-  EquipmentIcon,
-  CommentIcon,
-  ImageIcon,
-  CheckIcon,
-  CloseIcon,
-  DownloadIcon,
-  SettingsIcon,
-  BellIcon,
-  PlayIcon,
-  PauseIcon,
-  TrendingDownIcon,
-  ActivityIcon,
-  ZapIcon,
-  FileIcon,
-  InfoIcon,
-  XIcon
-} from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import { cn } from '../../utils/cn';
+import { cx, Btn, State, Kbd } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Tabs, Stat } from '../../security/sx/layout';
+import { Field, Select, Switch, Choice, DateField } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { Loading } from '../../montaza/ui';
+import './Logs.mx.css';
 
 // Import the component sections
 import DashboardSection from './components/DashboardSectionNew';
 import TechnicianLogsSection from './components/TechnicianLogsSection';
 import UserLogsSection from './components/UserLogsSection';
 import { localYmd } from '../../utils/localDate';
+
+// Ikonice formata u dijalogu za izvoz
+const FORMAT_ICONS = { csv: FileText, json: FileJson, excel: FileSpreadsheet, pdf: File };
+
+// Prečice na tastaturi (grupa, [opis, taster])
+const SHORTCUTS = [
+  ['Opšte', [['Pomoć', '?'], ['Zatvori modal', 'Esc'], ['Fokusiraj pretragu', 'Ctrl+F'], ['Osveži podatke', 'Ctrl+R']]],
+  ['Navigacija', [['Dashboard', 'Alt+1'], ['Tehničari', 'Alt+2'], ['Korisnici', 'Alt+3']]],
+  ['Akcije', [['Eksportuj', 'Ctrl+E'], ['Podešavanja', 'Ctrl+,'], ['Prečice', 'Ctrl+K']]]
+];
+
+// Prekidači u podešavanjima (ključ u settings, natpis)
+const TOGGLES = [
+  ['showMiniCharts', 'Prikaži mini grafikone'],
+  ['compactView', 'Kompaktni prikaz'],
+  ['enableNotifications', 'Omogući notifikacije'],
+  ['soundEnabled', 'Zvučna upozorenja']
+];
 
 const Logs = () => {
   const [searchParams] = useSearchParams();
@@ -715,21 +713,21 @@ const Logs = () => {
     switch (action) {
       case 'material_added':
       case 'material_removed':
-        return <MaterialIcon size={16} />;
+        return <Package size={15} strokeWidth={1.9} />;
       case 'equipment_added':
       case 'equipment_removed':
-        return <EquipmentIcon size={16} />;
+        return <Router size={15} strokeWidth={1.9} />;
       case 'comment_added':
-        return <CommentIcon size={16} />;
+        return <MessageSquare size={15} strokeWidth={1.9} />;
       case 'image_added':
       case 'image_removed':
-        return <ImageIcon size={16} />;
+        return <ImageIcon size={15} strokeWidth={1.9} />;
       case 'workorder_finished':
-        return <CheckIcon size={16} />;
+        return <CheckCircle2 size={15} strokeWidth={1.9} />;
       case 'workorder_cancelled':
-        return <CloseIcon size={16} />;
+        return <XCircle size={15} strokeWidth={1.9} />;
       default:
-        return <ClockIcon size={16} />;
+        return <Clock size={15} strokeWidth={1.9} />;
     }
   };
 
@@ -1148,878 +1146,457 @@ const Logs = () => {
     [statistics?.activeTechnicians]
   );
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Enhanced Modern Header */}
-      <div className="bg-white/60 backdrop-blur-lg border border-white/40 rounded-2xl shadow-lg p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-purple-50 rounded-xl">
-              <BarChartIcon size={24} className="text-purple-600" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-3">
-                <h1 className="text-2xl font-bold text-slate-900">Logovi aktivnosti</h1>
-                {autoRefresh && (
-                  <div className="flex items-center space-x-2 px-3 py-1 bg-green-50 border border-green-200 rounded-lg">
-                    <ActivityIcon size={14} className="text-green-600 animate-pulse" />
-                    <span className="text-xs font-medium text-green-700">LIVE</span>
-                  </div>
-                )}
-              </div>
-              <p className="text-slate-600 mt-1">Praćenje svih aktivnosti tehničara i radnih naloga</p>
-            </div>
-          </div>
+  // Brzi filter koji odgovara izabranim datumima (samo za prikaz izabrane pilule)
+  const todayYmd = localYmd();
+  const quickFilter = !dateFrom && !dateTo ? 'all'
+    : dateTo !== todayYmd ? null
+      : dateFrom === todayYmd ? 'today'
+        : dateFrom === localYmd(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) ? 'week'
+          : dateFrom === localYmd(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) ? 'month' : null;
 
-          {/* Quick Actions */}
-          <div className="flex items-center space-x-2">
-            <Button
-              type={autoRefresh ? "danger" : "secondary"}
-              size="small"
-              prefix={autoRefresh ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
-              onClick={() => setAutoRefresh(!autoRefresh)}
-            >
-              {autoRefresh ? 'Zaustavi' : 'Auto-refresh'}
-            </Button>
-            <Button
-              type="secondary"
-              size="small"
-              prefix={<DownloadIcon size={14} />}
-              onClick={handleExport}
-              title="Ctrl+E"
-            >
-              Export
-            </Button>
-            <Button
-              type="secondary"
-              size="small"
-              prefix={<SettingsIcon size={14} />}
-              onClick={() => setShowSettings(true)}
-              title="Ctrl+,"
-            >
-              Podešavanja
-            </Button>
-            <button
-              onClick={() => setShowKeyboardShortcuts(true)}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Keyboard shortcuts (?)"
-            >
-              <InfoIcon size={14} />
-            </button>
-            <div className="relative">
-              <Button
-                type="secondary"
-                size="small"
-                prefix={<BellIcon size={14} />}
-                onClick={() => setShowAlerts(!showAlerts)}
-              >
+  const searchPlaceholder = `Pretraži ${activeTab === 'technicians' ? 'po tehničaru, opisu, korisniku...' : 'po korisniku, adresi, tehničaru...'}`;
+
+  // Trend uz brojku (strelica + procenat), samo kad postoji promena
+  const trendTag = (trend) => (trend.direction === 'neutral' ? null : (
+    <span className={cx('mx-logs-trend', `is-${trend.direction}`)}>
+      {trend.direction === 'up' ? <TrendingUp size={12} strokeWidth={2} aria-hidden="true" /> : <TrendingDown size={12} strokeWidth={2} aria-hidden="true" />}
+      {trend.percent}%
+    </span>
+  ));
+
+  return (
+    <div className="sx-page mx-logs" data-testid="page-logs">
+      <PageHead
+        className="mx-logs-head"
+        eyebrow="Montaža · Logovi"
+        title="Logovi aktivnosti"
+        lead="Praćenje svih aktivnosti tehničara i radnih naloga"
+        actions={<>
+          <Btn
+            variant={autoRefresh ? 'danger' : 'secondary'}
+            icon={autoRefresh ? Pause : Play}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            data-testid="logs-autorefresh"
+          >
+            {autoRefresh ? 'Zaustavi' : 'Auto-refresh'}
+          </Btn>
+          <Btn icon={Download} onClick={handleExport} title="Ctrl+E" data-testid="logs-export">
+            Export
+          </Btn>
+          <Btn icon={Settings} onClick={() => setShowSettings(true)} title="Ctrl+," data-testid="logs-settings">
+            Podešavanja
+          </Btn>
+          <Btn
+            icon={Keyboard}
+            onClick={() => setShowKeyboardShortcuts(true)}
+            title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts (?)"
+            data-testid="logs-shortcuts"
+          />
+          {/* Upozorenja: spisak se vidi samo kad ih ima */}
+          <Popover.Root open={showAlerts && alerts.length > 0} onOpenChange={(open) => { if (!open) setShowAlerts(false); }}>
+            <Popover.Trigger asChild>
+              <Btn icon={Bell} onClick={() => setShowAlerts(!showAlerts)} data-testid="logs-alerts">
                 Upozorenja
                 {alerts.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                    {alerts.length}
-                  </span>
+                  <span className="sx-tag is-bad mx-logs-badge">{alerts.length}</span>
                 )}
-              </Button>
-
-              {/* Alerts Dropdown */}
-              {showAlerts && alerts.length > 0 && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50">
-                  <div className="p-4 border-b border-slate-200">
-                    <h3 className="font-semibold text-slate-900">Upozorenja</h3>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {alerts.map(alert => (
-                      <div
-                        key={alert.id}
-                        className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                        onClick={() => {
-                          if (alert.action) alert.action();
-                          setShowAlerts(false);
-                        }}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <div className={cn(
-                            "p-2 rounded-lg",
-                            alert.type === 'warning' && "bg-yellow-50",
-                            alert.type === 'info' && "bg-blue-50"
-                          )}>
-                            <BellIcon size={16} className={cn(
-                              alert.type === 'warning' && "text-yellow-600",
-                              alert.type === 'info' && "text-blue-600"
-                            )} />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{alert.title}</p>
-                            <p className="text-sm text-slate-600 mt-1">{alert.message}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Status Bar */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <ZapIcon size={14} className={cn(
-                "transition-colors",
-                performanceMetrics.cacheHit ? "text-green-600" : "text-orange-600"
-              )} />
-              <span className="text-xs text-slate-600">
-                Performance: <span className="font-semibold text-slate-900">{performanceMetrics.queryTime}ms</span>
-                {performanceMetrics.cacheHit && <span className="ml-1 text-green-600">(cached)</span>}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <ClockIcon size={14} className="text-slate-400" />
-              <span className="text-xs text-slate-600">
-                Ažurirano: <span className="font-semibold text-slate-900">{getRelativeTime(lastUpdated)}</span>
-              </span>
-            </div>
-            {activeFilterCount > 0 && (
-              <div className="flex items-center space-x-2">
-                <FilterIcon size={14} className="text-purple-600" />
-                <span className="text-xs text-slate-600">
-                  Aktivno filtera: <span className="font-semibold text-purple-600">{activeFilterCount}</span>
-                </span>
-              </div>
-            )}
-            <div className="flex items-center space-x-2">
-              <TableIcon size={14} className="text-slate-400" />
-              <span className="text-xs text-slate-600">
-                Po stranici: <span className="font-semibold text-slate-900">{activeTab === 'technicians' ? pagination.limit : activeTab === 'users' ? userPagination.limit : 'N/A'}</span>
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            {isRefreshing && (
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                <span className="text-xs text-slate-600">Osvežavanje...</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Enhanced Interactive Stats Cards */}
-      {statistics && (
-        <div className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Total Logs Card */}
-            <div className="group bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer">
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-                  <TableIcon size={20} className="text-blue-600" />
-                </div>
-                {totalLogsTrend.direction !== 'neutral' && (
-                  <div className={cn(
-                    "flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium",
-                    totalLogsTrend.direction === 'up' ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                  )}>
-                    {totalLogsTrend.direction === 'up' ? <TrendingUpIcon size={12} /> : <TrendingDownIcon size={12} />}
-                    <span>{totalLogsTrend.percent}%</span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Ukupno logova</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums mb-2">{statistics.totalLogs?.toLocaleString()}</h3>
-                {/* Mini sparkline placeholder */}
-                <div className="h-8 flex items-end space-x-1">
-                  {[40, 60, 45, 70, 55, 80, 65].map((height, i) => (
-                    <div key={i} className="flex-1 bg-blue-200 rounded-t transition-all group-hover:bg-blue-400" style={{ height: `${height}%` }}></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Today Logs Card */}
-            <div className="group bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-lg hover:border-green-300 transition-all cursor-pointer">
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
-                  <TrendingUpIcon size={20} className="text-green-600" />
-                </div>
-                {todayLogsTrend.direction !== 'neutral' && (
-                  <div className={cn(
-                    "flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium",
-                    todayLogsTrend.direction === 'up' ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                  )}>
-                    {todayLogsTrend.direction === 'up' ? <TrendingUpIcon size={12} /> : <TrendingDownIcon size={12} />}
-                    <span>{todayLogsTrend.percent}%</span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Danas</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums mb-2">{statistics.todayLogs?.toLocaleString()}</h3>
-                {/* Mini sparkline placeholder */}
-                <div className="h-8 flex items-end space-x-1">
-                  {[30, 50, 65, 45, 75, 60, 85].map((height, i) => (
-                    <div key={i} className="flex-1 bg-green-200 rounded-t transition-all group-hover:bg-green-400" style={{ height: `${height}%` }}></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Active Technicians Card */}
-            <div className="group bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer">
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">
-                  <HardHatIcon size={20} className="text-orange-600" />
-                </div>
-                {techniciansTrend.direction !== 'neutral' && (
-                  <div className={cn(
-                    "flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium",
-                    techniciansTrend.direction === 'up' ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                  )}>
-                    {techniciansTrend.direction === 'up' ? <TrendingUpIcon size={12} /> : <TrendingDownIcon size={12} />}
-                    <span>{techniciansTrend.percent}%</span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Aktivni tehničari</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums mb-2">{statistics.activeTechnicians || 0}</h3>
-                {/* Mini sparkline placeholder */}
-                <div className="h-8 flex items-end space-x-1">
-                  {[50, 40, 60, 55, 70, 65, 75].map((height, i) => (
-                    <div key={i} className="flex-1 bg-orange-200 rounded-t transition-all group-hover:bg-orange-400" style={{ height: `${height}%` }}></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Daily Average Card */}
-            <div className="group bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-lg hover:border-purple-300 transition-all cursor-pointer">
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
-                  <ClockIcon size={20} className="text-purple-600" />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Prosek po danu</p>
-                <h3 className="text-2xl font-bold text-slate-900 tabular-nums mb-2">{Math.round(statistics.totalLogs / 7)?.toLocaleString() || 0}</h3>
-                {/* Mini sparkline placeholder */}
-                <div className="h-8 flex items-end space-x-1">
-                  {[45, 55, 50, 60, 58, 65, 62].map((height, i) => (
-                    <div key={i} className="flex-1 bg-purple-200 rounded-t transition-all group-hover:bg-purple-400" style={{ height: `${height}%` }}></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Enhanced Tabs Navigation with Badges */}
-      <div className="mb-6">
-        <div className="bg-white/60 backdrop-blur-lg border border-white/40 rounded-xl shadow-sm p-1 inline-flex">
-          <button
-            className={cn(
-              "relative flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'dashboard'
-                ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            )}
-            onClick={() => setActiveTab('dashboard')}
-            title="Pregled dashboard-a sa analitikom"
-          >
-            <BarChartIcon size={16} />
-            <span>Dashboard</span>
-            {activeTab === 'dashboard' && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            )}
-          </button>
-          <button
-            className={cn(
-              "relative flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'technicians'
-                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            )}
-            onClick={() => setActiveTab('technicians')}
-            title="Logovi aktivnosti tehničara"
-          >
-            <HardHatIcon size={16} />
-            <span>Tehničari</span>
-            {pagination.totalCount > 0 && (
-              <span className={cn(
-                "ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold",
-                activeTab === 'technicians'
-                  ? "bg-white/20 text-white"
-                  : "bg-orange-100 text-orange-700"
-              )}>
-                {pagination.totalCount}
-              </span>
-            )}
-            {activeTab === 'technicians' && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            )}
-          </button>
-          <button
-            className={cn(
-              "relative flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'users'
-                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            )}
-            onClick={() => setActiveTab('users')}
-            title="Logovi aktivnosti korisnika"
-          >
-            <UsersIcon size={16} />
-            <span>Korisnici</span>
-            {userPagination.totalCount > 0 && (
-              <span className={cn(
-                "ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold",
-                activeTab === 'users'
-                  ? "bg-white/20 text-white"
-                  : "bg-blue-100 text-blue-700"
-              )}>
-                {userPagination.totalCount}
-              </span>
-            )}
-            {activeTab === 'users' && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Enhanced Search and Filters - Only show for technicians and users tabs */}
-      {activeTab !== 'dashboard' && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-          {/* Quick Preset Filters */}
-          <div className="px-6 pt-6 pb-4 border-b border-slate-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700">Brzi filteri</h3>
-              <button
-                onClick={() => setShowFiltersPanel(!showFiltersPanel)}
-                className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center space-x-1"
-              >
-                <span>{showFiltersPanel ? 'Sakrij napredne' : 'Napredni filteri'}</span>
-                <FilterIcon size={12} />
-              </button>
-            </div>
-            <div className="flex items-center space-x-2 flex-wrap gap-2">
-              <button
-                onClick={() => applyQuickFilter('today')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  dateFrom === localYmd() && dateTo === localYmd()
-                    ? "bg-purple-500 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                )}
-              >
-                Danas
-              </button>
-              <button
-                onClick={() => applyQuickFilter('week')}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all"
-              >
-                Ova nedelja
-              </button>
-              <button
-                onClick={() => applyQuickFilter('month')}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all"
-              >
-                Ovaj mesec
-              </button>
-              <button
-                onClick={() => applyQuickFilter('all')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  !dateFrom && !dateTo
-                    ? "bg-purple-500 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                )}
-              >
-                Sve
-              </button>
-              {activeFilterCount > 0 && (
-                <div className="ml-2 px-2 py-1 bg-purple-50 border border-purple-200 rounded-lg">
-                  <span className="text-xs font-medium text-purple-700">
-                    {activeFilterCount} aktivnih filtera
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Advanced Filters (Collapsible) */}
-          {showFiltersPanel && (
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 animate-in slide-in-from-top">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center space-x-4 flex-1 min-w-0">
-                  {/* Search */}
-                  <div className="relative flex-1 max-w-md">
-                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder={`Pretraži ${activeTab === 'technicians' ? 'po tehničaru, opisu, korisniku...' : 'po korisniku, adresi, tehničaru...'}`}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                      className="h-10 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-400"
-                    />
-                  </div>
-
-                  {/* Action Filter */}
-                  <div className="relative">
-                    <select
-                      value={selectedAction}
-                      onChange={(e) => setSelectedAction(e.target.value)}
-                      className="h-10 px-4 pr-10 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none hover:border-slate-400"
-                    >
-                      <option value="all">Sve akcije</option>
-                      {availableActions.map(action => (
-                        <option key={action.value} value={action.value}>
-                          {action.label}
-                        </option>
-                      ))}
-                    </select>
-                    <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-
-                  {/* Date From Filter */}
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                      className="h-10 px-4 pr-10 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-400"
-                    />
-                    <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-
-                  {/* Date To Filter */}
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                      className="h-10 px-4 pr-10 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-400"
-                    />
-                    <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center space-x-3">
-                  <Button
-                    type="secondary"
-                    size="medium"
-                    prefix={<SearchIcon size={16} />}
-                    onClick={handleSearch}
+              </Btn>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content className="sx-portal sx-popover mx-logs-alerts" align="end" sideOffset={8} collisionPadding={12}>
+                <h3 className="mx-logs-alerts__title">Upozorenja</h3>
+                {alerts.map(alert => (
+                  <button
+                    key={alert.id}
+                    type="button"
+                    className="mx-logs-alert"
+                    onClick={() => {
+                      if (alert.action) alert.action();
+                      setShowAlerts(false);
+                    }}
                   >
-                    Pretraži
-                  </Button>
-                  <Button
-                    type="primary"
-                    size="medium"
-                    prefix={<RefreshIcon size={16} />}
-                    onClick={handleReset}
-                  >
-                    Resetuj
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+                    <span className={cx('sx-item__icon', alert.type === 'warning' && 'is-warn')}>
+                      <Bell size={16} strokeWidth={1.9} aria-hidden="true" />
+                    </span>
+                    <span className="sx-item__main">
+                      <b>{alert.title}</b>
+                      <span>{alert.message}</span>
+                    </span>
+                  </button>
+                ))}
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+        </>}
+      >
+        {/* LIVE uz naslov (kao ranije) */}
+        {autoRefresh && <span className="mx-logs-live"><State tone="ok" live>LIVE</State></span>}
+      </PageHead>
 
-          {/* Simple search bar when advanced panel is closed */}
-          {!showFiltersPanel && (
-            <div className="px-6 pb-6">
-              <div className="relative">
-                <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                  type="text"
-                  placeholder={`Pretraži ${activeTab === 'technicians' ? 'po tehničaru, opisu, korisniku...' : 'po korisniku, adresi, tehničaru...'}`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="h-12 w-full pl-12 pr-4 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-400 shadow-sm"
-                />
-              </div>
-            </div>
+      {/* Traka stanja ispod zaglavlja (kao ranije) */}
+      <div className="mx-logs-status" data-testid="logs-status">
+        <div className="mx-logs-meta">
+          <span>
+            <Zap size={14} strokeWidth={1.9} className={performanceMetrics.cacheHit ? 'is-ok' : 'is-warn'} aria-hidden="true" />
+            Performance: <b>{performanceMetrics.queryTime}ms</b>
+            {performanceMetrics.cacheHit && <em>(cached)</em>}
+          </span>
+          <span>
+            <Clock size={14} strokeWidth={1.9} aria-hidden="true" />
+            Ažurirano: <b>{getRelativeTime(lastUpdated)}</b>
+          </span>
+          {activeFilterCount > 0 && (
+            <span>
+              <Filter size={14} strokeWidth={1.9} aria-hidden="true" />
+              Aktivno filtera: <b className="is-info">{activeFilterCount}</b>
+            </span>
           )}
+          <span>
+            <Rows3 size={14} strokeWidth={1.9} aria-hidden="true" />
+            Po stranici: <b>{activeTab === 'technicians' ? pagination.limit : activeTab === 'users' ? userPagination.limit : 'N/A'}</b>
+          </span>
         </div>
-      )}
-
-      {/* Content */}
-      <div>
-        {loading ? (
-          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12">
-            <div className="flex flex-col items-center text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
-              <p className="text-slate-600 font-medium">Učitava podatke...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {activeTab === 'dashboard' ? (
-              <DashboardSection
-                dashboardData={dashboardData}
-                filterOptions={filterOptions}
-                loading={loading}
-                handleDismissWorkOrder={handleDismissWorkOrder}
-                technicianLogs={activityChartTechnicianLogs}
-                userLogs={activityChartUserLogs}
-                onFiltersChange={handleDashboardFiltersChange}
-              />
-            ) : activeTab === 'technicians' ? (
-              <TechnicianLogsSection
-                logs={technicianLogs}
-                expandedGroups={expandedGroups}
-                toggleGroup={toggleGroup}
-                getActionIcon={getActionIcon}
-                getActionColor={getActionColor}
-                materialValidationData={materialValidationData}
-                showMaterialValidation={showMaterialValidation}
-                setShowMaterialValidation={setShowMaterialValidation}
-                pagination={pagination}
-                performance={performance}
-                loading={loading}
-                onPageChange={handlePageChange}
-              />
-            ) : (
-              <UserLogsSection
-                logs={userLogs}
-                expandedGroups={expandedGroups}
-                toggleGroup={toggleGroup}
-                getActionIcon={getActionIcon}
-                getActionColor={getActionColor}
-                pagination={userPagination}
-                performance={userPerformance}
-                loading={loading}
-                onPageChange={handleUserPageChange}
-              />
-            )}
-
-            {/* Frontend pagination is now handled within each component */}
-          </>
+        {isRefreshing && (
+          <span className="mx-logs-meta">
+            <span>
+              <RefreshCw size={14} strokeWidth={1.9} className="mx-logs-spin" aria-hidden="true" />
+              Osvežavanje...
+            </span>
+          </span>
         )}
       </div>
 
-      {/* FAZA 2 - Modalni Paneli */}
+      {statistics && (
+        <div className="sx-stats" data-testid="logs-stats">
+          <Stat label="Ukupno logova" value={statistics.totalLogs?.toLocaleString()} small={trendTag(totalLogsTrend)} />
+          <Stat label="Danas" value={statistics.todayLogs?.toLocaleString()} small={trendTag(todayLogsTrend)} />
+          <Stat label="Aktivni tehničari" value={statistics.activeTechnicians || 0} small={trendTag(techniciansTrend)} />
+          <Stat label="Prosek po danu" value={Math.round(statistics.totalLogs / 7)?.toLocaleString() || 0} />
+        </div>
+      )}
 
-      {/* Export Modal */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowExportModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Eksportuj podatke</h2>
-              <button onClick={() => setShowExportModal(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <XIcon size={20} />
-              </button>
+      <Tabs
+        ariaLabel="Logovi"
+        layoutId="mx-logs-tabs"
+        value={activeTab}
+        onChange={setActiveTab}
+        testId="logs-tabs"
+        items={[
+          { key: 'dashboard', label: 'Dashboard', icon: BarChart3, testId: 'logs-tab-dashboard' },
+          { key: 'technicians', label: 'Tehničari', icon: HardHat, count: pagination.totalCount, testId: 'logs-tab-technicians' },
+          { key: 'users', label: 'Korisnici', icon: Users, count: userPagination.totalCount, testId: 'logs-tab-users' }
+        ]}
+      />
+
+      {/* Pretraga i filteri - samo za tabove Tehničari i Korisnici (isti raspored kao ranije: brzi filteri, pa pretraga ili napredni filteri) */}
+      {activeTab !== 'dashboard' && (
+        <Panel
+          className="mx-logs-filters"
+          testId="logs-filters"
+          title="Brzi filteri"
+          actions={
+            <Btn
+              size="sm"
+              variant="ghost"
+              iconRight={Filter}
+              onClick={() => setShowFiltersPanel(!showFiltersPanel)}
+              aria-expanded={showFiltersPanel}
+              data-testid="logs-advanced"
+            >
+              {showFiltersPanel ? 'Sakrij napredne' : 'Napredni filteri'}
+            </Btn>
+          }
+        >
+          <div className="mx-logs-quick">
+            <Choice
+              size="sm"
+              label="Brzi filteri"
+              layoutId="mx-logs-quick"
+              value={quickFilter}
+              onChange={applyQuickFilter}
+              testId="logs-quick"
+              options={[
+                { value: 'today', label: 'Danas' },
+                { value: 'week', label: 'Ova nedelja' },
+                { value: 'month', label: 'Ovaj mesec' },
+                { value: 'all', label: 'Sve' }
+              ]}
+            />
+            {activeFilterCount > 0 && (
+              <span className="sx-tag is-info">{activeFilterCount} aktivnih filtera</span>
+            )}
+          </div>
+
+          {/* type="text": prečica Ctrl+F traži prvo input[type="text"] na strani */}
+          {showFiltersPanel ? (
+            <div className="mx-logs-searchrow is-adv" data-testid="logs-advanced-panel">
+              <div className="mx-logs-searchrow__fields">
+            <div className={cx('sx-search', searchTerm && 'has-value')}>
+              <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                data-testid="logs-search"
+              />
+              {searchTerm && (
+                <button type="button" className="sx-search__clear" onClick={() => setSearchTerm('')} aria-label="Obriši pretragu">
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
             </div>
-
-            <div className="space-y-4">
-              {/* Format Selection */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Format</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {['csv', 'json', 'excel', 'pdf'].map(format => (
-                    <button
-                      key={format}
-                      onClick={() => {
-                        console.log('🖱️ Format button clicked:', format);
-                        console.log('📋 Previous exportFormat:', exportFormat);
-                        setExportFormat(format);
-                        console.log('✅ setExportFormat called with:', format);
-                      }}
-                      className={cn(
-                        "p-3 rounded-lg border-2 transition-all text-sm font-medium",
-                        exportFormat === format
-                          ? "border-purple-500 bg-purple-50 text-purple-700"
-                          : "border-slate-200 hover:border-slate-300 text-slate-700"
-                      )}
-                    >
-                      <FileIcon size={16} className="mx-auto mb-1" />
-                      {format.toUpperCase()}
-                    </button>
+                <Select size="sm" value={selectedAction} onChange={(e) => setSelectedAction(e.target.value)} aria-label="Akcija" data-testid="logs-action">
+                  <option value="all">Sve akcije</option>
+                  {availableActions.map(action => (
+                    <option key={action.value} value={action.value}>
+                      {action.label}
+                    </option>
                   ))}
-                </div>
+                </Select>
+                <DateField value={dateFrom} onChange={setDateFrom} clearable compact aria-label="Datum od" testId="logs-date-from" />
+                <DateField value={dateTo} onChange={setDateTo} clearable compact aria-label="Datum do" testId="logs-date-to" />
               </div>
-
-              {/* Date Range Selection */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Opseg datuma</label>
-                <select
-                  value={exportDateRange}
-                  onChange={(e) => setExportDateRange(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="current">Trenutni prikaz</option>
-                  <option value="today">Samo danas</option>
-                  <option value="week">Poslednja nedelja</option>
-                  <option value="month">Poslednji mesec</option>
-                  <option value="all">Svi podaci</option>
-                </select>
-              </div>
-
-              {/* Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
-                  <InfoIcon size={14} className="inline mr-1" />
-                  Eksportovani podaci će uključiti sve filtrirana polja sa trenutne stranice.
-                </p>
+              <div className="mx-logs-searchrow__end">
+                <Btn size="sm" icon={Search} onClick={handleSearch} data-testid="logs-search-btn">
+                  Pretraži
+                </Btn>
+                <Btn size="sm" variant="primary" icon={RotateCcw} onClick={handleReset} data-testid="logs-reset">
+                  Resetuj
+                </Btn>
               </div>
             </div>
-
-            <div className="flex items-center justify-end space-x-3 mt-6">
-              <Button type="secondary" size="medium" onClick={() => setShowExportModal(false)}>
-                Otkaži
-              </Button>
-              <Button
-                type="primary"
-                size="medium"
-                prefix={<DownloadIcon size={16} />}
-                onClick={() => {
-                  console.log('🔘 Export button clicked');
-                  console.log('📋 Current exportFormat before performExport:', exportFormat);
-                  performExport();
-                }}
-              >
-                Eksportuj
-              </Button>
+          ) : (
+            <div className="mx-logs-searchrow">
+            <div className={cx('sx-search', searchTerm && 'has-value')}>
+              <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                data-testid="logs-search"
+              />
+              {searchTerm && (
+                <button type="button" className="sx-search__clear" onClick={() => setSearchTerm('')} aria-label="Obriši pretragu">
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
             </div>
-          </div>
-        </div>
+            </div>
+          )}
+        </Panel>
       )}
 
-      {/* Keyboard Shortcuts Modal */}
-      {showKeyboardShortcuts && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowKeyboardShortcuts(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Prečice na tastaturi</h2>
-              <button onClick={() => setShowKeyboardShortcuts(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <XIcon size={20} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* General */}
-              <div>
-                <h3 className="font-semibold text-slate-700 mb-3">Opšte</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Pomoć</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">?</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Zatvori modal</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Esc</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Fokusiraj pretragu</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Ctrl+F</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Osveži podatke</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Ctrl+R</kbd>
-                  </div>
-                </div>
-              </div>
-
-              {/* Navigation */}
-              <div>
-                <h3 className="font-semibold text-slate-700 mb-3">Navigacija</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Dashboard</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Alt+1</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Tehničari</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Alt+2</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Korisnici</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Alt+3</kbd>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div>
-                <h3 className="font-semibold text-slate-700 mb-3">Akcije</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Eksportuj</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Ctrl+E</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Podešavanja</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Ctrl+,</kbd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Prečice</span>
-                    <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Ctrl+K</kbd>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-200">
-              <p className="text-xs text-slate-500 text-center">
-                Napomena: Koristite <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Cmd</kbd> umesto <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs font-mono">Ctrl</kbd> na macOS
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Sadržaj */}
+      {loading ? (
+        <Panel pad={false}>
+          <Loading text="Učitava podatke..." />
+        </Panel>
+      ) : activeTab === 'dashboard' ? (
+        <DashboardSection
+          dashboardData={dashboardData}
+          filterOptions={filterOptions}
+          loading={loading}
+          handleDismissWorkOrder={handleDismissWorkOrder}
+          technicianLogs={activityChartTechnicianLogs}
+          userLogs={activityChartUserLogs}
+          onFiltersChange={handleDashboardFiltersChange}
+        />
+      ) : activeTab === 'technicians' ? (
+        <TechnicianLogsSection
+          logs={technicianLogs}
+          expandedGroups={expandedGroups}
+          toggleGroup={toggleGroup}
+          getActionIcon={getActionIcon}
+          getActionColor={getActionColor}
+          materialValidationData={materialValidationData}
+          showMaterialValidation={showMaterialValidation}
+          setShowMaterialValidation={setShowMaterialValidation}
+          pagination={pagination}
+          performance={performance}
+          loading={loading}
+          onPageChange={handlePageChange}
+        />
+      ) : (
+        <UserLogsSection
+          logs={userLogs}
+          expandedGroups={expandedGroups}
+          toggleGroup={toggleGroup}
+          getActionIcon={getActionIcon}
+          getActionColor={getActionColor}
+          pagination={userPagination}
+          performance={userPerformance}
+          loading={loading}
+          onPageChange={handleUserPageChange}
+        />
       )}
 
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowSettings(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Podešavanja</h2>
-              <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <XIcon size={20} />
-              </button>
-            </div>
+      {/* Izvoz */}
+      <Dialog
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        eyebrow="Montaža · Logovi"
+        title="Eksportuj podatke"
+        size="md"
+        testId="logs-export-modal"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setShowExportModal(false)}>
+            Otkaži
+          </Btn>
+          <Btn
+            variant="primary"
+            icon={Download}
+            onClick={() => {
+              console.log('🔘 Export button clicked');
+              console.log('📋 Current exportFormat before performExport:', exportFormat);
+              performExport();
+            }}
+            data-testid="logs-export-submit"
+          >
+            Eksportuj
+          </Btn>
+        </>}
+      >
+        <div className="mx-logs-dlg">
+          <Field label="Format" className="mx-logs-formats">
+            <Choice
+              label="Format"
+              layoutId="mx-logs-format"
+              value={exportFormat}
+              onChange={(format) => {
+                console.log('🖱️ Format button clicked:', format);
+                console.log('📋 Previous exportFormat:', exportFormat);
+                setExportFormat(format);
+                console.log('✅ setExportFormat called with:', format);
+              }}
+              options={['csv', 'json', 'excel', 'pdf'].map(format => ({
+                value: format,
+                label: format.toUpperCase(),
+                icon: FORMAT_ICONS[format],
+                testId: `logs-format-${format}`
+              }))}
+            />
+          </Field>
+          <Field label="Opseg datuma" htmlFor="mx-logs-export-range">
+            <Select id="mx-logs-export-range" value={exportDateRange} onChange={(e) => setExportDateRange(e.target.value)}>
+              <option value="current">Trenutni prikaz</option>
+              <option value="today">Samo danas</option>
+              <option value="week">Poslednja nedelja</option>
+              <option value="month">Poslednji mesec</option>
+              <option value="all">Svi podaci</option>
+            </Select>
+          </Field>
+          <Note tone="info">
+            Eksportovani podaci će uključiti sve filtrirana polja sa trenutne stranice.
+          </Note>
+        </div>
+      </Dialog>
 
-            <div className="space-y-6">
-              {/* Current Settings Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
-                  <InfoIcon size={14} className="inline mr-1" />
-                  Trenutno primenjeno: <strong>{pagination.limit}</strong> stavki po stranici
-                </p>
+      {/* Prečice na tastaturi */}
+      <Dialog
+        open={showKeyboardShortcuts}
+        onClose={() => setShowKeyboardShortcuts(false)}
+        eyebrow="Montaža · Logovi"
+        title="Prečice na tastaturi"
+        size="lg"
+        testId="logs-shortcuts-modal"
+      >
+        <div className="mx-logs-keys">
+          {SHORTCUTS.map(([group, rows]) => (
+            <section key={group}>
+              <h3 className="sx-label">{group}</h3>
+              <ul>
+                {rows.map(([text, key]) => (
+                  <li key={text}>
+                    <span>{text}</span>
+                    <Kbd>{key}</Kbd>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        <p className="mx-logs-keys__note">
+          Napomena: Koristite <Kbd>Cmd</Kbd> umesto <Kbd>Ctrl</Kbd> na macOS
+        </p>
+      </Dialog>
+
+      {/* Podešavanja */}
+      <Dialog
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        eyebrow="Montaža · Logovi"
+        title="Podešavanja"
+        size="md"
+        testId="logs-settings-modal"
+        footer={<>
+          <Btn variant="ghost" onClick={handleResetSettings} data-testid="logs-settings-reset">
+            Resetuj
+          </Btn>
+          <Btn onClick={() => setShowSettings(false)} className="mx-right">
+            Otkaži
+          </Btn>
+          <Btn variant="primary" onClick={handleSaveSettings} data-testid="logs-settings-save">
+            Sačuvaj
+          </Btn>
+        </>}
+      >
+        <div className="mx-logs-dlg">
+          <Note tone="info">
+            Trenutno primenjeno: <b>{pagination.limit}</b> stavki po stranici
+          </Note>
+          <Field
+            label="Auto-refresh interval"
+            htmlFor="mx-logs-interval"
+            aside={<span className="mx-logs-aside">(trenutno: {refreshInterval/1000}s)</span>}
+          >
+            <Select
+              id="mx-logs-interval"
+              value={settings.autoRefreshInterval}
+              onChange={(e) => setSettings({...settings, autoRefreshInterval: parseInt(e.target.value)})}
+            >
+              <option value={10000}>10 sekundi</option>
+              <option value={30000}>30 sekundi</option>
+              <option value={60000}>1 minut</option>
+              <option value={120000}>2 minuta</option>
+              <option value={300000}>5 minuta</option>
+            </Select>
+          </Field>
+          <Field
+            label="Broj stavki po stranici"
+            htmlFor="mx-logs-per-page"
+            aside={<span className="mx-logs-aside">(primeniće se nakon čuvanja)</span>}
+            hint="Veći broj može usporiti učitavanje. Preporučeno: 50"
+          >
+            <Select
+              id="mx-logs-per-page"
+              value={settings.itemsPerPage}
+              onChange={(e) => setSettings({...settings, itemsPerPage: parseInt(e.target.value)})}
+              data-testid="logs-per-page"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50 (default)</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </Select>
+          </Field>
+          {/* natpis levo, prekidač desno (kao ranije) */}
+          <div className="mx-logs-switches">
+            {TOGGLES.map(([key, text]) => (
+              <div key={key} className="mx-logs-switchrow">
+                <span>{text}</span>
+                <Switch checked={settings[key]} onChange={() => setSettings({...settings, [key]: !settings[key]})} label={text} />
               </div>
-
-              {/* Auto-refresh interval */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Auto-refresh interval
-                  <span className="ml-2 text-xs text-slate-500">(trenutno: {refreshInterval/1000}s)</span>
-                </label>
-                <select
-                  value={settings.autoRefreshInterval}
-                  onChange={(e) => setSettings({...settings, autoRefreshInterval: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value={10000}>10 sekundi</option>
-                  <option value={30000}>30 sekundi</option>
-                  <option value={60000}>1 minut</option>
-                  <option value={120000}>2 minuta</option>
-                  <option value={300000}>5 minuta</option>
-                </select>
-              </div>
-
-              {/* Items per page */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Broj stavki po stranici
-                  <span className="ml-2 text-xs text-slate-500">(primeniće se nakon čuvanja)</span>
-                </label>
-                <select
-                  value={settings.itemsPerPage}
-                  onChange={(e) => setSettings({...settings, itemsPerPage: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50 (default)</option>
-                  <option value={100}>100</option>
-                  <option value={200}>200</option>
-                </select>
-                <p className="text-xs text-slate-500 mt-1">
-                  Veći broj može usporiti učitavanje. Preporučeno: 50
-                </p>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-700">Prikaži mini grafikone</span>
-                  <button
-                    onClick={() => setSettings({...settings, showMiniCharts: !settings.showMiniCharts})}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                      settings.showMiniCharts ? "bg-purple-600" : "bg-slate-300"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      settings.showMiniCharts ? "translate-x-6" : "translate-x-1"
-                    )} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-700">Kompaktni prikaz</span>
-                  <button
-                    onClick={() => setSettings({...settings, compactView: !settings.compactView})}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                      settings.compactView ? "bg-purple-600" : "bg-slate-300"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      settings.compactView ? "translate-x-6" : "translate-x-1"
-                    )} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-700">Omogući notifikacije</span>
-                  <button
-                    onClick={() => setSettings({...settings, enableNotifications: !settings.enableNotifications})}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                      settings.enableNotifications ? "bg-purple-600" : "bg-slate-300"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      settings.enableNotifications ? "translate-x-6" : "translate-x-1"
-                    )} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-700">Zvučna upozorenja</span>
-                  <button
-                    onClick={() => setSettings({...settings, soundEnabled: !settings.soundEnabled})}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                      settings.soundEnabled ? "bg-purple-600" : "bg-slate-300"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      settings.soundEnabled ? "translate-x-6" : "translate-x-1"
-                    )} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
-              <Button type="secondary" size="medium" onClick={handleResetSettings}>
-                Resetuj
-              </Button>
-              <div className="flex items-center space-x-3">
-                <Button type="secondary" size="medium" onClick={() => setShowSettings(false)}>
-                  Otkaži
-                </Button>
-                <Button type="primary" size="medium" onClick={handleSaveSettings}>
-                  Sačuvaj
-                </Button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-      )}
+      </Dialog>
     </div>
   );
 };
