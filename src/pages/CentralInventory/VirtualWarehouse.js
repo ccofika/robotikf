@@ -131,19 +131,21 @@ const VirtualWarehouse = () => {
         lead={`Frontend prikaz opreme - ${filteredEquipment.length} komada`}
       />
 
-      <Choice
-        size="sm"
-        scroll
-        className="mx-eq-cats"
-        label="Kategorije"
-        layoutId="mx-vw-cat"
-        value={selectedCategory}
-        onChange={setSelectedCategory}
-        options={[
-          { value: 'all', label: 'Sve kategorije', count: getCategoryCount('all') },
-          ...categories.map(category => ({ value: category, label: formatCategoryName(category), count: getCategoryCount(category) }))
-        ]}
-      />
+      {/* Traka sa kategorijama (isto mesto kao ranije): pilule po sredini, na telefonu jedan red koji se pomera */}
+      <div className="mx-eq-catbar">
+        <Choice
+          size="sm"
+          scroll
+          label="Kategorije"
+          layoutId="mx-vw-cat"
+          value={selectedCategory}
+          onChange={setSelectedCategory}
+          options={[
+            { value: 'all', label: 'Sve kategorije', count: getCategoryCount('all') },
+            ...categories.map(category => ({ value: category, label: formatCategoryName(category), count: getCategoryCount(category) }))
+          ]}
+        />
+      </div>
 
       <div className="sx-stats">
         <Stat label={selectedCategory === 'all' ? 'Ukupno opreme' : `${formatCategoryName(selectedCategory)}`} value={dashboardStats.total} />
