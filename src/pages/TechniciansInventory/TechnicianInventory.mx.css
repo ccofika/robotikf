@@ -1,0 +1,30 @@
+/* Moja oprema, Moji materijali, Moja osnovna oprema (tehničar).
+   Pravila su pod .mx-tinv jer se ovaj fajl učitava pre sx osnove (ista težina bi izgubila). Boje samo iz tokena. */
+
+/* oznaka "povuci nadole za osvežavanje" (telefon): pilula na vrhu strane dok traje osvežavanje.
+   .sx-page je kontejner (layout containment), pa je apsolutna pozicija u odnosu na vrh strane;
+   osvežavanje se ionako pokreće samo kad je strana na vrhu. */
+.mx-tinv .mx-tinv-ptr {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--sx-toast-bg);
+  color: var(--sx-toast-text);
+  box-shadow: var(--sx-shadow-toast);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -16px);
+  transition: opacity 200ms linear, transform 300ms var(--ease-enter);
+}
+.mx-tinv .mx-tinv-ptr.is-on { opacity: 1; transform: translate(-50%, 0); }
+.mx-tinv .mx-tinv-ptr.is-on svg { animation: sx-spin 0.9s linear infinite; }
