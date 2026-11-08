@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { CheckIcon, CrossIcon, AlertTriangleIcon, BoxIcon, ClockIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { AuthContext } from '../../context/AuthContext';
 import { techniciansAPI } from '../../services/api';
+import { Btn } from '../../security/sx/ui';
+import { KV } from '../../security/sx/layout';
+import { Textarea } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { Loading } from '../../montaza/ui';
+import './TechnicianInventory.mx.css';
 
 const EquipmentConfirmation = ({ onConfirmationComplete }) => {
   const { user } = useContext(AuthContext);
@@ -120,177 +125,87 @@ const EquipmentConfirmation = ({ onConfirmationComplete }) => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
-        <div className="flex flex-col items-center space-y-4">
-          <ClockIcon className="animate-spin text-blue-600" size={32} />
-          <p className="text-slate-600 text-lg">Učitavanje opreme...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (pendingEquipment.length === 0) {
+  if (!loading && pendingEquipment.length === 0) {
     return null; // No equipment to confirm
   }
 
   const currentEquipment = pendingEquipment[currentIndex];
+  const closeReject = () => {
+    setShowRejectModal(false);
+    setRejectionReason('');
+  };
 
+  // Dijalog bez zatvaranja (nema X, Escape ni klika van): blokira aplikaciju dok se sva oprema ne potvrdi ili odbije
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6">
-      {/* Fixed Container for Mobile */}
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 z-40 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md mx-auto">
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center mb-4">
-              <div className="p-3 bg-orange-50 rounded-xl">
-                <AlertTriangleIcon size={24} className="text-orange-600" />
+    <>
+      <Dialog
+        eyebrow="Montaža · Oprema"
+        title="Potvrda opreme"
+        description="Potrebno je da potvrdite zaduženu opremu"
+        testId="equipment-confirmation"
+        footer={loading ? null : (
+          <>
+            <Btn variant="danger" icon={X} onClick={() => setShowRejectModal(true)} disabled={processing}>Odbij opremu</Btn>
+            <Btn variant="primary" icon={Check} onClick={handleConfirm} disabled={processing}>{processing ? 'Potvrđujem...' : 'Potvrdi opremu'}</Btn>
+          </>
+        )}
+      >
+        {loading ? (
+          <Loading rows={2} text="Učitavanje opreme..." />
+        ) : (
+          <div className="mx-econf">
+            {/* koja je stavka po redu */}
+            <div className="mx-econf__progress">
+              <span className="sx-label">{currentIndex + 1} od {pendingEquipment.length}</span>
+              <div className="mx-econf__bar"><span style={{ width: `${((currentIndex + 1) / pendingEquipment.length) * 100}%` }} /></div>
+            </div>
+
+            <div className="sx-subject" data-tone="warn">
+              <b>{currentEquipment.description}</b>
+              <KV items={[
+                { k: 'Kategorija', v: currentEquipment.category },
+                { k: 'Serijski broj', v: currentEquipment.serialNumber, mono: true }
+              ]} />
+            </div>
+
+            {/* Navigation - Only show if multiple items */}
+            {pendingEquipment.length > 1 && (
+              <div className="mx-econf__nav">
+                <Btn size="sm" variant="ghost" icon={ChevronLeft} onClick={prevEquipment} disabled={currentIndex === 0}>Prethodno</Btn>
+                <Btn size="sm" variant="ghost" iconRight={ChevronRight} onClick={nextEquipment} disabled={currentIndex === pendingEquipment.length - 1}>Sledeće</Btn>
               </div>
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Potvrda opreme</h2>
-            <p className="text-slate-600">Potrebno je da potvrdite zaduženu opremu</p>
+            )}
           </div>
-
-          {/* Progress */}
-          <div className="mb-6">
-            <div className="text-center mb-3">
-              <span className="text-sm font-medium text-slate-600">
-                {currentIndex + 1} od {pendingEquipment.length}
-              </span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-in-out" 
-                style={{ width: `${((currentIndex + 1) / pendingEquipment.length) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Equipment Card */}
-          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-6 mb-6">
-            <div className="flex items-start space-x-4">
-              <div className="p-3 bg-blue-50 rounded-xl flex-shrink-0">
-                <BoxIcon size={24} className="text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900 mb-3 break-words">{currentEquipment.description}</h3>
-                <div className="space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-sm font-medium text-slate-600">Kategorija:</span>
-                    <span className="text-sm text-slate-900 font-semibold">{currentEquipment.category}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-sm font-medium text-slate-600">Serijski broj:</span>
-                    <span className="text-sm text-slate-900 font-mono font-semibold break-all">{currentEquipment.serialNumber}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation - Only show if multiple items */}
-          {pendingEquipment.length > 1 && (
-            <div className="flex justify-between mb-6">
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={prevEquipment}
-                disabled={currentIndex === 0}
-                className="flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>← Prethodno</span>
-              </Button>
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={nextEquipment}
-                disabled={currentIndex === pendingEquipment.length - 1}
-                className="flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Sledeće →</span>
-              </Button>
-            </div>
-          )}
-
-          {/* Action Buttons - Mobile First */}
-          <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4">
-            <Button
-              type="primary"
-              size="large"
-              onClick={handleConfirm}
-              disabled={processing}
-              className="w-full sm:flex-1 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              prefix={<CheckIcon size={16} />}
-            >
-              {processing ? 'Potvrđujem...' : 'Potvrdi opremu'}
-            </Button>
-            <Button
-              type="error"
-              size="large"
-              onClick={() => setShowRejectModal(true)}
-              disabled={processing}
-              className="w-full sm:flex-1 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              prefix={<CrossIcon size={16} />}
-            >
-              Odbij opremu
-            </Button>
-          </div>
-        </div>
-      </div>
+        )}
+      </Dialog>
 
       {/* Rejection Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <div className="text-center mb-6">
-              <div className="p-3 bg-red-50 rounded-xl inline-flex mb-4">
-                <CrossIcon size={24} className="text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Odbijanje opreme</h3>
-              <p className="text-slate-600">Molimo unesite razlog zašto odbijate ovu opremu:</p>
-            </div>
-            
-            <div className="mb-6">
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Unesite razlog odbijanja..."
-                rows={4}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
-                autoFocus
-              />
-            </div>
-            
-            <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4">
-              <Button
-                type="error"
-                size="medium"
-                onClick={handleReject}
-                disabled={processing || !rejectionReason.trim()}
-                className="w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {processing ? 'Odbijam...' : 'Odbij opremu'}
-              </Button>
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectionReason('');
-                }}
-                disabled={processing}
-                className="w-full sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Odustani
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Dialog
+        open={showRejectModal}
+        onClose={closeReject}
+        busy={processing}
+        size="sm"
+        eyebrow="Montaža · Oprema"
+        title="Odbijanje opreme"
+        description="Molimo unesite razlog zašto odbijate ovu opremu:"
+        testId="equipment-reject"
+        footer={
+          <>
+            <Btn variant="ghost" onClick={closeReject} disabled={processing}>Odustani</Btn>
+            <Btn variant="danger" onClick={handleReject} disabled={processing || !rejectionReason.trim()}>{processing ? 'Odbijam...' : 'Odbij opremu'}</Btn>
+          </>
+        }
+      >
+        <Textarea
+          value={rejectionReason}
+          onChange={(e) => setRejectionReason(e.target.value)}
+          placeholder="Unesite razlog odbijanja..."
+          rows={4}
+          autoFocus
+        />
+      </Dialog>
+    </>
   );
 };
 
-export default EquipmentConfirmation; 
+export default EquipmentConfirmation;

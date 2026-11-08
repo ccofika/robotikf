@@ -1,0 +1,32 @@
+/* Zakasneli radni nalozi (dijalog umesto stranice tehničara). Dijalog je u portalu, pa su pravila pod .sx-dialog
+   (ovaj fajl se učitava pre sx osnove, ista težina bi izgubila). Boje samo iz tokena. */
+.sx-dialog .mx-overdue { display: grid; gap: 12px; }
+.sx-dialog .mx-overdue__list { display: grid; gap: 10px; }
+.sx-dialog .mx-overdue__item {
+  gap: 8px;
+  padding: 14px 14px 12px 17px;
+  background: var(--sx-surface);
+  cursor: pointer;
+  transition: border-color var(--hover-out) var(--ease-move), box-shadow var(--hover-out) var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sx-dialog .mx-overdue__item:hover { border-color: var(--sx-line-3); box-shadow: var(--sx-shadow-card); transition-duration: var(--hover-in); transition-timing-function: var(--ease-enter); }
+}
+.sx-dialog .mx-overdue__item:focus-visible { outline-offset: 2px; }
+.sx-dialog .mx-overdue__addr { font-size: 15px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.sx-dialog .mx-overdue__comment {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--sx-surface-2);
+  font-size: 13px;
+  color: var(--sx-text-2);
+  overflow-wrap: anywhere;
+}
+.sx-dialog .mx-overdue__open { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--sx-accent-text); }
+.sx-dialog .mx-overdue__foot { flex: 1 1 100%; display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
+.sx-dialog .mx-overdue__foot > .sx-led { margin-top: 5px; }
+.sx-dialog .mx-overdue__foot b { display: block; font-weight: 600; color: var(--sx-text); }
