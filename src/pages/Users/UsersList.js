@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { RefreshCw, Search, X, Eye, Package, ArrowUpRight } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import api from '../../services/api';
-import { cn } from '../../utils/cn';
-import { getTimRowClasses } from '../../utils/tim';
+import { getTimRowStyle } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
-import { Button } from '../../components/ui/button-1';
-import { SearchIcon, UserIcon, PhoneIcon, MapPinIcon, ClipboardIcon, CloseIcon, RefreshIcon, EquipmentIcon, CalendarIcon, FilterIcon, EyeIcon, SettingsIcon, CheckIcon } from '../../components/icons/SvgIcons';
+import { cx, Btn, Sign, Avatar } from '../../security/sx/ui';
+import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { Select } from '../../security/sx/forms';
+import { SheetSection } from '../../security/sx/Sheet';
+import { Pager, ColumnMenu, Loading, LinkBtn } from '../../montaza/ui';
+import './UsersList.mx.css';
+
+// Tonovi statusa naloga (isti kao u ostatku Montaže)
+const STATUS_TONE = { zavrsen: 'ok', nezavrsen: 'warn', odlozen: 'info', otkazan: 'bad' };
 
 const UsersList = () => {
   const location = useLocation();
@@ -50,7 +58,6 @@ const UsersList = () => {
   const [hasEquipmentFilter, setHasEquipmentFilter] = useState('');
 
   // Column visibility
-  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     user: true,
     contact: true,
@@ -98,20 +105,6 @@ const UsersList = () => {
       }
     }
   }, [users, location.state, selectedUser]);
-
-  // Close column menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showColumnDropdown && !event.target.closest('.relative')) {
-        setShowColumnDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showColumnDropdown]);
 
   // Fetch dashboard stats (lightweight call)
   const fetchDashboardStats = async () => {
@@ -247,6 +240,13 @@ const UsersList = () => {
     }
   };
 
+  const closeUserDetails = () => {
+    setSelectedUser(null);
+    setUserWorkOrders([]);
+    setUserEquipment([]);
+    navigate(location.pathname, { replace: true });
+  };
+
   const handleSearch = (e) => {
     const { value } = e.target;
     setSearchTerm(value);
@@ -310,689 +310,328 @@ const UsersList = () => {
     return sortedOrders[0]?.status;
   };
 
+  // Blaga boja reda po statusu poslednjeg naloga (tonovi iz tokena, UsersList.mx.css)
   const getRowBackgroundClass = (user) => {
     const lastStatus = getLastWorkOrderStatus(user);
-    if (!lastStatus) return 'bg-white';
-
-    switch (lastStatus) {
-      case 'zavrsen': return 'bg-green-50 hover:bg-green-100';
-      case 'nezavrsen': return 'bg-red-50 hover:bg-red-100';
-      case 'odlozen': return 'bg-yellow-50 hover:bg-yellow-100';
-      case 'otkazan': return 'bg-gray-50 hover:bg-gray-100';
-      default: return 'bg-white';
-    }
+    return lastStatus && STATUS_TONE[lastStatus] ? `mx-users-row--${STATUS_TONE[lastStatus]}` : '';
   };
 
-  // Pagination component
-  const PaginationComponent = () => {
-    if (pagination.totalPages <= 1) return null;
-
-    const getVisiblePages = () => {
-      const current = pagination.currentPage;
-      const total = pagination.totalPages;
-      const delta = 2;
-
-      let pages = [];
-
-      // Always show first page
-      if (current > delta + 1) {
-        pages.push(1);
-        if (current > delta + 2) pages.push('...');
-      }
-
-      // Show pages around current
-      for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
-        pages.push(i);
-      }
-
-      // Always show last page
-      if (current < total - delta) {
-        if (current < total - delta - 1) pages.push('...');
-        pages.push(total);
-      }
-
-      return pages;
-    };
-
-    return (
-      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
-        <div className="text-sm text-slate-600">
-          Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount} rezultata
-          {performance.queryTime && (
-            <span className="ml-2 text-slate-400">({performance.queryTime}ms)</span>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(1)}
-            disabled={!pagination.hasPreviousPage}
-          >
-            &laquo;
-          </Button>
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(pagination.currentPage - 1)}
-            disabled={!pagination.hasPreviousPage}
-          >
-            &lsaquo;
-          </Button>
-
-          {getVisiblePages().map((page, index) => (
-            <Button
-              key={index}
-              type={page === pagination.currentPage ? "primary" : "tertiary"}
-              size="small"
-              onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
-              disabled={page === '...'}
-              className={page === pagination.currentPage ?
-                "!bg-blue-600 !text-white !hover:bg-blue-700" :
-                "hover:bg-gray-100"
-              }
-            >
-              {page}
-            </Button>
-          ))}
-
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(pagination.currentPage + 1)}
-            disabled={!pagination.hasNextPage}
-          >
-            &rsaquo;
-          </Button>
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(pagination.totalPages)}
-            disabled={!pagination.hasNextPage}
-          >
-            &raquo;
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
+  // Zaglavlje kolone koja se sortira (klik menja smer, strelica pokazuje trenutni)
+  const sortHead = (field, label) => (
+    <button type="button" className="mx-users-sort" onClick={() => handleSortChange(field)}>
+      <span>{label}</span>
+      {sortBy === field && <span className="mx-users-sort__dir">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+    </button>
+  );
+  const ariaSort = (field) => (sortBy === field ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined);
+  const statValue = (n) => (dashboardLoading ? <span className="sx-skeleton mx-users-sk" aria-hidden="true" /> : n);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <UserIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Korisnici</h1>
-              <p className="text-slate-600 mt-1">Server-side pagination - {pagination.totalCount} korisnika</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button
-              type="secondary"
-              size="medium"
-              onClick={handleRefresh}
-              disabled={isRefreshing || dashboardLoading || loading}
-              prefix={<RefreshIcon size={16} className={(isRefreshing || dashboardLoading || loading) ? 'animate-spin' : ''} />}
-            >
-              Osveži
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <UserIcon size={20} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Ukupno korisnika</p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {dashboardLoading ? (
-                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
-                  ) : (
-                    stats.total
-                  )}
-                </h3>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <ClipboardIcon size={20} className="text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Sa radnim nalozima</p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {dashboardLoading ? (
-                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
-                  ) : (
-                    stats.withWorkOrders
-                  )}
-                </h3>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <EquipmentIcon size={20} className="text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Sa opremom</p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {dashboardLoading ? (
-                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
-                  ) : (
-                    stats.withEquipment
-                  )}
-                </h3>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        {/* Table Controls */}
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center space-x-4 flex-1">
-              {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="h-9 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setDebouncedSearchTerm('');
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <CloseIcon size={16} />
-                  </button>
-                )}
-              </div>
-
-              {/* Has Work Orders Filter */}
-              <div className="relative">
-                <select
-                  value={hasWorkOrdersFilter}
-                  onChange={(e) => {
-                    setHasWorkOrdersFilter(e.target.value);
-                    setPagination(prev => ({ ...prev, currentPage: 1 }));
-                  }}
-                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-                >
-                  <option value="">Svi korisnici</option>
-                  <option value="has">Sa radnim nalozima</option>
-                  <option value="no">Bez radnih naloga</option>
-                </select>
-                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-              </div>
-
-              {/* Has Equipment Filter */}
-              <div className="relative">
-                <select
-                  value={hasEquipmentFilter}
-                  onChange={(e) => {
-                    setHasEquipmentFilter(e.target.value);
-                    setPagination(prev => ({ ...prev, currentPage: 1 }));
-                  }}
-                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-                >
-                  <option value="">Sva oprema</option>
-                  <option value="has">Sa opremom</option>
-                  <option value="no">Bez opreme</option>
-                </select>
-                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center space-x-3">
-              {/* Clear Filters */}
-              {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter || sortBy !== 'name') && (
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={clearAllFilters}
-                >
-                  Obriši filtere
-                </Button>
-              )}
-
-              {/* Column Visibility */}
-              <div className="relative">
-                <Button
-                  type="tertiary"
-                  size="medium"
-                  prefix={<EyeIcon size={16} />}
-                  onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-                >
-                  Kolone
-                </Button>
-
-                {showColumnDropdown && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-md shadow-md z-50">
-                    <div className="p-1">
-                      <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Prikaži kolone</div>
-                      {Object.entries({
-                        user: 'Korisnik',
-                        contact: 'Kontakt',
-                        location: 'Lokacija',
-                        tisId: 'TIS ID',
-                        workOrders: 'Radni nalozi',
-                        equipment: 'Oprema',
-                        actions: 'Akcije'
-                      }).map(([key, label]) => (
-                        <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={visibleColumns[key]}
-                            onChange={(e) => setVisibleColumns(prev => ({...prev, [key]: e.target.checked}))}
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mx-6 mt-6 rounded-lg">
-            {error}
-          </div>
+    <div className="sx-page" data-testid="page-users">
+      <PageHead
+        eyebrow="Montaža · Korisnici"
+        title="Korisnici"
+        lead={`Server-side pagination - ${pagination.totalCount} korisnika`}
+        actions={(
+          <Btn icon={RefreshCw} onClick={handleRefresh} busy={isRefreshing || dashboardLoading || loading}>
+            Osveži
+          </Btn>
         )}
+      />
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="ml-3 text-slate-600">Učitavanje korisnika...</p>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="text-center py-12">
-              <UserIcon size={48} className="text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 text-lg">Nema pronađenih korisnika</p>
-              {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter) && (
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={clearAllFilters}
-                  className="mt-3"
-                >
-                  Obriši filtere
-                </Button>
-              )}
-            </div>
-          ) : (
-            <>
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
+      <div className="sx-stats">
+        <Stat label="Ukupno korisnika" value={statValue(stats.total)} />
+        <Stat label="Sa radnim nalozima" value={statValue(stats.withWorkOrders)} />
+        <Stat label="Sa opremom" value={statValue(stats.withEquipment)} />
+      </div>
+
+      <Toolbar>
+        <div className={cx('sx-search', searchTerm && 'has-value')}>
+          <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+          <input
+            type="text"
+            placeholder="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
+            aria-label="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
+            value={searchTerm}
+            onChange={handleSearch}
+            data-testid="users-search"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="sx-search__clear"
+              aria-label="Obriši pretragu"
+              onClick={() => {
+                setSearchTerm('');
+                setDebouncedSearchTerm('');
+              }}
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
+          )}
+        </div>
+
+        <Select
+          size="sm"
+          aria-label="Radni nalozi"
+          value={hasWorkOrdersFilter}
+          onChange={(e) => {
+            setHasWorkOrdersFilter(e.target.value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+          }}
+          data-testid="users-filter-workorders"
+        >
+          <option value="">Svi korisnici</option>
+          <option value="has">Sa radnim nalozima</option>
+          <option value="no">Bez radnih naloga</option>
+        </Select>
+
+        <Select
+          size="sm"
+          aria-label="Oprema"
+          value={hasEquipmentFilter}
+          onChange={(e) => {
+            setHasEquipmentFilter(e.target.value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+          }}
+          data-testid="users-filter-equipment"
+        >
+          <option value="">Sva oprema</option>
+          <option value="has">Sa opremom</option>
+          <option value="no">Bez opreme</option>
+        </Select>
+
+        <div className="sx-toolbar__end">
+          {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter || sortBy !== 'name') && (
+            <Btn size="sm" variant="ghost" onClick={clearAllFilters}>Obriši filtere</Btn>
+          )}
+          <ColumnMenu
+            columns={{
+              user: 'Korisnik',
+              contact: 'Kontakt',
+              location: 'Lokacija',
+              tisId: 'TIS ID',
+              workOrders: 'Radni nalozi',
+              equipment: 'Oprema',
+              actions: 'Akcije'
+            }}
+            visible={visibleColumns}
+            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
+          />
+        </div>
+      </Toolbar>
+
+      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+
+      <Panel pad={false}>
+        {loading ? (
+          <Loading text="Učitavanje korisnika..." />
+        ) : users.length === 0 ? (
+          <div className="sx-empty-block">
+            <b>Nema pronađenih korisnika</b>
+            {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter) && (
+              <Btn size="sm" onClick={clearAllFilters}>Obriši filtere</Btn>
+            )}
+          </div>
+        ) : (
+          <div className="sx-tablewrap">
+            <table className="sx-table" data-testid="users-table">
+              <thead>
+                <tr>
+                  {visibleColumns.user && <th aria-sort={ariaSort('name')}>{sortHead('name', 'Korisnik')}</th>}
+                  {visibleColumns.contact && <th>Kontakt</th>}
+                  {visibleColumns.location && <th aria-sort={ariaSort('address')}>{sortHead('address', 'Lokacija')}</th>}
+                  {visibleColumns.tisId && <th aria-sort={ariaSort('tisId')}>{sortHead('tisId', 'TIS ID')}</th>}
+                  {visibleColumns.workOrders && <th className="is-num">Radni nalozi</th>}
+                  {visibleColumns.equipment && <th className="is-num">Oprema</th>}
+                  {visibleColumns.actions && <th className="is-end">Akcije</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user, i) => (
+                  <tr
+                    key={user._id}
+                    style={{ '--i': i }}
+                    className={cx('is-click', getRowBackgroundClass(user))}
+                    tabIndex={0}
+                    onClick={() => handleUserSelect(user)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleUserSelect(user); }}
+                    data-testid="user-row"
+                  >
                     {visibleColumns.user && (
-                      <th
-                        className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
-                        onClick={() => handleSortChange('name')}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>Korisnik</span>
-                          {sortBy === 'name' && (
-                            <span className="text-blue-600">
-                              {sortOrder === 'asc' ? '↑' : '↓'}
+                      <td className="is-head">
+                        <div className="sx-cell sx-cell--who mx-users-who">
+                          <Avatar name={user.name} />
+                          <b>{user.name}</b>
+                          {(user.role || isFoundByEquipment(user)) && (
+                            <span className="mx-users-sub">
+                              {user.role}
+                              {isFoundByEquipment(user) && (
+                                <span className="sx-tag is-warn"><Package aria-hidden="true" strokeWidth={2} />Oprema</span>
+                              )}
                             </span>
                           )}
                         </div>
-                      </th>
+                      </td>
                     )}
                     {visibleColumns.contact && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Kontakt
-                      </th>
+                      <td data-label="Kontakt">
+                        {user.phone ? <span className="sx-mono sx-nowrap">{user.phone}</span> : <span className="sx-faint">Nije dostupan</span>}
+                      </td>
                     )}
-                    {visibleColumns.location && (
-                      <th
-                        className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
-                        onClick={() => handleSortChange('address')}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>Lokacija</span>
-                          {sortBy === 'address' && (
-                            <span className="text-blue-600">
-                              {sortOrder === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.tisId && (
-                      <th
-                        className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100"
-                        onClick={() => handleSortChange('tisId')}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>TIS ID</span>
-                          {sortBy === 'tisId' && (
-                            <span className="text-blue-600">
-                              {sortOrder === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.workOrders && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Radni nalozi
-                      </th>
-                    )}
-                    {visibleColumns.equipment && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Oprema
-                      </th>
-                    )}
+                    {visibleColumns.location && <td data-label="Lokacija" className="is-wide">{user.address}</td>}
+                    {visibleColumns.tisId && <td data-label="TIS ID"><span className="sx-uid sx-nowrap">{user.tisId}</span></td>}
+                    {visibleColumns.workOrders && <td data-label="Radni nalozi" className="is-num">{user.workOrdersCount || 0}</td>}
+                    {visibleColumns.equipment && <td data-label="Oprema" className="is-num">{user.equipmentCount || 0}</td>}
                     {visibleColumns.actions && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Akcije
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {users.map(user => (
-                    <tr
-                      key={user._id}
-                      onClick={() => handleUserSelect(user)}
-                      className={`${getRowBackgroundClass(user)} transition-colors cursor-pointer`}
-                    >
-                      {visibleColumns.user && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                              <UserIcon size={16} className="text-blue-600" />
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <div className="text-sm font-medium text-slate-900">{user.name}</div>
-                                {isFoundByEquipment(user) && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-                                    <EquipmentIcon size={12} className="mr-1" />
-                                    Oprema
-                                  </span>
-                                )}
-                              </div>
-                              {user.role && <div className="text-xs text-slate-500">{user.role}</div>}
-                            </div>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.contact && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
-                            <PhoneIcon size={14} className="text-slate-400" />
-                            <span className="text-sm text-slate-900">{user.phone || 'Nije dostupan'}</span>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.location && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
-                            <MapPinIcon size={14} className="text-slate-400" />
-                            <span className="text-sm text-slate-900">{user.address}</span>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.tisId && (
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {user.tisId}
-                          </span>
-                        </td>
-                      )}
-                      {visibleColumns.workOrders && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
-                            <ClipboardIcon size={14} className="text-slate-400" />
-                            <span className="text-sm font-medium text-slate-900">{user.workOrdersCount || 0}</span>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.equipment && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
-                            <EquipmentIcon size={14} className="text-slate-400" />
-                            <span className="text-sm font-medium text-slate-900">{user.equipmentCount || 0}</span>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.actions && (
-                        <td className="px-6 py-4">
-                          <Button
-                            type="tertiary"
-                            size="small"
+                      <td className="is-actions is-end">
+                        <div className="sx-rowacts">
+                          <Btn
+                            size="sm"
+                            variant="ghost"
+                            icon={Eye}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleUserSelect(user);
                             }}
-                            prefix={<EyeIcon size={14} />}
                           >
                             Detalji
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </div>
+                          </Btn>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Server-side Pagination */}
-        <PaginationComponent />
-      </div>
+        <Pager
+          page={pagination.currentPage}
+          total={pagination.totalCount}
+          perPage={pagination.limit}
+          onPage={handlePageChange}
+          label={performance.queryTime ? `rezultata (${performance.queryTime}ms)` : 'rezultata'}
+        />
+      </Panel>
 
-      {/* Modal - unchanged */}
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => { setSelectedUser(null); setUserWorkOrders([]); setUserEquipment([]); navigate(location.pathname, { replace: true }); }}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <UserIcon size={20} className="text-blue-600" />
+      {/* Detalji korisnika: sx dijalog u portalu, ispod sloja detalja naloga (WorkOrderModal, z 9999) koji se otvara iz njega */}
+      {selectedUser && createPortal(
+        <div className="sx-portal">
+          <div className="sx-dialog-backdrop mx-users-backdrop" onClick={closeUserDetails}>
+            <div
+              className="sx-dialog sx-dialog--xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mx-users-detail-title"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="user-details"
+            >
+              <div className="sx-dialog__head">
+                <div className="sx-dialog__titles">
+                  <span className="sx-eyebrow sx-dialog__eyebrow">Korisnici</span>
+                  <h2 id="mx-users-detail-title" className="sx-dialog__title">Detalji korisnika: {selectedUser.name}</h2>
+                  <p className="sx-dialog__desc">TIS ID: {selectedUser.tisId}</p>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">Detalji korisnika: {selectedUser.name}</h2>
-                  <p className="text-slate-600">TIS ID: {selectedUser.tisId}</p>
-                </div>
-              </div>
-              <Button
-                type="tertiary"
-                size="medium"
-                onClick={() => {
-                  setSelectedUser(null);
-                  setUserWorkOrders([]);
-                  setUserEquipment([]);
-                  navigate(location.pathname, { replace: true });
-                }}
-                svgOnly
-              >
-                <CloseIcon size={20} />
-              </Button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-              {/* Equipment Section */}
-              <div className="mb-8">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="p-2 bg-purple-50 rounded-lg">
-                    <EquipmentIcon size={20} className="text-purple-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Instalirana oprema</h3>
-                </div>
-
-                {loadingEquipment ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                    <p className="ml-3 text-slate-600">Učitavanje opreme...</p>
-                  </div>
-                ) : userEquipment.length === 0 ? (
-                  <div className="text-center py-8">
-                    <EquipmentIcon size={48} className="text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500">Nema instalirane opreme kod ovog korisnika</p>
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
-                    <table className="w-full">
-                      <thead className="bg-slate-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Oprema</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Serijski broj</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum instalacije</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {userEquipment.map(equipment => (
-                          <tr key={equipment._id || equipment.id} className="hover:bg-white transition-colors">
-                            <td className="px-4 py-3">
-                              <div>
-                                <div className="text-sm font-medium text-slate-900">{equipment.category || equipment.equipmentType}</div>
-                                <div className="text-xs text-slate-500">{equipment.description || equipment.equipmentDescription}</div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-sm font-mono text-slate-900">{equipment.serialNumber}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Instalirano
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center space-x-2">
-                                <CalendarIcon size={14} className="text-slate-400" />
-                                <span className="text-sm text-slate-900">{formatDate(equipment.installedAt)}</span>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <button type="button" className="sx-dialog__close" onClick={closeUserDetails} aria-label="Zatvori" data-testid="user-details-close">
+                  <X size={18} strokeWidth={1.8} />
+                </button>
               </div>
 
-              {/* Work Orders Section */}
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <ClipboardIcon size={20} className="text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Radni nalozi</h3>
-                </div>
-
-                {loadingWorkOrders ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-                    <p className="ml-3 text-slate-600">Učitavanje radnih naloga...</p>
-                  </div>
-                ) : userWorkOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <ClipboardIcon size={48} className="text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500">Nema radnih naloga za ovog korisnika</p>
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
-                    <table className="w-full">
-                      <thead className="bg-slate-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tip</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tehničar</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcije</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {userWorkOrders.map(order => (
-                          <tr key={order._id} className={cn("transition-colors", getTimRowClasses(order.tim, 'hover:bg-white'))}>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center space-x-2">
-                                <CalendarIcon size={14} className="text-slate-400" />
-                                <span className="text-sm text-slate-900">{formatDate(order.date)}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-sm font-medium text-slate-900">{order.type}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-sm text-slate-900">{order.technicianId?.name || 'Nedodeljen'}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={cn(
-                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                                order.status === 'zavrsen' && "bg-green-100 text-green-800",
-                                order.status === 'nezavrsen' && "bg-yellow-100 text-yellow-800",
-                                order.status === 'odlozen' && "bg-orange-100 text-orange-800",
-                                order.status === 'otkazan' && "bg-red-100 text-red-800"
-                              )}>
-                                {getStatusLabel(order.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <Link
-                                to={`/work-orders/${order._id}`}
-                                state={{
-                                  backgroundLocation: location,
-                                  fromUsersList: true,
-                                  selectedUserId: selectedUser._id,
-                                  previousPath: location.pathname
-                                }}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                              >
-                                Detalji
-                              </Link>
-                            </td>
+              <div className="sx-dialog__body">
+                <SheetSection title="Instalirana oprema">
+                  {loadingEquipment ? (
+                    <Loading rows={2} text="Učitavanje opreme..." />
+                  ) : userEquipment.length === 0 ? (
+                    <div className="sx-empty"><span>Nema instalirane opreme kod ovog korisnika</span></div>
+                  ) : (
+                    <div className="sx-tablewrap">
+                      <table className="sx-table">
+                        <thead>
+                          <tr>
+                            <th>Oprema</th>
+                            <th>Serijski broj</th>
+                            <th>Status</th>
+                            <th>Datum instalacije</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        </thead>
+                        <tbody>
+                          {userEquipment.map((equipment, i) => (
+                            <tr key={equipment._id || equipment.id} style={{ '--i': i }}>
+                              <td className="is-head">
+                                <div className="sx-cell">
+                                  <b>{equipment.category || equipment.equipmentType}</b>
+                                  <span>{equipment.description || equipment.equipmentDescription}</span>
+                                </div>
+                              </td>
+                              <td data-label="Serijski broj"><span className="sx-mono">{equipment.serialNumber}</span></td>
+                              <td data-label="Status"><Sign tone="ok">Instalirano</Sign></td>
+                              <td data-label="Datum instalacije"><span className="sx-mono">{formatDate(equipment.installedAt)}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </SheetSection>
+
+                <SheetSection title="Radni nalozi">
+                  {loadingWorkOrders ? (
+                    <Loading rows={2} text="Učitavanje radnih naloga..." />
+                  ) : userWorkOrders.length === 0 ? (
+                    <div className="sx-empty"><span>Nema radnih naloga za ovog korisnika</span></div>
+                  ) : (
+                    <div className="sx-tablewrap">
+                      <table className="sx-table">
+                        <thead>
+                          <tr>
+                            <th>Datum</th>
+                            <th>Tip</th>
+                            <th>Tehničar</th>
+                            <th>Status</th>
+                            <th className="is-end">Akcije</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userWorkOrders.map((order, i) => (
+                            <tr key={order._id} style={{ '--i': i, ...getTimRowStyle(order.tim) }}>
+                              <td className="is-head"><span className="sx-mono">{formatDate(order.date)}</span></td>
+                              <td data-label="Tip" className="is-wide"><b className="mx-strong">{order.type}</b></td>
+                              <td data-label="Tehničar">{order.technicianId?.name || 'Nedodeljen'}</td>
+                              <td data-label="Status"><Sign tone={STATUS_TONE[order.status] || 'idle'}>{getStatusLabel(order.status)}</Sign></td>
+                              <td className="is-actions is-end">
+                                <div className="sx-rowacts">
+                                  <LinkBtn
+                                    size="sm"
+                                    variant="ghost"
+                                    iconRight={ArrowUpRight}
+                                    to={`/work-orders/${order._id}`}
+                                    state={{
+                                      backgroundLocation: location,
+                                      fromUsersList: true,
+                                      selectedUserId: selectedUser._id,
+                                      previousPath: location.pathname
+                                    }}
+                                  >
+                                    Detalji
+                                  </LinkBtn>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </SheetSection>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-
     </div>
   );
 };

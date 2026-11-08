@@ -1,0 +1,21 @@
+/* Korisnici: dodaci uz sx (sortiranje kolona, boja reda po poslednjem nalogu, detalji korisnika). Boje samo iz tokena. */
+
+/* zaglavlje kolone koja se sortira */
+.mx-users-sort { display: inline-flex; align-items: center; gap: 4px; text-transform: inherit; transition: color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) { .mx-users-sort:hover { color: var(--sx-text); transition-duration: var(--hover-in); } }
+.mx-users-sort__dir { color: var(--sx-accent-text); }
+
+/* ime kupca se ne seče; bez drugog reda avatar je u ravni sa imenom */
+.sx-cell--who.mx-users-who b { white-space: normal; overflow-wrap: anywhere; }
+.mx-users-who:not(:has(.mx-users-sub)) .sx-avatar { grid-row: auto; }
+.mx-users-sub { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sx-skeleton.mx-users-sk { display: inline-block; width: 52px; height: 0.8em; vertical-align: middle; }
+
+/* blaga boja reda po statusu poslednjeg naloga */
+.sx-table tbody tr.mx-users-row--ok { background: color-mix(in oklab, var(--sx-ok) 6%, var(--sx-surface)); }
+.sx-table tbody tr.mx-users-row--warn { background: color-mix(in oklab, var(--sx-warn) 8%, var(--sx-surface)); }
+.sx-table tbody tr.mx-users-row--info { background: color-mix(in oklab, var(--sx-info) 6%, var(--sx-surface)); }
+.sx-table tbody tr.mx-users-row--bad { background: color-mix(in oklab, var(--sx-bad) 6%, var(--sx-surface)); }
+
+/* detalji korisnika: ispod sloja detalja naloga (9999) koji se otvara iz ovog prozora */
+.sx-dialog-backdrop.mx-users-backdrop { z-index: 9000; }
