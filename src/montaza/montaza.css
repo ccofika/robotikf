@@ -135,3 +135,8 @@
 .sx-time { text-align: center; }
 /* period (DateRangePicker): malo šire polje da datum, X i kalendar ne budu zbijeni */
 .mx-daterange .sx-dt { width: 182px; }
+/* traka sa pretragom i dugmadima u vrhu kartice sa tabelom (raspored starih stranica) */
+.mx-panelbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-panelbar .sx-search { flex: 0 1 380px; }
+.mx-panelbar__end { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+@media (max-width: 639px) { .mx-panelbar { padding: 12px 16px; } .mx-panelbar .sx-search { flex: 1 1 100%; } .mx-panelbar__end { margin-left: 0; } }
