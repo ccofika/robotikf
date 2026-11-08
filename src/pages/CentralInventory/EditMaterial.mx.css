@@ -1,0 +1,6 @@
+/* Izmena materijala: na telefonu Sačuvaj ide prvo preko cele širine, Obriši i Odustani ispod */
+@media (max-width: 639px) {
+  .mx-me-form .sx-panel__foot > .sx-btn { flex: 1 1 120px; }
+  .mx-me-form .sx-panel__foot > .sx-btn--primary { order: -1; flex-basis: 100%; }
+  .mx-me-form .sx-panel__foot > .mx-right { margin-left: 0; }
+}
