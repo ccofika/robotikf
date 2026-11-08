@@ -7,6 +7,7 @@ import { Btn } from '../../security/sx/ui';
 import { PageHead, Panel, Note } from '../../security/sx/layout';
 import { Field, Input } from '../../security/sx/forms';
 import { LinkBtn } from '../../montaza/ui';
+import './EditMaterial.mx.css';
 
 const AddMaterial = () => {
   const [formData, setFormData] = useState({
@@ -66,7 +67,8 @@ const AddMaterial = () => {
       />
 
       {/* Sačuvaj je kao ranije "submit" dugme forme sa onClick (handleSubmit sprečava dupli poziv) */}
-      <form onSubmit={handleSubmit}>
+      {/* kao ranije: uska kartica u sredini, polja jedno ispod drugog */}
+      <form onSubmit={handleSubmit} className="mx-mat-form">
         <Panel
           footer={<>
             <LinkBtn to="/materials" variant="ghost">Odustani</LinkBtn>
@@ -76,7 +78,7 @@ const AddMaterial = () => {
           </>}
         >
           {error && <Note tone="bad" className="mx-mb">{error}</Note>}
-          <div className="sx-form">
+          <div className="mx-mat-fields">
             <Field label="Vrsta materijala:" htmlFor="type">
               <Input type="text" id="type" name="type" value={formData.type} onChange={handleChange} placeholder="Unesite vrstu materijala" disabled={loading} autoFocus required />
             </Field>
