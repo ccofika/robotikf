@@ -1,21 +1,46 @@
-// Kompletna zamena za fajl: src/pages/WorkOrders/TechnicianWorkOrderDetail.js
+// Radni nalog tehničara (teren, prvo telefon): podaci o korisniku, oprema, materijal, slike, komentar i status
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, AlertIcon, CloseIcon, CalendarIcon, ImageIcon, DeleteIcon, SearchIcon, PhoneIcon, MapPinIcon, BoxIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { createPortal } from 'react-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ListChecks, Phone, MapPin, Search, Trash2, PackageMinus, Camera, X, Check, TriangleAlert, Upload, Save, RefreshCw, CircleCheck, Clock, CalendarClock, CircleX } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import { userEquipmentAPI, materialsAPI, workOrdersAPI, techniciansAPI } from '../../services/api';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
 import { AuthContext } from '../../context/AuthContext';
 import { useOverdueWorkOrders } from '../../context/OverdueWorkOrdersContext';
+import { cx, Btn, State, Empty } from '../../security/sx/ui';
+import { PageHead, Panel, Note, KV } from '../../security/sx/layout';
+import { Field, Input, Textarea, DateField, TimeField } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { confirm } from '../../security/sx/confirm';
+import { useLayer } from '../../security/sx/layer';
+import { Loading } from '../../montaza/ui';
 import EquipmentSelectionModal from './components/EquipmentSelectionModal';
 import MaterialsModal from './components/MaterialsModal';
 import UsedMaterialsList from './components/UsedMaterialsList';
 import InstalledEquipmentList from './components/InstalledEquipmentList';
-import './TechnicianWorkOrderDetail.css';
+import './TechnicianWorkOrderDetail.mx.css';
 import { localYmd } from '../../utils/localDate';
+
+// Statusi naloga: isti natpisi i redosled kao ranije, ton po vodiču (završen ok, nezavršen warn, odložen info, otkazan bad)
+const STATUSES = [
+  { key: 'zavrsen', label: 'Završen', tone: 'ok', icon: CircleCheck },
+  { key: 'nezavrsen', label: 'Nezavršen', tone: 'warn', icon: Clock },
+  { key: 'odlozen', label: 'Odložen', tone: 'info', icon: CalendarClock },
+  { key: 'otkazan', label: 'Otkazan', tone: 'bad', icon: CircleX }
+];
+
+// Slika preko celog ekrana: klik van slike, X ili Escape zatvaraju
+function ImageViewer({ src, onClose }) {
+  useLayer(true, onClose);
+  return createPortal(
+    <div className="sx-portal mx-tnalog-viewer" onClick={onClose} role="dialog" aria-modal="true" aria-label="Slika u punoj veličini">
+      <img src={src} alt="Slika u punoj veličini" onClick={(e) => e.stopPropagation()} />
+      <button type="button" className="mx-tnalog-viewer__x" onClick={onClose} aria-label="Zatvori"><X size={22} strokeWidth={1.8} /></button>
+    </div>,
+    document.body
+  );
+}
 
 const TechnicianWorkOrderDetail = () => {
   const { id } = useParams();
@@ -1233,7 +1258,7 @@ const TechnicianWorkOrderDetail = () => {
 
   // Funkcija za brisanje slike
   const handleImageDelete = async (imageUrl) => {
-    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu sliku?')) {
+    if (!(await confirm({ title: 'Da li ste sigurni da želite da obrišete ovu sliku?', tone: 'danger', confirmLabel: 'Obriši' }))) {
       return;
     }
 
@@ -1435,934 +1460,413 @@ const TechnicianWorkOrderDetail = () => {
   // - UsedMaterialsList -> ./components/UsedMaterialsList.js  
   // - InstalledEquipmentList -> ./components/InstalledEquipmentList.js
   
+  // Kad tehničar izabere Odložen ili Otkazan (npr. iz liste odozdo na telefonu), forma za razlog mora da se vidi
+  useEffect(() => {
+    if (!workOrder || formData.status === workOrder.status) return;
+    const el = document.getElementById(showCancelForm ? 'mx-tnalog-cancel' : 'mx-tnalog-postpone');
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [showPostponeForm, showCancelForm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const status = STATUSES.find((s) => s.key === formData.status) || STATUSES[1];
+  const req = <span className="mx-tnalog-req" aria-hidden="true">*</span>;
+
+  // Ista četiri dugmeta u panelu Status i u listu odozdo (telefon)
+  const statusButtons = (
+    <div className="mx-tnalog-status">
+      {STATUSES.map((s) => (
+        <Btn key={s.key} size="lg" variant={formData.status === s.key ? 'primary' : 'secondary'} icon={s.icon} aria-pressed={formData.status === s.key}
+          onClick={() => handleStatusChange(s.key)} disabled={saving || isWorkOrderCompleted}>
+          {s.label}
+        </Btn>
+      ))}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="technician-work-order-detail">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Učitavanje radnog naloga...</p>
-        </div>
+      <div className="sx-page mx-tnalog" data-testid="page-my-work-order-detail">
+        <Loading rows={5} h={72} text="Učitavanje radnog naloga..." />
       </div>
     );
   }
-  
+
   if (error) {
     return (
-      <div className="technician-work-order-detail fade-in">
-        <div className="page-header">
-          <h1 className="page-title">Detalji radnog naloga</h1>
-          <Link to="/my-work-orders" className="btn btn-sm">
-            <BackIcon /> Nazad
-          </Link>
-        </div>
-        <div className="alert alert-danger">{error}</div>
+      <div className="sx-page mx-tnalog" data-testid="page-my-work-order-detail">
+        <PageHead back={{ label: 'Nazad', onClick: () => navigate('/my-work-orders') }} eyebrow="Montaža · Moji radni nalozi" title="Detalji radnog naloga" />
+        <Note tone="bad">{error}</Note>
       </div>
     );
   }
-  
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-1 sm:p-6" ref={mainRef}>
-      {/* Pull to refresh indicator */}
-      <div className={`flex items-center justify-center space-x-2 py-2 text-slate-500 text-sm transition-opacity duration-300 ${
-        refreshing ? 'opacity-100' : 'opacity-60'
-      }`}>
-        <div className={`p-2 bg-slate-200 rounded-full transition-transform duration-500 ${
-          refreshing ? 'rotate-180' : ''
-        }`}>
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-            <path d="M3 3v5h5"></path>
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
-            <path d="M16 21h5v-5"></path>
-          </svg>
+    <div className="sx-page mx-tnalog" data-testid="page-my-work-order-detail" ref={mainRef}>
+      {isMobile && (
+        <div className={cx('mx-tnalog-pull', refreshing && 'is-on')} aria-hidden="true">
+          <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />
+          <span>Povucite za osvežavanje</span>
         </div>
-        <span>Povucite za osvežavanje</span>
-      </div>
+      )}
 
-      {/* Modern Header */}
-      <div className="mb-2 sm:mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 sm:p-3 bg-blue-50 rounded-lg">
-              <BoxIcon size={16} className="text-blue-600 sm:w-6 sm:h-6" />
+      <PageHead
+        back={{ label: 'Nazad', onClick: () => navigate('/my-work-orders') }}
+        eyebrow="Montaža · Moji radni nalozi"
+        title="Radni nalog"
+        actions={
+          <Btn variant={showStatusActions ? 'primary' : 'secondary'} icon={ListChecks} aria-pressed={showStatusActions}
+            onClick={() => setShowStatusActions(!showStatusActions)} data-testid="status-toggle">
+            Status
+          </Btn>
+        }
+      >
+        <div className="mx-tnalog-state"><State tone={status.tone} testId="work-order-status">{status.label}</State></div>
+      </PageHead>
+
+      <div className="mx-tnalog-grid">
+        {/* Podaci o korisniku i nalogu: na širokom ekranu desno, na telefonu prvi */}
+        <div className="mx-tnalog-side sx-stack">
+          <Panel title="Informacije o korisniku">
+            <div className="mx-tnalog-contact">
+              {workOrder?.userPhone && <Btn variant="primary" size="lg" icon={Phone} onClick={callUser}>Pozovi</Btn>}
+              <Btn size="lg" icon={MapPin} onClick={openInMaps}>Mapa</Btn>
             </div>
-            <div>
-              <h1 className="text-lg sm:text-2xl font-bold text-slate-900">Radni nalog</h1>
-              <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
-                formData.status === 'zavrsen' ? 'bg-green-50 text-green-700 border border-green-200' :
-                formData.status === 'odlozen' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                formData.status === 'otkazan' ? 'bg-red-50 text-red-700 border border-red-200' :
-                'bg-gray-50 text-gray-700 border border-gray-200'
-              }`}>
-                {formData.status === 'zavrsen' ? 'Završen' : 
-                 formData.status === 'odlozen' ? 'Odložen' :
-                 formData.status === 'otkazan' ? 'Otkazan' : 'Nezavršen'}
+            <KV items={[
+              { k: 'Korisnik', v: workOrder?.userName || 'Nije dostupno' },
+              { k: 'Telefon', v: workOrder?.userPhone || 'Nije dostupno', mono: !!workOrder?.userPhone },
+              workOrder?.customerEmail && { k: 'Email', v: workOrder.customerEmail },
+              { k: 'TIS ID', v: workOrder?.tisId || 'Nije dostupno', mono: !!workOrder?.tisId }
+            ]} />
+          </Panel>
+
+          <Panel title="Lokacija">
+            <KV items={[
+              { k: 'Opština', v: workOrder?.municipality },
+              { k: 'Adresa', v: workOrder?.address },
+              { k: 'Datum', v: new Date(workOrder?.date).toLocaleDateString('sr-RS'), mono: true },
+              { k: 'Vreme', v: workOrder?.time || '09:00', mono: true }
+            ]} />
+          </Panel>
+
+          <Panel title="Detalji instalacije">
+            <KV items={[
+              { k: 'Tip instalacije', v: workOrder?.type },
+              { k: 'Tehnologija', v: workOrder?.technology || 'Nije definisana' },
+              { k: 'Tim', v: <span className={cx('mx-tnalog-tim', getTimBadgeClasses(workOrder?.tim))}>{getTimLabel(workOrder?.tim)}</span> }
+            ]} />
+            {workOrder?.details && (
+              <div className="mx-tnalog-details">
+                <span className="sx-label">Detalji</span>
+                <p className="mx-tnalog-text">{workOrder?.details}</p>
               </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              type={showStatusActions ? "primary" : "secondary"}
-              size="small"
-              onClick={() => setShowStatusActions(!showStatusActions)}
-            >
-              Status
-            </Button>
-            <Link to="/my-work-orders">
-              <Button type="secondary" size="small" prefix={<BackIcon size={16} />}>
-                <span className="hidden sm:inline">Nazad</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="space-y-2 sm:space-y-6">
-        {/* User Info Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 sm:p-6 border-b border-slate-200">
-            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Informacije o korisniku</h2>
-          </div>
-          <div className="p-2 sm:p-6">
-            {/* Contact Actions */}
-            <div className="flex flex-col sm:flex-row gap-1 mb-2">
-              {workOrder?.userPhone && (
-                <Button
-                  type="primary"
-                  size="medium"
-                  onClick={callUser}
-                  prefix={<PhoneIcon size={16} />}
-                  className="flex-1"
-                >
-                  Pozovi
-                </Button>
-              )}
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={openInMaps}
-                prefix={<MapPinIcon size={16} />}
-                className="flex-1"
-              >
-                Mapa
-              </Button>
-            </div>
-            
-            {/* User Details Grid */}
-            <div className="space-y-1">
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Korisnik:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.userName || 'Nije dostupno'}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Telefon:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.userPhone || 'Nije dostupno'}</span>
-              </div>
-              {workOrder?.customerEmail && (
-                <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                  <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Email:</span>
-                  <span className="text-xs text-slate-900 font-medium">{workOrder.customerEmail}</span>
-                </div>
-              )}
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">TIS ID:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.tisId || 'Nije dostupno'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-          
-        {/* Location Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 sm:p-6 border-b border-slate-200">
-            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Lokacija</h2>
-          </div>
-          <div className="p-2 sm:p-6">
-            <div className="space-y-1">
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Opština:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.municipality}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Adresa:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.address}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Datum:</span>
-                <span className="text-xs text-slate-900 font-medium">{new Date(workOrder?.date).toLocaleDateString('sr-RS')}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Vreme:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.time || '09:00'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-          
-        {/* Installation Details Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 sm:p-6 border-b border-slate-200">
-            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Detalji instalacije</h2>
-          </div>
-          <div className="p-2 sm:p-6">
-            <div className="space-y-1">
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tip instalacije:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.type}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tehnologija:</span>
-                <span className="text-xs text-slate-900 font-medium">{workOrder?.technology || 'Nije definisana'}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between py-1 border-b border-slate-100">
-                <span className="text-xs font-medium text-slate-600 mb-0.5 sm:mb-0">Tim:</span>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded self-start sm:self-auto ${getTimBadgeClasses(workOrder?.tim)}`}>
-                  {getTimLabel(workOrder?.tim)}
-                </span>
-              </div>
-              {workOrder?.details && (
-                <div className="py-1">
-                  <span className="text-xs font-medium text-slate-600 block mb-1">Detalji:</span>
-                  <p className="text-xs text-slate-900 leading-tight bg-slate-50 p-2 rounded border">{workOrder?.details}</p>
-                </div>
-              )}
-            </div>
-          </div>
+            )}
+          </Panel>
         </div>
 
-        {/* Admin Comment Card - Razlog vraćanja */}
-        {workOrder?.adminComment && (
-          <div className="bg-red-50/80 backdrop-blur-md border border-red-200 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-2 sm:p-6 border-b border-red-300">
-              <h2 className="text-sm sm:text-xl font-semibold text-red-900">Razlog vraćanja radnog naloga</h2>
-            </div>
-            <div className="p-2 sm:p-6">
-              <div className="bg-red-100 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-800 leading-relaxed">{workOrder.adminComment}</p>
-              </div>
-              <div className="mt-3 text-xs text-red-700">
-                <strong>Napomena:</strong> Admin je vratio ovaj radni nalog na doradu. Molimo pročitajte razlog vraćanja i ispravite nedostajuće podatke pre ponovnog označavanja kao završen.
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Rad na nalogu: oprema, materijal, slike, komentar, status i čuvanje */}
+        <div className="mx-tnalog-main sx-stack">
+          {workOrder?.adminComment && (
+            <Panel title="Razlog vraćanja radnog naloga" tone="bad">
+              <p className="mx-tnalog-text is-bad">{workOrder.adminComment}</p>
+              <Note tone="bad" className="mx-mt">
+                <b>Napomena:</b> Admin je vratio ovaj radni nalog na doradu. Molimo pročitajte razlog vraćanja i ispravite nedostajuće podatke pre ponovnog označavanja kao završen.
+              </Note>
+            </Panel>
+          )}
 
-        {/* Equipment Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 sm:p-6 border-b border-slate-200">
-            <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Oprema korisnika</h2>
-          </div>
-          <div className="p-2 sm:p-6">
-            
-            <InstalledEquipmentList 
+          <Panel title="Oprema korisnika">
+            <InstalledEquipmentList
               userEquipment={userEquipment}
               openRemoveEquipmentDialog={openRemoveEquipmentDialog}
               isWorkOrderCompleted={isWorkOrderCompleted}
             />
 
-            <div className="mt-3 space-y-2">
-              <h3 className="text-xs font-semibold text-slate-900">Dodaj novu opremu:</h3>
-
-              <div className="space-y-2">
-                <Button
-                  type="secondary"
-                  size="small"
-                  onClick={openEquipmentModal}
-                  disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}
-                  prefix={<SearchIcon size={12} />}
-                  className="w-full sm:w-auto"
-                >
+            <div className="mx-tnalog-sec">
+              <h3 className="mx-tnalog-sub">Dodaj novu opremu:</h3>
+              <div className="mx-tnalog-row">
+                <Btn icon={Search} onClick={openEquipmentModal} disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}>
                   Izaberi opremu
-                </Button>
-                
-                {selectedEquipment && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                    <span className="text-xs text-blue-900 font-medium">
-                      {technicianEquipment.find(eq => eq.id === selectedEquipment)?.description} - 
-                      S/N: {technicianEquipment.find(eq => eq.id === selectedEquipment)?.serialNumber}
-                    </span>
-                  </div>
-                )}
-                
-                <Button
-                  type="primary"
-                  size="medium"
-                  onClick={() => handleAddEquipment(selectedEquipment)}
-                  disabled={!selectedEquipment || loadingEquipment || isWorkOrderCompleted}
-                  loading={loadingEquipment}
-                  className="w-full sm:w-auto"
-                >
+                </Btn>
+                <Btn variant="primary" onClick={() => handleAddEquipment(selectedEquipment)} disabled={!selectedEquipment || loadingEquipment || isWorkOrderCompleted} busy={loadingEquipment}>
                   {loadingEquipment ? 'Dodavanje...' : 'Dodaj opremu'}
-                </Button>
+                </Btn>
               </div>
-
-              {technicianEquipment.length === 0 && (
-                <div className="flex items-center space-x-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <AlertIcon size={16} className="text-yellow-600" />
-                  <span className="text-sm text-yellow-800">Nemate dostupnu opremu u vašem inventaru.</span>
-                </div>
+              {selectedEquipment && (
+                <Note className="mx-mt">
+                  {technicianEquipment.find(eq => eq.id === selectedEquipment)?.description} -
+                  S/N: {technicianEquipment.find(eq => eq.id === selectedEquipment)?.serialNumber}
+                </Note>
               )}
-              
-              {isWorkOrderCompleted && (
-                <div className="flex items-center space-x-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <span className="text-sm text-gray-700">Radni nalog je završen - uređivanje opreme nije moguće.</span>
-                </div>
-              )}
+              {technicianEquipment.length === 0 && <Note tone="warn" className="mx-mt">Nemate dostupnu opremu u vašem inventaru.</Note>}
+              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - uređivanje opreme nije moguće.</Note>}
+            </div>
 
-              {/* Equipment Removal Section */}
-              <div className="mt-6 pt-4 border-t border-slate-200">
-                <h3 className="text-xs font-semibold text-slate-900 mb-2">Uklanjanje opreme:</h3>
-                <p className="text-xs text-slate-600 mb-4">Ovde možete ukloniti opremu koja je prethodno dodata kod korisnika.</p>
-
-                <div className="space-y-3">
-                  {/* Equipment Name/Category Field */}
-                  <div>
-                    <label htmlFor="removalEquipmentName" className="block text-xs font-medium text-slate-700 mb-1">
-                      Naziv opreme (kategorija): <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="removalEquipmentName"
-                      value={removalEquipmentName}
-                      onChange={(e) => setRemovalEquipmentName(e.target.value)}
-                      placeholder="Unesite naziv opreme"
-                      disabled={loadingRemoval || isWorkOrderCompleted}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                    />
-                  </div>
-
-                  {/* Equipment Description Field */}
-                  <div>
-                    <label htmlFor="removalEquipmentDescription" className="block text-xs font-medium text-slate-700 mb-1">
-                      Opis opreme: <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="removalEquipmentDescription"
-                      value={removalEquipmentDescription}
-                      onChange={(e) => setRemovalEquipmentDescription(e.target.value)}
-                      placeholder="Unesite opis opreme"
-                      disabled={loadingRemoval || isWorkOrderCompleted}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                    />
-                  </div>
-
-                  {/* Serial Number Field */}
-                  <div>
-                    <label htmlFor="removalSerialNumber" className="block text-xs font-medium text-slate-700 mb-1">
-                      Serijski broj opreme: <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="removalSerialNumber"
-                      value={removalSerialNumber}
-                      onChange={(e) => setRemovalSerialNumber(e.target.value)}
-                      placeholder="Unesite tačan serijski broj opreme"
-                      disabled={loadingRemoval || isWorkOrderCompleted}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                    />
-                  </div>
-
-                  {/* Remove Button */}
-                  <Button
-                    type="primary"
-                    size="medium"
-                    onClick={handleEquipmentRemoval}
-                    disabled={!removalEquipmentName.trim() || !removalEquipmentDescription.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}
-                    loading={loadingRemoval}
-                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
-                  >
-                    {loadingRemoval ? 'Uklanjanje...' : 'Ukloni opremu'}
-                  </Button>
-                </div>
-
-                {isWorkOrderCompleted && (
-                  <div className="flex items-center space-x-2 p-3 bg-gray-50 border border-gray-200 rounded-lg mt-3">
-                    <span className="text-sm text-gray-700">Radni nalog je završen - uklanjanje opreme nije moguće.</span>
-                  </div>
-                )}
+            <div className="mx-tnalog-sec">
+              <h3 className="mx-tnalog-sub">Uklanjanje opreme:</h3>
+              <p className="mx-tnalog-hint">Ovde možete ukloniti opremu koja je prethodno dodata kod korisnika.</p>
+              <div className="sx-form">
+                <Field label={<>Naziv opreme (kategorija): {req}</>} htmlFor="removalEquipmentName">
+                  <Input id="removalEquipmentName" value={removalEquipmentName} onChange={(e) => setRemovalEquipmentName(e.target.value)}
+                    placeholder="Unesite naziv opreme" disabled={loadingRemoval || isWorkOrderCompleted} />
+                </Field>
+                <Field label={<>Opis opreme: {req}</>} htmlFor="removalEquipmentDescription">
+                  <Input id="removalEquipmentDescription" value={removalEquipmentDescription} onChange={(e) => setRemovalEquipmentDescription(e.target.value)}
+                    placeholder="Unesite opis opreme" disabled={loadingRemoval || isWorkOrderCompleted} />
+                </Field>
+                <Field label={<>Serijski broj opreme: {req}</>} htmlFor="removalSerialNumber" wide>
+                  <Input id="removalSerialNumber" mono value={removalSerialNumber} onChange={(e) => setRemovalSerialNumber(e.target.value)}
+                    placeholder="Unesite tačan serijski broj opreme" disabled={loadingRemoval || isWorkOrderCompleted} />
+                </Field>
               </div>
+              <div className="mx-tnalog-row mx-mt">
+                <Btn variant="danger" icon={PackageMinus} onClick={handleEquipmentRemoval} busy={loadingRemoval}
+                  disabled={!removalEquipmentName.trim() || !removalEquipmentDescription.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}>
+                  {loadingRemoval ? 'Uklanjanje...' : 'Ukloni opremu'}
+                </Btn>
+              </div>
+              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - uklanjanje opreme nije moguće.</Note>}
             </div>
-          </div>
-        </div>
+          </Panel>
 
-        {/* Removed Equipment Card */}
-        {removedEquipment.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-2 sm:p-6 border-b border-slate-200">
-              <h2 className="text-sm sm:text-xl font-semibold text-slate-900">Uklonjena oprema (u ovom radnom nalogu)</h2>
-            </div>
-            <div className="p-2 sm:p-6">
-              <div className="space-y-2">
+          {removedEquipment.length > 0 && (
+            <Panel title="Uklonjena oprema (u ovom radnom nalogu)">
+              <div className="sx-list">
                 {removedEquipment.map((equipment) => (
-                  <div key={equipment.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-red-900">{equipment.equipmentType}</span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          equipment.condition === 'ispravna'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {equipment.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-red-700 mt-1">
-                        S/N: <span className="font-mono">{equipment.serialNumber}</span>
-                      </div>
+                  <div key={equipment.id} className="sx-item">
+                    <span className="sx-item__icon is-bad"><PackageMinus size={17} strokeWidth={1.9} aria-hidden="true" /></span>
+                    <div className="sx-item__main">
+                      <b>{equipment.equipmentType}</b>
+                      <span>S/N: <span className="sx-mono">{equipment.serialNumber}</span></span>
                       {equipment.removedAt && (
-                        <div className="text-xs text-red-600 mt-1">
+                        <span>
                           Uklonjeno: {new Date(equipment.removedAt).toLocaleDateString('sr-RS')} u {new Date(equipment.removedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
+                        </span>
                       )}
                     </div>
-                    <div className="ml-3">
-                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                        <DeleteIcon size={14} className="text-red-600" />
-                      </div>
+                    <div className="sx-item__side">
+                      <State tone={equipment.condition === 'ispravna' ? 'ok' : 'bad'}>{equipment.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}</State>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
+            </Panel>
+          )}
 
-        {/* Materials Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-          <UsedMaterialsList 
+          <UsedMaterialsList
             usedMaterials={usedMaterials}
             openMaterialsModal={openMaterialsModal}
             removeMaterial={removeMaterial}
             loadingMaterials={loadingMaterials}
             isWorkOrderCompleted={isWorkOrderCompleted}
           />
-        </div>
-          
-        {/* Images Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden">
-          <div className="p-2 sm:p-6 border-b border-slate-200">
-            <h2 className="text-sm sm:text-xl font-semibold text-slate-900 flex items-center gap-1">
-              <ImageIcon size={14} /> Slike
-            </h2>
-          </div>
-          <div className="p-2 sm:p-6">
-            <div className="space-y-3">
-              {/* Upload Area */}
-              <div className="relative">
-                <input
-                  type="file"
-                  id="image-upload"
-                  onChange={handleImageChange}
-                  accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
-                  multiple
-                  disabled={uploadingImages || isWorkOrderCompleted}
-                  className="sr-only"
-                />
-                <label 
-                  htmlFor="image-upload" 
-                  className={`relative w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all overflow-hidden flex flex-col items-center justify-center space-y-3 p-4 ${
-                    uploadingImages || isWorkOrderCompleted
-                      ? 'border-slate-300 bg-slate-50 cursor-not-allowed'
-                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-blue-300'
-                  }`}
-                >
-                  <ImageIcon size={24} className="text-slate-400" />
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-slate-600">
-                      {uploadingImages ? 'Upload u toku...' : 'Fotografiši ili izaberi slike'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Možete odabrati do 10 slika odjednom (max 30MB po slici)
-                    </p>
-                  </div>
-                </label>
-              </div>
-                
-              {/* Image Previews */}
-              {(imagePreviews.length > 0 || uploadingImages) && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-base font-semibold text-slate-900">
-                      {uploadingImages && imagePreviews.length === 0 
-                        ? "Kompresovanje slika u toku..."
-                        : `Odabrane slike (${imagePreviews.length})`
-                      }
-                    </h4>
-                    {!uploadingImages && (
-                      <Button 
-                        type="secondary" 
-                        size="small"
-                        onClick={resetImageUpload}
-                        disabled={uploadingImages}
-                        prefix={<CloseIcon size={14} />}
-                      >
-                        Ukloni sve
-                      </Button>
-                    )}
-                  </div>
-                    
-                  {/* Compression Loading */}
-                  {uploadingImages && imagePreviews.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                      <p className="text-sm font-medium text-slate-900 mb-1">Kompresovanje slika u toku...</p>
-                      <p className="text-xs text-slate-500">Molimo sačekajte dok se slike pripravljaju za upload</p>
-                    </div>
+
+          <Panel title="Slike">
+            <input
+              type="file"
+              id="image-upload"
+              onChange={handleImageChange}
+              accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
+              multiple
+              disabled={uploadingImages || isWorkOrderCompleted}
+              className="sx-sr"
+            />
+            <label htmlFor="image-upload" className={cx('mx-tnalog-drop', (uploadingImages || isWorkOrderCompleted) && 'is-off')}>
+              <Camera size={22} strokeWidth={1.8} aria-hidden="true" />
+              <b>{uploadingImages ? 'Upload u toku...' : 'Fotografiši ili izaberi slike'}</b>
+              <span>Možete odabrati do 10 slika odjednom (max 30MB po slici)</span>
+            </label>
+
+            {(imagePreviews.length > 0 || uploadingImages) && (
+              <div className="mx-tnalog-sec">
+                <div className="mx-tnalog-subrow">
+                  <h4 className="mx-tnalog-sub">
+                    {uploadingImages && imagePreviews.length === 0
+                      ? 'Kompresovanje slika u toku...'
+                      : `Odabrane slike (${imagePreviews.length})`}
+                  </h4>
+                  {!uploadingImages && (
+                    <Btn size="sm" variant="ghost" icon={X} onClick={resetImageUpload} disabled={uploadingImages}>Ukloni sve</Btn>
                   )}
-                  
-                  {/* Image Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative group bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
-                        <div className="aspect-square">
-                          <img 
-                            src={preview.preview} 
-                            alt={`Preview ${index + 1}`} 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        
-                        {/* Image Info */}
-                        <div className="p-2 bg-white">
-                          <div className="text-xs font-medium text-slate-900 truncate" title={preview.name}>
-                            {preview.name}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {(preview.size / 1024 / 1024).toFixed(2)} MB
-                          </div>
-                        </div>
-                        
-                        {/* Upload Progress Overlay */}
+                </div>
+
+                {uploadingImages && imagePreviews.length === 0 && (
+                  <div className="mx-tnalog-busy" role="status">
+                    <span className="mx-tnalog-spin" aria-hidden="true" />
+                    <b>Kompresovanje slika u toku...</b>
+                    <span>Molimo sačekajte dok se slike pripravljaju za upload</span>
+                  </div>
+                )}
+
+                <div className="mx-tnalog-gallery">
+                  {imagePreviews.map((preview, index) => (
+                    <figure key={index} className="mx-tnalog-prev">
+                      <div className="mx-tnalog-img">
+                        <img src={preview.preview} alt={`Preview ${index + 1}`} />
                         {uploadingImages && uploadProgress[index] !== undefined && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <div className="mx-tnalog-prog">
                             {uploadProgress[index] === -1 ? (
-                              <div className="flex flex-col items-center text-red-400">
-                                <AlertIcon size={20} />
-                                <span className="text-xs mt-1">Greška</span>
-                              </div>
+                              <><TriangleAlert size={20} strokeWidth={1.9} aria-hidden="true" /><span>Greška</span></>
                             ) : uploadProgress[index] === 100 ? (
-                              <div className="flex flex-col items-center text-green-400">
-                                <CheckIcon size={20} />
-                                <span className="text-xs mt-1">Uspešno</span>
-                              </div>
+                              <><Check size={20} strokeWidth={2.2} aria-hidden="true" /><span>Uspešno</span></>
                             ) : (
-                              <div className="flex flex-col items-center text-white">
-                                <div className="w-12 h-2 bg-gray-300 rounded-full overflow-hidden mb-2">
-                                  <div 
-                                    className="h-full bg-blue-500 transition-all duration-300"
-                                    style={{ width: `${uploadProgress[index]}%` }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs">{uploadProgress[index]}%</span>
-                              </div>
+                              <><span className="mx-tnalog-bar"><i style={{ width: `${uploadProgress[index]}%` }} /></span><span className="sx-mono">{uploadProgress[index]}%</span></>
                             )}
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
-                  
-                  {/* Upload Button */}
-                  <div className="flex justify-center">
-                    <Button 
-                      type="primary"
-                      size="medium"
-                      onClick={handleImageUpload}
-                      disabled={uploadingImages}
-                      loading={uploadingImages}
-                      prefix={<SaveIcon size={16} />}
-                    >
-                      {uploadingImages 
-                        ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})` 
-                        : `Sačuvaj sve slike (${imagePreviews.length})`
-                      }
-                    </Button>
-                  </div>
+                      <figcaption>
+                        <b title={preview.name}>{preview.name}</b>
+                        <span className="sx-mono">{(preview.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+
+                <div className="mx-tnalog-row mx-mt">
+                  <Btn variant="primary" size="lg" icon={Upload} onClick={handleImageUpload} disabled={uploadingImages}>
+                    {uploadingImages
+                      ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})`
+                      : `Sačuvaj sve slike (${imagePreviews.length})`}
+                  </Btn>
+                </div>
+              </div>
+            )}
+
+            <div className="mx-tnalog-sec">
+              {images.length === 0 ? (
+                <Empty text="Nema dodatih slika" />
+              ) : (
+                <div className="mx-tnalog-gallery">
+                  {images.map((imageItem, index) => {
+                    // Podrška za stari i novi format
+                    const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
+                    const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
+                    return (
+                      <div key={index} className="mx-tnalog-img">
+                        <button type="button" className="mx-tnalog-img__open" onClick={() => setShowFullImage(imageUrl)}>
+                          <img src={imageUrl} alt={originalName || `Slika ${index + 1}`} />
+                        </button>
+                        {originalName && <span className="mx-tnalog-img__name">{originalName}</span>}
+                        <button
+                          type="button"
+                          className="mx-tnalog-img__del"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleImageDelete(imageUrl);
+                          }}
+                          title="Obriši sliku"
+                          disabled={isWorkOrderCompleted}
+                        >
+                          <Trash2 size={16} strokeWidth={1.9} aria-hidden="true" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-              </div>
-              
-              <div className="images-gallery">
-                {images.length === 0 ? (
-                  <p className="no-images-message">Nema dodatih slika</p>
-                ) : (
-                  <div className="images-grid">
-                    {images.map((imageItem, index) => {
-                      // Podrška za stari i novi format
-                      const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
-                      const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
-                      
-                      return (
-                        <div key={index} className="gallery-image-item">
-                          <img 
-                            src={imageUrl} 
-                            alt={originalName || `Slika ${index + 1}`} 
-                            className="gallery-image" 
-                            onClick={() => setShowFullImage(imageUrl)}
-                          />
-                          {originalName && (
-                            <div className="image-filename-overlay">
-                              {originalName}
-                            </div>
-                          )}
-                          <button
-                            className="delete-image-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleImageDelete(imageUrl);
-                            }}
-                            title="Obriši sliku"
-                            disabled={isWorkOrderCompleted}
-                          >
-                            <DeleteIcon />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                
-                {isWorkOrderCompleted && (
-                  <div className="info-message">
-                    Radni nalog je završen - dodavanje/brisanje slika nije moguće.
-                  </div>
-                )}
-              </div>
+              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - dodavanje/brisanje slika nije moguće.</Note>}
             </div>
-          </div>
+          </Panel>
 
-        {/* Comments Card */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Komentar tehničara</h2>
-          </div>
-          <div className="p-4 sm:p-6">
-            <textarea
+          <Panel title="Komentar tehničara">
+            <Textarea
               id="comment"
               name="comment"
               value={formData.comment}
               onChange={handleChange}
               placeholder={isWorkOrderCompleted ? "Radni nalog je završen - komentar se ne može menjati" : "Unesite komentar o izvršenom poslu"}
               disabled={saving || isWorkOrderCompleted}
-              rows="4"
-              className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none disabled:bg-slate-50 disabled:text-slate-500"
-            ></textarea>
-          </div>
-        </div>
-          
+              rows={4}
+              aria-label="Komentar tehničara"
+            />
+          </Panel>
+
           {isWorkOrderCompleted && (
-            <div className="card completion-info-card">
-              <div className="card-header">
-                <h2>Informacije o završetku</h2>
-              </div>
-              <div className="card-body">
-                <div className="info-message">
-                  <strong>Radni nalog je završen</strong> - sva polja su samo za čitanje.
-                  Možete pregledati sve informacije, ali ne možete ih menjati.
-                </div>
-              </div>
-            </div>
+            <Panel title="Informacije o završetku">
+              <Note tone="ok">
+                <b>Radni nalog je završen</b> - sva polja su samo za čitanje.
+                Možete pregledati sve informacije, ali ne možete ih menjati.
+              </Note>
+            </Panel>
           )}
-          
-          {/* Mobile Status Panel */}
-          {isMobile && (
-            <div className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg transition-all duration-300 z-40 ${
-              showStatusActions ? 'translate-y-0' : 'translate-y-full'
-            }`}>
-              <div className="p-4 grid grid-cols-2 gap-3">
-                <Button
-                  type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('zavrsen')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<CheckIcon size={16} />}
-                  className="flex-1"
-                >
-                  Završen
-                </Button>
-                <Button
-                  type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('nezavrsen')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<ClockIcon size={16} />}
-                  className="flex-1"
-                >
-                  Nezavršen
-                </Button>
-                <Button
-                  type={formData.status === 'odlozen' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('odlozen')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<AlertIcon size={16} />}
-                  className="flex-1"
-                >
-                  Odložen
-                </Button>
-                <Button
-                  type={formData.status === 'otkazan' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('otkazan')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<CloseIcon size={16} />}
-                  className="flex-1"
-                >
-                  Otkazan
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {/* Desktop Status Card */}
-          {!isMobile && (
-            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-slate-200">
-                <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Status radnog naloga</h2>
-              </div>
-              <div className="p-4 sm:p-6 grid grid-cols-2 gap-3">
-                <Button
-                  type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('zavrsen')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<CheckIcon size={16} />}
-                  className="flex-1"
-                >
-                  Završen
-                </Button>
-                <Button
-                  type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('nezavrsen')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<ClockIcon size={16} />}
-                  className="flex-1"
-                >
-                  Nezavršen
-                </Button>
-                <Button
-                  type={formData.status === 'odlozen' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('odlozen')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<AlertIcon size={16} />}
-                  className="flex-1"
-                >
-                  Odložen
-                </Button>
-                <Button
-                  type={formData.status === 'otkazan' ? 'primary' : 'secondary'}
-                  size="medium"
-                  onClick={() => handleStatusChange('otkazan')}
-                  disabled={saving || isWorkOrderCompleted}
-                  prefix={<CloseIcon size={16} />}
-                  className="flex-1"
-                >
-                  Otkazan
-                </Button>
-              </div>
-            </div>
-          )}
-          
+
+          <Panel title="Status radnog naloga" sub="Izaberite status radnog naloga">
+            {statusButtons}
+          </Panel>
+
           {showPostponeForm && (
-            <div className="card postpone-card">
-              <div className="card-header">
-                <h2>Odlaganje termina</h2>
-              </div>
-              <div className="info-message" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px' }}>
-                <strong>Napomena:</strong> Radni nalog može biti odložen maksimalno 48 sati. Za duže odlaganje molimo otkažite radni nalog.
-              </div>
-              <div className="postpone-form">
-                <div className="form-group">
-                  <label htmlFor="postponeDate">Novi datum:</label>
-                  <div className="date-picker-container">
-                    {isMobile ? (
-                      <input
-                        type="date"
-                        id="postponeDate"
-                        value={formData.postponeDate ? localYmd(formData.postponeDate) : ''}
-                        onChange={(e) => {
-                          const selectedDate = new Date(e.target.value);
-                          handleDateChange(selectedDate);
-                        }}
-                        min={localYmd()}
-                        max={localYmd(new Date(Date.now() + (48 * 60 * 60 * 1000)))}
-                        disabled={saving || isWorkOrderCompleted}
-                        className="form-control date-input-mobile"
-                      />
-                    ) : (
-                      <DatePicker
-                        id="postponeDate"
-                        selected={formData.postponeDate}
-                        onChange={handleDateChange}
-                        dateFormat="dd.MM.yyyy"
-                        minDate={new Date()}
-                        maxDate={new Date(Date.now() + (48 * 60 * 60 * 1000))}
-                        className="date-picker"
-                        disabled={saving || isWorkOrderCompleted}
-                        fixedHeight
-                      />
-                    )}
-                    <CalendarIcon className="date-picker-icon" />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="postponeTime">Novo vreme:</label>
-                  <input
-                    type="time"
-                    id="postponeTime"
-                    name="postponeTime"
-                    value={formData.postponeTime}
-                    onChange={handleChange}
+            <Panel title="Odlaganje termina" id="mx-tnalog-postpone">
+              <Note tone="info"><b>Napomena:</b> Radni nalog može biti odložen maksimalno 48 sati. Za duže odlaganje molimo otkažite radni nalog.</Note>
+              <div className="sx-form mx-mt">
+                <Field label="Novi datum:" htmlFor="postponeDate">
+                  <DateField
+                    id="postponeDate"
+                    value={formData.postponeDate ? localYmd(formData.postponeDate) : ''}
+                    onChange={(ymd) => handleDateChange(new Date(ymd))}
+                    min={localYmd()}
+                    max={localYmd(new Date(Date.now() + (48 * 60 * 60 * 1000)))}
                     disabled={saving || isWorkOrderCompleted}
                   />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="postponeComment">Razlog odlaganja: <span style={{color: 'red'}}>*</span></label>
-                  <textarea
+                </Field>
+                <Field label="Novo vreme:" htmlFor="postponeTime">
+                  <TimeField
+                    id="postponeTime"
+                    value={formData.postponeTime}
+                    onChange={(v) => handleChange({ target: { name: 'postponeTime', value: v } })}
+                    disabled={saving || isWorkOrderCompleted}
+                  />
+                </Field>
+                <Field label={<>Razlog odlaganja: {req}</>} htmlFor="postponeComment" wide>
+                  <Textarea
                     id="postponeComment"
                     name="postponeComment"
                     value={formData.postponeComment}
                     onChange={handleChange}
                     placeholder="Obavezno objasnite razlog odlaganja radnog naloga..."
                     required
-                    rows="3"
+                    rows={3}
                     disabled={saving || isWorkOrderCompleted}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc',
-                      fontSize: '14px',
-                      resize: 'vertical',
-                      minHeight: '80px'
-                    }}
                   />
-                </div>
+                </Field>
               </div>
-            </div>
+            </Panel>
           )}
 
           {showCancelForm && (
-            <div className="card cancel-card">
-              <div className="card-header">
-                <h2>Otkazivanje radnog naloga</h2>
-              </div>
-              <div className="info-message" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px' }}>
-                <strong>Napomena:</strong> Molimo objasnite razlog otkazivanja radnog naloga.
-              </div>
-              <div className="cancel-form">
-                <div className="form-group">
-                  <label htmlFor="cancelComment">Razlog otkazivanja: <span style={{color: 'red'}}>*</span></label>
-                  <textarea
-                    id="cancelComment"
-                    name="cancelComment"
-                    value={formData.cancelComment}
-                    onChange={handleChange}
-                    placeholder="Obavezno objasnite razlog otkazivanja radnog naloga..."
-                    required
-                    rows="4"
-                    disabled={saving || isWorkOrderCompleted}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc',
-                      fontSize: '14px',
-                      resize: 'vertical',
-                      minHeight: '100px'
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
+            <Panel title="Otkazivanje radnog naloga" id="mx-tnalog-cancel">
+              <Note tone="bad"><b>Napomena:</b> Molimo objasnite razlog otkazivanja radnog naloga.</Note>
+              <Field label={<>Razlog otkazivanja: {req}</>} htmlFor="cancelComment" className="mx-mt">
+                <Textarea
+                  id="cancelComment"
+                  name="cancelComment"
+                  value={formData.cancelComment}
+                  onChange={handleChange}
+                  placeholder="Obavezno objasnite razlog otkazivanja radnog naloga..."
+                  required
+                  rows={4}
+                  disabled={saving || isWorkOrderCompleted}
+                />
+              </Field>
+            </Panel>
           )}
-          
-          {/* Status Selection Section */}
-          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-6 mb-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Status radnog naloga</h3>
-              <p className="text-slate-600 text-sm">Izaberite status radnog naloga</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type={formData.status === 'zavrsen' ? 'primary' : 'secondary'}
-                size="medium"
-                onClick={() => handleStatusChange('zavrsen')}
-                disabled={saving || isWorkOrderCompleted}
-                prefix={<CheckIcon size={16} />}
-                className="flex-1"
-              >
-                Završen
-              </Button>
-              <Button
-                type={formData.status === 'nezavrsen' ? 'primary' : 'secondary'}
-                size="medium"
-                onClick={() => handleStatusChange('nezavrsen')}
-                disabled={saving || isWorkOrderCompleted}
-                prefix={<ClockIcon size={16} />}
-                className="flex-1"
-              >
-                Nezavršen
-              </Button>
-              <Button
-                type={formData.status === 'odlozen' ? 'primary' : 'secondary'}
-                size="medium"
-                onClick={() => handleStatusChange('odlozen')}
-                disabled={saving || isWorkOrderCompleted}
-                prefix={<AlertIcon size={16} />}
-                className="flex-1"
-              >
-                Odložen
-              </Button>
-              <Button
-                type={formData.status === 'otkazan' ? 'primary' : 'secondary'}
-                size="medium"
-                onClick={() => handleStatusChange('otkazan')}
-                disabled={saving || isWorkOrderCompleted}
-                prefix={<CloseIcon size={16} />}
-                className="flex-1"
-              >
-                Otkazan
-              </Button>
-            </div>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="save-form">
-            <div className="form-buttons">
-              <Button 
-                type="primary"
-                size="large"
-                disabled={saving || isWorkOrderCompleted}
-                loading={saving}
-                prefix={<SaveIcon size={16} />}
-                className="w-full sm:w-auto"
-                htmlType="submit"
-              >
-                {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
-              </Button>
-            </div>
+
+          <form onSubmit={handleSubmit} className="mx-tnalog-save">
+            <Btn type="submit" variant="primary" size="lg" icon={Save} disabled={saving || isWorkOrderCompleted} busy={saving} data-testid="save-work-order">
+              {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
+            </Btn>
           </form>
         </div>
-        
-      {/* Modal za pregled slike u punoj veličini */}
-      {showFullImage && (
-        <div className="modal-overlay image-viewer-overlay" onClick={() => setShowFullImage(null)}>
-          <div className="image-viewer-container" onClick={(e) => e.stopPropagation()}>
-            <img src={showFullImage} alt="Slika u punoj veličini" className="full-size-image" />
-            <button className="close-image-btn fixed-close-btn" onClick={() => setShowFullImage(null)}>
-              <CloseIcon />
-            </button>
-          </div>
-        </div>
-      )}
-      
+      </div>
+
+      {/* Status sa telefona: list odozdo, isti uslov kao ranija traka (do 768 px) */}
+      <Dialog open={isMobile && showStatusActions} onClose={() => setShowStatusActions(false)} busy={saving}
+        title="Status radnog naloga" description="Izaberite status radnog naloga" size="sm" testId="status-sheet">
+        {statusButtons}
+      </Dialog>
+
+      {showFullImage && <ImageViewer src={showFullImage} onClose={() => setShowFullImage(null)} />}
+
       {/* Modal za izbor opreme */}
-      <EquipmentSelectionModal 
+      <EquipmentSelectionModal
         showEquipmentModal={showEquipmentModal}
         closeModal={closeModal}
         stableEquipment={stableEquipment}
@@ -2374,9 +1878,9 @@ const TechnicianWorkOrderDetail = () => {
         isSearching={isSearching}
         selectEquipment={selectEquipment}
       />
-      
+
       {/* Modal za dodavanje materijala */}
-      <MaterialsModal 
+      <MaterialsModal
         showMaterialsModal={showMaterialsModal}
         materialModalKey={materialModalKey}
         selectedMaterialRef={selectedMaterialRef}
@@ -2386,10 +1890,6 @@ const TechnicianWorkOrderDetail = () => {
         addMaterial={addMaterial}
         loadingMaterials={loadingMaterials}
       />
-
-      
-      {/* Portal za DatePicker na desktop uređajima */}
-      {!isMobile && <div id="mobile-datepicker-portal"></div>}
     </div>
   );
 };

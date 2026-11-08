@@ -1,40 +1,42 @@
 import React from 'react';
-import { DeleteIcon } from '../../../components/icons/SvgIcons';
-import { Button } from '../../../components/ui/button-1';
+import { Router, Trash2 } from 'lucide-react';
+import { Btn, Empty } from '../../../security/sx/ui';
 
-const InstalledEquipmentList = ({ 
+// Oprema instalirana kod korisnika (deo panela "Oprema korisnika" na radnom nalogu tehničara)
+const InstalledEquipmentList = ({
   userEquipment,
   openRemoveEquipmentDialog,
   isWorkOrderCompleted
 }) => {
   return (
     <div>
-      <h4 className="text-xs font-semibold text-slate-900 mb-2">Instalirana oprema:</h4>
+      <h4 className="mx-tnalog-sub">Instalirana oprema:</h4>
       {userEquipment.length > 0 ? (
-        <div className="space-y-1">
+        <div className="sx-list">
           {userEquipment.map((equipment) => (
-            <div key={equipment._id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded">
-              <div className="flex-1">
-                <div className="text-xs font-medium text-slate-900">{equipment.category} - {equipment.description}</div>
-                <div className="text-xs text-slate-600 mt-0.5">S/N: {equipment.serialNumber}</div>
+            <div key={equipment._id} className="sx-item">
+              <span className="sx-item__icon"><Router size={17} strokeWidth={1.9} aria-hidden="true" /></span>
+              <div className="sx-item__main">
+                <b>{equipment.category} - {equipment.description}</b>
+                <span>S/N: <span className="sx-mono">{equipment.serialNumber}</span></span>
               </div>
-              <Button
-                type="secondary"
-                size="small"
-                onClick={() => openRemoveEquipmentDialog(equipment)}
-                disabled={isWorkOrderCompleted}
-                prefix={<DeleteIcon size={10} />}
-                className="ml-2"
-              >
-                <span className="hidden sm:inline text-xs">Ukloni</span>
-              </Button>
+              <div className="sx-item__side">
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  icon={Trash2}
+                  className="mx-danger"
+                  onClick={() => openRemoveEquipmentDialog(equipment)}
+                  disabled={isWorkOrderCompleted}
+                >
+                  Ukloni
+                </Btn>
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-center py-3">
-          <p className="text-xs text-slate-500">Nema instalirane opreme</p>
-        </div>
+        <Empty text="Nema instalirane opreme" />
       )}
     </div>
   );
