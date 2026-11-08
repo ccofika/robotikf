@@ -4,7 +4,8 @@ import { Field, Input, Select } from '../../../security/sx/forms';
 import Dialog from '../../../security/sx/Dialog';
 import '../TechnicianWorkOrderDetail.mx.css';
 
-// Dodavanje materijala (radni nalog tehničara i Edit naloga): dijalog, na telefonu list odozdo. Props su isti kao ranije.
+// Dodavanje materijala (radni nalog tehničara i Edit naloga): Security dijalog (na telefonu odozdo), isti sadržaj i
+// redosled kao ranije (Materijal, Količina, Otkaži i Dodaj materijal iste širine). Props su isti.
 const MaterialsModalContent = React.memo(({
   selectedMaterialRef,
   materialQuantityRef,
@@ -67,12 +68,12 @@ const MaterialsModalContent = React.memo(({
       className="mx-tnalog-dlg"
       testId="materials-modal"
       footer={
-        <>
-          <Btn variant="ghost" onClick={closeMaterialsModal}>Otkaži</Btn>
+        <div className="mx-tnalog-dlg__pair">
+          <Btn onClick={closeMaterialsModal}>Otkaži</Btn>
           <Btn variant="primary" onClick={addMaterial} disabled={isAddDisabled} busy={loadingMaterials}>
             {loadingMaterials ? 'Dodavanje...' : 'Dodaj materijal'}
           </Btn>
-        </>
+        </div>
       }
     >
       <Field label="Materijal:" htmlFor="material-select">

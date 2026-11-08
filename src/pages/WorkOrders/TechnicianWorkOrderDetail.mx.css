@@ -1,51 +1,66 @@
 /* =============================================================================
-   Radni nalog tehničara (teren, prvo telefon): dodaci uz sx- klase. Sve je pod .mx-tnalog
-   (stranica) ili .mx-tnalog-dlg (njeni dijalozi), bez globalnih pravila. Boje samo iz tokena.
-   Pravila za h3/h4, p i button idu sa roditeljem: osnova sx (uvozi se posle) im briše margine i izgled.
+   Radni nalog tehničara: ista struktura kao ranije (kartice jedna ispod druge), izgled Security dela.
+   Sve je pod .mx-tnalog (stranica), .mx-tnalog-bar / .mx-tnalog-viewer (portal) ili .mx-tnalog-dlg (dijalozi),
+   bez globalnih pravila. Boje samo iz tokena. Pravila za h1-h4, p i button idu sa roditeljem: osnova sx
+   (uvozi se posle) im briše margine i izgled.
    ============================================================================= */
 
-/* povlačenje za osvežavanje (samo telefon) */
-.mx-tnalog-pull { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -6px 0 10px; font-size: 12px; color: var(--sx-faint); }
-.mx-tnalog-pull svg { transition: transform 500ms var(--ease-move); }
-.mx-tnalog-pull.is-on { color: var(--sx-text-2); }
-.mx-tnalog-pull.is-on svg { transform: rotate(180deg); }
+/* povlačenje za osvežavanje */
+.mx-tnalog-pull { display: flex; align-items: center; justify-content: center; gap: 8px; margin: -8px 0 12px; font-size: 12.5px; color: var(--sx-muted); opacity: 0.6; transition: opacity 300ms linear; }
+.mx-tnalog-pull.is-on { opacity: 1; }
+.mx-tnalog-pull__ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--sx-surface-3); transition: transform 500ms var(--ease-move); }
+.mx-tnalog-pull.is-on .mx-tnalog-pull__ic { transform: rotate(180deg); }
 
-.mx-tnalog-state { margin-top: 14px; }
+/* zaglavlje u jednom redu: ikonica, naslov i stanje levo, Status i Nazad desno */
+.mx-tnalog-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.mx-tnalog-top__main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mx-tnalog-top__icon { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 13px; background: var(--sx-accent-soft); color: var(--sx-accent-text); }
+.mx-tnalog-top__titles { display: grid; justify-items: start; gap: 6px; min-width: 0; }
+.mx-tnalog .mx-tnalog-top__title { font-size: clamp(24px, 1vw + 18px, 34px); }
+.mx-tnalog-top__acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-/* dve kolone na širokom: rad levo, podaci o korisniku desno; na telefonu podaci prvi */
-.mx-tnalog-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
-@container page (min-width: 980px) {
-  .mx-tnalog-grid { grid-template-columns: minmax(0, 1fr) clamp(320px, 34%, 420px); }
-  .mx-tnalog-main { grid-column: 1; grid-row: 1; }
-  .mx-tnalog-side { grid-column: 2; grid-row: 1; }
-}
-
-.mx-tnalog-contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 16px; }
-.mx-tnalog-contact .sx-btn { width: 100%; }
+/* kartice */
+.mx-tnalog-contact { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+@media (min-width: 640px) { .mx-tnalog-contact { flex-direction: row; } .mx-tnalog-contact .sx-btn { flex: 1 1 0; } }
 .mx-tnalog-tim { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 7px; font-size: 11.5px; font-weight: 600; }
-.mx-tnalog-details { display: grid; gap: 8px; margin-top: 14px; }
-.mx-tnalog-text { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); font-size: 13.5px; line-height: 1.55; color: var(--sx-text); overflow-wrap: anywhere; }
-.mx-tnalog-text.is-bad { border-color: color-mix(in oklab, var(--sx-bad) 26%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 6%, var(--sx-surface)); }
+.mx-tnalog-details { display: grid; gap: 8px; margin-top: 12px; }
+.mx-tnalog .mx-tnalog-text { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); font-size: 13.5px; line-height: 1.55; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-tnalog .mx-tnalog-text.is-bad { border-color: color-mix(in oklab, var(--sx-bad) 26%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 7%, var(--sx-surface)); color: var(--sx-bad-text); }
+.mx-tnalog .mx-tnalog-note { margin-top: 12px; font-size: 12.5px; line-height: 1.5; color: var(--sx-text-2); }
+.mx-tnalog .mx-tnalog-note.is-bad { color: var(--sx-bad-text); }
+.mx-tnalog-ttl { display: inline-flex; align-items: center; gap: 8px; }
+.mx-tnalog .sx-empty { align-items: center; padding: 18px 0; text-align: center; }
 
-/* delovi panela (oprema, slike) */
-.mx-tnalog-sec { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--sx-line); }
-.mx-tnalog .mx-tnalog-sub { margin-bottom: 10px; font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
-.mx-tnalog-subrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-.mx-tnalog .mx-tnalog-subrow .mx-tnalog-sub { margin-bottom: 0; }
-.mx-tnalog .mx-tnalog-hint { margin: -4px 0 14px; font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
+/* delovi kartice Oprema korisnika */
+.mx-tnalog .mx-tnalog-sub { margin-bottom: 8px; font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-tnalog-add { margin-top: 14px; }
+.mx-tnalog-sec { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sx-line); }
+.mx-tnalog .mx-tnalog-hint { margin: -2px 0 14px; font-size: 13px; line-height: 1.45; color: var(--sx-muted); }
 .mx-tnalog-req { color: var(--sx-bad-text); }
-.mx-tnalog-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.mx-tnalog .sx-empty { padding: 2px 0; }
-/* stavka liste: dugme ostaje desno i na telefonu */
-.mx-tnalog .sx-item { grid-template-columns: auto minmax(0, 1fr) auto; }
-.mx-tnalog .sx-item__side { grid-column: auto; }
+.mx-tnalog-btncol { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.mx-tnalog-fields { display: grid; gap: 14px; }
+.mx-tnalog-fields > .sx-field + .sx-field { margin-top: 0; }
+@media (max-width: 639px) { .mx-tnalog-btncol { align-items: stretch; } }
+
+/* liste (instalirana i uklonjena oprema, materijali): redovi sa okvirom, dugme desno */
+.mx-tnalog-list { display: grid; gap: 6px; }
+.mx-tnalog-li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-tnalog-li.is-bad { border-color: color-mix(in oklab, var(--sx-bad) 24%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 5%, var(--sx-surface)); }
+.mx-tnalog-li__main { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.mx-tnalog-li__main b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-tnalog-li__main > span { font-size: 12.5px; color: var(--sx-muted); overflow-wrap: anywhere; }
+.mx-tnalog-li__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mx-tnalog-li__mark { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in oklab, var(--sx-bad) 12%, var(--sx-surface)); color: var(--sx-bad-text); }
+.mx-tnalog .mx-tnalog-foot { margin-top: 14px; }
+/* natpis dugmeta u redu samo na širem ekranu (na telefonu samo ikonica, kao ranije) */
+@media (max-width: 639px) { .mx-tnalog .mx-tnalog-wide { display: none; } }
 
 /* slike: polje za izbor, odabrane (kompresija, slanje) i sačuvane */
 .mx-tnalog-drop {
   display: grid;
   justify-items: center;
   gap: 4px;
-  padding: 22px 16px;
+  padding: 24px 16px;
   border: 1.5px dashed var(--sx-line-3);
   border-radius: 16px;
   background: var(--sx-surface-2);
@@ -53,88 +68,137 @@
   cursor: pointer;
   transition: border-color var(--hover-out) var(--ease-move), background-color var(--hover-out) var(--ease-move);
 }
-.mx-tnalog-drop svg { margin-bottom: 4px; color: var(--sx-text-2); }
-.mx-tnalog-drop b { font-size: 14px; font-weight: 650; color: var(--sx-text); }
+.mx-tnalog-drop svg { margin-bottom: 6px; color: var(--sx-faint); }
+.mx-tnalog-drop b { font-size: 14px; font-weight: 650; color: var(--sx-text-2); }
 .mx-tnalog-drop span { font-size: 12.5px; color: var(--sx-muted); }
-.mx-tnalog-drop.is-off { cursor: not-allowed; opacity: 0.6; }
-.mx-tnalog-drop:not(.is-off):active { background: var(--sx-surface-3); }
+.mx-tnalog-drop.is-off { cursor: not-allowed; }
 @media (hover: hover) and (pointer: fine) {
-  .mx-tnalog-drop:not(.is-off):hover { border-color: var(--sx-accent); background: var(--sx-accent-soft); transition-duration: var(--hover-in); }
+  .mx-tnalog-drop:not(.is-off):hover { border-color: var(--sx-accent); background: var(--sx-surface-3); transition-duration: var(--hover-in); }
 }
 .mx-tnalog .sx-sr:focus-visible + .mx-tnalog-drop { outline: 2px solid var(--sx-accent); outline-offset: 2px; }
-
-.mx-tnalog-busy { display: grid; justify-items: center; gap: 4px; padding: 20px 12px; text-align: center; }
+.mx-tnalog-subrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.mx-tnalog .mx-tnalog-subrow .mx-tnalog-sub { margin-bottom: 0; font-size: 15px; }
+.mx-tnalog-busy { display: grid; justify-items: center; gap: 4px; padding: 24px 12px; text-align: center; }
 .mx-tnalog-busy b { font-size: 14px; color: var(--sx-text); }
 .mx-tnalog-busy > span:last-child { font-size: 12.5px; color: var(--sx-muted); }
 .mx-tnalog-spin { width: 28px; height: 28px; margin-bottom: 8px; border-radius: 50%; border: 2.5px solid var(--sx-line-2); border-top-color: var(--sx-accent); animation: sx-spin 0.8s linear infinite; }
-
-.mx-tnalog-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 40%), 1fr)); gap: 10px; }
-.mx-tnalog-img { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; border: 1px solid var(--sx-line); background: var(--sx-surface-3); }
+.mx-tnalog-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (min-width: 640px) { .mx-tnalog-previews { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 768px) { .mx-tnalog-previews { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.mx-tnalog-prev { position: relative; overflow: hidden; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface); }
+.mx-tnalog-prev__img { position: relative; aspect-ratio: 1; background: var(--sx-surface-3); }
+.mx-tnalog-prev__img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mx-tnalog-prev figcaption { display: grid; gap: 1px; min-width: 0; padding: 8px 10px; }
+.mx-tnalog-prev figcaption b { font-size: 12.5px; font-weight: 600; color: var(--sx-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-tnalog-prev figcaption span { font-size: 11.5px; color: var(--sx-muted); }
+.mx-tnalog-prog { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; background: color-mix(in srgb, var(--sx-toast-bg) 55%, transparent); color: var(--sx-toast-text); font-size: 12px; font-weight: 600; }
+.mx-tnalog-progress { display: block; width: 64px; height: 6px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--sx-toast-text) 30%, transparent); }
+.mx-tnalog-progress > i { display: block; height: 100%; background: var(--sx-accent); transition: width 300ms var(--ease-move); }
+.mx-tnalog-center { display: flex; justify-content: center; margin-top: 16px; }
+.mx-tnalog-gallery { margin-top: 18px; }
+.mx-tnalog-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 768px) { .mx-tnalog-images { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+.mx-tnalog-img { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--sx-line); background: var(--sx-surface-3); }
 .mx-tnalog-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.mx-tnalog .mx-tnalog-img__open { display: block; width: 100%; height: 100%; cursor: zoom-in; }
+.mx-tnalog .mx-tnalog-img__open { display: block; width: 100%; height: 100%; cursor: pointer; }
 .mx-tnalog .mx-tnalog-img__open:focus-visible { outline-offset: -3px; }
+/* naziv slike i dugme za brisanje: kao ranije, pojavljuju se na prelaz mišem (dugme na telefonu stalno) */
 .mx-tnalog-img__name {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20px 10px 8px;
-  background: linear-gradient(transparent, color-mix(in srgb, var(--sx-toast-bg) 78%, transparent));
+  padding: 18px 8px 8px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--sx-toast-bg) 80%, transparent));
   color: var(--sx-toast-text);
-  font-size: 11.5px;
-  font-weight: 550;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  overflow-wrap: anywhere;
   pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 300ms var(--ease-move), transform 300ms var(--ease-move);
 }
 .mx-tnalog .mx-tnalog-img__del {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--sx-surface);
-  color: var(--sx-bad-text);
-  box-shadow: var(--sx-shadow-pop);
-  transition: background-color var(--hover-out) var(--ease-move), color var(--hover-out) var(--ease-move);
+  background: var(--sx-bad-strong);
+  color: var(--sx-on-bad);
+  opacity: 0;
+  transition: opacity 300ms var(--ease-move), background-color var(--hover-out) var(--ease-move);
 }
-.mx-tnalog .mx-tnalog-img__del:disabled { opacity: 0.5; cursor: not-allowed; }
-@media (hover: hover) and (pointer: fine) {
-  .mx-tnalog .mx-tnalog-img__del:hover:not(:disabled) { background: var(--sx-bad-strong); color: var(--sx-on-bad); transition-duration: var(--hover-in); }
-}
-.mx-tnalog-prev { display: grid; gap: 6px; min-width: 0; }
-.mx-tnalog-prev figcaption { display: grid; gap: 1px; min-width: 0; }
-.mx-tnalog-prev figcaption b { font-size: 12.5px; font-weight: 600; color: var(--sx-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mx-tnalog-prev figcaption span { font-size: 11.5px; color: var(--sx-muted); }
-.mx-tnalog-prog { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; background: color-mix(in srgb, var(--sx-toast-bg) 55%, transparent); color: var(--sx-toast-text); font-size: 12px; font-weight: 600; }
-.mx-tnalog-bar { display: block; width: 64px; height: 6px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--sx-toast-text) 30%, transparent); }
-.mx-tnalog-bar > i { display: block; height: 100%; background: var(--sx-accent); transition: width 300ms var(--ease-move); }
+.mx-tnalog-img:hover .mx-tnalog-img__name, .mx-tnalog-img:hover .mx-tnalog-img__del { opacity: 1; transform: none; }
+.mx-tnalog-img:focus-within .mx-tnalog-img__name, .mx-tnalog-img:focus-within .mx-tnalog-img__del { opacity: 1; transform: none; }
+@media (max-width: 576px) { .mx-tnalog .mx-tnalog-img__del { opacity: 0.9; } }
+.mx-tnalog .mx-tnalog-img__del:disabled { cursor: not-allowed; }
 
-/* status i čuvanje */
-.mx-tnalog-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* status, odlaganje i čuvanje */
+.mx-tnalog-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mx-tnalog-status .sx-btn { width: 100%; }
+.mx-tnalog-postpone { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px 18px; margin-top: 14px; }
+.mx-tnalog-postpone > .sx-field + .sx-field { margin-top: 0; }
+@media (min-width: 768px) { .mx-tnalog-postpone { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mx-tnalog-postpone > .is-wide { grid-column: 1 / -1; } }
 .mx-tnalog-save { display: flex; justify-content: flex-end; }
-@container page (max-width: 640px) {
-  .mx-tnalog-save .sx-btn { flex: 1; }
-  .mx-tnalog-row > .sx-btn { flex: 1 1 120px; }
+@media (max-width: 639px) { .mx-tnalog-save .sx-btn { flex: 1; } }
+
+/* telefon (do 768 px): traka sa statusima uz donju ivicu ekrana, kao ranije */
+.mx-tnalog-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--sx-line);
+  background: color-mix(in srgb, var(--sx-surface) 95%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 -16px 40px -24px rgb(0 0 0 / 0.35);
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 300ms var(--ease-move), visibility 0s linear 300ms;
 }
+.mx-tnalog-bar.is-open { transform: none; visibility: visible; transition: transform 300ms var(--ease-move); }
 
-/* slika preko celog ekrana */
-.mx-tnalog-viewer { position: fixed; inset: 0; z-index: 10060; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--sx-toast-bg) 92%, transparent); animation: sx-fade 160ms linear both; }
-.mx-tnalog-viewer img { max-width: 100%; max-height: calc(100dvh - 32px); object-fit: contain; border-radius: 12px; }
-.mx-tnalog-viewer .mx-tnalog-viewer__x { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 12px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--sx-surface); color: var(--sx-text); box-shadow: var(--sx-shadow-pop); }
+/* slika u punoj veličini */
+.mx-tnalog-viewer { position: fixed; inset: 0; z-index: 10060; display: grid; place-items: center; padding: 20px; background: color-mix(in srgb, var(--sx-toast-bg) 92%, transparent); }
+.mx-tnalog-viewer img { max-width: 100%; max-height: calc(100dvh - 40px); object-fit: contain; border-radius: 10px; }
+.mx-tnalog-viewer .mx-tnalog-viewer__x { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 14px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--sx-bad-strong); color: var(--sx-on-bad); box-shadow: var(--sx-shadow-pop); }
 
-/* dijalozi izbora opreme i materijala */
-.mx-tnalog-dlg__search { margin-bottom: 12px; }
+/* dijalozi izbora opreme i materijala (isti sadržaj i redosled kao ranije) */
+.mx-tnalog-dlg__search { margin-bottom: 14px; }
 .mx-tnalog-dlg__count { margin-right: auto; align-self: center; font-size: 12.5px; color: var(--sx-muted); }
-.mx-tnalog-dlg__list .sx-item.is-click:first-child { padding-top: 12px; }
+.mx-tnalog-dlg__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+@media (min-width: 640px) { .mx-tnalog-dlg__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mx-tnalog-dlg__item { display: grid; gap: 4px; padding: 12px; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); cursor: pointer; transition: border-color var(--hover-out) var(--ease-move), background-color var(--hover-out) var(--ease-move); }
+.mx-tnalog-dlg__item b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-tnalog-dlg__item > span { font-size: 12.5px; color: var(--sx-muted); overflow-wrap: anywhere; }
+.mx-tnalog-dlg__itemtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.mx-tnalog-dlg__check { color: var(--sx-faint); transition: color var(--hover-out) var(--ease-move); }
+.mx-tnalog-dlg__item:active { background: var(--sx-surface-3); }
+@media (hover: hover) and (pointer: fine) {
+  .mx-tnalog-dlg__item:hover { border-color: var(--sx-accent); background: var(--sx-surface-3); transition-duration: var(--hover-in); }
+  .mx-tnalog-dlg__item:hover .mx-tnalog-dlg__check { color: var(--sx-accent); }
+}
+.mx-tnalog-dlg__empty { display: grid; justify-items: center; gap: 8px; padding: 18px 8px; text-align: center; }
+.mx-tnalog-dlg__empty b { font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.mx-tnalog-dlg__empty > span:not(.mx-tnalog-dlg__emptyic) { max-width: 40ch; font-size: 13px; line-height: 1.5; color: var(--sx-muted); }
+.mx-tnalog-dlg__emptyic { display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 4px; border-radius: 50%; background: var(--sx-surface-3); color: var(--sx-muted); }
+.mx-tnalog-dlg__emptyic.is-warn { background: color-mix(in oklab, var(--sx-warn) 16%, var(--sx-surface)); color: var(--sx-warn-text); }
+.mx-tnalog-dlg__pair { display: flex; gap: 8px; width: 100%; }
+.mx-tnalog-dlg__pair > .sx-btn { flex: 1 1 0; }
 
-/* dodir: polja od 16 px (iOS ne zumira pri fokusu) i viša mala dugmad, samo ovde */
+/* dodir: polja od 16 px (iOS ne zumira pri fokusu) i viša dugmad, samo ovde */
 @media (pointer: coarse) {
   :is(.mx-tnalog, .mx-tnalog-dlg) :is(.sx-input, .sx-textarea, .sx-dt__in, .sx-search input) { font-size: 16px; }
   .mx-tnalog .sx-btn--sm { height: 40px; }
+  .mx-tnalog .sx-btn:not(.sx-btn--sm):not(.sx-btn--lg) { height: 44px; }
 }
