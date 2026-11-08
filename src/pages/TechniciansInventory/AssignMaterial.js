@@ -149,7 +149,9 @@ const AssignMaterial = () => {
 
       {technician && <Panel title={technician.name} sub="Tehničar" className="mx-mb" />}
 
+      {/* tabovi na sredini, kao ranije */}
       <Tabs
+        className="justify-center"
         items={[
           { key: 'assign', label: 'Zaduži materijal', icon: Plus },
           { key: 'return', label: 'Razduži materijal', icon: Minus, disabled: technicianMaterials.length === 0 }
@@ -159,26 +161,7 @@ const AssignMaterial = () => {
       />
 
       <div className="sx-stack">
-        <Panel
-          title={isAssign ? 'Zaduženje materijala' : 'Razduženje materijala'}
-          footer={isAssign ? (
-            availableMaterials.length === 0 ? (
-              <span className="sx-muted">Nema dostupnih materijala u magacinu</span>
-            ) : (
-              <Btn variant="primary" icon={Plus} onClick={handleAssignMaterial} disabled={loading || !selectedMaterial || quantity <= 0}>
-                Zaduži materijal
-              </Btn>
-            )
-          ) : (
-            technicianMaterials.length === 0 ? (
-              <span className="sx-muted">Tehničar nema zadužen nijedan materijal</span>
-            ) : (
-              <Btn variant="primary" icon={Minus} onClick={handleReturnMaterial} disabled={loading || !selectedMaterial || quantity <= 0}>
-                Razduži materijal
-              </Btn>
-            )
-          )}
-        >
+        <Panel title={isAssign ? 'Zaduženje materijala' : 'Razduženje materijala'}>
           <div className="sx-form">
             <Field label="Materijal:" htmlFor="material">
               <Select
@@ -214,6 +197,27 @@ const AssignMaterial = () => {
                 disabled={loading || !selectedMaterial}
               />
             </Field>
+          </div>
+
+          {/* radnja ispod polja, desno (kao ranije) */}
+          <div className="flex justify-end mx-mt">
+            {isAssign ? (
+              availableMaterials.length === 0 ? (
+                <span className="sx-muted">Nema dostupnih materijala u magacinu</span>
+              ) : (
+                <Btn variant="primary" icon={Plus} onClick={handleAssignMaterial} disabled={loading || !selectedMaterial || quantity <= 0}>
+                  Zaduži materijal
+                </Btn>
+              )
+            ) : (
+              technicianMaterials.length === 0 ? (
+                <span className="sx-muted">Tehničar nema zadužen nijedan materijal</span>
+              ) : (
+                <Btn variant="primary" icon={Minus} onClick={handleReturnMaterial} disabled={loading || !selectedMaterial || quantity <= 0}>
+                  Razduži materijal
+                </Btn>
+              )
+            )}
           </div>
         </Panel>
 
