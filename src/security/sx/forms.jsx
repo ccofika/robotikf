@@ -275,6 +275,9 @@ function parseDateText(text) {
   if (m) return ymdToDate(`${m[1]}-${pad(+m[2])}-${pad(+m[3])}`);
   m = /^(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{4})\.?$/.exec(t);
   if (m) return ymdToDate(`${m[3]}-${pad(+m[2])}-${pad(+m[1])}`);
+  // same cifre: "03112026" = 03.11.2026.
+  m = /^(\d{2})(\d{2})(\d{4})$/.exec(t);
+  if (m) return ymdToDate(`${m[3]}-${m[2]}-${m[1]}`);
   return null;
 }
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

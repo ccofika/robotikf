@@ -1,0 +1,104 @@
+/* Stranice tehničara (koren ima klasu mx-tech): Moji radni nalozi, Moja oprema, Moji materijali, Moja osnovna oprema,
+   i potvrda opreme (dijalog). Raspored je isti kao na staroj stranici, menja se samo izgled.
+   Pravila su pod .mx-tech ili .sx-dialog jer se ovaj fajl učitava pre sx osnove (ista težina bi izgubila).
+   Boje samo iz tokena. */
+
+/* ---------- zaglavlje kao ranije: naslov levo i dugmad desno uvek u istom redu; na telefonu bez podnaslova ---------- */
+.mx-tech .sx-head { flex-wrap: nowrap; align-items: center; gap: 12px 24px; }
+.mx-tech .sx-head__text { flex: 1 1 auto; }
+.mx-tech .sx-head__actions { flex: 0 0 auto; flex-wrap: nowrap; }
+@media (max-width: 639px) {
+  .mx-tech .sx-head__title { font-size: 26px; }
+  .mx-tech .sx-head__lead { display: none; }
+  .mx-tech .sx-head__actions { width: auto; }
+  .mx-tech .sx-head__actions .sx-btn { flex: 0 0 auto; }
+}
+
+/* ---------- brojke: zasebne kartice u mreži kao ranije (2 kolone, od 640 px 3, od 1024 px 6, sa is-4 četiri) ---------- */
+.mx-tech .mx-tech-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 640px) { .mx-tech .mx-tech-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+@media (min-width: 1024px) {
+  .mx-tech .mx-tech-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .mx-tech .mx-tech-stats.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.mx-tech .mx-tech-stats > .sx-stat { border: 1px solid var(--sx-line); border-radius: var(--sx-radius-card); box-shadow: var(--sx-shadow-card); }
+.mx-tech .mx-tech-stats + * { margin-top: 20px; }
+
+/* ---------- kartica liste: pretraga i filter ispod naslova (desktop) ---------- */
+.mx-tech .mx-tech-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 2px 20px 16px; border-bottom: 1px solid var(--sx-line); }
+.mx-tech .mx-tech-controls .sx-search { flex: 0 1 448px; }
+.mx-tech .mx-tech-controls .sx-select { width: auto; min-width: 180px; }
+
+/* ---------- filteri na telefonu: u kartici (materijali, osnovna oprema) ili u listu odozdo (radni nalozi, oprema) ---------- */
+.mx-tech .mx-tech-inlinefilter { display: grid; gap: 14px; padding: 16px; border-bottom: 1px solid var(--sx-line); }
+.mx-tech .mx-tech-inlinefilter__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mx-tech-filter__group { display: grid; gap: 10px; }
+.sx-dialog .mx-tech-filter { display: grid; gap: 18px; }
+.sx-dialog .mx-tech-filter .sx-choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sx-dialog .mx-tech-filter .sx-choice__opt { justify-content: center; height: 48px; padding: 0 10px; white-space: normal; text-align: center; line-height: 1.2; }
+
+/* ---------- paginacija na telefonu kao ranije: ‹ tekst › ---------- */
+.mx-tech .mx-tech-mpager { padding: 14px 16px; border-top: 1px solid var(--sx-line); }
+.mx-tech .mx-tech-mpager__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mx-tech .mx-tech-mpager__row.is-narrow { max-width: 320px; margin: 0 auto; }
+.mx-tech .mx-tech-mpager__text { font-size: 13.5px; font-weight: 550; color: var(--sx-text-2); white-space: nowrap; }
+
+/* ---------- kartice na telefonu: oprema (kategorija i datum, opis, S/N), materijali (ikonica, tip i podnaslov, količina) ---------- */
+.mx-tech .mx-tech-cards { display: grid; gap: 10px; padding: 12px; }
+.mx-tech .mx-tech-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--sx-line);
+  border-radius: 14px;
+  background: var(--sx-surface);
+  animation: sx-fade 160ms linear calc(min(var(--i, 0), 14) * 18ms) backwards, sx-row-in 300ms var(--ease-enter) calc(min(var(--i, 0), 14) * 18ms) backwards;
+}
+.mx-tech .mx-tech-card__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-bottom: 2px; }
+.mx-tech .mx-tech-card__when { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sx-muted); white-space: nowrap; }
+.mx-tech .mx-tech-card__title { font-size: 14px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-tech .mx-tech-card__line { font-size: 12.5px; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.mx-tech .mx-tech-card__line b { font-weight: 650; color: var(--sx-text); }
+.mx-tech .mx-tech-qcard { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 14px; }
+.mx-tech .mx-tech-qcard__main { display: grid; gap: 2px; min-width: 0; }
+.mx-tech .mx-tech-qcard__main b { font-size: 14px; font-weight: 650; line-height: 1.3; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-tech .mx-tech-qcard__main span { font-size: 12px; color: var(--sx-muted); }
+.mx-tech .mx-tech-qcard__qty { display: grid; justify-items: end; }
+.mx-tech .mx-tech-qcard__qty b { font-family: var(--sx-font-display); font-size: 22px; font-weight: 650; line-height: 1.1; color: var(--sx-text); font-variant-numeric: tabular-nums; }
+.mx-tech .mx-tech-qcard__qty span { font-size: 12px; color: var(--sx-muted); }
+
+/* ---------- oznaka "povuci nadole za osvežavanje" (telefon): pilula na vrhu ekrana dok traje osvežavanje
+   (na telefonu ispod gornje trake ljuske od 58 px) ---------- */
+.mx-tech .mx-tinv-ptr {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--sx-toast-bg);
+  color: var(--sx-toast-text);
+  box-shadow: var(--sx-shadow-toast);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -16px);
+  transition: opacity 200ms linear, transform 300ms var(--ease-enter);
+}
+.mx-tech .mx-tinv-ptr.is-on { opacity: 1; transform: translate(-50%, 0); }
+.mx-tech .mx-tinv-ptr.is-on svg { animation: sx-spin 0.9s linear infinite; }
+@media (max-width: 767px) { .mx-tech .mx-tinv-ptr { top: 70px; } }
+
+/* ---------- potvrda opreme (dijalog preko cele aplikacije): koja je stavka po redu, traka napretka, prethodna/sledeća ---------- */
+.sx-dialog .mx-econf { display: grid; gap: 14px; }
+.sx-dialog .mx-econf__progress { display: grid; gap: 8px; justify-items: center; }
+.sx-dialog .mx-econf__bar { justify-self: stretch; height: 4px; border-radius: 4px; background: var(--sx-surface-3); overflow: hidden; }
+.sx-dialog .mx-econf__bar > span { display: block; height: 100%; border-radius: inherit; background: var(--sx-btn-primary-bg); transition: width 300ms var(--ease-move); }
+.sx-dialog .mx-econf__nav { display: flex; justify-content: space-between; gap: 8px; }

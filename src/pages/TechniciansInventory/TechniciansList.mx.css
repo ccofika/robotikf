@@ -1,0 +1,50 @@
+/* Pregled tehničara: dodaci uz sx klase (boje samo iz tokena) */
+
+/* dugme u ćeliji (status, datum) poravnato sa tekstom kolone; .sx-btn ispred jer sx osnova
+   (:is(.sx) :where(button)) ima istu specifičnost i učitava se posle */
+.sx-btn.mx-techs-pill { margin-left: -13px; }
+.mx-techs-pill .sx-tag { margin-left: 2px; }
+.mx-techs-off { color: var(--sx-bad-text); text-decoration: line-through; }
+/* boja reda kao ranije: neaktivan, ugovor istekao, ugovor ističe za 30 dana (i kartica na telefonu) */
+.sx-table tbody tr.mx-techs-row-off { background: color-mix(in oklab, var(--sx-bad) 8%, var(--sx-surface)); }
+.sx-table tbody tr.mx-techs-row-expired { background: color-mix(in oklab, var(--sx-bad) 4%, var(--sx-surface)); }
+.sx-table tbody tr.mx-techs-row-warn { background: color-mix(in oklab, var(--sx-warn) 8%, var(--sx-surface)); }
+/* "Zaposlen do" u izmeni */
+.mx-techs-dateedit { display: inline-flex; width: 172px; max-width: 100%; }
+/* akcije u redu prelaze u drugi red umesto da šire tabelu */
+.mx-techs-table .sx-rowacts { flex-wrap: wrap; }
+
+/* administratorski nalozi: mreža kartica kao ranije (3 / 2 / 1 u redu) */
+.mx-techs-admins { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+@container page (min-width: 640px) { .mx-techs-admins { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 980px) { .mx-techs-admins { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.mx-techs-admin { display: grid; gap: 10px; padding: 14px 16px 10px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); min-width: 0; }
+.mx-techs-admin__head { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.mx-techs-admin__who { display: grid; justify-items: start; gap: 4px; min-width: 0; }
+.mx-techs-admin__name { font-size: 14.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-techs-admin__meta { display: grid; gap: 2px; font-size: 12.5px; color: var(--sx-muted); overflow-wrap: anywhere; }
+.mx-techs-admin__foot { display: flex; justify-content: flex-end; }
+
+
+/* ocene: zvezdice i brojke */
+.mx-techs-rating { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.mx-techs-rating b { font-weight: 650; color: var(--sx-text); }
+.mx-techs-stars { display: inline-flex; gap: 1px; color: var(--sx-line-3); white-space: nowrap; }
+.mx-techs-star { color: var(--sx-warn); }
+.mx-techs-star.is-info { color: var(--sx-info); }
+.mx-techs-score { display: block; margin-top: 2px; font-size: 12px; color: var(--sx-muted); }
+.mx-techs-quote { font-style: italic; color: var(--sx-muted); }
+.mx-techs-quote:is(div) { margin-top: 2px; font-size: 12px; }
+
+/* sve ocene: filter u zaglavlju panela, grupe po tehničaru */
+.mx-techs-reviews > .sx-panel__head { flex-wrap: wrap; }
+.mx-techs-reviews .sx-panel__actions { flex-shrink: 1; }
+.mx-techs-reviews .sx-panel__actions .sx-select { width: auto; min-width: 200px; }
+.mx-techs-group { border-top: 1px solid var(--sx-line); }
+.mx-techs-group__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 16px 20px 14px; }
+a.mx-techs-group__name { font-weight: 650; color: var(--sx-text); }
+@media (hover: hover) and (pointer: fine) { .mx-techs-group__name:hover { text-decoration: underline; text-underline-offset: 3px; } }
+.mx-techs-sum { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.mx-techs-sum > div { display: grid; gap: 3px; }
+.mx-techs-sum dd { display: inline-flex; align-items: center; gap: 4px; font-weight: 650; color: var(--sx-text); }
+@media (max-width: 639px) { .mx-techs-group__head { padding: 14px 16px 12px; } }

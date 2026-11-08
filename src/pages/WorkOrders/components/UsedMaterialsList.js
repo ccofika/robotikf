@@ -1,8 +1,10 @@
 import React from 'react';
-import { DeleteIcon } from '../../../components/icons/SvgIcons';
-import { Button } from '../../../components/ui/button-1';
+import { Trash2 } from 'lucide-react';
+import { Btn, Empty } from '../../../security/sx/ui';
+import { Panel, Note } from '../../../security/sx/layout';
 
-const UsedMaterialsList = ({ 
+// Kartica "Korišćeni materijali" na radnom nalogu tehničara: ista struktura kao ranije, izgled Security dela
+const UsedMaterialsList = ({
   usedMaterials,
   openMaterialsModal,
   removeMaterial,
@@ -10,60 +12,42 @@ const UsedMaterialsList = ({
   isWorkOrderCompleted
 }) => {
   return (
-    <div>
-      <div className="p-2 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h3 className="text-sm sm:text-xl font-semibold text-slate-900">Korišćeni materijali</h3>
-        <Button 
-          type="primary"
-          size="small"
-          onClick={openMaterialsModal}
-          disabled={isWorkOrderCompleted}
-        >
+    <Panel
+      title="Korišćeni materijali"
+      actions={
+        <Btn size="sm" variant="primary" onClick={openMaterialsModal} disabled={isWorkOrderCompleted}>
           + Dodaj materijal
-        </Button>
-      </div>
-      
-      <div className="p-2 sm:p-6">
-        {usedMaterials.length > 0 ? (
-          <div className="space-y-1">
-            {usedMaterials.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded">
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-slate-900">
-                    {item.material?.type || item.material}
-                  </div>
-                  <div className="text-xs text-slate-600 mt-0.5">
-                    Količina: {item.quantity}
-                  </div>
-                </div>
-                <Button
-                  type="secondary"
-                  size="small"
-                  onClick={() => removeMaterial(item.material?._id || item.material)}
-                  disabled={loadingMaterials || isWorkOrderCompleted}
-                  prefix={<DeleteIcon size={10} />}
-                  className="ml-2"
-                >
-                  <span className="hidden sm:inline text-xs">Ukloni</span>
-                </Button>
+        </Btn>
+      }
+    >
+      {usedMaterials.length > 0 ? (
+        <div className="mx-tnalog-list">
+          {usedMaterials.map((item, index) => (
+            <div key={index} className="mx-tnalog-li">
+              <div className="mx-tnalog-li__main">
+                <b>{item.material?.type || item.material}</b>
+                <span>Količina: <span className="sx-mono">{item.quantity}</span></span>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p className="text-xs text-slate-500">Nema dodanih materijala</p>
-          </div>
-        )}
-      </div>
-      
-      {isWorkOrderCompleted && (
-        <div className="p-2 sm:p-6 border-t border-slate-200">
-          <div className="flex items-center space-x-2 p-2 bg-gray-50 border border-gray-200 rounded">
-            <span className="text-xs text-gray-700">Radni nalog je završen - uređivanje materijala nije moguće.</span>
-          </div>
+              <Btn
+                size="sm"
+                icon={Trash2}
+                onClick={() => removeMaterial(item.material?._id || item.material)}
+                disabled={loadingMaterials || isWorkOrderCompleted}
+                aria-label="Ukloni"
+              >
+                <span className="mx-tnalog-wide">Ukloni</span>
+              </Btn>
+            </div>
+          ))}
         </div>
+      ) : (
+        <Empty text="Nema dodanih materijala" />
       )}
-    </div>
+
+      {isWorkOrderCompleted && (
+        <Note tone="idle" className="mx-tnalog-foot">Radni nalog je završen - uređivanje materijala nije moguće.</Note>
+      )}
+    </Panel>
   );
 };
 

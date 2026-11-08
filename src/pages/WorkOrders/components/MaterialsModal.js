@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { CloseIcon } from '../../../components/icons/SvgIcons';
-import { Button } from '../../../components/ui/button-1';
+import { Btn } from '../../../security/sx/ui';
+import { Field, Input, Select } from '../../../security/sx/forms';
+import Dialog from '../../../security/sx/Dialog';
+import '../TechnicianWorkOrderDetail.mx.css';
 
-const MaterialsModalContent = React.memo(({ 
+// Dodavanje materijala (radni nalog tehničara i Edit naloga): Security dijalog (na telefonu odozdo), isti sadržaj i
+// redosled kao ranije (Materijal, Količina, Otkaži i Dodaj materijal iste širine). Props su isti.
+const MaterialsModalContent = React.memo(({
   selectedMaterialRef,
   materialQuantityRef,
   availableMaterials,
@@ -12,139 +16,100 @@ const MaterialsModalContent = React.memo(({
 }) => {
   const [localSelectedMaterial, setLocalSelectedMaterial] = useState(selectedMaterialRef.current);
   const [localMaterialQuantity, setLocalMaterialQuantity] = useState(materialQuantityRef.current);
-  
+
   // Update ref-ove kad se lokalni state promeni
   useEffect(() => {
     selectedMaterialRef.current = localSelectedMaterial;
   }, [localSelectedMaterial, selectedMaterialRef]);
-  
+
   useEffect(() => {
     materialQuantityRef.current = localMaterialQuantity;
   }, [localMaterialQuantity, materialQuantityRef]);
-  
+
   // Kalkuliši maksimalnu količinu
   const selectedMaterialData = localSelectedMaterial ? availableMaterials.find(mat => mat._id === localSelectedMaterial) : null;
   const maxQuantity = selectedMaterialData?.quantity || 1;
-  
+
   const handleMaterialSelectionChange = (e) => {
     const newValue = e.target.value;
     setLocalSelectedMaterial(newValue);
     setLocalMaterialQuantity(''); // Reset količine na prazno
   };
-  
+
   const handleMaterialQuantityChange = (e) => {
     const inputValue = e.target.value;
-    
+
     if (inputValue === '') {
       setLocalMaterialQuantity('');
       return;
     }
-    
+
     const numValue = parseInt(inputValue);
-    
+
     if (isNaN(numValue) || numValue < 0) {
       setLocalMaterialQuantity('');
       return;
     }
-    
+
     if (localSelectedMaterial) {
       setLocalMaterialQuantity(Math.min(numValue, maxQuantity));
     } else {
       setLocalMaterialQuantity(numValue);
     }
   };
-  
+
   const isAddDisabled = !localSelectedMaterial || !localMaterialQuantity || localMaterialQuantity === '' || localMaterialQuantity <= 0 || loadingMaterials;
-  
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2" onClick={closeMaterialsModal}>
-      <div className="bg-white/95 backdrop-blur-md border border-white/30 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="p-2 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900">Dodaj materijal</h3>
-          <Button
-            type="secondary"
-            size="small"
-            onClick={closeMaterialsModal}
-            prefix={<CloseIcon size={12} />}
-            className="!p-1.5"
-          >
-            <span className="sr-only">Zatvori modal</span>
-          </Button>
-        </div>
-        
-        <div className="p-2">
-          <div className="space-y-2">
-            <div>
-              <label htmlFor="material-select" className="block text-xs font-medium text-slate-700 mb-1">
-                Materijal:
-              </label>
-              <select
-                id="material-select"
-                value={localSelectedMaterial}
-                onChange={handleMaterialSelectionChange}
-                className="w-full px-2 py-2 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none"
-                style={{maxHeight: '200px'}}
-              >
-                <option value="">-- Izaberite materijal --</option>
-                {availableMaterials.map(material => (
-                  <option key={material._id} value={material._id}>
-                    {material.type} (dostupno: {material.quantity})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="material-quantity" className="block text-xs font-medium text-slate-700 mb-1">
-                Količina:
-              </label>
-              <input
-                type="number"
-                id="material-quantity"
-                min="0"
-                max={maxQuantity}
-                value={localMaterialQuantity}
-                onChange={handleMaterialQuantityChange}
-                className="w-full px-2 py-2 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="Unesite količinu"
-                autoComplete="off"
-              />
-              {localSelectedMaterial && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Maksimalno dostupno: {maxQuantity}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-2 border-t border-slate-200 flex gap-2">
-          <Button 
-            type="secondary"
-            size="small"
-            onClick={closeMaterialsModal}
-            className="flex-1 text-xs"
-          >
-            Otkaži
-          </Button>
-          <Button 
-            type="primary"
-            size="small"
-            onClick={addMaterial}
-            disabled={isAddDisabled}
-            loading={loadingMaterials}
-            className="flex-1 text-xs"
-          >
+    <Dialog
+      onClose={closeMaterialsModal}
+      title="Dodaj materijal"
+      size="sm"
+      className="mx-tnalog-dlg"
+      testId="materials-modal"
+      footer={
+        <div className="mx-tnalog-dlg__pair">
+          <Btn onClick={closeMaterialsModal}>Otkaži</Btn>
+          <Btn variant="primary" onClick={addMaterial} disabled={isAddDisabled} busy={loadingMaterials}>
             {loadingMaterials ? 'Dodavanje...' : 'Dodaj materijal'}
-          </Button>
+          </Btn>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <Field label="Materijal:" htmlFor="material-select">
+        <Select id="material-select" value={localSelectedMaterial} onChange={handleMaterialSelectionChange}>
+          <option value="">-- Izaberite materijal --</option>
+          {availableMaterials.map(material => (
+            <option key={material._id} value={material._id}>
+              {material.type} (dostupno: {material.quantity})
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field
+        label="Količina:"
+        htmlFor="material-quantity"
+        hint={localSelectedMaterial ? `Maksimalno dostupno: ${maxQuantity}` : undefined}
+      >
+        <Input
+          type="number"
+          id="material-quantity"
+          inputMode="numeric"
+          min="0"
+          max={maxQuantity}
+          value={localMaterialQuantity}
+          onChange={handleMaterialQuantityChange}
+          placeholder="Unesite količinu"
+          autoComplete="off"
+        />
+      </Field>
+    </Dialog>
   );
 });
 
-const MaterialsModal = React.memo(({ 
-  showMaterialsModal, 
+const MaterialsModal = React.memo(({
+  showMaterialsModal,
   materialModalKey,
   selectedMaterialRef,
   materialQuantityRef,
@@ -154,9 +119,9 @@ const MaterialsModal = React.memo(({
   loadingMaterials
 }) => {
   if (!showMaterialsModal) return null;
-  
+
   return (
-    <MaterialsModalContent 
+    <MaterialsModalContent
       key={materialModalKey}
       selectedMaterialRef={selectedMaterialRef}
       materialQuantityRef={materialQuantityRef}

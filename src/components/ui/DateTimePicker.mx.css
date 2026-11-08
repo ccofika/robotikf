@@ -1,0 +1,6 @@
+/* Datum i vreme (DateTimePicker): datum, vreme i brisanje u jednom redu, brzi izbor ispod (kao ranije, u više redova) */
+.mx-dtp__in { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.mx-dtp__in > .sx-dt { flex: 1 1 0; min-width: 0; max-width: none; }
+.mx-dtp__in > .sx-dt.sx-dt--time { flex: 0 0 96px; }
+.mx-dtp__in > .sx-btn { flex-shrink: 0; }
+.mx-dtp__quick { display: flex; flex-wrap: wrap; gap: 6px; }

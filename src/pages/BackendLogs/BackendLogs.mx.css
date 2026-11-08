@@ -1,0 +1,62 @@
+/* Backend Logs: filteri, detalji aktivnosti u tabeli, bulk dijalog i AI analize. Boje samo iz tokena. */
+.mx-bl-filters { margin-bottom: 20px; }
+/* filteri: tri kolone kao ranije (i kad kategorija nije prikazana treća ostaje prazna); polje datum + vreme treba
+   bar ~290 px, pa su tri u redu od 1280 px, a na užem se slažu jedno ispod drugog */
+.sx-form.mx-bl-filterform { grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); }
+/* AI: dva polja u dve kolone, na uskom jedno ispod drugog */
+.sx-form.mx-bl-aiform { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+
+/* ---------- tabele ---------- */
+.mx-bl-code { overflow-wrap: break-word; }
+.mx-bl-details .sx-note.mx-bl-note { max-width: 340px; }
+/* aktivnosti imaju 7 kolona i bogate detalje: u prikazu tabele uži razmaci, detalji dobijaju četvrtinu širine */
+@container tbl (min-width: 761px) {
+  .sx-table.mx-bl-acts td, .sx-table.mx-bl-acts thead th { padding-left: 10px; padding-right: 10px; }
+  .sx-table.mx-bl-acts th.mx-bl-details { width: 26%; }
+}
+.sx-note.mx-bl-note { gap: 9px; padding: 8px 11px; border-radius: 11px; font-size: 12.5px; line-height: 1.45; }
+.sx-note.mx-bl-note + .sx-note.mx-bl-note { margin-top: 6px; }
+.mx-bl-note .sx-note__body { display: grid; gap: 2px; justify-items: start; overflow-wrap: break-word; }
+.mx-bl-note .sx-note__body > .sx-btn { margin: 4px 0 -2px -12px; }
+ul.mx-bl-changes { list-style: disc; padding-left: 16px; }
+.mx-bl-missing { color: var(--sx-bad-text); }
+.mx-bl-wo { justify-self: stretch; margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--sx-line); }
+.mx-bl-debug { display: block; margin-top: 4px; font-size: 12px; color: var(--sx-warn-text); }
+.sx-table tbody tr.mx-bl-slow { background: color-mix(in oklab, var(--sx-bad) 5%, var(--sx-surface)); }
+.mx-bl-slowtag { margin-left: 8px; font-family: var(--sx-font-ui); }
+.mx-bl-reason { color: var(--sx-warn-text); }
+
+/* ---------- dijalozi ---------- */
+.mx-bl-exportnote { margin-top: 18px; }
+.sx-stats.mx-bl-bulkstats { box-shadow: none; grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr)); }
+.mx-bl-statname { font-size: 18px; font-weight: 650; line-height: 1.25; color: var(--sx-text); overflow-wrap: anywhere; }
+
+/* ---------- AI analize ---------- */
+/* kartica za pokretanje (polja, ispod dugme preko cele širine) i desno uska kartica sa dugmetom za istoriju */
+.mx-bl-controls { display: flex; flex-direction: column; gap: 16px; }
+.mx-bl-controls__main { flex: 1 1 auto; min-width: 0; }
+@container page (min-width: 700px) {
+  .mx-bl-controls { flex-direction: row; }
+  .mx-bl-controls__side { flex: 0 0 192px; }
+}
+.mx-bl-runrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 10px 12px; }
+.sx-btn.mx-bl-runbtn { width: 100%; margin-top: 14px; }
+.mx-bl-controls__side > .sx-btn { width: 100%; height: 100%; min-height: 44px; border-radius: 14px; }
+.mx-bl-controls__side .mx-bl-histbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; min-height: 88px; padding: 16px; border-radius: inherit; font-size: 14px; font-weight: 600; color: var(--sx-text); transition: background-color var(--hover-out) var(--ease-move); }
+.mx-bl-controls__side .mx-bl-histbtn svg { color: var(--sx-text-2); }
+@media (hover: hover) and (pointer: fine) { .mx-bl-controls__side .mx-bl-histbtn:hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+.mx-bl-busy { display: grid; justify-items: center; gap: 12px; padding: 36px 0; font-size: 13.5px; color: var(--sx-muted); }
+.mx-bl-spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--sx-line-2); border-top-color: var(--sx-text); animation: sx-spin 0.8s linear infinite; }
+.sx-stats.mx-bl-aistats { box-shadow: none; margin-bottom: 16px; }
+.sx-note.mx-bl-summary { margin-bottom: 16px; }
+.mx-bl-summary__title { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-bl-aigrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; }
+.mx-bl-aisec { min-width: 0; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-bl-aisec.is-wide { grid-column: 1 / -1; }
+.mx-bl-aisec__head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mx-bl-aisec__title { font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.mx-bl-aitext { white-space: pre-line; font-size: 13.5px; line-height: 1.6; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.sx-item.mx-bl-hist { width: calc(100% + 24px); }
+.sx-item.mx-bl-hist.is-on { background: var(--sx-accent-soft); }
+.mx-bl-hist__check { color: var(--sx-accent-text); }
+.mx-bl-histlist { max-height: 384px; overflow-y: auto; margin: 0 -12px; padding: 0 12px; }

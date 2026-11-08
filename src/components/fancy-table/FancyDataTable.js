@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '../../utils/cn';
-import { SearchIcon, RefreshIcon, FilterIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon } from '../icons/SvgIcons';
-import { Button } from '../ui/button-1';
+import { Filter, X, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { cx, Btn, Sign } from '../../security/sx/ui';
+import { Panel } from '../../security/sx/layout';
+import { Field, Select, SearchField, DateField, Checkbox } from '../../security/sx/forms';
+import { Loading } from '../../montaza/ui';
+import './FancyDataTable.mx.css';
 
 const FancyDataTable = ({
   data = [],
@@ -55,73 +58,45 @@ const FancyDataTable = ({
   };
 
   return (
-    <div className="flex w-full flex-col sm:flex-row gap-6">
-      {/* Filters Sidebar */}
-      {showFilters && (
-        <div className="w-full sm:w-64 lg:w-72 flex-shrink-0">
-          <div className="sticky top-6 space-y-4">
-            {/* Filter Header */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">Filteri</h3>
-                {hasActiveFilters() && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Obriši sve
-                  </button>
-                )}
-              </div>
+    <div className="mx-fancy">
+      <div className={cx('mx-fancy__in', showFilters && 'has-side')}>
+        {/* Filteri (levo; na uskom prostoru iznad tabele) */}
+        {showFilters && (
+          <aside className="mx-fancy__side">
+            <Panel
+              title="Filteri"
+              actions={hasActiveFilters() && (
+                <Btn size="sm" variant="ghost" onClick={clearAllFilters}>Obriši sve</Btn>
+              )}
+            >
+              <Field label="Pretraga">
+                <SearchField value={searchValue} onChange={(value) => onSearchChange(value)} placeholder="Pretraži..." />
+              </Field>
 
-              {/* Search */}
-              <div className="mb-4">
-                <label className="block text-xs font-medium text-slate-700 mb-2">
-                  Pretraga
-                </label>
-                <div className="relative">
-                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="text"
-                    placeholder="Pretraži..."
-                    value={searchValue}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full pl-10 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {searchValue && (
-                    <button
-                      onClick={() => onSearchChange('')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <CloseIcon size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Filter Fields */}
-              <div className="space-y-3">
+              <div className="mx-fancy__fields">
                 {filterFields.map((field) => (
-                  <div key={field.id} className="border-t border-slate-100 pt-3 first:border-t-0 first:pt-0">
+                  <div key={field.id} className="mx-fancy__field">
                     <button
+                      type="button"
                       onClick={() => toggleFilterExpand(field.id)}
-                      className="w-full flex items-center justify-between text-xs font-medium text-slate-700 mb-2 hover:text-slate-900"
+                      className="mx-fancy__toggle"
+                      aria-expanded={!!expandedFilters[field.id]}
                     >
                       <span>{field.label}</span>
                       {expandedFilters[field.id] ? (
-                        <ChevronUpIcon size={14} />
+                        <ChevronUp size={14} strokeWidth={1.9} aria-hidden="true" />
                       ) : (
-                        <ChevronDownIcon size={14} />
+                        <ChevronDown size={14} strokeWidth={1.9} aria-hidden="true" />
                       )}
                     </button>
 
                     {expandedFilters[field.id] && (
-                      <div className="mt-2">
+                      <div className="mx-fancy__body">
                         {field.type === 'select' && (
-                          <select
+                          <Select
+                            size="sm"
                             value={filters[field.id] || ''}
                             onChange={(e) => handleFilterChange(field.id, e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">Svi</option>
                             {field.options?.map(option => (
@@ -129,41 +104,39 @@ const FancyDataTable = ({
                                 {option.label}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         )}
 
                         {field.type === 'date' && (
-                          <input
-                            type="date"
+                          <DateField
+                            compact
+                            clearable
                             value={filters[field.id] || ''}
-                            onChange={(e) => handleFilterChange(field.id, e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            onChange={(value) => handleFilterChange(field.id, value)}
                           />
                         )}
 
                         {field.type === 'multiselect' && (
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                          <div className="mx-fancy__checks">
                             {field.options?.map(option => {
                               const isSelected = filters[field.id]?.includes(option.value);
                               return (
-                                <label key={option.value} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={(e) => {
-                                      const currentValues = filters[field.id] || [];
-                                      const newValues = e.target.checked
-                                        ? [...currentValues, option.value]
-                                        : currentValues.filter(v => v !== option.value);
-                                      handleFilterChange(field.id, newValues);
-                                    }}
-                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <span className="text-sm text-slate-700">{option.label}</span>
+                                <Checkbox
+                                  key={option.value}
+                                  checked={!!isSelected}
+                                  onChange={(checked) => {
+                                    const currentValues = filters[field.id] || [];
+                                    const newValues = checked
+                                      ? [...currentValues, option.value]
+                                      : currentValues.filter(v => v !== option.value);
+                                    handleFilterChange(field.id, newValues);
+                                  }}
+                                >
+                                  {option.label}
                                   {option.count !== undefined && (
-                                    <span className="ml-auto text-xs text-slate-500">{option.count}</span>
+                                    <span className="mx-fancy__count">{option.count}</span>
                                   )}
-                                </label>
+                                </Checkbox>
                               );
                             })}
                           </div>
@@ -173,164 +146,114 @@ const FancyDataTable = ({
                   </div>
                 ))}
               </div>
-            </div>
+            </Panel>
 
-            {/* Results Info */}
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-              <div className="text-xs text-slate-600">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">Rezultati</span>
-                  <span className="text-slate-900 font-semibold">{pagination?.totalCount || 0}</span>
-                </div>
+            {/* Rezultati */}
+            <div className="mx-fancy__res">
+              <span className="sx-label">Rezultati</span>
+              <b className="sx-num">{pagination?.totalCount || 0}</b>
+              {hasActiveFilters() && <Sign tone="info">Aktivni filteri</Sign>}
+            </div>
+          </aside>
+        )}
+
+        {/* Sadržaj */}
+        <div className="mx-fancy__main">
+          {/* Traka (kartica kao ranije) */}
+          <Panel className="mx-fancy__toolbar">
+            <div className="mx-fancy__bar">
+              <div className="mx-fancy__group">
+                <Btn size="sm" icon={Filter} onClick={() => setShowFilters(!showFilters)}>
+                  {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
+                </Btn>
+                <span className="mx-fancy__total">
+                  {pagination?.totalCount || 0} rezultata
+                </span>
+              </div>
+
+              <div className="mx-fancy__group">
                 {hasActiveFilters() && (
-                  <div className="text-xs text-blue-600">
-                    Aktivni filteri
-                  </div>
+                  <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Resetuj</Btn>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* Toolbar */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => setShowFilters(!showFilters)}
-                prefix={<FilterIcon size={16} />}
-              >
-                {showFilters ? 'Sakrij filtere' : 'Prikaži filtere'}
-              </Button>
-              <span className="text-sm text-slate-600">
-                {pagination?.totalCount || 0} rezultata
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {hasActiveFilters() && (
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={clearAllFilters}
-                  prefix={<CloseIcon size={16} />}
+                <Btn
+                  size="sm"
+                  icon={RefreshCw}
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  className={isRefreshing ? 'mx-fancy__spin' : undefined}
                 >
-                  Resetuj
-                </Button>
-              )}
-              <Button
-                type="secondary"
-                size="small"
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                prefix={<RefreshIcon size={16} className={isRefreshing ? 'animate-spin' : ''} />}
-              >
-                Osveži
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center p-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-slate-600">Učitavanje...</p>
+                  Osveži
+                </Btn>
               </div>
             </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      {columns.map((column) => (
-                        <th
-                          key={column.id}
-                          className={cn(
-                            "px-4 py-2 text-left text-[10px] font-semibold text-slate-600 uppercase tracking-wider",
-                            column.className
-                          )}
-                        >
-                          {column.header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {data.length === 0 ? (
+          </Panel>
+
+          <Panel pad={false}>
+            {loading ? (
+              <Loading text="Učitavanje..." />
+            ) : (
+              <>
+                <div className="mx-fancy__scroll">
+                  <table className="sx-table">
+                    <thead>
                       <tr>
-                        <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">
-                          <div className="flex flex-col items-center space-y-2">
-                            <p className="text-xs font-medium">Nema rezultata</p>
-                            {hasActiveFilters() && (
-                              <Button
-                                type="tertiary"
-                                size="small"
-                                onClick={clearAllFilters}
-                              >
-                                Obriši filtere
-                              </Button>
-                            )}
-                          </div>
-                        </td>
+                        {columns.map((column) => (
+                          <th key={column.id} className={column.className}>
+                            {column.header}
+                          </th>
+                        ))}
                       </tr>
-                    ) : (
-                      data.map((row, index) => (
-                        <tr
-                          key={row._id || index}
-                          className="hover:bg-slate-50 transition-colors cursor-pointer"
-                          onClick={() => row.onClick?.()}
-                        >
-                          {columns.map((column) => (
-                            <td
-                              key={column.id}
-                              className={cn(
-                                "px-4 py-2 text-xs",
-                                column.cellClassName
+                    </thead>
+                    <tbody>
+                      {data.length === 0 ? (
+                        <tr>
+                          <td colSpan={columns.length}>
+                            <div className="sx-empty-block mx-fancy__empty">
+                              <b>Nema rezultata</b>
+                              {hasActiveFilters() && (
+                                <Btn size="sm" onClick={clearAllFilters}>Obriši filtere</Btn>
                               )}
-                            >
-                              {column.cell ? column.cell(row) : row[column.id]}
-                            </td>
-                          ))}
+                            </div>
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        data.map((row, index) => (
+                          <tr
+                            key={row._id || index}
+                            className="is-click"
+                            style={{ '--i': index }}
+                            tabIndex={0}
+                            onClick={() => row.onClick?.()}
+                            onKeyDown={(e) => { if (e.key === 'Enter') row.onClick?.(); }}
+                          >
+                            {columns.map((column) => (
+                              <td
+                                key={column.id}
+                                className={column.cellClassName}
+                              >
+                                {column.cell ? column.cell(row) : row[column.id]}
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-              {/* Pagination */}
-              {pagination && pagination.totalPages > 1 && (
-                <div className="px-4 py-3 border-t border-slate-200 bg-slate-50">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-slate-600">
+                {/* Strane */}
+                {pagination && pagination.totalPages > 1 && (
+                  <div className="mx-pager">
+                    <div className="mx-pager__text">
                       Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount}
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => onPageChange(1)}
-                        disabled={!pagination.hasPreviousPage}
-                      >
+                    <div className="mx-pager__btns">
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(1)} disabled={!pagination.hasPreviousPage}>
                         &laquo;
-                      </Button>
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => onPageChange(pagination.currentPage - 1)}
-                        disabled={!pagination.hasPreviousPage}
-                      >
+                      </Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage}>
                         &lsaquo;
-                      </Button>
+                      </Btn>
 
                       {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
                         .filter(number => {
@@ -341,42 +264,29 @@ const FancyDataTable = ({
                           );
                         })
                         .map(number => (
-                          <button
+                          <Btn
                             key={number}
+                            size="sm"
+                            variant={pagination.currentPage === number ? 'primary' : 'ghost'}
+                            className="mx-pager__num"
                             onClick={() => onPageChange(number)}
-                            className={cn(
-                              "min-w-[32px] h-8 px-3 rounded-md text-xs font-medium transition-all",
-                              pagination.currentPage === number
-                                ? "bg-blue-600 text-white shadow-md hover:bg-blue-700"
-                                : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
-                            )}
                           >
                             {number}
-                          </button>
+                          </Btn>
                         ))}
 
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => onPageChange(pagination.currentPage + 1)}
-                        disabled={!pagination.hasNextPage}
-                      >
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage}>
                         &rsaquo;
-                      </Button>
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => onPageChange(pagination.totalPages)}
-                        disabled={!pagination.hasNextPage}
-                      >
+                      </Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => onPageChange(pagination.totalPages)} disabled={!pagination.hasNextPage}>
                         &raquo;
-                      </Button>
+                      </Btn>
                     </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
+          </Panel>
         </div>
       </div>
     </div>

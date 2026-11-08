@@ -3,23 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import api, { workOrdersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../utils/toast';
-import {
-  ClipboardIcon,
-  SearchIcon,
-  FilterIcon,
-  CalendarIcon,
-  UserIcon,
-  MapPinIcon,
-  ClockIcon,
-  AlertIcon,
-  RefreshIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon
-} from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/card';
-import { Input } from '../../components/ui/input';
-import { cn } from '../../utils/cn';
+import { RefreshCw, MapPin, CalendarDays, Clock, UserRound, Filter, TriangleAlert } from 'lucide-react';
+import { getTimRowStyle } from '../../utils/tim';
+import { Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Panel, Stat } from '../../security/sx/layout';
+import { Field, Select, SearchField } from '../../security/sx/forms';
+import { Pager, Loading } from '../../montaza/ui';
+import './EditWorkOrders.mx.css';
+
+// Ton znaka statusa (završen ok, nezavršen warn, odložen info, otkazan bad)
+const STATUS_TONE = { zavrsen: 'ok', nezavrsen: 'warn', odlozen: 'info', otkazan: 'bad' };
 
 const EditWorkOrders = () => {
   const { user } = useContext(AuthContext);
@@ -148,21 +141,6 @@ const EditWorkOrders = () => {
     }
   };
 
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'zavrsen':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'nezavrsen':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'otkazan':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'odlozen':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
-
   const getStatusText = (status) => {
     switch (status) {
       case 'zavrsen':
@@ -189,376 +167,130 @@ const EditWorkOrders = () => {
 
   if (loading && pagination.currentPage === 1) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Učitavanje...</p>
-        </div>
+      <div className="sx-page" data-testid="page-edit-work-orders">
+        <Loading text="Učitavanje..." rows={6} />
       </div>
     );
   }
 
+  const resetPage = () => setPagination(prev => ({ ...prev, currentPage: 1 }));
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-primary/10 rounded-lg">
-            <ClipboardIcon size={32} className="text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Edituj radne naloge</h1>
-            <p className="text-muted-foreground">
-              Dodaj opremu i materijal u radne naloge
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => fetchWorkOrders(pagination.currentPage)} variant="outline" disabled={loading}>
-          <RefreshIcon size={18} />
-          Osveži
-        </Button>
-      </div>
+    <div className="sx-page" data-testid="page-edit-work-orders">
+      <PageHead
+        eyebrow="Montaža · Edit"
+        title="Edituj radne naloge"
+        lead="Dodaj opremu i materijal u radne naloge"
+        actions={<Btn icon={RefreshCw} onClick={() => fetchWorkOrders(pagination.currentPage)} disabled={loading}>Osveži</Btn>}
+      />
 
       {/* Stats Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{pagination.totalCount}</div>
-            <p className="text-xs text-muted-foreground">Ukupno radnih naloga</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{pagination.currentPage} / {pagination.totalPages}</div>
-            <p className="text-xs text-muted-foreground">Trenutna stranica</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{performance.resultsPerPage}</div>
-            <p className="text-xs text-muted-foreground">Rezultata po stranici</p>
-          </CardContent>
-        </Card>
+      <div className="sx-stats">
+        <Stat label="Ukupno radnih naloga" value={pagination.totalCount} />
+        <Stat label="Trenutna stranica" value={`${pagination.currentPage} / ${pagination.totalPages}`} />
+        <Stat label="Rezultata po stranici" value={performance.resultsPerPage} />
       </div>
 
       {/* Filters Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FilterIcon size={20} />
-            Filteri i pretraga
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <SearchIcon size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Pretraži po TIS ID, korisniku, adresi..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Filter Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status:</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPagination(prev => ({ ...prev, currentPage: 1 }));
-                }}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Svi statusi</option>
-                <option value="nezavrsen">Nezavršen</option>
-                <option value="zavrsen">Završen</option>
-                <option value="odlozen">Odložen</option>
-                <option value="otkazan">Otkazan</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Opština:</label>
-              <select
-                value={municipalityFilter}
-                onChange={(e) => {
-                  setMunicipalityFilter(e.target.value);
-                  setPagination(prev => ({ ...prev, currentPage: 1 }));
-                }}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Sve opštine</option>
-                {municipalities.map(municipality => (
-                  <option key={municipality} value={municipality}>
-                    {municipality}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tehničar:</label>
-              <select
-                value={technicianFilter}
-                onChange={(e) => {
-                  setTechnicianFilter(e.target.value);
-                  setPagination(prev => ({ ...prev, currentPage: 1 }));
-                }}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Svi tehničari</option>
-                {technicians.map(tech => (
-                  <option key={tech._id} value={tech._id}>
-                    {tech.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Panel title={<span className="sx-panel__title-row"><Filter size={17} strokeWidth={1.9} aria-hidden="true" />Filteri i pretraga</span>} className="mx-woe__filters">
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po TIS ID, korisniku, adresi..." />
+        <div className="sx-form mx-woe__selects">
+          <Field label="Status:" htmlFor="woe-status">
+            <Select id="woe-status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); resetPage(); }}>
+              <option value="">Svi statusi</option>
+              <option value="nezavrsen">Nezavršen</option>
+              <option value="zavrsen">Završen</option>
+              <option value="odlozen">Odložen</option>
+              <option value="otkazan">Otkazan</option>
+            </Select>
+          </Field>
+          <Field label="Opština:" htmlFor="woe-municipality">
+            <Select id="woe-municipality" value={municipalityFilter} onChange={(e) => { setMunicipalityFilter(e.target.value); resetPage(); }}>
+              <option value="">Sve opštine</option>
+              {municipalities.map(municipality => (
+                <option key={municipality} value={municipality}>
+                  {municipality}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tehničar:" htmlFor="woe-technician">
+            <Select id="woe-technician" value={technicianFilter} onChange={(e) => { setTechnicianFilter(e.target.value); resetPage(); }}>
+              <option value="">Svi tehničari</option>
+              {technicians.map(tech => (
+                <option key={tech._id} value={tech._id}>
+                  {tech.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </Panel>
 
       {/* Work Orders Grid */}
       {workOrders.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertIcon size={48} className="text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">Nema radnih naloga</p>
-            <p className="text-sm text-muted-foreground">
-              Nema radnih naloga koji odgovaraju filterima
-            </p>
-          </CardContent>
-        </Card>
+        <Panel>
+          <div className="mx-woe__empty">
+            <TriangleAlert size={44} strokeWidth={1.4} aria-hidden="true" />
+            <b>Nema radnih naloga</b>
+            <span>Nema radnih naloga koji odgovaraju filterima</span>
+          </div>
+        </Panel>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {workOrders.map(workOrder => (
-              <Card
+          <div className="mx-woe__grid" data-testid="edit-work-orders-list">
+            {workOrders.map((workOrder, i) => (
+              <div
                 key={workOrder._id}
-                className={cn(
-                  "cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary",
-                  workOrder.tim === 'robotik' && 'bg-blue-50/80 dark:bg-blue-950/30',
-                  workOrder.tim === 'mtel' && 'bg-red-50/80 dark:bg-red-950/30'
-                )}
+                role="link"
+                tabIndex={0}
+                className="sx-card mx-woe__card"
+                style={{ '--i': i, ...getTimRowStyle(workOrder.tim) }}
                 onClick={() => navigate(`/edit-work-orders/${workOrder._id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/edit-work-orders/${workOrder._id}`); }}
+                data-testid="edit-work-order"
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">
-                        {workOrder.tisId || 'N/A'}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {workOrder.userName || 'N/A'}
-                      </CardDescription>
-                    </div>
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap",
-                      getStatusBadgeClass(workOrder.status)
-                    )}>
-                      {getStatusText(workOrder.status)}
-                    </span>
+                <div className="mx-woe__card-head">
+                  <div className="mx-woe__card-title">
+                    <h3>{workOrder.tisId || 'N/A'}</h3>
+                    <p>{workOrder.userName || 'N/A'}</p>
                   </div>
-                </CardHeader>
+                  <Sign tone={STATUS_TONE[workOrder.status] || 'idle'}>{getStatusText(workOrder.status)}</Sign>
+                </div>
 
-                <CardContent className="space-y-2">
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPinIcon size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <span className="text-foreground">
-                      {workOrder.address || 'N/A'}, {workOrder.municipality || 'N/A'}
-                    </span>
+                <div className="mx-woe__card-body">
+                  <div className="mx-woe__row">
+                    <MapPin aria-hidden="true" strokeWidth={1.8} />
+                    <span>{workOrder.address || 'N/A'}, {workOrder.municipality || 'N/A'}</span>
                   </div>
-
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon size={16} className="text-muted-foreground" />
-                      <span>{formatDate(workOrder.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ClockIcon size={16} className="text-muted-foreground" />
-                      <span>{workOrder.time}</span>
-                    </div>
+                  <div className="mx-woe__row">
+                    <span className="mx-woe__pair"><CalendarDays aria-hidden="true" strokeWidth={1.8} /><span className="sx-mono">{formatDate(workOrder.date)}</span></span>
+                    <span className="mx-woe__pair"><Clock aria-hidden="true" strokeWidth={1.8} /><span className="sx-mono">{workOrder.time}</span></span>
                   </div>
-
-                  <div className="flex items-start gap-2 text-sm">
-                    <UserIcon size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <span className="text-foreground font-medium">
+                  <div className="mx-woe__row">
+                    <UserRound aria-hidden="true" strokeWidth={1.8} />
+                    <span className="mx-woe__techs">
                       {workOrder.technicianId?.name}
                       {workOrder.technician2Id && `, ${workOrder.technician2Id.name}`}
                     </span>
                   </div>
 
                   {workOrder.type && (
-                    <div className="pt-2 mt-2 border-t">
-                      <span className="text-xs text-muted-foreground px-2 py-1 bg-secondary rounded">
-                        {workOrder.type}
-                      </span>
+                    <div className="mx-woe__type">
+                      <span className="sx-tag">{workOrder.type}</span>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
 
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (() => {
-            const getVisiblePages = () => {
-              const current = pagination.currentPage;
-              const total = pagination.totalPages;
-              const delta = 2;
-              let pages = [];
-
-              if (current > delta + 1) {
-                pages.push(1);
-                if (current > delta + 2) pages.push('...');
-              }
-
-              for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
-                pages.push(i);
-              }
-
-              if (current < total - delta) {
-                if (current < total - delta - 1) pages.push('...');
-                pages.push(total);
-              }
-
-              return pages;
-            };
-
-            return (
-              <div className="bg-card border rounded-xl shadow-sm">
-                {/* Desktop Pagination */}
-                <div className="hidden sm:flex items-center justify-between px-6 py-4">
-                  <div className="text-sm text-muted-foreground">
-                    Prikazano{' '}
-                    <span className="font-semibold text-foreground">
-                      {((pagination.currentPage - 1) * pagination.limit) + 1}
-                    </span>
-                    {' '}-{' '}
-                    <span className="font-semibold text-foreground">
-                      {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)}
-                    </span>
-                    {' '}od{' '}
-                    <span className="font-semibold text-foreground">{pagination.totalCount}</span>
-                    {' '}rezultata
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(1)}
-                      disabled={pagination.currentPage === 1 || loading}
-                      className="w-9 h-9 !px-0"
-                    >
-                      &laquo;
-                    </Button>
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={!pagination.hasPreviousPage || loading}
-                      className="w-9 h-9 !px-0"
-                    >
-                      &lsaquo;
-                    </Button>
-
-                    {getVisiblePages().map((page, index) => (
-                      <Button
-                        key={index}
-                        type={page === pagination.currentPage ? "primary" : "tertiary"}
-                        size="small"
-                        onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
-                        disabled={page === '...' || loading}
-                        className={cn(
-                          "w-9 h-9 !px-0 font-medium",
-                          page === pagination.currentPage
-                            ? "!bg-primary !text-primary-foreground shadow-sm"
-                            : page === '...'
-                              ? "cursor-default"
-                              : "hover:bg-accent"
-                        )}
-                      >
-                        {page}
-                      </Button>
-                    ))}
-
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={!pagination.hasNextPage || loading}
-                      className="w-9 h-9 !px-0"
-                    >
-                      &rsaquo;
-                    </Button>
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(pagination.totalPages)}
-                      disabled={pagination.currentPage === pagination.totalPages || loading}
-                      className="w-9 h-9 !px-0"
-                    >
-                      &raquo;
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Mobile Pagination */}
-                <div className="flex sm:hidden flex-col items-center gap-3 px-4 py-4">
-                  <div className="text-sm text-muted-foreground">
-                    Stranica{' '}
-                    <span className="font-semibold text-foreground">{pagination.currentPage}</span>
-                    {' '}od{' '}
-                    <span className="font-semibold text-foreground">{pagination.totalPages}</span>
-                    {' '}({pagination.totalCount} ukupno)
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      type="secondary"
-                      size="medium"
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={!pagination.hasPreviousPage || loading}
-                      className="w-11 h-11 !px-0"
-                    >
-                      &lsaquo;
-                    </Button>
-                    <div className="flex items-center gap-1.5">
-                      {getVisiblePages().filter(p => typeof p === 'number').slice(0, 5).map((page) => (
-                        <Button
-                          key={page}
-                          type={page === pagination.currentPage ? "primary" : "tertiary"}
-                          size="small"
-                          onClick={() => handlePageChange(page)}
-                          disabled={loading}
-                          className={cn(
-                            "w-9 h-9 !px-0 font-medium",
-                            page === pagination.currentPage && "!bg-primary !text-primary-foreground shadow-sm"
-                          )}
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                    </div>
-                    <Button
-                      type="secondary"
-                      size="medium"
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={!pagination.hasNextPage || loading}
-                      className="w-11 h-11 !px-0"
-                    >
-                      &rsaquo;
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
+          {pagination.totalPages > 1 && (
+            <div className="sx-card mx-woe__pager">
+              <Pager page={pagination.currentPage} total={pagination.totalCount} perPage={pagination.limit} onPage={handlePageChange} />
+            </div>
+          )}
         </>
       )}
     </div>

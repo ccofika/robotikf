@@ -1,13 +1,16 @@
+// Detalj radnog naloga (admin, i kao prozor preko liste naloga): podaci sa izmenom na olovku, oprema, materijal,
+// slike, istorije (vraćanja, reklamacije, odlaganja, otkazivanja), pozivi i traka sa radnjama na dnu.
 import React, { useState, useEffect, useRef } from 'react';
-// eslint-disable-next-line no-unused-vars
-import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
-import { BackIcon, SaveIcon, CheckIcon, ClockIcon, BanIcon, UserIcon, AlertIcon, HistoryIcon, ImageIcon, DeleteIcon, MaterialIcon, EquipmentIcon, FileIcon, DownloadIcon, UserCheckIcon, XIcon, PhoneIcon, ChevronLeftIcon, ChevronRightIcon, BoxIcon, ToolsIcon, CalendarIcon, MapPinIcon, CommentIcon, CheckCircleIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { createPortal } from 'react-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import * as Popover from '@radix-ui/react-popover';
+import {
+  ArrowLeft, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Download, History, ImageIcon, MapPin,
+  Pencil, Phone, Save, Sparkles, Trash2, Undo2, UserCheck, UserRound, X
+} from 'lucide-react';
 import { toast } from '../../utils/toast';
 import api, { workOrdersAPI, techniciansAPI, userEquipmentAPI, supportCallsAPI } from '../../services/api';
 import { supportTypeLabel, supportTypeStyle, callSourceLabel, EVENT_TYPE_BADGES } from '../../utils/supportCalls';
-import { cn } from '../../utils/cn';
 import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import jsPDF from 'jspdf';
 // eslint-disable-next-line no-unused-vars
@@ -19,45 +22,66 @@ import PenaltyAdjustModal from '../../components/PenaltyAdjustModal';
 import { getPenaltyInfo, formatRsd } from '../../utils/rejectionPenalty';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import { localYmd } from '../../utils/localDate';
+import { cx, Btn, Led, State, Sign, Skeleton } from '../../security/sx/ui';
+import { PageHead, Panel, Note } from '../../security/sx/layout';
+import { Input, Select, Textarea } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { confirm } from '../../security/sx/confirm';
+import { useLayer } from '../../security/sx/layer';
+import { Loading } from '../../montaza/ui';
+import './WorkOrderDetail.mx.css';
 
-// EditableField extracted outside to prevent remount on parent re-render (fixes cursor jump)
+// Ton stanja naloga (znak + tekst)
+const STATUS_TONE = { zavrsen: 'ok', nezavrsen: 'warn', odlozen: 'info', otkazan: 'bad' };
+const STATUS_OPTIONS = [
+  { status: 'zavrsen', label: 'Završen' },
+  { status: 'nezavrsen', label: 'Nezavršen' },
+  { status: 'odlozen', label: 'Odložen' },
+  { status: 'otkazan', label: 'Otkazan' }
+];
+const CUSTOMER_STATUSES = [
+  'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+  'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+  'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+  'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+  'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima sa isporukom materijala',
+  'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova sa isporukom materijala',
+  'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju) - ASTRA TELEKOM',
+  'Dodavanje drugog uređaja ili dorada - ASTRA TELEKOM',
+  'Demontaža postojeće opreme kod korisnika (po korisniku) - ASTRA TELEKOM',
+  'Intervencija kod korisnika - ASTRA TELEKOM',
+  'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa) - ASTRA TELEKOM'
+];
+const imageUrlOf = (img) => (typeof img === 'object' ? img.url : img);
+const shortDate = (d) => new Date(d).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+// Polje sa olovkom (van roditelja, da se ne pravi iznova pri svakom crtanju i kursor ne skače).
+// Prozor za izmenu ide u Portal (Radix), pa ostaje na ekranu i uz desnu ivicu.
 const EditableField = ({ field, value, displayValue, type = 'text', options, placeholder, rows, isEditing, editVal, onEditValChange, onStartEdit, onConfirm, onCancel, editRefProp }) => {
   return (
-    <div className="relative group">
-      <div className="flex items-start gap-1">
-        <span className="text-sm text-slate-900 font-semibold leading-snug">
-          {displayValue || value || <span className="text-slate-400 italic font-normal text-xs">Nije unet</span>}
+    <Popover.Root open={isEditing}>
+      <Popover.Anchor asChild>
+        <span className="mx-wod-edit">
+          <span className="mx-wod-edit__val">
+            {displayValue || value || <span className="mx-wod-none">Nije unet</span>}
+          </span>
+          <button type="button" className="mx-wod-edit__btn" onClick={() => onStartEdit(field, value)} title="Izmeni">
+            <Pencil size={13} strokeWidth={1.9} aria-hidden="true" />
+          </button>
         </span>
-        <button
-          onClick={() => onStartEdit(field, value)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-slate-200 rounded flex-shrink-0 mt-0.5"
-          title="Izmeni"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-      </div>
-
-      {isEditing && (
-        <div ref={editRefProp} className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2.5 min-w-[220px]">
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content ref={editRefProp} className="sx-portal sx-popover mx-wod-pop" align="start" sideOffset={6} collisionPadding={12}>
           {type === 'select' ? (
-            <select
-              value={editVal}
-              onChange={(e) => onEditValChange(e.target.value)}
-              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              autoFocus
-            >
+            <Select value={editVal} onChange={(e) => onEditValChange(e.target.value)} autoFocus>
               {options?.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </select>
+            </Select>
           ) : type === 'textarea' ? (
-            <textarea
+            <Textarea
               value={editVal}
               onChange={(e) => onEditValChange(e.target.value)}
-              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical"
               rows={rows || 3}
               placeholder={placeholder}
               autoFocus
@@ -66,11 +90,10 @@ const EditableField = ({ field, value, displayValue, type = 'text', options, pla
               }}
             />
           ) : (
-            <input
+            <Input
               type={type}
               value={editVal}
               onChange={(e) => onEditValChange(e.target.value)}
-              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder={placeholder}
               autoFocus
               onKeyDown={(e) => {
@@ -79,23 +102,13 @@ const EditableField = ({ field, value, displayValue, type = 'text', options, pla
               }}
             />
           )}
-          <div className="flex items-center gap-1.5 mt-2">
-            <button
-              onClick={onConfirm}
-              className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-            >
-              OK
-            </button>
-            <button
-              onClick={onCancel}
-              className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-            >
-              Otkaži
-            </button>
+          <div className="mx-wod-pop__acts">
+            <Btn size="sm" variant="primary" onClick={onConfirm}>OK</Btn>
+            <Btn size="sm" onClick={onCancel}>Otkaži</Btn>
           </div>
-        </div>
-      )}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 };
 
@@ -198,7 +211,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         setMaterials(workOrderRes.data.materials || []);
         setVoiceRecordings(workOrderRes.data.voiceRecordings || []);
 
-        // Pozivi podršci — zaseban fetch da njegov neuspeh ne obori stranicu
+        // Pozivi podršci - zaseban fetch da njegov neuspeh ne obori stranicu
         supportCallsAPI.getByWorkOrder(id)
           .then(res => setSupportCalls(Array.isArray(res.data) ? res.data : []))
           .catch(err => {
@@ -206,7 +219,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
             setSupportCalls([]);
           });
 
-        // Nalozi na istoj adresi — zaseban fetch, neuspeh ne obara stranicu
+        // Nalozi na istoj adresi - zaseban fetch, neuspeh ne obara stranicu
         workOrdersAPI.getSameAddress(id)
           .then(res => setSameAddressOrders(Array.isArray(res.data) ? res.data : []))
           .catch(err => {
@@ -301,6 +314,9 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showStatusDropdown]);
+
+  // Pregled slike je sloj: Escape ga zatvara, a stranica ispod se ne pomera
+  useLayer(!!showFullImage, () => setShowFullImage(null));
 
   // Verification navigation helpers
   const currentVerificationIndex = verificationOrderIds.indexOf(id);
@@ -502,18 +518,16 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     }
   };
 
-  // Open customer status modal
+  // Open customer status modal (skrol stranice zaključava sam dijalog, sloj iz security/sx/layer)
   const openCustomerStatusModal = async (orderId) => {
     if (!orderStatuses[orderId]) {
       await loadCustomerStatus(orderId);
     }
-    document.body.style.overflow = 'hidden';
     setCustomerStatusModal({ isOpen: true, orderId });
   };
 
   // Close customer status modal
   const closeCustomerStatusModal = () => {
-    document.body.style.overflow = '';
     setCustomerStatusModal({ isOpen: false, orderId: null });
   };
 
@@ -612,7 +626,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
     }
   };
 
-  // Reject AI recommendation (return to technician) — ista potvrda sa umanjenjem kao ručno vraćanje
+  // Reject AI recommendation (return to technician) - ista potvrda sa umanjenjem kao ručno vraćanje
   const handleRejectAI = () => {
     if (!aiVerificationResult) return;
 
@@ -875,7 +889,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
 
   // Funkcija za brisanje slike
   const handleImageDelete = async (imageUrl) => {
-    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu sliku?')) {
+    if (!(await confirm({ title: 'Da li ste sigurni da želite da obrišete ovu sliku?', tone: 'danger', confirmLabel: 'Obriši' }))) {
       return;
     }
 
@@ -947,17 +961,16 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const getStatusConfig = (status) => {
     switch (status) {
       case 'zavrsen':
-        return { label: 'Završen', dotColor: 'bg-emerald-400', textColor: 'text-emerald-400', bgColor: 'bg-emerald-500/15' };
+        return { label: 'Završen', tone: STATUS_TONE.zavrsen };
       case 'odlozen':
-        return { label: 'Odložen', dotColor: 'bg-amber-400', textColor: 'text-amber-400', bgColor: 'bg-amber-500/15' };
+        return { label: 'Odložen', tone: STATUS_TONE.odlozen };
       case 'otkazan':
-        return { label: 'Otkazan', dotColor: 'bg-red-400', textColor: 'text-red-400', bgColor: 'bg-red-500/15' };
+        return { label: 'Otkazan', tone: STATUS_TONE.otkazan };
       default:
-        return { label: 'Nezavršen', dotColor: 'bg-blue-400', textColor: 'text-blue-400', bgColor: 'bg-blue-500/15' };
+        return { label: 'Nezavršen', tone: STATUS_TONE.nezavrsen };
     }
   };
 
-  // ─── Editable Field Sub-Component ─────────────────────────
   // ─── Role Helpers ──────────────────────────────────────────
   const storedUser = localStorage.getItem('user');
   const currentUserRole = storedUser ? JSON.parse(storedUser).role : null;
@@ -965,35 +978,29 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const canViewEditLog = currentUserRole === 'superadmin';
   const canAdjustPenalty = currentUserRole === 'superadmin';
 
-  // ─── Loading State ─────────────────────────────────────────
+
+  // Učitavanje
   if (loading) {
     return (
-      <div className={isModal ? "flex items-center justify-center h-96" : "min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6"}>
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-slate-600 font-medium">Učitavanje...</p>
-        </div>
+      <div className="sx-page" aria-busy="true" data-testid="page-work-order-detail">
+        <span className="sx-sr">Učitavanje...</span>
+        <Skeleton h={14} w={180} />
+        <Skeleton h={44} w="min(420px, 80%)" style={{ marginTop: 16 }} />
+        <Skeleton h={150} r={18} style={{ marginTop: 26 }} />
+        <Skeleton h={320} r={18} style={{ marginTop: 20 }} />
       </div>
     );
   }
 
   if (error && !workOrder) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6">
-        <div className="p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-slate-900">Detalji radnog naloga</h1>
-            <Button
-              type="secondary"
-              size="small"
-              prefix={<BackIcon size={16} />}
-              onClick={goBack}
-            >
-              Povratak na listu
-            </Button>
-          </div>
-        </div>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
+      <div className="sx-page" data-testid="page-work-order-detail">
+        <PageHead
+          eyebrow="Montaža · Radni nalozi"
+          title="Detalji radnog naloga"
+          actions={<Btn icon={ArrowLeft} onClick={goBack}>Povratak na listu</Btn>}
+        />
+        <Note tone="bad">{error}</Note>
       </div>
     );
   }
@@ -1003,101 +1010,133 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
   const hasAssignedTechnician = !!(workOrder?.technicianId || workOrder?.technician2Id);
   const techName = technicians.find(t => t._id === formData.technicianId)?.name;
   const tech2Name = technicians.find(t => t._id === formData.technician2Id)?.name;
+  const fullImageIndex = showFullImage ? images.findIndex(img => imageUrlOf(img) === showFullImage) : -1;
 
-  // ─── Main Return ───────────────────────────────────────────
+  // Glavni prikaz
   return (
-    <div className={isModal ? "bg-white pb-16" : "min-h-screen bg-white -m-6 pb-16"}>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm m-4 rounded-lg">{error}</div>
-      )}
+    <div className="sx-page mx-wod" data-testid="page-work-order-detail">
+      {error && <Note tone="bad" className="mx-wod-block">{error}</Note>}
 
       {/* Povratak na nalog sa kog se došlo (klik iz sekcije "Nalozi na istoj adresi") */}
       {location.state?.backTo && (
-        <div className="bg-slate-50 border-b border-slate-200 px-5 sm:px-6 py-2.5">
-          <button
-            onClick={() => navigate(`/work-orders/${location.state.backTo.id}`)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800"
-          >
-            <BackIcon size={14} />
+        <div className="mx-wod-block mx-wod-backs">
+          <Btn size="sm" variant="ghost" icon={ArrowLeft} onClick={() => navigate(`/work-orders/${location.state.backTo.id}`)}>
             Nazad na nalog {location.state.backTo.tis ? `TIS ${location.state.backTo.tis}` : ''}
-          </button>
+          </Btn>
         </div>
       )}
 
       {/* Upozorenje: na ovoj adresi postoji ranije otkazan nalog (flag sa importa) */}
       {workOrder?.duplicateAddressFlagged && (
-        <div className="bg-amber-50 border-b border-amber-200 px-5 sm:px-6 py-2.5 flex items-center gap-2">
-          <AlertIcon size={15} className="text-amber-600 shrink-0" />
-          <span className="text-sm text-amber-800">
-            Na ovoj adresi {workOrder.duplicateAddressCanceledCount === 1
-              ? 'postoji ranije otkazan radni nalog'
-              : `postoje ${workOrder.duplicateAddressCanceledCount || ''} ranije otkazana radna naloga`} — pogledaj sekciju "Nalozi na istoj adresi" ispod.
-          </span>
-        </div>
+        <Note tone="warn" className="mx-wod-block">
+          Na ovoj adresi {workOrder.duplicateAddressCanceledCount === 1
+            ? 'postoji ranije otkazan radni nalog'
+            : `postoje ${workOrder.duplicateAddressCanceledCount || ''} ranije otkazana radna naloga`} - pogledaj sekciju "Nalozi na istoj adresi" ispod.
+        </Note>
       )}
 
-      {/* ── Core Info Grid (4 columns, editable) ─────────── */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+      {/* Osnovni podaci (izmena na olovku) i oznake naloga */}
+      <Panel
+        pad={false}
+        className="mx-wod-block mx-wod-facts"
+        testId="wod-facts"
+        footer={
+          <div className="mx-wod-ids">
+            {workOrder?.tisId && (
+              <span className="mx-wod-id"><span className="sx-label">TIS</span><span className="mx-wod-code">{workOrder.tisId}</span></span>
+            )}
+            {workOrder?.tisJobId && (
+              <span className="mx-wod-id"><span className="sx-label">Job</span><span className="mx-wod-code">{workOrder.tisJobId}</span></span>
+            )}
+            {workOrder?.technology && (
+              <span className="mx-wod-id"><span className="sx-label">Tehnologija</span><span className="sx-mono">{workOrder.technology}</span></span>
+            )}
+            <span className="mx-wod-id">
+              <span className="sx-label">Tim</span>
+              <EditableField
+                field="tim"
+                {...editProps("tim")}
+                value={formData.tim}
+                displayValue={<span className={cx('mx-wod-tim', getTimBadgeClasses(formData.tim))}>{getTimLabel(formData.tim)}</span>}
+                type="select"
+                options={[
+                  { value: '', label: 'Nije definisan' },
+                  { value: 'robotik', label: 'Robotik' },
+                  { value: 'mtel', label: 'mtel' }
+                ]}
+              />
+            </span>
+            <span className="mx-wod-id">
+              <span className="sx-label">Email</span>
+              {workOrder?.verified ? (
+                // Verifikovan radni nalog - read-only (email se ne može menjati posle verifikacije)
+                <span>{workOrder?.customerEmail || <span className="mx-wod-none">Nije unet</span>}</span>
+              ) : (
+                // Pre verifikacije - editovati slobodno
+                <EditableField
+                  field="customerEmail"
+                  {...editProps("customerEmail")}
+                  value={formData.customerEmail}
+                  displayValue={formData.customerEmail ? formData.customerEmail : <span className="mx-wod-none">Nije unet</span>}
+                  type="email"
+                  placeholder="ime@domen.com"
+                />
+              )}
+            </span>
+          </div>
+        }
+      >
+        <div className="mx-wod-facts__grid">
           {/* Datum / Tip */}
-          <div className="px-5 sm:px-6 py-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <CalendarIcon size={13} className="text-slate-400" />
-              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Datum / Tip</span>
+          <div className="mx-wod-fact">
+            <span className="sx-label mx-wod-fact__label"><CalendarDays aria-hidden="true" strokeWidth={1.9} />Datum / Tip</span>
+            <div className="mx-wod-fact__main">
+              <EditableField
+                field="date"
+                {...editProps("date")}
+                value={formData.date}
+                displayValue={formData.date ? new Date(formData.date).toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' }) : null}
+                type="date"
+              />
             </div>
-            <EditableField
-              field="date"
-              {...editProps("date")}
-              value={formData.date}
-              displayValue={formData.date ? new Date(formData.date).toLocaleDateString('sr-RS', { day: 'numeric', month: 'long', year: 'numeric' }) : null}
-              type="date"
-            />
-            <div className="flex items-center gap-1.5 mt-1">
+            <div className="mx-wod-fact__sub">
               <EditableField
                 field="type"
                 {...editProps("type")}
                 value={formData.type}
-                displayValue={
-                  <span className="text-xs text-slate-500 font-normal">{formData.type || '—'}</span>
-                }
+                displayValue={formData.type || '-'}
                 type="text"
                 placeholder="Tip instalacije"
               />
-              <span className="text-xs text-slate-400">·</span>
+              <span aria-hidden="true">·</span>
               <EditableField
                 field="time"
                 {...editProps("time")}
                 value={formData.time}
-                displayValue={
-                  <span className="text-xs text-slate-500 font-normal">{formData.time || '—'}</span>
-                }
+                displayValue={formData.time || '-'}
                 type="time"
               />
             </div>
           </div>
 
           {/* Lokacija */}
-          <div className="px-5 sm:px-6 py-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <MapPinIcon size={13} className="text-slate-400" />
-              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Lokacija</span>
+          <div className="mx-wod-fact">
+            <span className="sx-label mx-wod-fact__label"><MapPin aria-hidden="true" strokeWidth={1.9} />Lokacija</span>
+            <div className="mx-wod-fact__main">
+              <EditableField
+                field="municipality"
+                {...editProps("municipality")}
+                value={formData.municipality}
+                type="text"
+                placeholder="Opština"
+              />
             </div>
-            <EditableField
-              field="municipality"
-              {...editProps("municipality")}
-              value={formData.municipality}
-              type="text"
-              placeholder="Opština"
-            />
-            <div className="mt-1">
+            <div className="mx-wod-fact__sub">
               <EditableField
                 field="address"
                 {...editProps("address")}
                 value={formData.address}
-                displayValue={
-                  <span className="text-xs text-slate-500 font-normal">{formData.address || '—'}</span>
-                }
+                displayValue={formData.address || '-'}
                 type="text"
                 placeholder="Adresa"
               />
@@ -1105,31 +1144,30 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           </div>
 
           {/* Tehničar */}
-          <div className="px-5 sm:px-6 py-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <UserIcon size={13} className="text-slate-400" />
-              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Tehničar</span>
+          <div className="mx-wod-fact">
+            <span className="sx-label mx-wod-fact__label"><UserRound aria-hidden="true" strokeWidth={1.9} />Tehničar</span>
+            <div className="mx-wod-fact__main">
+              <EditableField
+                field="technicianId"
+                {...editProps("technicianId")}
+                value={formData.technicianId}
+                displayValue={techName || <span className="mx-wod-none">Nije dodeljen</span>}
+                type="select"
+                options={[
+                  { value: '', label: 'Odaberite tehničara' },
+                  ...technicians.filter(t => !t.deletedAt || t._id === formData.technicianId).map(t => ({ value: t._id, label: t.deletedAt ? `${t.name} (obrisan)` : t.name }))
+                ]}
+              />
             </div>
-            <EditableField
-              field="technicianId"
-              {...editProps("technicianId")}
-              value={formData.technicianId}
-              displayValue={techName || <span className="text-slate-400 italic text-xs font-normal">Nije dodeljen</span>}
-              type="select"
-              options={[
-                { value: '', label: 'Odaberite tehničara' },
-                ...technicians.filter(t => !t.deletedAt || t._id === formData.technicianId).map(t => ({ value: t._id, label: t.deletedAt ? `${t.name} (obrisan)` : t.name }))
-              ]}
-            />
-            <div className="mt-1">
+            <div className="mx-wod-fact__sub">
               <EditableField
                 field="technician2Id"
                 {...editProps("technician2Id")}
                 value={formData.technician2Id}
                 displayValue={
                   tech2Name
-                    ? <span className="text-xs text-slate-500 font-normal">+ {tech2Name} <span className="text-slate-400">(pomoćni)</span></span>
-                    : <span className="text-xs text-slate-400 italic font-normal">Bez pomoćnog</span>
+                    ? <>+ {tech2Name} <span className="mx-wod-faint">(pomoćni)</span></>
+                    : <span className="mx-wod-none">Bez pomoćnog</span>
                 }
                 type="select"
                 options={[
@@ -1141,317 +1179,161 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           </div>
 
           {/* Korisnik (read-only) */}
-          <div className="px-5 sm:px-6 py-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <PhoneIcon size={13} className="text-slate-400" />
-              <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Korisnik</span>
-            </div>
-            <p className="text-sm text-slate-900 font-semibold leading-snug">
-              {workOrder?.userName || <span className="text-slate-400 italic font-normal">—</span>}
-            </p>
-            <p className="text-xs text-slate-500 mt-1">{workOrder?.userPhone || '—'}</p>
+          <div className="mx-wod-fact">
+            <span className="sx-label mx-wod-fact__label"><Phone aria-hidden="true" strokeWidth={1.9} />Korisnik</span>
+            <p className="mx-wod-fact__main">{workOrder?.userName || <span className="mx-wod-faint">-</span>}</p>
+            <p className="mx-wod-fact__sub">{workOrder?.userPhone || '-'}</p>
           </div>
         </div>
-      </div>
+      </Panel>
 
-      {/* ── IDs Strip ────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 sm:px-6 py-2.5 bg-slate-50 border-b border-slate-200">
-          {workOrder?.tisId && (
-            <>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-400 uppercase font-medium">TIS</span>
-                <span className="text-xs font-mono font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">{workOrder.tisId}</span>
+      <div className="sx-cols sx-cols--wide mx-wod-block">
+        {/* Levo: posao, oprema, materijal i slike */}
+        <div className="sx-stack">
+          {/* Detalji posla i komentar tehničara: jedan blok sa dve polovine, kao ranije */}
+          <Panel pad={false} testId="wod-details-comment">
+            <div className="mx-wod-split">
+              <div className="mx-wod-split__half" data-testid="wod-details">
+                <h2 className="sx-card__title">Detalji posla</h2>
+                <EditableField
+                  field="details"
+                  {...editProps("details")}
+                  value={formData.details}
+                  displayValue={formData.details ? <span className="mx-wod-text">{formData.details}</span> : null}
+                  type="textarea"
+                  rows={4}
+                  placeholder="Opišite detalje posla..."
+                />
               </div>
-              <div className="hidden sm:block w-px h-4 bg-slate-200" />
-            </>
-          )}
-          {workOrder?.tisJobId && (
-            <>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-400 uppercase font-medium">Job</span>
-                <span className="text-xs font-mono font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">{workOrder.tisJobId}</span>
-              </div>
-              <div className="hidden sm:block w-px h-4 bg-slate-200" />
-            </>
-          )}
-          {workOrder?.technology && (
-            <>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-400 uppercase font-medium">Tehnologija</span>
-                <span className="text-xs font-mono text-slate-600">{workOrder.technology}</span>
-              </div>
-              <div className="hidden sm:block w-px h-4 bg-slate-200" />
-            </>
-          )}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 uppercase font-medium">Tim</span>
-            <EditableField
-              field="tim"
-              {...editProps("tim")}
-              value={formData.tim}
-              displayValue={
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${getTimBadgeClasses(formData.tim)}`}>
-                  {getTimLabel(formData.tim)}
-                </span>
-              }
-              type="select"
-              options={[
-                { value: '', label: 'Nije definisan' },
-                { value: 'robotik', label: 'Robotik' },
-                { value: 'mtel', label: 'mtel' }
-              ]}
-            />
-          </div>
-          <div className="hidden sm:block w-px h-4 bg-slate-200" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 uppercase font-medium">Email</span>
-            {workOrder?.verified ? (
-              // Verifikovan radni nalog - read-only (email se ne može menjati posle verifikacije)
-              <span className="text-xs text-slate-600">
-                {workOrder?.customerEmail || <span className="italic text-slate-400">Nije unet</span>}
-              </span>
-            ) : (
-              // Pre verifikacije - editovati slobodno
-              <EditableField
-                field="customerEmail"
-                {...editProps("customerEmail")}
-                value={formData.customerEmail}
-                displayValue={
-                  formData.customerEmail
-                    ? <span className="text-xs text-slate-600 font-normal">{formData.customerEmail}</span>
-                    : <span className="italic text-slate-400 text-xs font-normal">Nije unet</span>
-                }
-                type="email"
-                placeholder="ime@domen.com"
-              />
-            )}
-          </div>
-        </div>
-
-      {/* ── Main Content (7:5 grid) ──────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 bg-white">
-
-        {/* ── LEFT COLUMN (7/12) ─────────────────────────── */}
-        <div className="lg:col-span-7 lg:border-r border-slate-200">
-
-            {/* Details + Comment */}
-            <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
-                    <CommentIcon size={13} className="text-slate-400" />
-                    Detalji posla
-                  </p>
-                  <EditableField
-                    field="details"
-                    {...editProps("details")}
-                    value={formData.details}
-                    displayValue={
-                      formData.details
-                        ? <span className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">{formData.details}</span>
-                        : null
-                    }
-                    type="textarea"
-                    rows={4}
-                    placeholder="Opišite detalje posla..."
-                  />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2.5">Komentar tehničara</p>
-                  {formData.comment ? (
-                    <div className="border-l-2 border-emerald-400 pl-3 bg-emerald-50/50 py-2.5 pr-2 rounded-r">
-                      <EditableField
-                        field="comment"
-                        {...editProps("comment")}
-                        value={formData.comment}
-                        displayValue={
-                          <span className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">{formData.comment}</span>
-                        }
-                        type="textarea"
-                        rows={4}
-                        placeholder="Komentar..."
-                      />
-                    </div>
-                  ) : (
-                    <EditableField
-                      field="comment"
-                      {...editProps("comment")}
-                      value={formData.comment}
-                      displayValue={null}
-                      type="textarea"
-                      rows={3}
-                      placeholder="Komentar..."
-                    />
-                  )}
-                </div>
+              <div className="mx-wod-split__half" data-testid="wod-comment">
+                <h2 className="sx-card__title">Komentar tehničara</h2>
+                <EditableField
+                  field="comment"
+                  {...editProps("comment")}
+                  value={formData.comment}
+                  displayValue={formData.comment ? <span className="mx-wod-text">{formData.comment}</span> : null}
+                  type="textarea"
+                  rows={formData.comment ? 4 : 3}
+                  placeholder="Komentar..."
+                />
               </div>
             </div>
+          </Panel>
 
-            {/* Equipment Table */}
-            <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium flex items-center gap-1.5">
-                  <BoxIcon size={13} className="text-slate-400" />
-                  Oprema korisnika
-                </p>
-                <span className="text-xs bg-slate-900 text-white px-2.5 py-0.5 rounded-full font-medium">
-                  {userEquipment.length}
-                </span>
-              </div>
-
-              {loadingEquipment ? (
-                <div className="text-center py-4">
-                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                </div>
-              ) : userEquipment.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 w-16">Tip</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3">Opis</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3">Serijski br.</th>
-                        <th className="text-right font-medium text-slate-500 pb-2.5 w-20">Datum</th>
+          <Panel
+            title="Oprema korisnika"
+            actions={<span className="sx-tag is-ink">{userEquipment.length}</span>}
+            testId="wod-equipment"
+          >
+            {loadingEquipment ? (
+              <Loading rows={2} h={36} />
+            ) : userEquipment.length > 0 ? (
+              <div className="mx-wod-tbl">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Tip</th>
+                      <th>Opis</th>
+                      <th>Serijski br.</th>
+                      <th className="is-end">Datum</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userEquipment.map((eq, i) => (
+                      <tr key={eq.id} style={{ '--i': i }}>
+                        <td className="is-head"><span className="sx-tag is-ink">{eq.equipmentType?.slice(0, 3)?.toUpperCase() || '-'}</span></td>
+                        <td data-label="Opis"><b className="mx-wod-strong">{eq.equipmentDescription || '-'}</b></td>
+                        <td data-label="Serijski br." className="sx-mono">{eq.serialNumber}</td>
+                        <td data-label="Datum" className="is-end sx-nowrap">{eq.installedAt ? shortDate(eq.installedAt) : '-'}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {userEquipment.map((eq) => (
-                        <tr key={eq.id} className="border-b border-slate-50 last:border-0">
-                          <td className="py-2.5 pr-3">
-                            <span className="bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wide">
-                              {eq.equipmentType?.slice(0, 3)?.toUpperCase() || '—'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 text-slate-900 font-medium">{eq.equipmentDescription || '—'}</td>
-                          <td className="py-2.5 pr-3 font-mono text-slate-500 text-xs">{eq.serialNumber}</td>
-                          <td className="py-2.5 text-right text-slate-400 text-xs">
-                            {eq.installedAt ? new Date(eq.installedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400 text-center py-4">Nema instalirane opreme</p>
-              )}
-
-              {userEquipmentHistory.length > 0 && (
-                <button
-                  onClick={() => setShowHistoryModal(true)}
-                  className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors font-medium"
-                >
-                  <HistoryIcon size={14} />
-                  Istorija opreme
-                </button>
-              )}
-            </div>
-
-            {/* Removed Equipment (red-themed, conditional) */}
-            {removedEquipment.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs uppercase tracking-wider text-red-500 font-medium flex items-center gap-1.5">
-                    <DeleteIcon size={13} className="text-red-500" />
-                    Uklonjena oprema
-                  </p>
-                  <span className="text-xs bg-red-600 text-white px-2.5 py-0.5 rounded-full font-medium">
-                    {removedEquipment.length}
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-red-200">
-                        <th className="text-left font-medium text-red-600 pb-2.5 pr-3 w-16">Tip</th>
-                        <th className="text-left font-medium text-red-600 pb-2.5 pr-3">Serijski br.</th>
-                        <th className="text-left font-medium text-red-600 pb-2.5 pr-3">Stanje</th>
-                        <th className="text-right font-medium text-red-600 pb-2.5 w-20">Datum</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {removedEquipment.map((eq) => (
-                        <tr key={eq.id} className="border-b border-red-50 last:border-0 bg-red-50/30">
-                          <td className="py-2.5 pr-3">
-                            <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wide">
-                              {eq.equipmentType?.slice(0, 3)?.toUpperCase() || '—'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 font-mono text-slate-600 text-xs">{eq.serialNumber}</td>
-                          <td className="py-2.5 pr-3">
-                            <span className={cn(
-                              "text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase",
-                              eq.condition === 'ispravna' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            )}>
-                              {eq.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 text-right text-slate-400 text-xs">
-                            {eq.removedAt ? new Date(eq.removedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Materials + Images (side by side) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-slate-100">
-              {/* Materials */}
-              <div className="px-5 sm:px-6 py-5 border-b md:border-b-0 border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3 flex items-center gap-1.5">
-                  <ToolsIcon size={13} className="text-slate-400" />
-                  Utrošeni materijali
-                </p>
-                {materials.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-4">Nema materijala</p>
-                ) : (
-                  <div className="space-y-1">
-                    {materials.map((materialItem, index) => (
-                      <div key={index} className="flex items-center justify-between py-1.5">
-                        <span className="text-sm text-slate-600">{materialItem.material?.type || 'Nepoznat'}</span>
-                        <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded ml-2 flex-shrink-0">
-                          ×{materialItem.quantity}
-                        </span>
-                      </div>
                     ))}
-                  </div>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mx-wod-empty">Nema instalirane opreme</p>
+            )}
+
+            {userEquipmentHistory.length > 0 && (
+              <Btn size="sm" variant="ghost" icon={History} className="mx-wod-histbtn" onClick={() => setShowHistoryModal(true)}>Istorija opreme</Btn>
+            )}
+          </Panel>
+
+          {/* Uklonjena oprema (samo kad je ima) */}
+          {removedEquipment.length > 0 && (
+            <Panel tone="bad" title="Uklonjena oprema" actions={<span className="sx-tag is-bad">{removedEquipment.length}</span>} testId="wod-removed">
+              <div className="mx-wod-tbl">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Tip</th>
+                      <th>Serijski br.</th>
+                      <th>Stanje</th>
+                      <th className="is-end">Datum</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {removedEquipment.map((eq, i) => (
+                      <tr key={eq.id} style={{ '--i': i }}>
+                        <td className="is-head"><span className="sx-tag is-bad">{eq.equipmentType?.slice(0, 3)?.toUpperCase() || '-'}</span></td>
+                        <td data-label="Serijski br." className="sx-mono">{eq.serialNumber}</td>
+                        <td data-label="Stanje">
+                          {eq.condition === 'ispravna' ? <Sign tone="ok">Ispravna</Sign> : <Sign tone="bad">Neispravna</Sign>}
+                        </td>
+                        <td data-label="Datum" className="is-end sx-nowrap">{eq.removedAt ? shortDate(eq.removedAt) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          )}
+
+          {/* Utrošeni materijali i slike: jedan blok sa dve polovine, kao ranije */}
+          <Panel pad={false} testId="wod-materials-images">
+            <div className="mx-wod-split">
+              <div className="mx-wod-split__half" data-testid="wod-materials">
+                <h2 className="sx-card__title">Utrošeni materijali</h2>
+                {materials.length === 0 ? (
+                  <p className="mx-wod-empty">Nema materijala</p>
+                ) : (
+                  <ul className="mx-wod-rows">
+                    {materials.map((materialItem, index) => (
+                      <li key={index} className="mx-wod-row">
+                        <span>{materialItem.material?.type || 'Nepoznat'}</span>
+                        <span className="mx-wod-qty">×{materialItem.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 
-              {/* Images */}
-              <div className="px-5 sm:px-6 py-5">
-                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3 flex items-center gap-1.5">
-                  <ImageIcon size={13} className="text-slate-400" />
-                  Slike
-                  <span className="text-xs bg-slate-100 text-slate-500 px-2 rounded-full ml-0.5">{images.length}</span>
-                </p>
+              <div className="mx-wod-split__half" data-testid="wod-images">
+                <h2 className="sx-card__title sx-panel__title-row">Slike <span className="sx-count">{images.length}</span></h2>
                 {workOrder?.missingPhotosComment && (
-                  <div className="mb-3 border-l-2 border-amber-400 bg-amber-50/70 rounded-r px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold mb-0.5">Razlog za nedostajuće slike</p>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{workOrder.missingPhotosComment}</p>
-                  </div>
+                  <Note tone="warn" className="mx-wod-note">
+                    <b>Razlog za nedostajuće slike</b>
+                    <span className="mx-wod-text mx-wod-note__text">{workOrder.missingPhotosComment}</span>
+                  </Note>
                 )}
                 {images.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-4">Nema slika</p>
+                  <p className="mx-wod-empty">Nema slika</p>
                 ) : (
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="mx-wod-thumbs">
                     {images.map((imageItem, index) => {
-                      const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
+                      const imageUrl = imageUrlOf(imageItem);
                       const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
 
                       return (
-                        <div key={index} className="aspect-square rounded-md bg-slate-100 overflow-hidden cursor-pointer group relative">
+                        <div key={index} className="mx-wod-thumb">
                           <img
                             src={imageUrl}
                             alt={originalName || `Slika ${index + 1}`}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform"
                             onClick={() => setShowFullImage(imageUrl)}
                           />
                           <button
-                            className="absolute top-0.5 right-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            type="button"
+                            className="mx-wod-thumb__del"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleImageDelete(imageUrl);
@@ -1459,7 +1341,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                             title="Obriši sliku"
                             disabled={deletingImage}
                           >
-                            <DeleteIcon size={10} />
+                            <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
                           </button>
                         </div>
                       );
@@ -1468,921 +1350,597 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                 )}
               </div>
             </div>
-          </div>
+          </Panel>
+        </div>
 
-        {/* ── RIGHT COLUMN (5/12) ────────────────────────── */}
-        <div className="lg:col-span-5 border-t lg:border-t-0 border-slate-200">
+        {/* Desno: pregled, pozivi, istorije i verifikacija */}
+        <div className="sx-stack">
+          <Panel title="Pregled" testId="wod-summary">
+            <div className="mx-wod-counts">
+              {[
+                { label: 'Oprema', value: userEquipment.length.toString() },
+                { label: 'Materijali', value: materials.length.toString() },
+                { label: 'Slike', value: images.length.toString() },
+                { label: 'Snimci', value: voiceRecordings.length.toString() },
+              ].map((s, i) => (
+                <div key={i} className="mx-wod-counts__item">
+                  <b className="sx-num">{s.value}</b>
+                  <span className="sx-label">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </Panel>
 
-            {/* Summary Counters */}
-            <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-              <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3">Pregled</p>
-              <div className="grid grid-cols-4 gap-2">
+          {workOrder?.additionalJobs && (
+            <Panel title="Dodatni poslovi">
+              <p className="mx-wod-text">{workOrder.additionalJobs}</p>
+            </Panel>
+          )}
+
+          {/* Izmene opreme (samo superadmin) */}
+          {canViewEditLog && workOrder?.adminEditLog && workOrder.adminEditLog.length > 0 && (
+            <Panel title="Izmene opreme (Admin)" testId="wod-edit-log">
+              <ol className="mx-wod-log mx-wod-scroll">
+                {workOrder.adminEditLog.map((log, index) => {
+                  const isAdd = log.action === 'added' || log.action === 'material_added';
+                  const isMaterial = log.action === 'material_added' || log.action === 'material_removed';
+
+                  return (
+                    <li key={index} className="mx-wod-entry">
+                      <p className="mx-wod-entry__title">
+                        <Led tone={isAdd ? 'ok' : 'bad'} />
+                        <span>
+                          {isAdd ? 'Dodao' : 'Uklonio'} - {log.technicianName}
+                          {isMaterial ? (
+                            <> · {log.materialType} (kol: {log.materialQuantity})</>
+                          ) : (
+                            <> · {log.equipmentCategory} - {log.equipmentSerialNumber}</>
+                          )}
+                        </span>
+                      </p>
+                      <p className="mx-wod-entry__meta">
+                        {log.adminName} · {new Date(log.timestamp).toLocaleDateString('sr-RS')} {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+            </Panel>
+          )}
+
+          {/* Snimci poziva (supervisor i superadmin) */}
+          {canViewRecordings && (
+            <Panel title="Snimci poziva" testId="wod-recordings">
+              {voiceRecordings.length === 0 ? (
+                <p className="mx-wod-empty">Nema snimaka</p>
+              ) : (
+                <ol className="mx-wod-log mx-wod-scroll">
+                  {voiceRecordings.map((recording, index) => (
+                    <li key={recording._id || index} className="mx-wod-entry">
+                      <div className="mx-wod-entry__top">
+                        <span className="mx-wod-entry__title"><Phone size={14} strokeWidth={1.9} aria-hidden="true" />{recording.phoneNumber}</span>
+                        {recording.duration && (
+                          <span className="sx-tag sx-mono">
+                            {Math.floor(recording.duration / 60)}:{String(recording.duration % 60).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mx-wod-entry__meta">{new Date(recording.recordedAt).toLocaleString('sr-RS')}</p>
+                      <audio controls className="mx-wod-audio" preload="metadata">
+                        <source src={recording.url} type="audio/mpeg" />
+                        <source src={recording.url} type="audio/mp4" />
+                        Vaš pretraživač ne podržava audio reprodukciju.
+                      </audio>
+                      <p className="mx-wod-entry__meta mx-wod-entry__split">
+                        <span className="mx-wod-clip">{recording.fileName}</span>
+                        {recording.fileSize && (
+                          <span>{(recording.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                        )}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Panel>
+          )}
+
+          {/* Pozivi i kontakti (objedinjeni timeline: podrška + korisnik + podsetnici + alerti) */}
+          {supportCalls.length > 0 && (
+            <Panel title="Pozivi i kontakti" testId="wod-calls">
+              <ol className="mx-wod-log mx-wod-scroll">
+                {supportCalls.map((event, index) => {
+                  // Znak po tipu događaja
+                  const tone = event.eventType === 'uncontacted_alert' ? 'bad'
+                    : event.eventType === 'reminder_sent' ? 'info'
+                    : event.eventType === 'customer_call' ? 'ok'
+                    : 'idle';
+
+                  const title = event.eventType === 'customer_call'
+                    ? <>Poziv korisniku{event.source && (
+                        <span className="mx-wod-faint"> ({callSourceLabel(event.source)})</span>
+                      )}</>
+                    : event.eventType === 'reminder_sent'
+                    ? 'Podsetnik tehničaru (30 min pre termina)'
+                    : event.eventType === 'uncontacted_alert'
+                    ? 'Alert adminima - korisnik nije kontaktiran'
+                    : <>{supportTypeLabel(event.supportType)}{event.phoneNumber && (
+                        <span className="mx-wod-faint"> ({event.phoneNumber})</span>
+                      )}</>;
+
+                  // Za pozive iz aplikacije prikaži konkretan tip (Superpodrška, Marko, Ana...),
+                  // a ne genericnu oznaku, inače Marko/Ana ispadaju kao "Podrška"
+                  const badgeLabel = event.eventType === 'support_call'
+                    ? supportTypeLabel(event.supportType)
+                    : EVENT_TYPE_BADGES[event.eventType] || 'Poziv';
+
+                  return (
+                    <li key={event._id || index} className="mx-wod-entry">
+                      <div className="mx-wod-entry__top">
+                        <span className="mx-wod-entry__title"><Led tone={tone} /><span>{title}</span></span>
+                        <span className={event.eventType === 'support_call' ? cx('mx-wod-badge', supportTypeStyle(event.supportType).badge) : cx('sx-tag', tone !== 'idle' && `is-${tone}`)}>
+                          {badgeLabel}
+                        </span>
+                      </div>
+                      <p className="mx-wod-entry__meta">
+                        {new Date(event.at || event.calledAt).toLocaleString('sr-RS')}
+                        {(event.technicianName || event.technicianId?.name) && (
+                          <span> &middot; {event.technicianName || event.technicianId?.name}</span>
+                        )}
+                        {event.backfilled && <span> &middot; istorijski zapis</span>}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+            </Panel>
+          )}
+
+          {/* Nalozi na istoj adresi (svi statusi; otkazani su okidač za flag pri importu) */}
+          {sameAddressOrders.length > 0 && (
+            <Panel title={`Nalozi na istoj adresi (${sameAddressOrders.length})`} testId="wod-same-address">
+              <div className="sx-list mx-wod-scroll">
+                {sameAddressOrders.map((o) => {
+                  const st = o.status === 'zavrsen'
+                    ? { label: 'Završen', tone: 'ok' }
+                    : o.status === 'otkazan'
+                    ? { label: 'Otkazan', tone: 'bad' }
+                    : o.status === 'odlozen'
+                    ? { label: 'Odložen', tone: 'info' }
+                    : { label: 'Nezavršen', tone: 'warn' };
+                  const techNames = [o.technicianId?.name, o.technician2Id?.name].filter(Boolean).join(', ');
+                  return (
+                    <button
+                      type="button"
+                      key={o._id}
+                      onClick={() => navigate(`/work-orders/${o._id}`, {
+                        state: { backTo: { id, tis: workOrder?.tisId || formData?.tisId || '' } }
+                      })}
+                      className="sx-item is-click mx-wod-sameaddr"
+                    >
+                      <span className="sx-item__main">
+                        <b>
+                          {o.tisId ? `TIS ${o.tisId}` : (o.tisJobId ? `JOB ${o.tisJobId}` : 'Nalog')}
+                          {o.type && <span className="mx-wod-faint"> · {o.type}</span>}
+                        </b>
+                        <span>
+                          {o.date ? new Date(o.date).toLocaleDateString('sr-RS') : ''}
+                          {o.time && ` u ${o.time}`}
+                          {techNames && <span> &middot; {techNames}</span>}
+                        </span>
+                      </span>
+                      <span className="sx-item__side"><Sign tone={st.tone}>{st.label}</Sign></span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Panel>
+          )}
+
+          {/* Vraćanja naloga na ispravku i umanjenje zarade */}
+          {workOrder?.rejectionHistory && workOrder.rejectionHistory.length > 0 && (
+            <Panel
+              title="Vraćanja naloga"
+              testId="wod-rejections"
+              actions={<>
+                <span className={cx('sx-tag', penaltyInfo.current > 0 && 'is-bad')}>Trenutni minus: {penaltyInfo.current}%</span>
+                {canAdjustPenalty && (
+                  <Btn size="sm" onClick={() => setShowPenaltyModal(true)} title="Poništi ili promeni minus (i na već verifikovanom nalogu)">
+                    Promeni minus
+                  </Btn>
+                )}
+              </>}
+            >
+              <ol className="mx-wod-log mx-wod-scroll">
                 {[
-                  { label: 'Oprema', value: userEquipment.length.toString() },
-                  { label: 'Materijali', value: materials.length.toString() },
-                  { label: 'Slike', value: images.length.toString() },
-                  { label: 'Snimci', value: voiceRecordings.length.toString() },
-                ].map((s, i) => (
-                  <div key={i} className="text-center py-2.5 bg-slate-50 rounded-lg">
-                    <p className="text-xl font-bold text-slate-900 leading-none">{s.value}</p>
-                    <p className="text-[10px] text-slate-400 mt-1.5 uppercase tracking-wide">{s.label}</p>
-                  </div>
+                  ...workOrder.rejectionHistory.map(item => ({ kind: 'rejection', at: item.rejectedAt, item })),
+                  ...(workOrder.penaltyAdjustments || []).map(item => ({ kind: 'adjustment', at: item.adjustedAt, item }))
+                ].sort((a, b) => new Date(b.at) - new Date(a.at)).map(({ kind, item }, index) => {
+                  if (kind === 'adjustment') {
+                    const isOldAdjustmentCycle = (item.cycle || 0) !== (workOrder.penaltyCycle || 0);
+                    return (
+                      <li key={item._id || `adj-${index}`} className={cx('mx-wod-entry', isOldAdjustmentCycle && 'is-dim')}>
+                        <div className="mx-wod-entry__top">
+                          <span className="mx-wod-entry__at">{new Date(item.adjustedAt).toLocaleString('sr-RS')}</span>
+                          <span className="sx-tag is-warn">Minus promenjen · {item.percentBefore}% → {item.percentAfter}%</span>
+                        </div>
+                        {item.reason && <p className="mx-wod-entry__text">{item.reason}</p>}
+                        <p className="mx-wod-entry__meta">
+                          {item.adjustedByName || 'Superadmin'}
+                          {item.financeUpdated ? ' · isplata preračunata' : ' · primenjuje se pri verifikaciji'}
+                          {isOldAdjustmentCycle && ' · pre reklamacije'}
+                        </p>
+                      </li>
+                    );
+                  }
+                  const rejection = item;
+                  const cycleNumber = rejection.cycle || 0;
+                  const numberInCycle = workOrder.rejectionHistory
+                    .filter(r => (r.cycle || 0) === cycleNumber)
+                    .findIndex(r => r._id === rejection._id) + 1;
+                  const isOldCycle = cycleNumber !== (workOrder.penaltyCycle || 0);
+                  return (
+                    <li key={rejection._id || index} className={cx('mx-wod-entry', isOldCycle && 'is-dim')}>
+                      <div className="mx-wod-entry__top">
+                        <span className="mx-wod-entry__at">{new Date(rejection.rejectedAt).toLocaleString('sr-RS')}</span>
+                        <span className={cx('sx-tag', rejection.penaltyApplied && 'is-bad')}>
+                          Vraćanje #{numberInCycle} · {rejection.penaltyApplied ? `minus ${rejection.penaltyPercentAfter}%` : 'bez umanjenja'}
+                        </span>
+                      </div>
+                      <p className="mx-wod-entry__text">{rejection.comment}</p>
+                      <p className="mx-wod-entry__meta">
+                        {rejection.rejectedByName || 'Admin'}
+                        {rejection.source === 'ai' && ' · AI verifikacija'}
+                        {rejection.technicianNames?.length > 0 && ` · ${rejection.technicianNames.join(', ')}`}
+                        {isOldCycle && ' · pre reklamacije'}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+            </Panel>
+          )}
+
+          {/* Reklamacije */}
+          {workOrder?.complaints && workOrder.complaints.length > 0 && (
+            <Panel title="Reklamacije" tone="bad" testId="wod-complaints">
+              <ol className="mx-wod-log mx-wod-scroll">
+                {[...workOrder.complaints].reverse().map((complaint, index) => (
+                  <li key={complaint._id || index} className="mx-wod-entry">
+                    <div className="mx-wod-entry__top">
+                      <span className="mx-wod-entry__at">{new Date(complaint.createdAt).toLocaleString('sr-RS')}</span>
+                      <span className="sx-tag is-bad">{complaint.createdByName || 'Admin'}</span>
+                    </div>
+                    {complaint.reason && (
+                      <p className="mx-wod-entry__text">{complaint.reason}</p>
+                    )}
+                    <div className="mx-wod-entry__more">
+                      {complaint.removedTechnicians?.map((t, i) => (
+                        <div key={i}>
+                          <p>
+                            <b>Sklonjen: {t.name}</b>
+                            {t.deductionAmount > 0
+                              ? <span className="mx-wod-bad"> · ukupan odbitak {formatRsd(t.deductionAmount)}</span>
+                              : <span className="mx-wod-warn"> · bez odbitka</span>}
+                          </p>
+                          {t.orderDeductionAmount > 0 && (
+                            <p className="mx-wod-entry__sub">Ovaj nalog se ne plaća: -{formatRsd(t.orderDeductionAmount)}</p>
+                          )}
+                          {t.extraDeductionKind === 'complaint_extra' && t.extraDeductionAmount > 0 && (
+                            <p className="mx-wod-entry__sub">
+                              Skinut i poslednji nalog iste kategorije: <b>{t.extraTisJobId || t.extraTisId}</b>
+                              {t.extraAddress && ` · ${t.extraAddress}`}: -{formatRsd(t.extraDeductionAmount)}
+                            </p>
+                          )}
+                          {t.extraDeductionKind === 'complaint_extra_fallback' && t.extraDeductionAmount > 0 && (
+                            <p className="mx-wod-entry__sub">
+                              Dodatni odbitak (nema drugog naloga iste kategorije): -{formatRsd(t.extraDeductionAmount)}
+                            </p>
+                          )}
+                          {!t.extraDeductionKind && t.note && <p className="mx-wod-entry__meta">{t.note}</p>}
+                        </div>
+                      ))}
+                      <p>
+                        <b>Ispravlja: {complaint.newTechnicianName}</b>
+                        {complaint.fixDate && (
+                          <span> · termin {new Date(complaint.fixDate).toLocaleDateString('sr-RS')} {complaint.fixTime || ''}</span>
+                        )}
+                      </p>
+                      <p className="mx-wod-entry__meta">
+                        {complaint.fixStatus === 'paid' && `Ispravka plaćena: ${formatRsd(complaint.fixAmount)}`}
+                        {complaint.fixStatus === 'pending' && 'Isplata za ispravku čeka verifikaciju naloga'}
+                        {complaint.fixStatus === 'included' && 'Ispravka ulazi u redovan obračun naloga pri verifikaciji'}
+                        {complaint.fixStatus === 'not_applicable' && (complaint.fixNote || 'Isplata za ispravku nije kreirana')}
+                        {complaint.fixStatus === 'paid' && complaint.fixNote && ` · ${complaint.fixNote}`}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </Panel>
+          )}
+
+          {/* Istorija odlaganja */}
+          {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (
+            <Panel title="Istorija odlaganja" testId="wod-postpones">
+              <ol className="mx-wod-log mx-wod-scroll">
+                {workOrder.postponeHistory.map((postponement, index) => (
+                  <li key={index} className="mx-wod-entry">
+                    <div className="mx-wod-entry__top">
+                      <span className="mx-wod-entry__at">{new Date(postponement.postponedAt).toLocaleString('sr-RS')}</span>
+                      <span className="sx-tag is-warn">Odlaganje #{index + 1}</span>
+                    </div>
+                    <p className="mx-wod-entry__text">{postponement.comment}</p>
+                    <p className="mx-wod-entry__meta sx-mono">
+                      <span>{new Date(postponement.fromDate).toLocaleDateString('sr-RS')} {postponement.fromTime}</span>
+                      <span className="mx-wod-faint"> → </span>
+                      <span>{new Date(postponement.toDate).toLocaleDateString('sr-RS')} {postponement.toTime}</span>
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </Panel>
+          )}
+
+          {/* Istorija otkazivanja */}
+          {workOrder?.cancelHistory && workOrder.cancelHistory.length > 0 && (
+            <Panel title="Istorija otkazivanja" testId="wod-cancels">
+              <ol className="mx-wod-log mx-wod-scroll">
+                {workOrder.cancelHistory.map((cancellation, index) => (
+                  <li key={index} className="mx-wod-entry">
+                    <div className="mx-wod-entry__top">
+                      <span className="mx-wod-entry__at">{new Date(cancellation.canceledAt).toLocaleString('sr-RS')}</span>
+                      <span className="sx-tag is-bad">Otkazivanje #{index + 1}</span>
+                    </div>
+                    <p className="mx-wod-entry__text">{cancellation.comment}</p>
+                  </li>
+                ))}
+              </ol>
+            </Panel>
+          )}
+
+          {/* Status korisnika (pre verifikacije) */}
+          {needsVerification() && (
+            <Panel title="Status korisnika" testId="wod-customer-status">
+              {orderStatuses[workOrder._id] ? (
+                <Note tone="ok">{orderStatuses[workOrder._id]}</Note>
+              ) : (
+                <button type="button" className="mx-wod-pick" onClick={() => openCustomerStatusModal(workOrder._id)}>
+                  Kliknite da postavite status korisnika
+                </button>
+              )}
+            </Panel>
+          )}
+        </div>
+      </div>
+
+      {/* Traka sa radnjama (lepi se uz dno) */}
+      <div className="mx-wod-bar" data-testid="wod-actions">
+        <div className="mx-wod-bar__group">
+          <State tone={statusConfig.tone} testId="wod-status">{statusConfig.label}</State>
+
+          {workOrder?.verified && <State tone="ok">Verifikovan</State>}
+
+          {penaltyInfo.current > 0 && (
+            <span
+              className="sx-tag is-bad"
+              title={`Nalog vraćen ${penaltyInfo.rejectionsInCycle} ${penaltyInfo.rejectionsInCycle === 1 ? 'put' : 'puta'} - umanjenje zarade tehničaru`}
+            >
+              Minus {penaltyInfo.current}%
+            </span>
+          )}
+
+          <Btn size="sm" icon={ArrowLeft} onClick={goBack} data-testid="wod-back">
+            <span className="mx-wod-lbl-sm">Nazad</span>
+          </Btn>
+
+          <span className="mx-wod-bar__sep" aria-hidden="true" />
+
+          {/* Promena statusa */}
+          <div className="mx-wod-menuwrap" ref={statusDropdownRef}>
+            <Btn size="sm" iconRight={ChevronDown} onClick={() => setShowStatusDropdown(!showStatusDropdown)} disabled={saving} aria-expanded={showStatusDropdown} className={cx('mx-wod-menubtn', showStatusDropdown && 'is-open')} data-testid="wod-status-menu">
+              Promeni status
+            </Btn>
+            {showStatusDropdown && (
+              <div className="mx-wod-menu" role="menu">
+                {STATUS_OPTIONS.map(s => (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    key={s.status}
+                    onClick={() => {
+                      handleStatusChange(s.status);
+                      setShowStatusDropdown(false);
+                    }}
+                    disabled={saving || formData.status === s.status}
+                    className={cx('mx-wod-menu__item', formData.status === s.status && 'is-current')}
+                  >
+                    <Led tone={STATUS_TONE[s.status]} />
+                    {s.label}
+                    {formData.status === s.status && (
+                      <span className="mx-wod-menu__cur">trenutni</span>
+                    )}
+                  </button>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* Strelice kroz naloge za verifikaciju */}
+          {isFromVerification && verificationOrderIds.length > 0 && (
+            <div className="mx-wod-nav">
+              <Btn size="sm" variant="ghost" icon={ChevronLeft} onClick={goToPrevVerification} disabled={!hasPrevVerification} title="Prethodni nalog" />
+              <span className="mx-wod-nav__pos sx-mono">
+                {currentVerificationIndex + 1}/{verificationOrderIds.length}
+              </span>
+              <Btn size="sm" variant="ghost" icon={ChevronRight} onClick={goToNextVerification} disabled={!hasNextVerification} title="Sledeći nalog" />
             </div>
+          )}
+        </div>
 
-            {/* Additional Jobs */}
-            {workOrder?.additionalJobs && (
-              <div className="px-5 sm:px-6 py-4 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-1.5">Dodatni poslovi</p>
-                <p className="text-sm text-slate-700">{workOrder.additionalJobs}</p>
-              </div>
-            )}
+        <div className="mx-wod-bar__group mx-wod-bar__end">
+          {/* Verifikacija (završen, a nije verifikovan) */}
+          {needsVerification() && (
+            <>
+              <Btn size="sm" icon={UserCheck} onClick={() => openCustomerStatusModal(workOrder._id)} disabled={verifying} title="Status korisnika">
+                <span className="mx-wod-lbl-lg">Status</span>
+              </Btn>
+              <Btn
+                size="sm"
+                icon={Check}
+                onClick={handleVerifyOrder}
+                disabled={verifying || !orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id]}
+                title={!orderStatuses[workOrder._id] ? 'Prvo postavite status korisnika' : 'Verifikuj'}
+                data-testid="wod-verify"
+              >
+                <span className="mx-wod-lbl-lg">{verifying ? 'Verifikuje...' : 'Verifikuj'}</span>
+              </Btn>
+              <Btn size="sm" icon={Undo2} onClick={() => setReturnModal({ isOpen: true, initialComment: '', source: 'manual' })} disabled={verifying} title="Vrati nalog" data-testid="wod-return">
+                <span className="mx-wod-lbl-lg">Vrati</span>
+              </Btn>
+              <Btn size="sm" icon={Sparkles} onClick={handleAIVerify} busy={loadingAIVerification} disabled={verifying} title="AI Verifikacija" data-testid="wod-ai">
+                <span className="mx-wod-lbl-lg">AI</span>
+              </Btn>
+              <span className="mx-wod-bar__sep" aria-hidden="true" />
+            </>
+          )}
 
-            {/* Admin Edit Log (superadmin only) */}
-            {canViewEditLog && workOrder?.adminEditLog && workOrder.adminEditLog.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-amber-600 font-medium mb-3 flex items-center gap-1.5">
-                  <HistoryIcon size={13} className="text-amber-500" />
-                  Izmene opreme (Admin)
-                </p>
-                <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {workOrder.adminEditLog.map((log, index) => {
-                    const isAdd = log.action === 'added' || log.action === 'material_added';
-                    const isMaterial = log.action === 'material_added' || log.action === 'material_removed';
+          {/* Reklamacija: dostupna na svakom nalogu koji ima tehničara */}
+          {hasAssignedTechnician && (
+            <Btn size="sm" icon={UserCheck} className="mx-danger" onClick={() => setShowComplaintModal(true)} disabled={saving} title="Reklamacija - dodeli nalog drugom tehničaru" data-testid="wod-complaint">
+              <span className="mx-wod-lbl-sm">Reklamacija</span>
+            </Btn>
+          )}
 
-                    return (
-                      <div key={index} className={cn(
-                        "rounded-lg p-3 border text-xs",
-                        isAdd ? "bg-green-50 border-green-100" : "bg-red-50 border-red-100"
-                      )}>
-                        <div className="flex items-start gap-2">
-                          <span className={cn(
-                            "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold mt-0.5",
-                            isAdd ? "bg-green-500" : "bg-red-500"
-                          )}>
-                            {isAdd ? '+' : '−'}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-slate-900 font-medium">
-                              {isAdd ? 'Dodao' : 'Uklonio'} — {log.technicianName}
-                              {isMaterial ? (
-                                <> · {log.materialType} (kol: {log.materialQuantity})</>
-                              ) : (
-                                <> · {log.equipmentCategory} - {log.equipmentSerialNumber}</>
-                              )}
-                            </p>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              {log.adminName} · {new Date(log.timestamp).toLocaleDateString('sr-RS')} {new Date(log.timestamp).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+          <Btn size="sm" icon={Download} onClick={generatePDF} busy={generatingPDF} disabled={saving} title="Generiši PDF">
+            <span className="mx-wod-lbl-sm">PDF</span>
+          </Btn>
 
-            {/* Voice Recordings (supervisor/superadmin only) */}
-            {canViewRecordings && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-blue-500 font-medium mb-3 flex items-center gap-1.5">
-                  <PhoneIcon size={13} className="text-blue-500" />
-                  Snimci poziva
-                </p>
-                {voiceRecordings.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-3">Nema snimaka</p>
-                ) : (
-                  <div className="space-y-2.5 max-h-56 overflow-y-auto">
-                    {voiceRecordings.map((recording, index) => (
-                      <div key={recording._id || index} className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="bg-blue-500 text-white rounded-full p-1.5">
-                              <PhoneIcon size={12} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-medium text-slate-800">{recording.phoneNumber}</p>
-                              <p className="text-[10px] text-slate-500">
-                                {new Date(recording.recordedAt).toLocaleString('sr-RS')}
-                              </p>
-                            </div>
-                          </div>
-                          {recording.duration && (
-                            <span className="text-[10px] font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                              {Math.floor(recording.duration / 60)}:{String(recording.duration % 60).padStart(2, '0')}
-                            </span>
-                          )}
-                        </div>
-                        <audio
-                          controls
-                          className="w-full h-8 rounded"
-                          preload="metadata"
-                          style={{ filter: 'hue-rotate(200deg)', accentColor: '#3b82f6' }}
-                        >
-                          <source src={recording.url} type="audio/mpeg" />
-                          <source src={recording.url} type="audio/mp4" />
-                          Vaš pretraživač ne podržava audio reprodukciju.
-                        </audio>
-                        <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500">
-                          <span className="truncate max-w-[140px]">{recording.fileName}</span>
-                          {recording.fileSize && (
-                            <span>{(recording.fileSize / 1024 / 1024).toFixed(2)} MB</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Pozivi i kontakti (objedinjeni timeline: podrška + korisnik + podsetnici + alerti) */}
-            {supportCalls.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-violet-500 font-medium mb-3 flex items-center gap-1.5">
-                  <PhoneIcon size={13} className="text-violet-500" />
-                  Pozivi i kontakti
-                </p>
-                <div className="space-y-2.5 max-h-72 overflow-y-auto">
-                  {supportCalls.map((event, index) => {
-                    // Stil po tipu događaja u timeline-u
-                    const style = event.eventType === 'customer_call'
-                      ? { box: 'bg-emerald-50 border-emerald-100', icon: 'bg-emerald-500', badge: 'text-emerald-700 bg-emerald-100' }
-                      : event.eventType === 'reminder_sent'
-                      ? { box: 'bg-sky-50 border-sky-100', icon: 'bg-sky-500', badge: 'text-sky-700 bg-sky-100' }
-                      : event.eventType === 'uncontacted_alert'
-                      ? { box: 'bg-red-50 border-red-100', icon: 'bg-red-500', badge: 'text-red-700 bg-red-100' }
-                      // pozivi podršci/kontaktima: boja po tipu iz mape (administrative, super, marko, ana)
-                      : supportTypeStyle(event.supportType);
-
-                    const title = event.eventType === 'customer_call'
-                      ? <>Poziv korisniku{event.source && (
-                          <span className="ml-1.5 font-normal text-slate-500">({callSourceLabel(event.source)})</span>
-                        )}</>
-                      : event.eventType === 'reminder_sent'
-                      ? 'Podsetnik tehničaru (30 min pre termina)'
-                      : event.eventType === 'uncontacted_alert'
-                      ? 'Alert adminima — korisnik nije kontaktiran'
-                      : <>{supportTypeLabel(event.supportType)}{event.phoneNumber && (
-                          <span className="ml-1.5 font-normal text-slate-500">({event.phoneNumber})</span>
-                        )}</>;
-
-                    // Za pozive iz aplikacije prikaži konkretan tip (Superpodrška, Marko, Ana...),
-                    // a ne genericnu oznaku — inače Marko/Ana ispadaju kao "Podrška"
-                    const badgeLabel = event.eventType === 'support_call'
-                      ? supportTypeLabel(event.supportType)
-                      : EVENT_TYPE_BADGES[event.eventType] || 'Poziv';
-
-                    return (
-                      <div key={event._id || index} className={`rounded-lg p-3 border ${style.box}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`${style.icon} text-white rounded-full p-1.5`}>
-                              {event.eventType === 'uncontacted_alert'
-                                ? <AlertIcon size={12} />
-                                : event.eventType === 'reminder_sent'
-                                ? <ClockIcon size={12} />
-                                : <PhoneIcon size={12} />}
-                            </div>
-                            <div>
-                              <p className="text-xs font-medium text-slate-800">{title}</p>
-                              <p className="text-[10px] text-slate-500">
-                                {new Date(event.at || event.calledAt).toLocaleString('sr-RS')}
-                                {(event.technicianName || event.technicianId?.name) && (
-                                  <span> &middot; {event.technicianName || event.technicianId?.name}</span>
-                                )}
-                                {event.backfilled && <span> &middot; istorijski zapis</span>}
-                              </p>
-                            </div>
-                          </div>
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${style.badge}`}>
-                            {badgeLabel}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Nalozi na istoj adresi (svi statusi; otkazani su okidač za flag pri importu) */}
-            {sameAddressOrders.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-blue-500 font-medium mb-3 flex items-center gap-1.5">
-                  <MapPinIcon size={13} className="text-blue-500" />
-                  Nalozi na istoj adresi ({sameAddressOrders.length})
-                </p>
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {sameAddressOrders.map((o) => {
-                    const st = o.status === 'zavrsen'
-                      ? { label: 'Završen', cls: 'text-emerald-700 bg-emerald-100' }
-                      : o.status === 'otkazan'
-                      ? { label: 'Otkazan', cls: 'text-red-700 bg-red-100' }
-                      : o.status === 'odlozen'
-                      ? { label: 'Odložen', cls: 'text-amber-700 bg-amber-100' }
-                      : { label: 'Nezavršen', cls: 'text-blue-700 bg-blue-100' };
-                    const techNames = [o.technicianId?.name, o.technician2Id?.name].filter(Boolean).join(', ');
-                    return (
-                      <button
-                        key={o._id}
-                        onClick={() => navigate(`/work-orders/${o._id}`, {
-                          state: { backTo: { id, tis: workOrder?.tisId || formData?.tisId || '' } }
-                        })}
-                        className={`w-full text-left rounded-lg p-3 border transition-colors hover:bg-slate-100 ${
-                          o.status === 'otkazan' ? 'bg-red-50/60 border-red-100' : 'bg-slate-50 border-slate-100'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-slate-800 truncate">
-                              {o.tisId ? `TIS ${o.tisId}` : (o.tisJobId ? `JOB ${o.tisJobId}` : 'Nalog')}
-                              {o.type && <span className="font-normal text-slate-500"> · {o.type}</span>}
-                            </p>
-                            <p className="text-[10px] text-slate-500 truncate">
-                              {o.date ? new Date(o.date).toLocaleDateString('sr-RS') : ''}
-                              {o.time && ` u ${o.time}`}
-                              {techNames && <span> &middot; {techNames}</span>}
-                            </p>
-                          </div>
-                          <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${st.cls}`}>
-                            {st.label}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Vraćanja naloga na ispravku i umanjenje zarade */}
-            {workOrder?.rejectionHistory && workOrder.rejectionHistory.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <p className="text-xs uppercase tracking-wider text-rose-500 font-medium flex items-center gap-1.5">
-                    <AlertIcon size={13} className="text-rose-500" />
-                    Vraćanja naloga
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-                      penaltyInfo.current > 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
-                    )}>
-                      Trenutni minus: {penaltyInfo.current}%
-                    </span>
-                    {canAdjustPenalty && (
-                      <button
-                        type="button"
-                        onClick={() => setShowPenaltyModal(true)}
-                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors"
-                        title="Poništi ili promeni minus (i na već verifikovanom nalogu)"
-                      >
-                        Promeni minus
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2.5 max-h-72 overflow-y-auto">
-                  {[
-                    ...workOrder.rejectionHistory.map(item => ({ kind: 'rejection', at: item.rejectedAt, item })),
-                    ...(workOrder.penaltyAdjustments || []).map(item => ({ kind: 'adjustment', at: item.adjustedAt, item }))
-                  ].sort((a, b) => new Date(b.at) - new Date(a.at)).map(({ kind, item }, index) => {
-                    if (kind === 'adjustment') {
-                      const isOldAdjustmentCycle = (item.cycle || 0) !== (workOrder.penaltyCycle || 0);
-                      return (
-                        <div key={item._id || `adj-${index}`} className={cn(
-                          "rounded-lg p-3.5 border",
-                          isOldAdjustmentCycle ? "bg-slate-50 border-slate-200 opacity-80" : "bg-amber-50 border-amber-200"
-                        )}>
-                          <div className="flex items-center justify-between mb-1.5 gap-2">
-                            <span className="text-xs font-mono text-amber-800">
-                              {new Date(item.adjustedAt).toLocaleString('sr-RS')}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide bg-amber-200/70 text-amber-900">
-                              Minus promenjen · {item.percentBefore}% → {item.percentAfter}%
-                            </span>
-                          </div>
-                          {item.reason && (
-                            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{item.reason}</p>
-                          )}
-                          <p className="text-[11px] text-slate-500 mt-1.5">
-                            {item.adjustedByName || 'Superadmin'}
-                            {item.financeUpdated ? ' · isplata preračunata' : ' · primenjuje se pri verifikaciji'}
-                            {isOldAdjustmentCycle && ' · pre reklamacije'}
-                          </p>
-                        </div>
-                      );
-                    }
-                    const rejection = item;
-                    const cycleNumber = rejection.cycle || 0;
-                    const numberInCycle = workOrder.rejectionHistory
-                      .filter(r => (r.cycle || 0) === cycleNumber)
-                      .findIndex(r => r._id === rejection._id) + 1;
-                    const isOldCycle = cycleNumber !== (workOrder.penaltyCycle || 0);
-                    return (
-                      <div key={rejection._id || index} className={cn(
-                        "rounded-lg p-3.5 border",
-                        isOldCycle ? "bg-slate-50 border-slate-200 opacity-80" : "bg-rose-50 border-rose-100/80"
-                      )}>
-                        <div className="flex items-center justify-between mb-1.5 gap-2">
-                          <span className="text-xs font-mono text-rose-700">
-                            {new Date(rejection.rejectedAt).toLocaleString('sr-RS')}
-                          </span>
-                          <span className={cn(
-                            "text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide",
-                            rejection.penaltyApplied ? "bg-rose-200/70 text-rose-800" : "bg-slate-200 text-slate-600"
-                          )}>
-                            Vraćanje #{numberInCycle} · {rejection.penaltyApplied ? `minus ${rejection.penaltyPercentAfter}%` : 'bez umanjenja'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{rejection.comment}</p>
-                        <p className="text-[11px] text-slate-500 mt-1.5">
-                          {rejection.rejectedByName || 'Admin'}
-                          {rejection.source === 'ai' && ' · AI verifikacija'}
-                          {rejection.technicianNames?.length > 0 && ` · ${rejection.technicianNames.join(', ')}`}
-                          {isOldCycle && ' · pre reklamacije'}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Reklamacije */}
-            {workOrder?.complaints && workOrder.complaints.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-red-600 font-medium mb-3 flex items-center gap-1.5">
-                  <AlertIcon size={13} className="text-red-600" />
-                  Reklamacije
-                </p>
-                <div className="space-y-2.5 max-h-80 overflow-y-auto">
-                  {[...workOrder.complaints].reverse().map((complaint, index) => (
-                    <div key={complaint._id || index} className="bg-red-50 rounded-lg p-3.5 border border-red-100/80">
-                      <div className="flex items-center justify-between mb-1.5 gap-2">
-                        <span className="text-xs font-mono text-red-700">
-                          {new Date(complaint.createdAt).toLocaleString('sr-RS')}
-                        </span>
-                        <span className="text-[10px] bg-red-200/70 text-red-800 px-2 py-0.5 rounded font-semibold uppercase tracking-wide">
-                          {complaint.createdByName || 'Admin'}
-                        </span>
-                      </div>
-                      {complaint.reason && (
-                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap mb-2">{complaint.reason}</p>
-                      )}
-                      <div className="space-y-1 text-xs text-slate-600">
-                        {complaint.removedTechnicians?.map((t, i) => (
-                          <div key={i}>
-                            <p>
-                              <span className="font-semibold text-slate-800">Sklonjen: {t.name}</span>
-                              {t.deductionAmount > 0
-                                ? <span className="text-red-700 font-semibold"> · ukupan odbitak {formatRsd(t.deductionAmount)}</span>
-                                : <span className="text-amber-700"> · bez odbitka</span>}
-                            </p>
-                            {t.orderDeductionAmount > 0 && (
-                              <p className="text-[11px] text-slate-600 pl-2">Ovaj nalog se ne plaća: -{formatRsd(t.orderDeductionAmount)}</p>
-                            )}
-                            {t.extraDeductionKind === 'complaint_extra' && t.extraDeductionAmount > 0 && (
-                              <p className="text-[11px] text-slate-600 pl-2">
-                                Skinut i poslednji nalog iste kategorije: <span className="font-semibold">{t.extraTisJobId || t.extraTisId}</span>
-                                {t.extraAddress && ` · ${t.extraAddress}`}: -{formatRsd(t.extraDeductionAmount)}
-                              </p>
-                            )}
-                            {t.extraDeductionKind === 'complaint_extra_fallback' && t.extraDeductionAmount > 0 && (
-                              <p className="text-[11px] text-slate-600 pl-2">
-                                Dodatni odbitak (nema drugog naloga iste kategorije): -{formatRsd(t.extraDeductionAmount)}
-                              </p>
-                            )}
-                            {!t.extraDeductionKind && t.note && <p className="text-[11px] text-slate-500">{t.note}</p>}
-                          </div>
-                        ))}
-                        <p>
-                          <span className="font-semibold text-slate-800">Ispravlja: {complaint.newTechnicianName}</span>
-                          {complaint.fixDate && (
-                            <span> · termin {new Date(complaint.fixDate).toLocaleDateString('sr-RS')} {complaint.fixTime || ''}</span>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          {complaint.fixStatus === 'paid' && `Ispravka plaćena: ${formatRsd(complaint.fixAmount)}`}
-                          {complaint.fixStatus === 'pending' && 'Isplata za ispravku čeka verifikaciju naloga'}
-                          {complaint.fixStatus === 'included' && 'Ispravka ulazi u redovan obračun naloga pri verifikaciji'}
-                          {complaint.fixStatus === 'not_applicable' && (complaint.fixNote || 'Isplata za ispravku nije kreirana')}
-                          {complaint.fixStatus === 'paid' && complaint.fixNote && ` · ${complaint.fixNote}`}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Postpone History */}
-            {workOrder?.postponeHistory && workOrder.postponeHistory.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-amber-500 font-medium mb-3 flex items-center gap-1.5">
-                  <ClockIcon size={13} className="text-amber-500" />
-                  Istorija odlaganja
-                </p>
-                <div className="space-y-2.5 max-h-56 overflow-y-auto">
-                  {workOrder.postponeHistory.map((postponement, index) => (
-                    <div key={index} className="bg-amber-50 rounded-lg p-3.5 border border-amber-100/80">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-mono text-amber-700">
-                          {new Date(postponement.postponedAt).toLocaleString('sr-RS')}
-                        </span>
-                        <span className="text-[10px] bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded font-semibold uppercase tracking-wide">
-                          Odlaganje #{index + 1}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-600 leading-relaxed">{postponement.comment}</p>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-amber-600 font-mono">
-                        <span>{new Date(postponement.fromDate).toLocaleDateString('sr-RS')} {postponement.fromTime}</span>
-                        <span className="text-amber-400">→</span>
-                        <span>{new Date(postponement.toDate).toLocaleDateString('sr-RS')} {postponement.toTime}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cancel History */}
-            {workOrder?.cancelHistory && workOrder.cancelHistory.length > 0 && (
-              <div className="px-5 sm:px-6 py-5 border-b border-slate-100">
-                <p className="text-xs uppercase tracking-wider text-red-500 font-medium mb-3 flex items-center gap-1.5">
-                  <AlertIcon size={13} className="text-red-500" />
-                  Istorija otkazivanja
-                </p>
-                <div className="space-y-2.5 max-h-56 overflow-y-auto">
-                  {workOrder.cancelHistory.map((cancellation, index) => (
-                    <div key={index} className="bg-red-50 rounded-lg p-3.5 border border-red-100/80">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-mono text-red-700">
-                          {new Date(cancellation.canceledAt).toLocaleString('sr-RS')}
-                        </span>
-                        <span className="text-[10px] bg-red-200/70 text-red-800 px-2 py-0.5 rounded font-semibold uppercase tracking-wide">
-                          Otkazivanje #{index + 1}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-600 leading-relaxed">{cancellation.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Customer Status */}
-            {needsVerification() && (
-              <div className="px-5 sm:px-6 py-5">
-                <p className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-3 flex items-center gap-1.5">
-                  <CheckCircleIcon size={13} className="text-emerald-500" />
-                  Status korisnika
-                </p>
-                {orderStatuses[workOrder._id] ? (
-                  <div className="bg-emerald-50 rounded-lg p-3.5 border border-emerald-100/80">
-                    <p className="text-sm text-emerald-800 font-medium leading-relaxed">
-                      {orderStatuses[workOrder._id]}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => openCustomerStatusModal(workOrder._id)}
-                    className="w-full bg-slate-50 hover:bg-slate-100 rounded-lg p-4 border border-slate-200 border-dashed text-center transition-colors"
-                  >
-                    <p className="text-sm text-slate-500">Kliknite da postavite status korisnika</p>
-                  </button>
-                )}
-              </div>
-            )}
-
+          <Btn size="sm" variant="primary" icon={Save} onClick={handleSubmit} disabled={saving} data-testid="wod-save">
+            {saving ? 'Čuva...' : 'Sačuvaj'}
+          </Btn>
         </div>
       </div>
 
-      {/* ── Bottom Action Bar ────────────────────────────── */}
-      <div className={isModal
-        ? "fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-2.5 z-[10000] shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
-        : "fixed bottom-0 left-0 md:left-16 right-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-2.5 z-40 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
-      }>
-        <div className="flex items-center">
+      {/* Prozori */}
 
-          {/* ─ LEFT GROUP: Status + Back + Status Dropdown ─ */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Status badge */}
-            <div className={cn("flex items-center gap-1.5 px-3 py-2 rounded-lg", statusConfig.bgColor)}>
-              <div className={cn("w-2 h-2 rounded-full", statusConfig.dotColor)} />
-              <span className={cn("text-xs font-bold uppercase tracking-wide", statusConfig.textColor)}>
-                {statusConfig.label}
-              </span>
-            </div>
-
-            {workOrder?.verified && (
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 flex-shrink-0">
-                <CheckCircleIcon size={14} />
-                <span className="hidden sm:inline">Verifikovan</span>
-              </span>
-            )}
-
-            {penaltyInfo.current > 0 && (
-              <span
-                className="text-xs bg-rose-100 text-rose-700 px-3 py-2 rounded-lg font-semibold flex-shrink-0"
-                title={`Nalog vraćen ${penaltyInfo.rejectionsInCycle} ${penaltyInfo.rejectionsInCycle === 1 ? 'put' : 'puta'} — umanjenje zarade tehničaru`}
-              >
-                Minus {penaltyInfo.current}%
-              </span>
-            )}
-
-            {/* Back */}
-            <button
-              onClick={goBack}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg transition-all flex-shrink-0"
-            >
-              <BackIcon size={16} />
-              <span className="hidden sm:inline">Nazad</span>
-            </button>
-
-            <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
-
-            {/* Status change dropdown */}
-            <div className="relative flex-shrink-0" ref={statusDropdownRef}>
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-700 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg transition-all disabled:opacity-50"
-              >
-                Promeni status
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", showStatusDropdown && "rotate-180")}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {showStatusDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[180px] py-1">
-                  {[
-                    { status: 'zavrsen', label: 'Završen', icon: <CheckIcon size={15} />, color: 'text-emerald-600', bg: 'hover:bg-emerald-50' },
-                    { status: 'nezavrsen', label: 'Nezavršen', icon: <ClockIcon size={15} />, color: 'text-blue-600', bg: 'hover:bg-blue-50' },
-                    { status: 'odlozen', label: 'Odložen', icon: <AlertIcon size={15} />, color: 'text-amber-600', bg: 'hover:bg-amber-50' },
-                    { status: 'otkazan', label: 'Otkazan', icon: <BanIcon size={15} />, color: 'text-red-600', bg: 'hover:bg-red-50' },
-                  ].map(s => (
-                    <button
-                      key={s.status}
-                      onClick={() => {
-                        handleStatusChange(s.status);
-                        setShowStatusDropdown(false);
-                      }}
-                      disabled={saving || formData.status === s.status}
-                      className={cn(
-                        "w-full px-4 py-2.5 text-sm flex items-center gap-2.5 transition-colors",
-                        s.color, s.bg,
-                        formData.status === s.status ? "font-bold bg-slate-50" : "font-medium",
-                        (saving || formData.status === s.status) && "opacity-40 cursor-not-allowed"
-                      )}
-                    >
-                      {s.icon}
-                      {s.label}
-                      {formData.status === s.status && (
-                        <span className="ml-auto text-xs text-slate-400">trenutni</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Verification nav arrows */}
-            {isFromVerification && verificationOrderIds.length > 0 && (
-              <>
-                <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={goToPrevVerification}
-                    disabled={!hasPrevVerification}
-                    className={cn(
-                      "p-2 rounded-lg border transition-all",
-                      hasPrevVerification
-                        ? "border-slate-300 hover:bg-slate-100 text-slate-700"
-                        : "border-slate-200 text-slate-300 cursor-not-allowed"
-                    )}
-                    title="Prethodni nalog"
-                  >
-                    <ChevronLeftIcon size={16} />
-                  </button>
-                  <span className="text-xs text-slate-500 px-0.5 min-w-[2.5rem] text-center font-mono">
-                    {currentVerificationIndex + 1}/{verificationOrderIds.length}
-                  </span>
-                  <button
-                    onClick={goToNextVerification}
-                    disabled={!hasNextVerification}
-                    className={cn(
-                      "p-2 rounded-lg border transition-all",
-                      hasNextVerification
-                        ? "border-slate-300 hover:bg-slate-100 text-slate-700"
-                        : "border-slate-200 text-slate-300 cursor-not-allowed"
-                    )}
-                    title="Sledeći nalog"
-                  >
-                    <ChevronRightIcon size={16} />
-                  </button>
-                </div>
-              </>
-            )}
+      {/* Istorija opreme korisnika */}
+      <Dialog
+        open={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        size="xl"
+        title="Istorija opreme korisnika"
+        description={`TIS: ${workOrder?.tisId || '-'} · ${userEquipmentHistory.length} stavki`}
+        testId="wod-history"
+        footer={<Btn onClick={() => setShowHistoryModal(false)}>Zatvori</Btn>}
+      >
+        {userEquipmentHistory.length > 0 ? (
+          <div className="sx-tablewrap mx-wod-histtbl">
+            <table className="sx-table">
+              <thead>
+                <tr>
+                  <th>Tip</th>
+                  <th>Opis</th>
+                  <th>Serijski br.</th>
+                  <th>Status</th>
+                  <th>Instalirano</th>
+                  <th>Uklonjeno</th>
+                  <th>Stanje</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userEquipmentHistory.map((eq, i) => (
+                  <tr key={eq.id} style={{ '--i': i }}>
+                    <td className="is-head"><span className={cx('sx-tag', eq.status === 'active' ? 'is-ink' : 'is-bad')}>{eq.equipmentType?.slice(0, 3)?.toUpperCase() || '-'}</span></td>
+                    <td data-label="Opis"><b className="mx-wod-strong">{eq.equipmentDescription || '-'}</b></td>
+                    <td data-label="Serijski br." className="sx-mono">{eq.serialNumber}</td>
+                    <td data-label="Status">
+                      {eq.status === 'active' ? <Sign tone="ok">Aktivno</Sign> : <Sign tone="bad">Uklonjeno</Sign>}
+                    </td>
+                    <td data-label="Instalirano" className="sx-mono sx-nowrap">{eq.installedAt ? shortDate(eq.installedAt) : '-'}</td>
+                    <td data-label="Uklonjeno" className="sx-mono sx-nowrap">{eq.removedAt ? shortDate(eq.removedAt) : '-'}</td>
+                    <td data-label="Stanje">
+                      {!eq.condition && <span className="mx-wod-faint">-</span>}
+                      {eq.condition === 'working' && <Sign tone="ok">Ispravno</Sign>}
+                      {eq.condition === 'defective' && <Sign tone="bad">Neispravno</Sign>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        ) : (
+          <p className="mx-wod-empty">Nema istorije opreme za ovog korisnika.</p>
+        )}
+      </Dialog>
 
-          {/* ─ SPACER ─ */}
-          <div className="flex-1" />
-
-          {/* ─ RIGHT GROUP: Verification + PDF + Save ─ */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Verification buttons (left of PDF/Save) */}
-            {needsVerification() && (
-              <>
-                <button
-                  onClick={() => openCustomerStatusModal(workOrder._id)}
-                  disabled={verifying}
-                  className="px-3 py-2 text-sm text-slate-600 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
-                  title="Status korisnika"
-                >
-                  <UserCheckIcon size={16} />
-                  <span className="hidden lg:inline">Status</span>
-                </button>
-                <button
-                  onClick={handleVerifyOrder}
-                  disabled={verifying || !orderStatuses.hasOwnProperty(workOrder._id) || !orderStatuses[workOrder._id]}
-                  className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
-                  title={!orderStatuses[workOrder._id] ? 'Prvo postavite status korisnika' : 'Verifikuj'}
-                >
-                  <CheckIcon size={16} />
-                  <span className="hidden lg:inline">{verifying ? 'Verifikuje...' : 'Verifikuj'}</span>
-                </button>
-                <button
-                  onClick={() => setReturnModal({ isOpen: true, initialComment: '', source: 'manual' })}
-                  disabled={verifying}
-                  className="px-3 py-2 text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
-                  title="Vrati nalog"
-                >
-                  <AlertIcon size={16} />
-                  <span className="hidden lg:inline">Vrati</span>
-                </button>
-                <button
-                  onClick={handleAIVerify}
-                  disabled={loadingAIVerification || verifying}
-                  className="px-3 py-2 text-sm text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
-                  title="AI Verifikacija"
-                >
-                  {loadingAIVerification ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600"></div>
-                  ) : (
-                    <CheckIcon size={16} />
-                  )}
-                  <span className="hidden lg:inline">AI</span>
-                </button>
-                <div className="w-px h-7 bg-slate-200 flex-shrink-0" />
-              </>
-            )}
-
-            {/* Reklamacija — dostupna na svakom nalogu koji ima tehničara */}
-            {hasAssignedTechnician && (
-              <button
-                onClick={() => setShowComplaintModal(true)}
-                disabled={saving}
-                className="px-3 py-2 text-sm text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
-                title="Reklamacija — dodeli nalog drugom tehničaru"
-              >
-                <UserCheckIcon size={16} />
-                <span className="hidden sm:inline">Reklamacija</span>
-              </button>
-            )}
-
-            {/* PDF */}
+      {/* Pregled slike preko celog ekrana */}
+      {showFullImage && createPortal(
+        <div className="sx-portal mx-wod-lb" onClick={() => setShowFullImage(null)} data-testid="wod-lightbox">
+          <div className="mx-wod-lb__top">
+            <span className="mx-wod-lb__count">
+              <ImageIcon size={14} strokeWidth={1.9} aria-hidden="true" />
+              {fullImageIndex >= 0 ? `${fullImageIndex + 1} / ${images.length}` : ''}
+            </span>
             <button
-              onClick={generatePDF}
-              disabled={generatingPDF || saving}
-              className="px-3 py-2 text-sm text-slate-600 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
-              title="Generiši PDF"
-            >
-              {generatingPDF ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600"></div>
-              ) : (
-                <DownloadIcon size={16} />
-              )}
-              <span className="hidden sm:inline">PDF</span>
-            </button>
-
-            {/* Save */}
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-60 flex-shrink-0"
-            >
-              <SaveIcon size={16} />
-              {saving ? 'Čuva...' : 'Sačuvaj'}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* ██ MODALS (unchanged) ██████████████████████████████ */}
-      {/* ══════════════════════════════════════════════════════ */}
-
-      {/* Equipment History Modal */}
-      {showHistoryModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowHistoryModal(false); }}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full flex flex-col" style={{ maxHeight: '85vh' }}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 flex-shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="bg-slate-900 text-white rounded-lg p-1.5">
-                  <HistoryIcon size={14} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Istorija opreme korisnika</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">TIS: {workOrder?.tisId || '—'} · {userEquipmentHistory.length} stavki</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowHistoryModal(false)}
-                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <XIcon size={18} className="text-slate-400" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="overflow-y-auto flex-1 p-4">
-              {userEquipmentHistory.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Tip</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Opis</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Serijski br.</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Status</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Instalirano</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 pr-3 text-[10px] uppercase tracking-wider">Uklonjeno</th>
-                        <th className="text-left font-medium text-slate-500 pb-2.5 text-[10px] uppercase tracking-wider">Stanje</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {userEquipmentHistory.map(eq => (
-                        <tr key={eq.id} className={cn(
-                          "border-b border-slate-50 last:border-0 transition-colors hover:bg-slate-50/80",
-                          eq.status === 'removed' ? 'bg-red-50/40' : ''
-                        )}>
-                          <td className="py-2.5 pr-3">
-                            <span className={cn(
-                              "text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide text-white",
-                              eq.status === 'active' ? 'bg-slate-900' : 'bg-red-600'
-                            )}>
-                              {eq.equipmentType?.slice(0, 3)?.toUpperCase() || '—'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 text-slate-900 font-medium">{eq.equipmentDescription || '—'}</td>
-                          <td className="py-2.5 pr-3">
-                            <span className="font-mono text-[11px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{eq.serialNumber}</span>
-                          </td>
-                          <td className="py-2.5 pr-3">
-                            <span className={cn(
-                              "text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase",
-                              eq.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                            )}>
-                              {eq.status === 'active' ? 'Aktivno' : 'Uklonjeno'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 text-slate-500 font-mono text-[11px]">{eq.installedAt ? new Date(eq.installedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</td>
-                          <td className="py-2.5 pr-3 text-slate-500 font-mono text-[11px]">{eq.removedAt ? new Date(eq.removedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</td>
-                          <td className="py-2.5">
-                            {!eq.condition && <span className="text-slate-400">—</span>}
-                            {eq.condition === 'working' && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase bg-green-100 text-green-700">Ispravno</span>
-                            )}
-                            {eq.condition === 'defective' && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase bg-red-100 text-red-700">Neispravno</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400 text-center py-8">Nema istorije opreme za ovog korisnika.</p>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-3 border-t border-slate-200 flex justify-end flex-shrink-0">
-              <button
-                onClick={() => setShowHistoryModal(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              >
-                Zatvori
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image Viewer Modal */}
-      {showFullImage && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
-          onClick={() => setShowFullImage(null)}
-        >
-          {/* Top bar with info and close */}
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent z-10">
-            <div className="flex items-center gap-2">
-              <ImageIcon size={14} className="text-white/70" />
-              <span className="text-xs text-white/70 font-mono">
-                {(() => {
-                  const idx = images.findIndex(img => (typeof img === 'object' ? img.url : img) === showFullImage);
-                  return idx >= 0 ? `${idx + 1} / ${images.length}` : '';
-                })()}
-              </span>
-            </div>
-            <button
-              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-colors"
+              type="button"
+              className="mx-wod-lb__btn"
               onClick={(e) => { e.stopPropagation(); setShowFullImage(null); }}
               title="Zatvori"
             >
-              <XIcon size={18} />
+              <X size={18} strokeWidth={1.9} aria-hidden="true" />
             </button>
           </div>
 
-          {/* Image */}
-          <div
-            className="relative flex items-center justify-center w-full h-full p-12"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Prev/Next arrows for navigating images */}
-            {(() => {
-              const currentIdx = images.findIndex(img => (typeof img === 'object' ? img.url : img) === showFullImage);
-              return (
-                <>
-                  {images.length > 1 && currentIdx > 0 && (
-                    <button
-                      className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const prevImg = images[currentIdx - 1];
-                        setShowFullImage(typeof prevImg === 'object' ? prevImg.url : prevImg);
-                      }}
-                    >
-                      <ChevronLeftIcon size={20} />
-                    </button>
-                  )}
-                  {images.length > 1 && currentIdx >= 0 && currentIdx < images.length - 1 && (
-                    <button
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const nextImg = images[currentIdx + 1];
-                        setShowFullImage(typeof nextImg === 'object' ? nextImg.url : nextImg);
-                      }}
-                    >
-                      <ChevronRightIcon size={20} />
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-
-            <img
-              src={showFullImage}
-              alt="Slika u punoj veličini"
-              className="max-w-full max-h-full object-contain rounded-lg select-none"
-              style={{
-                maxWidth: 'calc(100vw - 6rem)',
-                maxHeight: 'calc(100vh - 6rem)',
-                width: 'auto',
-                height: 'auto'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
+          <div className="mx-wod-lb__stage" onClick={(e) => e.stopPropagation()}>
+            {images.length > 1 && fullImageIndex > 0 && (
+              <button
+                type="button"
+                className="mx-wod-lb__btn mx-wod-lb__nav is-prev"
+                aria-label="Prethodna slika"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFullImage(imageUrlOf(images[fullImageIndex - 1]));
+                }}
+              >
+                <ChevronLeft size={20} strokeWidth={1.9} aria-hidden="true" />
+              </button>
+            )}
+            {images.length > 1 && fullImageIndex >= 0 && fullImageIndex < images.length - 1 && (
+              <button
+                type="button"
+                className="mx-wod-lb__btn mx-wod-lb__nav is-next"
+                aria-label="Sledeća slika"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFullImage(imageUrlOf(images[fullImageIndex + 1]));
+                }}
+              >
+                <ChevronRight size={20} strokeWidth={1.9} aria-hidden="true" />
+              </button>
+            )}
+            <img src={showFullImage} alt="Slika u punoj veličini" className="mx-wod-lb__img" onClick={(e) => e.stopPropagation()} />
           </div>
 
-          {/* Bottom bar with delete */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center px-4 py-3 bg-gradient-to-t from-black/60 to-transparent z-10">
+          <div className="mx-wod-lb__bottom">
             <button
+              type="button"
+              className="mx-wod-lb__btn mx-wod-lb__del"
               onClick={(e) => {
                 e.stopPropagation();
                 handleImageDelete(showFullImage);
                 setShowFullImage(null);
               }}
               disabled={deletingImage}
-              className="px-4 py-2 text-xs text-red-400 hover:text-red-300 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-sm transition-colors flex items-center gap-1.5 disabled:opacity-40"
             >
-              <DeleteIcon size={12} />
+              <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
               Obriši sliku
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Return Work Order Modal — potvrda sa checkbox-om za umanjenje zarade */}
+      {/* Vraćanje naloga: potvrda sa štikliranjem umanjenja zarade */}
       <ReturnWorkOrderModal
         isOpen={returnModal.isOpen}
         workOrderId={workOrder?._id}
@@ -2393,7 +1951,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         onReturned={handleReturned}
       />
 
-      {/* Reklamacija — sklanjanje tehničara i dodela ispravke drugom tehničaru */}
+      {/* Reklamacija: sklanjanje tehničara i dodela ispravke drugom tehničaru */}
       <ComplaintModal
         isOpen={showComplaintModal}
         workOrder={workOrder}
@@ -2402,7 +1960,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         onFiled={handleComplaintFiled}
       />
 
-      {/* Promena minusa — samo superadmin (poništavanje ili drugi procenat) */}
+      {/* Promena minusa: samo superadmin (poništavanje ili drugi procenat) */}
       {canAdjustPenalty && (
         <PenaltyAdjustModal
           isOpen={showPenaltyModal}
@@ -2412,74 +1970,35 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         />
       )}
 
-      {/* Customer Status Modal */}
-      {customerStatusModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ overflow: 'hidden' }} onClick={(e) => { if (e.target === e.currentTarget) closeCustomerStatusModal(); }}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
-            <div className="p-6 border-b border-slate-200 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Status korisnika</h3>
-                <button
-                  onClick={closeCustomerStatusModal}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <XIcon size={20} className="text-slate-400" />
-                </button>
-              </div>
-              <p className="text-sm text-slate-600 mt-2">
-                Izaberite status korisnika za ovaj radni nalog
-              </p>
-            </div>
-
-            <div className="p-6 space-y-3 overflow-y-auto flex-1">
-              {[
-                'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima sa isporukom materijala',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova sa isporukom materijala',
-                'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju) - ASTRA TELEKOM',
-                'Dodavanje drugog uređaja ili dorada - ASTRA TELEKOM',
-                'Demontaža postojeće opreme kod korisnika (po korisniku) - ASTRA TELEKOM',
-                'Intervencija kod korisnika - ASTRA TELEKOM',
-                'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa) - ASTRA TELEKOM'
-              ].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
-                  className={cn(
-                    "w-full p-4 text-left rounded-lg border-2 transition-all hover:shadow-md",
-                    orderStatuses[customerStatusModal.orderId] === status
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-slate-900 text-sm">{status}</span>
-                    {orderStatuses[customerStatusModal.orderId] === status && (
-                      <CheckIcon size={18} className="text-blue-600 flex-shrink-0 ml-2" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex space-x-3 flex-shrink-0">
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={closeCustomerStatusModal}
-                className="flex-1"
-              >
-                Zatvori
-              </Button>
-            </div>
-          </div>
+      {/* Status korisnika */}
+      <Dialog
+        open={customerStatusModal.isOpen}
+        onClose={closeCustomerStatusModal}
+        size="lg"
+        title="Status korisnika"
+        description="Izaberite status korisnika za ovaj radni nalog"
+        testId="wod-customer-status-dialog"
+        footer={<Btn onClick={closeCustomerStatusModal}>Zatvori</Btn>}
+      >
+        <div className="mx-wod-opts">
+          {CUSTOMER_STATUSES.map((status) => (
+            <button
+              type="button"
+              key={status}
+              onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
+              className={cx('mx-wod-opt', orderStatuses[customerStatusModal.orderId] === status && 'is-on')}
+              aria-pressed={orderStatuses[customerStatusModal.orderId] === status}
+            >
+              <span>{status}</span>
+              {orderStatuses[customerStatusModal.orderId] === status && (
+                <Check size={18} strokeWidth={2} aria-hidden="true" />
+              )}
+            </button>
+          ))}
         </div>
-      )}
+      </Dialog>
 
-      {/* AI Verification Modal */}
+      {/* AI verifikacija */}
       <AIVerificationModal
         isOpen={showAIModal}
         onClose={() => {

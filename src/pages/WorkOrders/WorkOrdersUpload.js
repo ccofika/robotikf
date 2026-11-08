@@ -1,9 +1,29 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BackIcon, UploadIcon, ExcelIcon, DownloadIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { ArrowLeft, Upload, Download } from 'lucide-react';
 import { toast } from '../../utils/toast';
-import { workOrdersAPI, exportAPI } from '../../services/api'; 
+import { workOrdersAPI, exportAPI } from '../../services/api';
+import { cx, Btn } from '../../security/sx/ui';
+import { PageHead, Panel, Note, KV, Stat } from '../../security/sx/layout';
+import { LinkBtn } from '../../montaza/ui';
+import './WorkOrdersUpload.mx.css';
+
+// Kolone Excel fajla (uputstvo): naziv i opis, u dve kolone kao ranije (prvih 8 levo, ostalih 6 desno)
+const COLUMNS = [
+  ['Tehnicar 1', 'ime prvog tehničara kome je dodeljen nalog'],
+  ['Tehnicar 2', 'ime drugog tehničara (opciono)'],
+  ['Tim', null],
+  ['Područje', 'područje/opština gde se izvodi intervencija'],
+  ['Početak instalacije', 'format: dd/mm/yyyy hh:mm'],
+  ['Tehnologija', 'HFC, GPON, itd.'],
+  ['TIS ID korisnika', 'jedinstveni ID korisnika'],
+  ['Adresa korisnika', 'puna adresa'],
+  ['Ime korisnika', 'ime i prezime korisnika'],
+  ['Kontakt telefon 1', 'broj telefona korisnika'],
+  ['TIS Posao ID', 'ID konkretnog zahteva'],
+  ['Paket', 'naziv paketa/usluge'],
+  ['Dodatni poslovi', 'dodatni poslovi vezani za radni nalog (opciono)'],
+  ['Tip zahteva', 'nov korisnik, zamena uređaja, itd.']
+];
 
 const WorkOrdersUpload = () => {
   const [file, setFile] = useState(null);
@@ -105,388 +125,153 @@ const WorkOrdersUpload = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <UploadIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Import radnih naloga</h1>
-              <p className="text-slate-600 mt-1">Dodavanje radnih naloga putem Excel fajla</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Link to="/work-orders">
-              <Button type="secondary" size="medium" prefix={<BackIcon size={16} />}>
-                Povratak na listu
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      {/* Instructions Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-amber-50 rounded-lg">
-              <ExcelIcon size={20} className="text-amber-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-slate-900">Uputstvo za upload</h2>
-          </div>
-        </div>
-        <div className="p-6">
-          <p className="text-slate-600 mb-4">
-            Excel fajl mora sadržati sledeće kolone (obrađuju se <span className="font-medium text-slate-900">svi sheet-ovi</span> u fajlu):
+    <div className="sx-page" data-testid="page-work-orders-upload">
+      <PageHead
+        eyebrow="Montaža · Radni nalozi"
+        title="Import radnih naloga"
+        lead="Dodavanje radnih naloga putem Excel fajla"
+        actions={<LinkBtn to="/work-orders" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
+      />
+
+      <div className="sx-stack">
+        {/* Uputstvo */}
+        <Panel title="Uputstvo za upload">
+          <p className="mx-woup__lead">
+            Excel fajl mora sadržati sledeće kolone (obrađuju se <b>svi sheet-ovi</b> u fajlu):
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-            <div className="space-y-2">
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Tehnicar 1</span>
-                  <p className="text-sm text-slate-600">ime prvog tehničara kome je dodeljen nalog</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Tehnicar 2</span>
-                  <p className="text-sm text-slate-600">ime drugog tehničara (opciono)</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Tim</span>
-                  <p className="text-sm text-slate-600">tim u koji se nalog svrstava: <span className="text-blue-700 font-medium">Robotik</span> (i "Robotik 1", "Robotik 2") ili <span className="text-red-700 font-medium">mtel</span> (i "M telecommunication")</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Područje</span>
-                  <p className="text-sm text-slate-600">područje/opština gde se izvodi intervencija</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Početak instalacije</span>
-                  <p className="text-sm text-slate-600">format: dd/mm/yyyy hh:mm</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Tehnologija</span>
-                  <p className="text-sm text-slate-600">HFC, GPON, itd.</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">TIS ID korisnika</span>
-                  <p className="text-sm text-slate-600">jedinstveni ID korisnika</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Adresa korisnika</span>
-                  <p className="text-sm text-slate-600">puna adresa</p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Ime korisnika</span>
-                  <p className="text-sm text-slate-600">ime i prezime korisnika</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Kontakt telefon 1</span>
-                  <p className="text-sm text-slate-600">broj telefona korisnika</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">TIS Posao ID</span>
-                  <p className="text-sm text-slate-600">ID konkretnog zahteva</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Paket</span>
-                  <p className="text-sm text-slate-600">naziv paketa/usluge</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Dodatni poslovi</span>
-                  <p className="text-sm text-slate-600">dodatni poslovi vezani za radni nalog (opciono)</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></div>
-                <div>
-                  <span className="font-medium text-slate-900">Tip zahteva</span>
-                  <p className="text-sm text-slate-600">nov korisnik, zamena uređaja, itd.</p>
-                </div>
-              </div>
-            </div>
+          <div className="mx-woup__cols">
+            {[COLUMNS.slice(0, 8), COLUMNS.slice(8)].map((col, i) => (
+              <ul key={i}>
+                {col.map(([name, text]) => (
+                  <li key={name} className={name === 'Tim' ? 'is-tim' : undefined}>
+                    <b>{name}</b>
+                    {name === 'Tim'
+                      ? <span>tim u koji se nalog svrstava: <b className="mx-woup__tim is-robotik">Robotik</b> (i "Robotik 1", "Robotik 2") ili <b className="mx-woup__tim is-mtel">mtel</b> (i "M telecommunication")</span>
+                      : <span>{text}</span>}
+                  </li>
+                ))}
+              </ul>
+            ))}
           </div>
-          <Button 
-            type="secondary" 
-            size="medium" 
-            prefix={<DownloadIcon size={16} />}
-            onClick={downloadTemplate}
-          >
-            Preuzmi šablon
-          </Button>
-        </div>
-      </div>
-      
-      {/* Upload Form Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-            
-            {successMessage && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                {successMessage}
-              </div>
-            )}
-            
-            {/* File Upload */}
-            <div className="space-y-2">
-              <label htmlFor="workorders-file" className="block text-sm font-medium text-slate-700">Odaberi Excel fajl</label>
-              <div className="relative">
-                <input
-                  type="file"
-                  id="workorders-file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileChange}
-                  disabled={loading}
-                  className="sr-only"
-                />
-                <label 
-                  htmlFor="workorders-file"
-                  className="relative w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all overflow-hidden border-slate-300 bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-                >
-                  <div className="flex flex-col items-center space-y-3 p-4">
-                    <UploadIcon size={32} className="text-slate-400" />
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-slate-600">
-                        {file ? file.name : 'Kliknite da odaberete Excel fajl'}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">ili prevucite fajl ovde</p>
-                    </div>
-                  </div>
-                </label>
-              </div>
+          <Btn icon={Download} onClick={downloadTemplate}>Preuzmi šablon</Btn>
+        </Panel>
+
+        {/* Upload */}
+        <Panel>
+          <form onSubmit={handleSubmit} className="mx-woup__form">
+            {error && <Note tone="bad">{error}</Note>}
+            {successMessage && <Note tone="ok">{successMessage}</Note>}
+
+            <div className="sx-field">
+              <label htmlFor="workorders-file" className="sx-field__label">Odaberi Excel fajl</label>
+              <input
+                type="file"
+                id="workorders-file"
+                accept=".xlsx,.xls"
+                onChange={handleFileChange}
+                disabled={loading}
+                className="sx-sr"
+              />
+              <label htmlFor="workorders-file" className={cx('mx-woup__drop', file && 'has-file', loading && 'is-disabled')}>
+                <Upload size={28} strokeWidth={1.6} aria-hidden="true" />
+                <b>{file ? file.name : 'Kliknite da odaberete Excel fajl'}</b>
+                <span>ili prevucite fajl ovde</span>
+              </label>
             </div>
-            
-            {/* Upload Button */}
-            <div className="flex items-center justify-center pt-4">
-              <Button 
-                type="primary" 
-                size="medium"
-                prefix={<UploadIcon size={16} />}
-                disabled={!file || loading}
-                onClick={handleSubmit}
-              >
+
+            <div className="mx-woup__submit">
+              <Btn variant="primary" icon={Upload} disabled={!file || loading} onClick={handleSubmit} data-testid="work-orders-upload-submit">
                 {loading ? 'Upload u toku...' : 'Upload radnih naloga'}
-              </Button>
+              </Btn>
             </div>
           </form>
-          
-          {/* Parse Results */}
-          {parseResults && (
-            <div className="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Rezultat obrade</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Dodato radnih naloga</span>
-                  </div>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.workOrdersAdded}</p>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Dodato novih korisnika</span>
-                  </div>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.usersAdded}</p>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Ažurirano korisnika</span>
-                  </div>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.usersUpdated}</p>
-                </div>
+        </Panel>
+
+        {/* Rezultat obrade */}
+        {parseResults && (
+          <Panel title="Rezultat obrade" testId="upload-results">
+            <div className="sx-stats mx-woup__stats">
+              <Stat label="Dodato radnih naloga" value={parseResults.workOrdersAdded} />
+              <Stat label="Dodato novih korisnika" value={parseResults.usersAdded} />
+              <Stat label="Ažurirano korisnika" value={parseResults.usersUpdated} />
+            </div>
+
+            {/* Tim statistika */}
+            {parseResults.timSummary && (
+              <div className="sx-stats mx-woup__stats">
+                <Stat label="Tim Robotik" value={parseResults.timSummary.robotik} />
+                <Stat label="Tim mtel" value={parseResults.timSummary.mtel} />
+                <Stat label="Bez tima" value={parseResults.timSummary.bezTima} />
               </div>
+            )}
 
-              {/* Tim statistika */}
-              {parseResults.timSummary && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-blue-50/80 p-4 rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm text-blue-800">Tim Robotik</span>
-                    </div>
-                    <p className="text-xl font-bold text-blue-900 mt-1">{parseResults.timSummary.robotik}</p>
-                  </div>
-                  <div className="bg-red-50/80 p-4 rounded-lg border border-red-200">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <span className="text-sm text-red-800">Tim mtel</span>
-                    </div>
-                    <p className="text-xl font-bold text-red-900 mt-1">{parseResults.timSummary.mtel}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg border border-slate-200">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
-                      <span className="text-sm text-slate-600">Bez tima</span>
-                    </div>
-                    <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.timSummary.bezTima}</p>
-                  </div>
-                </div>
-              )}
-
+            <div className="mx-gap">
               {/* Preskočeni sheet-ovi */}
               {parseResults.skippedSheets?.length > 0 && (
-                <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-slate-700">
-                    <span className="font-semibold">Preskočeni sheet-ovi</span> (ne sadrže kolone radnih naloga): {parseResults.skippedSheets.join(', ')}
-                  </p>
-                </div>
+                <Note tone="idle">
+                  <b>Preskočeni sheet-ovi</b> (ne sadrže kolone radnih naloga): {parseResults.skippedSheets.join(', ')}
+                </Note>
               )}
 
               {/* Tim upozorenja */}
               {parseResults.timWarnings?.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <h4 className="font-semibold text-yellow-800 mb-2">Upozorenja za kolonu "Tim" ({parseResults.timWarnings.length}):</h4>
-                  <p className="text-sm text-yellow-700 mb-3">Sledeći nalozi su uvezeni, ali tim nije prepoznat pa neće imati boju tima u tabelama. Tim možete naknadno postaviti u detaljima naloga:</p>
-                  <div className="space-y-3">
+                <Note tone="warn">
+                  <h4 className="mx-woup__title">Upozorenja za kolonu "Tim" ({parseResults.timWarnings.length}):</h4>
+                  <p>Sledeći nalozi su uvezeni, ali tim nije prepoznat pa neće imati boju tima u tabelama. Tim možete naknadno postaviti u detaljima naloga:</p>
+                  <div className="mx-woup__items">
                     {parseResults.timWarnings.map((warning, index) => (
-                      <div key={index} className="bg-white border border-yellow-200 rounded-lg p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <span className="font-medium text-slate-700">Sheet / red:</span>
-                            <p className="text-slate-600">"{warning.sheet}" — red {warning.excelRow}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Adresa:</span>
-                            <p className="text-slate-600">{warning.address || '-'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Korisnik:</span>
-                            <p className="text-slate-600">{warning.userName || '-'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">TIS Posao ID:</span>
-                            <p className="text-slate-600">{warning.tisJobId || '-'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Uneta vrednost:</span>
-                            <p className="text-slate-600">{warning.value || 'prazno'}</p>
-                          </div>
-                        </div>
-                        <div className="mt-2 pt-2 border-t border-yellow-100">
-                          <span className="text-xs text-yellow-700">{warning.reason}</span>
-                        </div>
+                      <div key={index} className="mx-woup__item">
+                        <KV cols={2} items={[
+                          { k: 'Sheet / red', v: `"${warning.sheet}" - red ${warning.excelRow}` },
+                          { k: 'Adresa', v: warning.address || '-' },
+                          { k: 'Korisnik', v: warning.userName || '-' },
+                          { k: 'TIS Posao ID', v: warning.tisJobId || '-' },
+                          { k: 'Uneta vrednost', v: warning.value || 'prazno' }
+                        ]} />
+                        <span className="mx-woup__reason">{warning.reason}</span>
                       </div>
                     ))}
                   </div>
-                </div>
+                </Note>
               )}
 
               {parseResults.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <h4 className="font-semibold text-red-800 mb-2">Greške prilikom obrade:</h4>
-                  <ul className="space-y-1">
+                <Note tone="bad">
+                  <h4 className="mx-woup__title">Greške prilikom obrade:</h4>
+                  <ul className="mx-woup__errors">
                     {parseResults.errors.map((err, index) => (
-                      <li key={index} className="text-sm text-red-700 flex items-start space-x-2">
-                        <div className="w-1 h-1 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
-                        <span>{err}</span>
-                      </li>
+                      <li key={index}>{err}</li>
                     ))}
                   </ul>
-                </div>
+                </Note>
               )}
 
               {parseResults.duplicates.length > 0 && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-orange-800 mb-2">Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
-                  <p className="text-sm text-orange-700 mb-3">Sledeći radni nalozi već postoje u sistemu i nisu dodati:</p>
-                  <div className="space-y-3">
+                <Note tone="warn">
+                  <h4 className="mx-woup__title">Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
+                  <p>Sledeći radni nalozi već postoje u sistemu i nisu dodati:</p>
+                  <div className="mx-woup__items">
                     {parseResults.duplicates.map((duplicate, index) => (
-                      <div key={index} className="bg-white border border-orange-200 rounded-lg p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <span className="font-medium text-slate-700">Adresa:</span>
-                            <p className="text-slate-600">{duplicate.address}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Korisnik:</span>
-                            <p className="text-slate-600">{duplicate.userName}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">TIS ID:</span>
-                            <p className="text-slate-600">{duplicate.tisId}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Datum i vreme:</span>
-                            <p className="text-slate-600">{duplicate.date} {duplicate.time}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Tehničar:</span>
-                            <p className="text-slate-600">{duplicate.technicianName1}{duplicate.technicianName2 ? `, ${duplicate.technicianName2}` : ''}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Paket:</span>
-                            <p className="text-slate-600">{duplicate.packageName}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Tim:</span>
-                            <p className="text-slate-600">{duplicate.tim || '-'}</p>
-                          </div>
-                          {duplicate.sheet && (
-                            <div>
-                              <span className="font-medium text-slate-700">Sheet / red:</span>
-                              <p className="text-slate-600">"{duplicate.sheet}" — red {duplicate.excelRow}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-2 pt-2 border-t border-orange-100">
-                          <span className="text-xs text-orange-700">{duplicate.reason}</span>
-                        </div>
+                      <div key={index} className="mx-woup__item">
+                        <KV cols={2} items={[
+                          { k: 'Adresa', v: duplicate.address },
+                          { k: 'Korisnik', v: duplicate.userName },
+                          { k: 'TIS ID', v: duplicate.tisId },
+                          { k: 'Datum i vreme', v: `${duplicate.date} ${duplicate.time}` },
+                          { k: 'Tehničar', v: `${duplicate.technicianName1}${duplicate.technicianName2 ? `, ${duplicate.technicianName2}` : ''}` },
+                          { k: 'Paket', v: duplicate.packageName },
+                          { k: 'Tim', v: duplicate.tim || '-' },
+                          duplicate.sheet && { k: 'Sheet / red', v: `"${duplicate.sheet}" - red ${duplicate.excelRow}` }
+                        ]} />
+                        <span className="mx-woup__reason">{duplicate.reason}</span>
                       </div>
                     ))}
                   </div>
-                </div>
+                </Note>
               )}
             </div>
-          )}
-        </div>
+          </Panel>
+        )}
       </div>
     </div>
   );

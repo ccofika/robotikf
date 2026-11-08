@@ -1,51 +1,44 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import {
-  BoxIcon,
-  ToolsIcon,
-  UsersIcon,
-  ClipboardIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  PlusIcon,
-  RefreshIcon,
-  DollarSignIcon,
-  AlertTriangleIcon,
-  CalendarIcon,
-  HistoryIcon,
-  StarIcon,
-  ChevronRightIcon,
-  SearchIcon
-} from '../../components/icons/SvgIcons';
-import { cn } from '../../utils/cn';
+  Package,
+  Cable,
+  HardHat,
+  ClipboardList,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  Wallet,
+  CalendarClock,
+  History,
+  Star,
+  ChevronRight,
+  Car,
+  ClipboardPlus,
+  PackagePlus,
+  UserPlus,
+  Upload,
+  TriangleAlert,
+  Plus
+} from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import api, { reviewsAPI } from '../../services/api';
 import GlobalSearch from '../../components/GlobalSearch';
+import { cx, Btn, Led } from '../../security/sx/ui';
+import { Panel, Note, Stat } from '../../security/sx/layout';
+import { LinkBtn } from '../../montaza/ui';
+import './Dashboard.mx.css';
 
 const getIconForAction = (action) => {
   const iconMap = {
-    'workorder_completed': CheckCircleIcon,
-    'equipment_added': BoxIcon,
-    'material_added': ToolsIcon,
-    'technician_added': UsersIcon,
-    'vehicle_added': CalendarIcon,
-    'default': HistoryIcon
+    'workorder_completed': CheckCircle2,
+    'equipment_added': Package,
+    'material_added': Cable,
+    'technician_added': HardHat,
+    'vehicle_added': Car,
+    'default': History
   };
   return iconMap[action] || iconMap.default;
-};
-
-const getColorForAction = (action) => {
-  const colorMap = {
-    'workorder_completed': 'green',
-    'equipment_added': 'blue',
-    'material_added': 'green',
-    'technician_added': 'purple',
-    'vehicle_added': 'cyan',
-    'default': 'slate'
-  };
-  return colorMap[action] || colorMap.default;
 };
 
 const Dashboard = () => {
@@ -156,7 +149,6 @@ const Dashboard = () => {
           message: log.description || log.action || 'Aktivnost',
           timestamp: log.timestamp || log.createdAt,
           icon: getIconForAction(log.action),
-          color: getColorForAction(log.action),
           technicianName: log.technicianName
         }));
 
@@ -212,11 +204,7 @@ const Dashboard = () => {
     const rounded = Math.round(rating);
     for (let i = 1; i <= max; i++) {
       stars.push(
-        <StarIcon
-          key={i}
-          size={12}
-          className={i <= rounded ? 'text-amber-400' : 'text-slate-200'}
-        />
+        <Star key={i} size={12} strokeWidth={1.9} aria-hidden="true" className={i <= rounded ? 'mx-dashboard-star is-on' : 'mx-dashboard-star'} />
       );
     }
     return stars;
@@ -224,11 +212,9 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-600 font-medium">Učitavanje...</p>
-        </div>
+      <div className="sx-page mx-dashboard-loading" data-testid="page-dashboard" aria-busy="true">
+        <span className="mx-dashboard-spin" aria-hidden="true" />
+        <p role="status">Učitavanje...</p>
       </div>
     );
   }
@@ -237,631 +223,308 @@ const Dashboard = () => {
     ? Math.round((stats.workOrders.completed / stats.workOrders.total) * 100)
     : 0;
 
+  // Statusi naloga: zavrsen ok, nezavrsen warn, odlozen info (isti tonovi kao u listi naloga)
+  const statusRows = [
+    { label: 'Završeni', value: stats.workOrders.completed, tone: 'ok', status: 'zavrsen' },
+    { label: 'U toku', value: stats.workOrders.pending, tone: 'warn', status: 'nezavrsen' },
+    { label: 'Odloženi', value: stats.workOrders.postponed, tone: 'info', status: 'odlozen' }
+  ];
+  const maxVal = Math.max(stats.workOrders.completed, stats.workOrders.pending, stats.workOrders.postponed, 1);
+
+  const mainStats = [
+    { to: '/work-orders', icon: ClipboardList, corner: 'Ukupno', label: 'Radni nalozi', value: stats.workOrders.total, sub: <><span className="mx-dashboard-up">↑ {completionRate}%</span> završeno</> },
+    { to: '/equipment', icon: Package, corner: 'Aktivna', label: 'Oprema', value: stats.equipment, sub: 'ukupno uređaja' },
+    { to: '/technicians', icon: HardHat, corner: 'Tim', label: 'Tehničari', value: stats.technicians, sub: <>~{stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0} naloga/tehničar</> },
+    { to: '/materials', icon: Cable, corner: 'Stanje', label: 'Materijali', value: stats.materials, sub: 'na lageru' }
+  ];
+
+  const quickActions = [
+    { to: '/work-orders/add', label: 'Novi nalog', icon: ClipboardPlus },
+    { to: '/equipment/upload', label: 'Dodaj opremu', icon: Upload },
+    { to: '/materials/add', label: 'Dodaj materijal', icon: PackagePlus },
+    { to: '/technicians/add', label: 'Dodaj tehničara', icon: UserPlus },
+    isSuperAdmin && { to: '/finances', label: 'Finansije', icon: Wallet },
+    { to: '/vehicles', label: 'Vozni park', icon: Car }
+  ].filter(Boolean);
+
+  // Naslov panela sa ikonicom (kao ranije)
+  const iconTitle = (Icon, text) => (
+    <span className="sx-panel__title-row"><Icon size={16} strokeWidth={1.9} aria-hidden="true" />{text}</span>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="sx-page mx-dashboard" data-testid="page-dashboard">
 
-        {/* Header */}
-        <div className="flex items-center gap-4 pb-6">
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${searchFocused ? 'w-0 opacity-0' : 'opacity-100'}`}>
-            <h1 className="text-2xl font-semibold text-slate-900 mb-1">Dashboard</h1>
-            <p className="text-sm text-slate-500">Dobrodošli, {user?.name}</p>
-          </div>
-          <div className="flex items-center gap-3 ml-auto flex-1 justify-end">
-            <GlobalSearch onFocusChange={setSearchFocused} expanded={searchFocused} />
-            <button
-              onClick={fetchDashboardData}
-              className="p-2 rounded-xl hover:bg-slate-50 transition-colors text-slate-500 hover:text-slate-900 flex-shrink-0"
-              title="Osveži podatke"
-            >
-              <RefreshIcon size={18} />
-            </button>
-            <Avatar className="h-9 w-9 flex-shrink-0">
-              <AvatarFallback className="bg-slate-900 text-white text-sm font-medium">
-                {user?.name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
-          </div>
+      {/* Zaglavlje: naslov levo (sakriva se dok je pretraga u fokusu), pretraga, osveži i avatar desno */}
+      <header className={cx('mx-dashboard-head', searchFocused && 'is-searching')}>
+        <div className="mx-dashboard-head__title">
+          <span className="sx-eyebrow">Montaža · Dashboard</span>
+          <h1 className="sx-title mx-dashboard-head__h1" data-testid="page-heading">Dashboard</h1>
+          <p className="mx-dashboard-head__lead">Dobrodošli, {user?.name}</p>
         </div>
-
-        {/* Alerts Banner */}
-        {getTotalAlerts() > 0 && (
-          <Card className="border border-red-200 bg-white">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-red-50 rounded-lg">
-                    <AlertTriangleIcon size={16} className="text-red-600" />
-                  </div>
-                  <span className="font-semibold text-slate-900 text-sm">
-                    Upozorenja ({getTotalAlerts()})
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {failedTransactions.length > 0 && (
-                    <button
-                      onClick={() => navigate('/finances')}
-                      className="text-xs bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
-                    >
-                      <DollarSignIcon size={12} />
-                      {failedTransactions.length} finansijskih
-                    </button>
-                  )}
-                  {vehicleStats?.expiringRegistrations > 0 && (
-                    <button
-                      onClick={() => navigate('/vehicles')}
-                      className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
-                    >
-                      <CalendarIcon size={12} />
-                      {vehicleStats.expiringRegistrations} registracija
-                    </button>
-                  )}
-                  {stats.workOrders.postponed > 0 && (
-                    <button
-                      onClick={() => navigateToWorkOrders('odlozen')}
-                      className="text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
-                    >
-                      <ClockIcon size={12} />
-                      {stats.workOrders.postponed} odloženih
-                    </button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Stats Grid - 4 cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link to="/work-orders">
-            <Card className="bg-slate-900 text-white border-0 hover:bg-slate-800 transition-all cursor-pointer overflow-hidden">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-white/10 rounded-lg">
-                    <ClipboardIcon size={20} className="text-white" />
-                  </div>
-                  <span className="text-xs text-slate-400">Ukupno</span>
-                </div>
-                <p className="text-sm text-slate-400 mb-1">Radni nalozi</p>
-                <p className="text-3xl font-bold mb-2">{stats.workOrders.total.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-emerald-400">
-                  <span>↑ {completionRate}%</span>
-                  <span className="text-slate-500">završeno</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/equipment">
-            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <BoxIcon size={20} className="text-blue-600" />
-                  </div>
-                  <span className="text-xs text-slate-400">Aktivna</span>
-                </div>
-                <p className="text-sm text-slate-500 mb-1">Oprema</p>
-                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.equipment.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <BoxIcon size={10} className="text-slate-400" />
-                  <span className="text-slate-400">ukupno uređaja</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/technicians">
-            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-violet-50 rounded-lg">
-                    <UsersIcon size={20} className="text-violet-600" />
-                  </div>
-                  <span className="text-xs text-slate-400">Tim</span>
-                </div>
-                <p className="text-sm text-slate-500 mb-1">Tehničari</p>
-                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.technicians.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>~{stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0}</span>
-                  <span className="text-slate-400">naloga/tehničar</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/materials">
-            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-amber-50 rounded-lg">
-                    <ToolsIcon size={20} className="text-amber-600" />
-                  </div>
-                  <span className="text-xs text-slate-400">Stanje</span>
-                </div>
-                <p className="text-sm text-slate-500 mb-1">Materijali</p>
-                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.materials.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <ToolsIcon size={10} className="text-slate-400" />
-                  <span className="text-slate-400">na lageru</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+        <div className="mx-dashboard-head__tools">
+          <GlobalSearch onFocusChange={setSearchFocused} expanded={searchFocused} />
+          <Btn icon={RefreshCw} onClick={fetchDashboardData} title="Osveži podatke" aria-label="Osveži podatke" />
+          <span className="sx-avatar mx-dashboard-head__ava" aria-hidden="true">{user?.name?.charAt(0) || 'U'}</span>
         </div>
+      </header>
 
-        {/* Middle Section - Chart + Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Work Orders Overview Chart */}
-          <Card className="lg:col-span-8 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold text-slate-900">Pregled radnih naloga</CardTitle>
-                  <p className="text-xs text-slate-500 mt-1">Raspodela po statusu</p>
-                </div>
-                <Link to="/work-orders" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">
-                  Svi nalozi →
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-56 flex items-end justify-between gap-6 px-4">
-                {[
-                  { label: 'Završeni', value: stats.workOrders.completed, color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600', status: 'zavrsen' },
-                  { label: 'U toku', value: stats.workOrders.pending, color: 'bg-blue-500', hoverColor: 'hover:bg-blue-600', status: 'nezavrsen' },
-                  { label: 'Odloženi', value: stats.workOrders.postponed, color: 'bg-amber-500', hoverColor: 'hover:bg-amber-600', status: 'odlozen' }
-                ].map((item) => {
-                  const maxVal = Math.max(stats.workOrders.completed, stats.workOrders.pending, stats.workOrders.postponed, 1);
-                  const heightPct = Math.max((item.value / maxVal) * 85, 5);
-                  return (
-                    <div
-                      key={item.status}
-                      className="flex-1 flex flex-col items-center gap-3 cursor-pointer group"
-                      onClick={() => navigateToWorkOrders(item.status)}
-                    >
-                      <span className="text-sm font-bold text-slate-900">{item.value}</span>
-                      <div className="w-full flex items-end" style={{ height: '170px' }}>
-                        <div
-                          className={`w-full rounded-t-xl transition-all ${item.color} ${item.hoverColor} group-hover:opacity-90`}
-                          style={{ height: `${heightPct}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-xs text-slate-500 group-hover:text-slate-900 font-medium transition-colors">
-                        {item.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats - Completed & In Progress */}
-          <div className="lg:col-span-4 space-y-4">
-            <Card
-              className="bg-blue-50 border-0 cursor-pointer hover:bg-blue-100/80 transition-colors"
-              onClick={() => navigateToWorkOrders('zavrsen')}
-            >
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-blue-600 mb-1">Završeni</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.workOrders.completed}</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl">
-                    <CheckCircleIcon size={24} className="text-blue-600" />
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-blue-100">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600">Stopa uspešnosti</span>
-                    <span className="text-slate-900 font-semibold">{completionRate}%</span>
-                  </div>
-                  <div className="w-full bg-blue-100 rounded-full h-1.5 mt-2">
-                    <div className="bg-blue-600 h-1.5 rounded-full transition-all" style={{ width: `${completionRate}%` }}></div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="bg-violet-50 border-0 cursor-pointer hover:bg-violet-100/80 transition-colors"
-              onClick={() => navigateToWorkOrders('nezavrsen')}
-            >
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-violet-600 mb-1">U toku</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.workOrders.pending}</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl">
-                    <ClockIcon size={24} className="text-violet-600" />
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-violet-100">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600">Prosečno vreme</span>
-                    <span className="text-slate-900 font-semibold">{stats.workOrders.avgCompletionTime || 2.5}d</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Bottom Grid - Status Breakdown + Recent Activity + Reviews */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-          {/* Status Breakdown */}
-          <Card className="lg:col-span-5 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900">Status radnih naloga</CardTitle>
-                <Link to="/work-orders" className="text-xs text-slate-500 hover:text-slate-900">Svi →</Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-0 divide-y divide-slate-50">
-                {[
-                  { label: 'Završeni', value: stats.workOrders.completed, color: 'bg-emerald-500', status: 'zavrsen' },
-                  { label: 'U toku', value: stats.workOrders.pending, color: 'bg-blue-500', status: 'nezavrsen' },
-                  { label: 'Odloženi', value: stats.workOrders.postponed, color: 'bg-amber-500', status: 'odlozen' }
-                ].map((item) => (
-                  <div
-                    key={item.status}
-                    className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50 -mx-6 px-6 transition-colors group"
-                    onClick={() => navigateToWorkOrders(item.status)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${item.color}`}></div>
-                      <span className="text-sm text-slate-700">{item.label}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-slate-500">
-                        {stats.workOrders.total > 0 ? Math.round((item.value / stats.workOrders.total) * 100) : 0}%
-                      </span>
-                      <span className="text-sm font-semibold text-slate-900 w-12 text-right">{item.value}</span>
-                      <ChevronRightIcon size={14} className="text-slate-300 group-hover:text-slate-600 transition-colors" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Resources summary */}
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <p className="text-xs font-medium text-slate-500 mb-3">Resursi</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <Link to="/equipment" className="text-center hover:bg-slate-50 rounded-lg p-2 transition-colors">
-                    <p className="text-xs text-slate-500 mb-1">Oprema</p>
-                    <p className="text-lg font-semibold text-slate-900">{stats.equipment}</p>
-                  </Link>
-                  <Link to="/materials" className="text-center hover:bg-slate-50 rounded-lg p-2 transition-colors">
-                    <p className="text-xs text-slate-500 mb-1">Materijali</p>
-                    <p className="text-lg font-semibold text-slate-900">{stats.materials}</p>
-                  </Link>
-                  <Link to="/technicians" className="text-center hover:bg-slate-50 rounded-lg p-2 transition-colors">
-                    <p className="text-xs text-slate-500 mb-1">Tehničari</p>
-                    <p className="text-lg font-semibold text-slate-900">{stats.technicians}</p>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="lg:col-span-4 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900">Nedavna aktivnost</CardTitle>
-                <Link to="/logs" className="text-xs text-slate-500 hover:text-slate-900">Svi logovi →</Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {recentActivity.length > 0 ? (
-                <div className="space-y-0 divide-y divide-slate-50">
-                  {recentActivity.slice(0, 5).map((activity, index) => {
-                    const IconComponent = activity.icon;
-                    return (
-                      <div key={index} className="flex items-start gap-3 py-3">
-                        <div className={cn(
-                          "p-2 rounded-lg",
-                          activity.color === 'green' && "bg-green-50",
-                          activity.color === 'blue' && "bg-blue-50",
-                          activity.color === 'purple' && "bg-purple-50",
-                          activity.color === 'cyan' && "bg-cyan-50",
-                          activity.color === 'slate' && "bg-slate-50",
-                          !activity.color && "bg-slate-50"
-                        )}>
-                          <IconComponent size={14} className={cn(
-                            activity.color === 'green' && "text-green-600",
-                            activity.color === 'blue' && "text-blue-600",
-                            activity.color === 'purple' && "text-purple-600",
-                            activity.color === 'cyan' && "text-cyan-600",
-                            activity.color === 'slate' && "text-slate-600",
-                            !activity.color && "text-slate-600"
-                          )} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-700 truncate">{activity.message}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-xs text-slate-400">{formatTimeAgo(activity.timestamp)}</p>
-                            {activity.technicianName && (
-                              <>
-                                <span className="text-xs text-slate-300">·</span>
-                                <p className="text-xs text-slate-500 font-medium truncate">{activity.technicianName}</p>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-8">Nema aktivnosti</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Reviews Card */}
-          <Card className="lg:col-span-3 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900">Ocene</CardTitle>
-                <Link to="/technicians" className="text-xs text-slate-500 hover:text-slate-900">Tehničari →</Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {reviewData && reviewData.totalReviews > 0 ? (
-                <div>
-                  {/* Overall Rating */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-amber-50 rounded-xl">
-                      <StarIcon size={24} className="text-amber-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-900">{reviewData.overallRating}</p>
-                      <div className="flex items-center gap-1">
-                        {renderStars(reviewData.overallRating)}
-                        <span className="text-xs text-slate-400 ml-1">/ 5</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mini Stats */}
-                  <div className="space-y-2 mb-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-slate-500">Profesionalnost</span>
-                        <span className="text-xs font-semibold text-slate-900">{reviewData.avgProfessionalism}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5">
-                        <div className="bg-slate-900 h-1.5 rounded-full transition-all" style={{ width: `${(reviewData.avgProfessionalism / 5) * 100}%` }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-slate-500">Kvalitet usluge</span>
-                        <span className="text-xs font-semibold text-slate-900">{reviewData.avgServiceQuality}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5">
-                        <div className="bg-violet-500 h-1.5 rounded-full transition-all" style={{ width: `${(reviewData.avgServiceQuality / 5) * 100}%` }}></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total reviews count */}
-                  <div className="flex items-center justify-between text-xs mb-3 pb-3 border-b border-slate-100">
-                    <span className="text-slate-500">Ukupno ocena</span>
-                    <span className="font-semibold text-slate-900">{reviewData.totalReviews}</span>
-                  </div>
-
-                  {/* Recent Reviews */}
-                  {reviewData.recentReviews && reviewData.recentReviews.length > 0 && (
-                    <div className="space-y-2.5">
-                      {reviewData.recentReviews.map((review, i) => (
-                        <div key={review._id || i} className="flex items-start gap-2.5">
-                          <Avatar className="h-6 w-6 flex-shrink-0">
-                            <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-medium">
-                              {review.technicianName?.charAt(0) || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-medium text-slate-900 truncate">{review.technicianName}</p>
-                              <div className="flex items-center gap-0.5 flex-shrink-0">
-                                {renderStars(Math.round((review.professionalism + review.serviceQuality) / 2))}
-                              </div>
-                            </div>
-                            {review.comment && (
-                              <p className="text-xs text-slate-500 truncate mt-0.5">{review.comment}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <div className="p-3 bg-slate-50 rounded-xl inline-block mb-2">
-                    <StarIcon size={20} className="text-slate-300" />
-                  </div>
-                  <p className="text-sm text-slate-500">Nema ocena</p>
-                  <p className="text-xs text-slate-400 mt-1">Ocene će se pojaviti nakon što korisnici ocene tehničare</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Financial Stats - za superadmin i supervisor */}
-        {isSuperAdmin && financialStats && (
-          <Card className="bg-emerald-50 border-0">
-            <CardContent className="pt-5 pb-5">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div>
-                  <p className="text-xs text-emerald-700 mb-1">Mesečni prihod</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">
-                    {((financialStats.totalRevenue || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <p className="text-xs text-slate-600">Ukupan prihod</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">Troškovi</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">
-                    {((financialStats.totalPayouts || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <p className="text-xs text-slate-600">Isplate tehničarima</p>
-                </div>
-                <div>
-                  <p className="text-xs text-emerald-700 mb-1">Neto profit</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">
-                    {((financialStats.totalProfit || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <p className="text-xs text-slate-600">Ovaj mesec</p>
-                </div>
-                <div className="flex items-center justify-center">
-                  <Link to="/finances">
-                    <button className="bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">
-                      Detalji →
-                    </button>
-                  </Link>
-                </div>
-              </div>
+      {/* Upozorenja: naslov levo, dugmad desno */}
+      {getTotalAlerts() > 0 && (
+        <Note
+          tone="warn"
+          className="mx-dashboard-alerts"
+          testId="dashboard-alerts"
+          actions={(
+            <>
               {failedTransactions.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-emerald-200">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-red-600 font-medium flex items-center gap-1">
-                      <AlertTriangleIcon size={12} />
-                      {failedTransactions.length} neuspešnih transakcija
+                <Btn size="sm" icon={Wallet} onClick={() => navigate('/finances')}>
+                  {failedTransactions.length} finansijskih
+                </Btn>
+              )}
+              {vehicleStats?.expiringRegistrations > 0 && (
+                <Btn size="sm" icon={CalendarClock} onClick={() => navigate('/vehicles')}>
+                  {vehicleStats.expiringRegistrations} registracija
+                </Btn>
+              )}
+              {stats.workOrders.postponed > 0 && (
+                <Btn size="sm" icon={Clock} onClick={() => navigateToWorkOrders('odlozen')}>
+                  {stats.workOrders.postponed} odloženih
+                </Btn>
+              )}
+            </>
+          )}
+        >
+          <b>Upozorenja ({getTotalAlerts()})</b>
+        </Note>
+      )}
+
+      {/* Četiri kartice sa brojkama (linkovi) */}
+      <div className="sx-stats mx-dashboard-main">
+        {mainStats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <Link key={s.to} to={s.to} className="sx-stat is-button mx-dashboard-stat">
+              <span className="mx-dashboard-stat__top">
+                <span className="mx-dashboard-stat__corner">{s.corner}</span>
+                <span className="sx-item__icon mx-dashboard-stat__icon"><Icon size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+              </span>
+              <span className="sx-label">{s.label}</span>
+              <span className="sx-stat__num sx-num">{s.value.toLocaleString()}</span>
+              <span className="sx-stat__sub">{s.sub}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Raspodela po statusu + završeni / u toku */}
+      <div className="sx-cols sx-cols--main">
+        <Panel
+          title="Pregled radnih naloga"
+          sub="Raspodela po statusu"
+          actions={<LinkBtn to="/work-orders" size="sm" variant="ghost">Svi nalozi →</LinkBtn>}
+        >
+          <div className="mx-dashboard-bars">
+            {statusRows.map((item) => {
+              const heightPct = Math.max((item.value / maxVal) * 85, 5);
+              return (
+                <button key={item.status} type="button" className="mx-dashboard-bar" onClick={() => navigateToWorkOrders(item.status)}>
+                  <span className="mx-dashboard-bar__val sx-num">{item.value}</span>
+                  <span className="mx-dashboard-bar__track">
+                    <span className="mx-dashboard-bar__fill" data-tone={item.tone} style={{ height: `${heightPct}%` }} />
+                  </span>
+                  <span className="mx-dashboard-bar__label">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
+
+        <div className="sx-stack mx-dashboard-side">
+          <button type="button" className="sx-card mx-dashboard-quick" onClick={() => navigateToWorkOrders('zavrsen')}>
+            <span className="mx-dashboard-quick__top">
+              <span className="mx-dashboard-quick__main">
+                <span className="sx-label">Završeni</span>
+                <span className="sx-stat__num sx-num">{stats.workOrders.completed}</span>
+              </span>
+              <span className="sx-item__icon"><CheckCircle2 size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+            </span>
+            <span className="mx-dashboard-quick__foot">
+              <span className="mx-dashboard-kv"><span>Stopa uspešnosti</span><b>{completionRate}%</b></span>
+              <span className="mx-dashboard-meter" data-tone="ok"><span style={{ width: `${completionRate}%` }} /></span>
+            </span>
+          </button>
+          <button type="button" className="sx-card mx-dashboard-quick" onClick={() => navigateToWorkOrders('nezavrsen')}>
+            <span className="mx-dashboard-quick__top">
+              <span className="mx-dashboard-quick__main">
+                <span className="sx-label">U toku</span>
+                <span className="sx-stat__num sx-num">{stats.workOrders.pending}</span>
+              </span>
+              <span className="sx-item__icon"><Clock size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+            </span>
+            <span className="mx-dashboard-quick__foot">
+              <span className="mx-dashboard-kv"><span>Prosečno vreme</span><b>{stats.workOrders.avgCompletionTime || 2.5}d</b></span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Status naloga, nedavna aktivnost, ocene */}
+      <div className="mx-dashboard-trio">
+        <Panel title="Status radnih naloga" actions={<LinkBtn to="/work-orders" size="sm" variant="ghost">Svi →</LinkBtn>}>
+          <div className="sx-list">
+            {statusRows.map((item) => (
+              <button key={item.status} type="button" className="sx-item is-click mx-dashboard-row" onClick={() => navigateToWorkOrders(item.status)}>
+                <Led tone={item.tone} />
+                <span className="sx-item__main"><b>{item.label}</b></span>
+                <span className="sx-item__side">
+                  <span className="mx-dashboard-row__pct">
+                    {stats.workOrders.total > 0 ? Math.round((item.value / stats.workOrders.total) * 100) : 0}%
+                  </span>
+                  <b className="mx-dashboard-row__val">{item.value}</b>
+                  <ChevronRight size={14} strokeWidth={1.9} aria-hidden="true" className="mx-dashboard-row__chev" />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mx-dashboard-res">
+            <span className="sx-label">Resursi</span>
+            <div className="mx-dashboard-res__grid">
+              <Link to="/equipment" className="mx-dashboard-res__item">
+                <span>Oprema</span>
+                <b className="sx-num">{stats.equipment}</b>
+              </Link>
+              <Link to="/materials" className="mx-dashboard-res__item">
+                <span>Materijali</span>
+                <b className="sx-num">{stats.materials}</b>
+              </Link>
+              <Link to="/technicians" className="mx-dashboard-res__item">
+                <span>Tehničari</span>
+                <b className="sx-num">{stats.technicians}</b>
+              </Link>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Nedavna aktivnost" actions={<LinkBtn to="/logs" size="sm" variant="ghost">Svi logovi →</LinkBtn>}>
+          {recentActivity.length > 0 ? (
+            <div className="sx-list">
+              {recentActivity.slice(0, 5).map((activity, index) => {
+                const IconComponent = activity.icon;
+                return (
+                  <div key={index} className="sx-item mx-dashboard-act">
+                    <span className="sx-item__icon"><IconComponent size={16} strokeWidth={1.8} aria-hidden="true" /></span>
+                    <span className="sx-item__main">
+                      <b>{activity.message}</b>
+                      <span>
+                        {formatTimeAgo(activity.timestamp)}
+                        {activity.technicianName && <> · <span className="mx-dashboard-act__who">{activity.technicianName}</span></>}
+                      </span>
                     </span>
-                    <Link to="/finances" className="text-red-600 hover:text-red-700 font-medium">
-                      Reši →
-                    </Link>
                   </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="sx-empty mx-dashboard-none"><span>Nema aktivnosti</span></div>
+          )}
+        </Panel>
+
+        <Panel title="Ocene" actions={<LinkBtn to="/technicians" size="sm" variant="ghost">Tehničari →</LinkBtn>}>
+          {reviewData && reviewData.totalReviews > 0 ? (
+            <div className="mx-dashboard-rev">
+              <div className="mx-dashboard-rev__score">
+                <span className="sx-item__icon is-warn"><Star size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+                <span className="mx-dashboard-rev__overall">
+                  <span className="sx-num mx-dashboard-rev__num">{reviewData.overallRating}</span>
+                  <span className="mx-dashboard-stars">
+                    {renderStars(reviewData.overallRating)}
+                    <span className="mx-dashboard-rev__max">/ 5</span>
+                  </span>
+                </span>
+              </div>
+
+              <div className="mx-dashboard-rev__meters">
+                <span className="mx-dashboard-kv"><span>Profesionalnost</span><b>{reviewData.avgProfessionalism}</b></span>
+                <span className="mx-dashboard-meter"><span style={{ width: `${(reviewData.avgProfessionalism / 5) * 100}%` }} /></span>
+                <span className="mx-dashboard-kv"><span>Kvalitet usluge</span><b>{reviewData.avgServiceQuality}</b></span>
+                <span className="mx-dashboard-meter" data-tone="info"><span style={{ width: `${(reviewData.avgServiceQuality / 5) * 100}%` }} /></span>
+              </div>
+
+              <div className="mx-dashboard-kv mx-dashboard-rev__total"><span>Ukupno ocena</span><b>{reviewData.totalReviews}</b></div>
+
+              {reviewData.recentReviews && reviewData.recentReviews.length > 0 && (
+                <div className="mx-dashboard-rev__list">
+                  {reviewData.recentReviews.map((review, i) => (
+                    <div key={review._id || i} className="mx-dashboard-rev__item">
+                      <span className="sx-avatar mx-dashboard-rev__ava" aria-hidden="true">{review.technicianName?.charAt(0) || '?'}</span>
+                      <span className="mx-dashboard-rev__main">
+                        <span className="mx-dashboard-rev__line">
+                          <b>{review.technicianName}</b>
+                          <span className="mx-dashboard-stars">{renderStars(Math.round((review.professionalism + review.serviceQuality) / 2))}</span>
+                        </span>
+                        {review.comment && <span className="mx-dashboard-rev__comment">{review.comment}</span>}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          ) : (
+            <div className="sx-empty mx-dashboard-none">
+              <span className="sx-item__icon"><Star size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+              <b>Nema ocena</b>
+              <span>Ocene će se pojaviti nakon što korisnici ocene tehničare</span>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* Finansije - za superadmin i supervisor */}
+      {isSuperAdmin && financialStats && (
+        <section className="sx-card mx-dashboard-fin" data-testid="dashboard-finances">
+          <div className="sx-stats mx-dashboard-fin__stats">
+            <Stat label="Mesečni prihod" value={`${((financialStats.totalRevenue || 0) / 1000).toFixed(1)}k`} sub="Ukupan prihod" />
+            <Stat label="Troškovi" value={`${((financialStats.totalPayouts || 0) / 1000).toFixed(1)}k`} sub="Isplate tehničarima" />
+            <Stat label="Neto profit" value={`${((financialStats.totalProfit || 0) / 1000).toFixed(1)}k`} sub="Ovaj mesec" />
+            <div className="sx-stat mx-dashboard-fin__go">
+              <LinkBtn to="/finances" variant="primary">Detalji →</LinkBtn>
+            </div>
+          </div>
+          {failedTransactions.length > 0 && (
+            <div className="mx-dashboard-fin__fail">
+              <span className="mx-dashboard-fin__failtext">
+                <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />
+                {failedTransactions.length} neuspešnih transakcija
+              </span>
+              <LinkBtn to="/finances" size="sm" variant="ghost" className="mx-danger">Reši →</LinkBtn>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Vozni park + brze akcije */}
+      <div className="sx-cols sx-cols--2">
+        {vehicleStats && (
+          <Panel title={iconTitle(Car, 'Vozni park')} actions={<LinkBtn to="/vehicles" size="sm" variant="ghost">Detalji →</LinkBtn>}>
+            <div className="sx-stats mx-dashboard-mini">
+              <Stat label="Ukupno" value={vehicleStats.totalVehicles || 0} />
+              <Stat label="Aktivna" value={vehicleStats.activeVehicles || 0} tone={vehicleStats.activeVehicles ? 'ok' : null} />
+              <Stat label="Ističe reg." value={vehicleStats.expiringRegistrations || 0} tone={vehicleStats.expiringRegistrations ? 'warn' : null} />
+              <Stat label="Troškovi serv." value={`${((vehicleStats.totalServiceCosts || 0) / 1000).toFixed(0)}k`} />
+            </div>
+          </Panel>
         )}
 
-        {/* Vehicle Fleet + Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* Vehicle Fleet */}
-          {vehicleStats && (
-            <Card className="bg-white border border-slate-100">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                    <CalendarIcon size={16} className="text-cyan-600" />
-                    Vozni park
-                  </CardTitle>
-                  <Link to="/vehicles" className="text-xs text-slate-500 hover:text-slate-900">Detalji →</Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 bg-slate-50 rounded-lg">
-                    <p className="text-xs text-slate-500 mb-1">Ukupno</p>
-                    <p className="text-xl font-bold text-slate-900">{vehicleStats.totalVehicles || 0}</p>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <p className="text-xs text-slate-500 mb-1">Aktivna</p>
-                    <p className="text-xl font-bold text-green-600">{vehicleStats.activeVehicles || 0}</p>
-                  </div>
-                  <div className="text-center p-3 bg-amber-50 rounded-lg">
-                    <p className="text-xs text-slate-500 mb-1">Ističe reg.</p>
-                    <p className="text-xl font-bold text-amber-600">{vehicleStats.expiringRegistrations || 0}</p>
-                  </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-xs text-slate-500 mb-1">Troškovi serv.</p>
-                    <p className="text-xl font-bold text-blue-600">
-                      {((vehicleStats.totalServiceCosts || 0) / 1000).toFixed(0)}k
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Quick Actions */}
-          <Card className="bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <PlusIcon size={16} className="text-slate-600" />
-                Brze akcije
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  to="/work-orders/add"
-                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
-                >
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                    <ClipboardIcon size={14} className="text-slate-700" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Novi nalog</span>
-                </Link>
-
-                <Link
-                  to="/equipment/upload"
-                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
-                >
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                    <BoxIcon size={14} className="text-slate-700" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Dodaj opremu</span>
-                </Link>
-
-                <Link
-                  to="/materials/add"
-                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
-                >
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                    <ToolsIcon size={14} className="text-slate-700" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Dodaj materijal</span>
-                </Link>
-
-                <Link
-                  to="/technicians/add"
-                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
-                >
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                    <UsersIcon size={14} className="text-slate-700" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Dodaj tehničara</span>
-                </Link>
-
-                {isSuperAdmin && (
-                  <Link
-                    to="/finances"
-                    className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
-                  >
-                    <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                      <DollarSignIcon size={14} className="text-slate-700" />
-                    </div>
-                    <span className="text-sm font-medium text-slate-700">Finansije</span>
-                  </Link>
-                )}
-
-                <Link
-                  to="/vehicles"
-                  className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors group"
-                >
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                    <CalendarIcon size={14} className="text-slate-700" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Vozni park</span>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
+        <Panel title={iconTitle(Plus, 'Brze akcije')}>
+          <div className="mx-dashboard-actions">
+            {quickActions.map((a) => (
+              <LinkBtn key={a.to} to={a.to} icon={a.icon}>{a.label}</LinkBtn>
+            ))}
+          </div>
+        </Panel>
+      </div>
     </div>
   );
 };

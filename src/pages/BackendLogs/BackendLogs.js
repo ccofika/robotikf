@@ -1,32 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
-import {
-  ActivityIcon,
-  AlertTriangleIcon,
-  ZapIcon,
-  RefreshIcon,
-  CalendarIcon,
-  FilterIcon,
-  SearchIcon,
-  CheckIcon,
-  XIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
-  ClockIcon,
-  BrainIcon,
-  HardHatIcon
-} from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import { Input } from '../../components/ui/input';
+import { Activity, TriangleAlert, Zap, RefreshCw, Brain, HardHat, X, FileDown, ArrowRight } from 'lucide-react';
 import { toast } from '../../components/ui/toast';
-import { cn } from '../../lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
+import { Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Tabs, Stat } from '../../security/sx/layout';
+import { Field, Input, Select } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { Pager, Loading } from '../../montaza/ui';
 import AIAnalysisSection from './components/AIAnalysisSection';
 import AITechnicianAnalysisSection from './components/AITechnicianAnalysisSection';
 import DateTimePicker from '../../components/ui/DateTimePicker';
+import './BackendLogs.mx.css';
 import { localYmd } from '../../utils/localDate';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -442,1310 +427,718 @@ const BackendLogs = () => {
     }
   };
 
+
+  // Detalji aktivnosti (otvaranje stavki bulk akcije)
+  const openBulk = (details) => {
+    setBulkDetails(details);
+    setShowBulkModal(true);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 rounded-xl border border-purple-200/50">
-            <ActivityIcon size={28} className="text-purple-600" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Backend Logs</h1>
-            <p className="text-slate-600 mt-1">Praćenje admin aktivnosti, grešaka i performansi</p>
-          </div>
-        </div>
-      </div>
+    <div className="sx-page" data-testid="page-backend-logs">
+      <PageHead
+        eyebrow="Montaža · Backend Logs"
+        title="Backend Logs"
+        lead="Praćenje admin aktivnosti, grešaka i performansi"
+      />
 
       {/* Dashboard Stats Cards */}
       {dashboardStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-          {/* Total Activities Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <ActivityIcon size={20} className="text-blue-600" />
-              </div>
-            </div>
-            <div className="text-sm font-medium text-blue-800 mb-1">Ukupno Aktivnosti</div>
-            <div className="text-2xl font-bold text-blue-900">
-              {dashboardStats.totalActivities}
-            </div>
-          </div>
-
-          {/* Unresolved Errors Card */}
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border border-red-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertTriangleIcon size={20} className="text-red-600" />
-              </div>
-            </div>
-            <div className="text-sm font-medium text-red-800 mb-1">Nerazrešene Greške</div>
-            <div className="text-2xl font-bold text-red-900">
-              {dashboardStats.unresolvedErrors}
-            </div>
-          </div>
-
-          {/* Slow Requests Card */}
-          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg border border-amber-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <ClockIcon size={20} className="text-amber-600" />
-              </div>
-            </div>
-            <div className="text-sm font-medium text-amber-800 mb-1">Spori Zahtevi</div>
-            <div className="text-2xl font-bold text-amber-900">
-              {dashboardStats.slowRequests}
-            </div>
-          </div>
-
-          {/* Average Response Time Card */}
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <ZapIcon size={20} className="text-green-600" />
-              </div>
-            </div>
-            <div className="text-sm font-medium text-green-800 mb-1">Prosečno Vreme</div>
-            <div className="text-2xl font-bold text-green-900">
-              {Math.round(dashboardStats.avgResponseTime)}ms
-            </div>
-          </div>
+        <div className="sx-stats">
+          <Stat label="Ukupno Aktivnosti" value={dashboardStats.totalActivities} />
+          <Stat label="Nerazrešene Greške" value={dashboardStats.unresolvedErrors} tone={dashboardStats.unresolvedErrors ? 'bad' : null} />
+          <Stat label="Spori Zahtevi" value={dashboardStats.slowRequests} tone={dashboardStats.slowRequests ? 'warn' : null} />
+          <Stat label="Prosečno Vreme" value={Math.round(dashboardStats.avgResponseTime)} small="ms" />
         </div>
       )}
 
       {/* Filters Card */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
-              <FilterIcon size={20} className="text-slate-600" />
-              <span>Filteri</span>
-            </CardTitle>
-            <Button
-              type="secondary"
-              size="small"
-              onClick={resetFilters}
-              prefix={<XIcon size={16} />}
-            >
-              Resetuj
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <DateTimePicker
-              label="Od:"
-              value={dateFrom}
-              onChange={setDateFrom}
-            />
-            <DateTimePicker
-              label="Do:"
-              value={dateTo}
-              onChange={setDateTo}
-            />
-            {activeTab === 'activities' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Kategorija:</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                >
-                  <option value="all">Sve</option>
-                  <option value="equipment">Oprema</option>
-                  <option value="materials">Materijali</option>
-                  <option value="technicians">Tehničari</option>
-                  <option value="workorders">Radni Nalozi</option>
-                  <option value="users">Korisnici</option>
-                  <option value="settings">Podešavanja</option>
-                  <option value="edit">Edit (Admin)</option>
-                </select>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <Panel title="Filteri" className="mx-bl-filters" actions={<Btn size="sm" icon={X} onClick={resetFilters}>Resetuj</Btn>}>
+        <div className="sx-form mx-bl-filterform">
+          <DateTimePicker
+            label="Od:"
+            value={dateFrom}
+            onChange={setDateFrom}
+          />
+          <DateTimePicker
+            label="Do:"
+            value={dateTo}
+            onChange={setDateTo}
+          />
+          {activeTab === 'activities' && (
+            <Field label="Kategorija:" htmlFor="mx-bl-category">
+              <Select id="mx-bl-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="all">Sve</option>
+                <option value="equipment">Oprema</option>
+                <option value="materials">Materijali</option>
+                <option value="technicians">Tehničari</option>
+                <option value="workorders">Radni Nalozi</option>
+                <option value="users">Korisnici</option>
+                <option value="settings">Podešavanja</option>
+                <option value="edit">Edit (Admin)</option>
+              </Select>
+            </Field>
+          )}
+        </div>
+      </Panel>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
-          <TabsTrigger value="activities" className="flex items-center space-x-2">
-            <ActivityIcon size={16} />
-            <span>Admin Aktivnosti</span>
-          </TabsTrigger>
-          <TabsTrigger value="errors" className="flex items-center space-x-2">
-            <AlertTriangleIcon size={16} />
-            <span>Greške</span>
-          </TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center space-x-2">
-            <ZapIcon size={16} />
-            <span>Performance</span>
-          </TabsTrigger>
-          <TabsTrigger value="ai-analysis" className="flex items-center space-x-2">
-            <BrainIcon size={16} />
-            <span>AI Analiza</span>
-          </TabsTrigger>
-          <TabsTrigger value="tech-analysis" className="flex items-center space-x-2">
-            <HardHatIcon size={16} />
-            <span>AI Tehničari</span>
-          </TabsTrigger>
-        </TabsList>
+      <Tabs items={TABS} value={activeTab} onChange={setActiveTab} ariaLabel="Backend Logs" layoutId="mx-bl-tabs" />
 
-        {/* Tab Content */}
-        {loading ? (
-          <div className="flex items-center justify-center p-12">
-            <div className="flex items-center space-x-3 text-slate-600">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-              <span className="text-sm font-medium">Učitavanje...</span>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Admin Activities Tab */}
-            <TabsContent value="activities">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-slate-900">
-                      Admin Aktivnosti ({activitiesPagination.totalCount})
-                    </CardTitle>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setShowExportModal(true)}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
-                      >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Export u Excel
-                      </button>
-                      <Button
-                        type="secondary"
-                        size="small"
-                        onClick={fetchActivities}
-                        prefix={<RefreshIcon size={16} />}
-                      >
-                        Osveži
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {activities.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                      <ActivityIcon size={48} className="mx-auto mb-4 text-slate-300" />
-                      <p className="text-sm font-medium">Nema podataka za prikaz</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Vreme</TableHead>
-                            <TableHead>Korisnik</TableHead>
-                            <TableHead>Akcija</TableHead>
-                            <TableHead>Kategorija</TableHead>
-                            <TableHead>Entitet</TableHead>
-                            <TableHead>Detalji</TableHead>
-                            <TableHead className="text-right">Trajanje</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {activities.map((activity, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="font-mono text-xs text-slate-600">
-                                {formatTimestamp(activity.timestamp)}
-                              </TableCell>
-                              <TableCell className="font-medium text-slate-900">
-                                {activity.userName}
-                              </TableCell>
-                              <TableCell className="text-slate-700">
-                                {activity.action}
-                              </TableCell>
-                              <TableCell>
-                                <span className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                                  activity.category === 'equipment' && "bg-blue-100 text-blue-800",
-                                  activity.category === 'materials' && "bg-green-100 text-green-800",
-                                  activity.category === 'technicians' && "bg-purple-100 text-purple-800",
-                                  activity.category === 'workorders' && "bg-orange-100 text-orange-800",
-                                  activity.category === 'users' && "bg-pink-100 text-pink-800",
-                                  activity.category === 'settings' && "bg-gray-100 text-gray-800",
-                                  activity.category === 'edit' && "bg-yellow-100 text-yellow-800"
-                                )}>
-                                  {activity.category}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-slate-700 font-semibold">
-                                {activity.entityName || '-'}
-                              </TableCell>
-                              <TableCell className="text-xs text-slate-600 max-w-xs">
-                                {/* Bulk upload summary */}
-                                {activity.details?.action === 'bulk_created' && activity.details?.summary && (
-                                  <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                                    <div className="font-semibold text-blue-700 mb-1">Bulk Upload:</div>
-                                    <div className="text-xs space-y-0.5">
-                                      <div>✅ Dodato: {activity.details.summary.addedCount}</div>
-                                      <div>⚠️ Duplikati: {activity.details.summary.duplicatesCount}</div>
-                                      <div>❌ Greške: {activity.details.summary.errorsCount}</div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        setBulkDetails(activity.details);
-                                        setShowBulkModal(true);
-                                      }}
-                                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                                    >
-                                      Prikaži sve stavke →
-                                    </button>
-                                  </div>
-                                )}
+      {/* Tab Content */}
+      {loading ? (
+        <Panel pad={false}><Loading text="Učitavanje..." /></Panel>
+      ) : (
+        <>
+          {/* Admin Activities Tab */}
+          {activeTab === 'activities' && (
+            <Panel
+              pad={false}
+              title={`Admin Aktivnosti (${activitiesPagination.totalCount})`}
+              actions={<>
+                <Btn size="sm" variant="primary" icon={FileDown} onClick={() => setShowExportModal(true)}>Export u Excel</Btn>
+                <Btn size="sm" icon={RefreshCw} onClick={fetchActivities}>Osveži</Btn>
+              </>}
+            >
+              {activities.length === 0 ? (
+                <div className="sx-empty-block"><b>Nema podataka za prikaz</b></div>
+              ) : (
+                <div className="sx-tablewrap">
+                  <table className="sx-table mx-bl-acts" data-testid="activities-table">
+                    <thead>
+                      <tr>
+                        <th>Vreme</th>
+                        <th>Korisnik</th>
+                        <th>Akcija</th>
+                        <th>Kategorija</th>
+                        <th>Entitet</th>
+                        <th className="mx-bl-details">Detalji</th>
+                        <th className="is-num">Trajanje</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activities.map((activity, index) => (
+                        <tr key={index} style={{ '--i': index }}>
+                          <td className="is-head"><span className="sx-mono">{formatTimestamp(activity.timestamp)}</span></td>
+                          <td data-label="Korisnik"><b className="mx-strong">{activity.userName}</b></td>
+                          <td data-label="Akcija"><span className="sx-mono">{breakable(activity.action)}</span></td>
+                          <td data-label="Kategorija"><span className="sx-tag">{activity.category}</span></td>
+                          <td data-label="Entitet"><b className="mx-strong">{activity.entityName || '-'}</b></td>
+                          <td data-label="Detalji" className="is-wide mx-bl-details">
+                            {/* Bulk upload summary */}
+                            {activity.details?.action === 'bulk_created' && activity.details?.summary && (
+                              <Note tone="info" className="mx-bl-note">
+                                <b>Bulk Upload:</b>
+                                <span>Dodato: {activity.details.summary.addedCount}</span>
+                                <span>Duplikati: {activity.details.summary.duplicatesCount}</span>
+                                <span>Greške: {activity.details.summary.errorsCount}</span>
+                                <Btn size="sm" variant="ghost" iconRight={ArrowRight} onClick={() => openBulk(activity.details)}>Prikaži sve stavke</Btn>
+                              </Note>
+                            )}
 
-                                {/* Bulk equipment assignment */}
-                                {activity.details?.action === 'bulk_assigned' && activity.details?.summary && (
-                                  <div className="bg-green-50 p-2 rounded border border-green-200">
-                                    <div className="font-semibold text-green-700 mb-1">Bulk Assignment:</div>
-                                    <div className="text-xs space-y-0.5">
-                                      <div>✅ Dodeljeno: {activity.details.summary.assignedCount} opreme</div>
-                                      <div>👤 Tehničar: {activity.details.summary.technicianName}</div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        console.log('🔍 [Frontend] Opening bulk modal with details:', {
-                                          action: activity.details?.action,
-                                          summaryAssignedCount: activity.details?.summary?.assignedCount,
-                                          assignedItemsLength: activity.details?.assignedItems?.length,
-                                          fullDetails: activity.details
-                                        });
-                                        setBulkDetails(activity.details);
-                                        setShowBulkModal(true);
-                                      }}
-                                      className="mt-2 text-xs text-green-600 hover:text-green-800 underline"
-                                    >
-                                      Prikaži sve stavke →
-                                    </button>
-                                  </div>
-                                )}
+                            {/* Bulk equipment assignment */}
+                            {activity.details?.action === 'bulk_assigned' && activity.details?.summary && (
+                              <Note tone="ok" className="mx-bl-note">
+                                <b>Bulk Assignment:</b>
+                                <span>Dodeljeno: {activity.details.summary.assignedCount} opreme</span>
+                                <span>Tehničar: {activity.details.summary.technicianName}</span>
+                                <Btn size="sm" variant="ghost" iconRight={ArrowRight}
+                                  onClick={() => {
+                                    console.log('🔍 [Frontend] Opening bulk modal with details:', {
+                                      action: activity.details?.action,
+                                      summaryAssignedCount: activity.details?.summary?.assignedCount,
+                                      assignedItemsLength: activity.details?.assignedItems?.length,
+                                      fullDetails: activity.details
+                                    });
+                                    openBulk(activity.details);
+                                  }}
+                                >
+                                  Prikaži sve stavke
+                                </Btn>
+                              </Note>
+                            )}
 
-                                {/* Bulk equipment unassignment */}
-                                {activity.details?.action === 'bulk_unassigned' && activity.details?.summary && (
-                                  <div className="bg-orange-50 p-2 rounded border border-orange-200">
-                                    <div className="font-semibold text-orange-700 mb-1">Bulk Unassignment:</div>
-                                    <div className="text-xs space-y-0.5">
-                                      <div>↩️ Vraćeno: {activity.details.summary.unassignedCount} opreme</div>
-                                      <div>👤 Od tehničara: {activity.details.summary.technicianName}</div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        console.log('🔍 [Frontend] Opening unassign modal with details:', {
-                                          action: activity.details?.action,
-                                          summaryUnassignedCount: activity.details?.summary?.unassignedCount,
-                                          assignedItemsLength: activity.details?.assignedItems?.length,
-                                          fullDetails: activity.details
-                                        });
-                                        setBulkDetails(activity.details);
-                                        setShowBulkModal(true);
-                                      }}
-                                      className="mt-2 text-xs text-orange-600 hover:text-orange-800 underline"
-                                    >
-                                      Prikaži sve stavke →
-                                    </button>
-                                  </div>
-                                )}
+                            {/* Bulk equipment unassignment */}
+                            {activity.details?.action === 'bulk_unassigned' && activity.details?.summary && (
+                              <Note tone="warn" className="mx-bl-note">
+                                <b>Bulk Unassignment:</b>
+                                <span>Vraćeno: {activity.details.summary.unassignedCount} opreme</span>
+                                <span>Od tehničara: {activity.details.summary.technicianName}</span>
+                                <Btn size="sm" variant="ghost" iconRight={ArrowRight}
+                                  onClick={() => {
+                                    console.log('🔍 [Frontend] Opening unassign modal with details:', {
+                                      action: activity.details?.action,
+                                      summaryUnassignedCount: activity.details?.summary?.unassignedCount,
+                                      assignedItemsLength: activity.details?.assignedItems?.length,
+                                      fullDetails: activity.details
+                                    });
+                                    openBulk(activity.details);
+                                  }}
+                                >
+                                  Prikaži sve stavke
+                                </Btn>
+                              </Note>
+                            )}
 
-                                {/* Single item delete */}
-                                {activity.details?.before && !['bulk_created', 'bulk_assigned', 'bulk_unassigned'].includes(activity.details?.action) && (
-                                  <div className="bg-red-50 p-2 rounded border border-red-200">
-                                    <span className="font-semibold text-red-700">Obrisano: </span>
-                                    {/* Materials */}
-                                    {activity.details.before.type && <span>Tip: {activity.details.before.type}, </span>}
-                                    {activity.details.before.quantity !== undefined && <span>Količina: {activity.details.before.quantity}</span>}
-                                    {/* Equipment */}
-                                    {activity.details.before.category && <span>Kategorija: {activity.details.before.category}, </span>}
-                                    {activity.details.before.serialNumber && <span>SN: {activity.details.before.serialNumber}, </span>}
-                                    {activity.details.before.description && <span>Opis: {activity.details.before.description}, </span>}
-                                    {activity.details.before.location && <span>Lokacija: {activity.details.before.location}, </span>}
-                                    {activity.details.before.status && <span>Status: {activity.details.before.status}</span>}
-                                    {/* WorkOrders */}
-                                    {activity.details.before.tisJobId && <span>TIS Job ID: {activity.details.before.tisJobId}, </span>}
-                                    {activity.details.before.address && <span>Adresa: {activity.details.before.address}, </span>}
-                                    {activity.details.before.municipality && <span>Opština: {activity.details.before.municipality}, </span>}
-                                    {activity.details.before.date && <span>Datum: {new Date(activity.details.before.date).toLocaleDateString('sr-RS')}</span>}
-                                  </div>
-                                )}
+                            {/* Single item delete */}
+                            {activity.details?.before && !['bulk_created', 'bulk_assigned', 'bulk_unassigned'].includes(activity.details?.action) && (
+                              <Note tone="bad" className="mx-bl-note">
+                                <p>
+                                  <b>Obrisano: </b>
+                                  {/* Materials */}
+                                  {activity.details.before.type && <span>Tip: {activity.details.before.type}, </span>}
+                                  {activity.details.before.quantity !== undefined && <span>Količina: {activity.details.before.quantity}</span>}
+                                  {/* Equipment */}
+                                  {activity.details.before.category && <span>Kategorija: {activity.details.before.category}, </span>}
+                                  {activity.details.before.serialNumber && <span>SN: {activity.details.before.serialNumber}, </span>}
+                                  {activity.details.before.description && <span>Opis: {activity.details.before.description}, </span>}
+                                  {activity.details.before.location && <span>Lokacija: {activity.details.before.location}, </span>}
+                                  {activity.details.before.status && <span>Status: {activity.details.before.status}</span>}
+                                  {/* WorkOrders */}
+                                  {activity.details.before.tisJobId && <span>TIS Job ID: {activity.details.before.tisJobId}, </span>}
+                                  {activity.details.before.address && <span>Adresa: {activity.details.before.address}, </span>}
+                                  {activity.details.before.municipality && <span>Opština: {activity.details.before.municipality}, </span>}
+                                  {activity.details.before.date && <span>Datum: {new Date(activity.details.before.date).toLocaleDateString('sr-RS')}</span>}
+                                </p>
+                              </Note>
+                            )}
 
-                                {/* Updated item with changes list */}
-                                {activity.details?.action === 'updated' && activity.details?.changes && activity.details.changes.length > 0 && (
-                                  <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                                    <div className="font-semibold text-blue-700 mb-1">Promene ({activity.details.changeCount}):</div>
-                                    <ul className="text-xs space-y-0.5 list-disc list-inside">
-                                      {activity.details.changes.map((change, idx) => (
-                                        <li key={idx} className="text-blue-800">{change}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
+                            {/* Updated item with changes list */}
+                            {activity.details?.action === 'updated' && activity.details?.changes && activity.details.changes.length > 0 && (
+                              <Note tone="info" className="mx-bl-note">
+                                <b>Promene ({activity.details.changeCount}):</b>
+                                <ul className="mx-bl-changes">
+                                  {activity.details.changes.map((change, idx) => (
+                                    <li key={idx}>{change}</li>
+                                  ))}
+                                </ul>
+                              </Note>
+                            )}
 
-                                {/* Single item add/edit (fallback for old logs without changes) */}
-                                {activity.details?.after && !['bulk_created', 'bulk_assigned', 'bulk_unassigned', 'updated', 'added', 'removed'].includes(activity.details?.action) && (
-                                  <div className="bg-green-50 p-2 rounded border border-green-200">
-                                    <span className="font-semibold text-green-700">
-                                      {activity.details.action === 'created' ? 'Dodato: ' : 'Izmenjeno: '}
-                                    </span>
-                                    {/* Materials */}
-                                    {activity.details.after.type && <span>Tip: {activity.details.after.type}, </span>}
-                                    {activity.details.after.quantity !== undefined && <span>Količina: {activity.details.after.quantity}</span>}
-                                    {/* Equipment */}
-                                    {activity.details.after.category && <span>Kategorija: {activity.details.after.category}, </span>}
-                                    {activity.details.after.serialNumber && <span>SN: {activity.details.after.serialNumber}, </span>}
-                                    {activity.details.after.description && <span>Opis: {activity.details.after.description}, </span>}
-                                    {activity.details.after.location && <span>Lokacija: {activity.details.after.location}, </span>}
-                                    {activity.details.after.status && <span>Status: {activity.details.after.status}</span>}
-                                    {/* WorkOrders */}
-                                    {activity.details.after.tisJobId && <span>TIS Job ID: {activity.details.after.tisJobId}, </span>}
-                                    {activity.details.after.address && <span>Adresa: {activity.details.after.address}, </span>}
-                                    {activity.details.after.municipality && <span>Opština: {activity.details.after.municipality}, </span>}
-                                    {activity.details.after.date && <span>Datum: {new Date(activity.details.after.date).toLocaleDateString('sr-RS')}</span>}
-                                  </div>
-                                )}
+                            {/* Single item add/edit (fallback for old logs without changes) */}
+                            {activity.details?.after && !['bulk_created', 'bulk_assigned', 'bulk_unassigned', 'updated', 'added', 'removed'].includes(activity.details?.action) && (
+                              <Note tone="ok" className="mx-bl-note">
+                                <p>
+                                  <b>{activity.details.action === 'created' ? 'Dodato: ' : 'Izmenjeno: '}</b>
+                                  {/* Materials */}
+                                  {activity.details.after.type && <span>Tip: {activity.details.after.type}, </span>}
+                                  {activity.details.after.quantity !== undefined && <span>Količina: {activity.details.after.quantity}</span>}
+                                  {/* Equipment */}
+                                  {activity.details.after.category && <span>Kategorija: {activity.details.after.category}, </span>}
+                                  {activity.details.after.serialNumber && <span>SN: {activity.details.after.serialNumber}, </span>}
+                                  {activity.details.after.description && <span>Opis: {activity.details.after.description}, </span>}
+                                  {activity.details.after.location && <span>Lokacija: {activity.details.after.location}, </span>}
+                                  {activity.details.after.status && <span>Status: {activity.details.after.status}</span>}
+                                  {/* WorkOrders */}
+                                  {activity.details.after.tisJobId && <span>TIS Job ID: {activity.details.after.tisJobId}, </span>}
+                                  {activity.details.after.address && <span>Adresa: {activity.details.after.address}, </span>}
+                                  {activity.details.after.municipality && <span>Opština: {activity.details.after.municipality}, </span>}
+                                  {activity.details.after.date && <span>Datum: {new Date(activity.details.after.date).toLocaleDateString('sr-RS')}</span>}
+                                </p>
+                              </Note>
+                            )}
 
-                                {/* Edit actions - Equipment added/removed */}
-                                {activity.category === 'edit' && (activity.action === 'edit_equipment_add' || activity.action === 'edit_equipment_remove') && (
-                                  <div className={cn(
-                                    "p-2 rounded border",
-                                    activity.action === 'edit_equipment_add' ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
-                                  )}>
-                                    <div className={cn(
-                                      "font-semibold mb-1",
-                                      activity.action === 'edit_equipment_add' ? "text-green-700" : "text-red-700"
-                                    )}>
-                                      Oprema {activity.action === 'edit_equipment_add' ? 'dodata' : 'uklonjena'}:
-                                    </div>
-                                    <div className="text-xs space-y-0.5">
-                                      {activity.details?.equipment ? (
-                                        <>
-                                          <div><strong>Kategorija:</strong> {activity.details.equipment.category}</div>
-                                          <div><strong>Opis:</strong> {activity.details.equipment.description}</div>
-                                          <div><strong>S/N:</strong> {activity.details.equipment.serialNumber}</div>
-                                        </>
-                                      ) : (
-                                        <div className="text-red-500">Podaci o opremi nisu dostupni</div>
-                                      )}
-                                      {activity.details?.workOrder && (
-                                        <div className="mt-1 pt-1 border-t border-gray-200">
-                                          <strong>Radni nalog:</strong> {activity.details.workOrder.tisId}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Edit actions - Material added/removed */}
-                                {activity.category === 'edit' && (activity.action === 'edit_material_add' || activity.action === 'edit_material_remove') && (
-                                  <div className={cn(
-                                    "p-2 rounded border",
-                                    activity.action === 'edit_material_add' ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
-                                  )}>
-                                    <div className={cn(
-                                      "font-semibold mb-1",
-                                      activity.action === 'edit_material_add' ? "text-green-700" : "text-red-700"
-                                    )}>
-                                      Materijal {activity.action === 'edit_material_add' ? 'dodat' : 'uklonjen'}:
-                                    </div>
-                                    <div className="text-xs space-y-0.5">
-                                      {activity.details?.material ? (
-                                        <>
-                                          <div><strong>Tip:</strong> {activity.details.material.type}</div>
-                                          <div><strong>Količina:</strong> {activity.details.material.quantity}</div>
-                                        </>
-                                      ) : (
-                                        <div className="text-red-500">Podaci o materijalu nisu dostupni</div>
-                                      )}
-                                      {activity.details?.workOrder && (
-                                        <div className="mt-1 pt-1 border-t border-gray-200">
-                                          <strong>Radni nalog:</strong> {activity.details.workOrder.tisId}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {!activity.details?.before && !activity.details?.after && !activity.details?.summary && !activity.details?.changes && !activity.details?.equipment && !activity.details?.material && activity.category !== 'edit' && '-'}
-                                {activity.category === 'edit' && !activity.details?.equipment && !activity.details?.material && (
-                                  <div className="text-orange-600 text-xs">
-                                    Debug: Edit activity bez detalja (action: {activity.action})
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-sm text-slate-600">
-                                {activity.metadata?.requestDuration ? `${activity.metadata.requestDuration}ms` : '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-
-                  {/* Activities Pagination */}
-                  {activitiesPagination.totalPages > 1 && (
-                    <div className="mt-6 px-6 py-4 border-t border-slate-200">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-slate-600">
-                          Prikazano {((activitiesPagination.currentPage - 1) * activitiesPagination.limit) + 1} - {Math.min(activitiesPagination.currentPage * activitiesPagination.limit, activitiesPagination.totalCount)} od {activitiesPagination.totalCount} rezultata
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleActivitiesPageChange(1)}
-                            disabled={!activitiesPagination.hasPreviousPage}
-                          >
-                            &laquo;
-                          </Button>
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleActivitiesPageChange(activitiesPagination.currentPage - 1)}
-                            disabled={!activitiesPagination.hasPreviousPage}
-                          >
-                            &lsaquo;
-                          </Button>
-
-                          {Array.from({ length: activitiesPagination.totalPages }, (_, i) => i + 1)
-                            .filter(number => {
-                              return (
-                                number === 1 ||
-                                number === activitiesPagination.totalPages ||
-                                Math.abs(number - activitiesPagination.currentPage) <= 1
-                              );
-                            })
-                            .map(number => (
-                              <Button
-                                key={number}
-                                type={activitiesPagination.currentPage === number ? "primary" : "tertiary"}
-                                size="small"
-                                onClick={() => handleActivitiesPageChange(number)}
-                              >
-                                {number}
-                              </Button>
-                            ))}
-
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleActivitiesPageChange(activitiesPagination.currentPage + 1)}
-                            disabled={!activitiesPagination.hasNextPage}
-                          >
-                            &rsaquo;
-                          </Button>
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleActivitiesPageChange(activitiesPagination.totalPages)}
-                            disabled={!activitiesPagination.hasNextPage}
-                          >
-                            &raquo;
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Errors Tab */}
-            <TabsContent value="errors">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-slate-900">
-                      Greške ({errorsPagination.totalCount})
-                    </CardTitle>
-                    <Button
-                      type="secondary"
-                      size="small"
-                      onClick={fetchErrors}
-                      prefix={<RefreshIcon size={16} />}
-                    >
-                      Osveži
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {errors.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                      <CheckIcon size={48} className="mx-auto mb-4 text-green-300" />
-                      <p className="text-sm font-medium">Nema grešaka za prikaz</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Vreme</TableHead>
-                            <TableHead>Tip</TableHead>
-                            <TableHead>Poruka</TableHead>
-                            <TableHead>Ruta</TableHead>
-                            <TableHead>Severity</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {errors.map((error, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="font-mono text-xs text-slate-600">
-                                {formatTimestamp(error.timestamp)}
-                              </TableCell>
-                              <TableCell className="font-medium text-slate-900">
-                                {error.errorType}
-                              </TableCell>
-                              <TableCell className="max-w-md truncate text-slate-700">
-                                {error.errorMessage}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs text-slate-600">
-                                {error.route}
-                              </TableCell>
-                              <TableCell>
-                                <span className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                                  error.severity === 'low' && "bg-blue-100 text-blue-800",
-                                  error.severity === 'medium' && "bg-yellow-100 text-yellow-800",
-                                  error.severity === 'high' && "bg-orange-100 text-orange-800",
-                                  error.severity === 'critical' && "bg-red-100 text-red-800"
-                                )}>
-                                  {error.severity}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                {error.resolved ? (
-                                  <span className="inline-flex items-center space-x-1 text-green-700">
-                                    <CheckIcon size={16} />
-                                    <span className="text-sm">Rešeno</span>
-                                  </span>
+                            {/* Edit actions - Equipment added/removed */}
+                            {activity.category === 'edit' && (activity.action === 'edit_equipment_add' || activity.action === 'edit_equipment_remove') && (
+                              <Note tone={activity.action === 'edit_equipment_add' ? 'ok' : 'bad'} className="mx-bl-note">
+                                <b>Oprema {activity.action === 'edit_equipment_add' ? 'dodata' : 'uklonjena'}:</b>
+                                {activity.details?.equipment ? (
+                                  <>
+                                    <span><span className="sx-muted">Kategorija:</span> {activity.details.equipment.category}</span>
+                                    <span><span className="sx-muted">Opis:</span> {activity.details.equipment.description}</span>
+                                    <span><span className="sx-muted">S/N:</span> {activity.details.equipment.serialNumber}</span>
+                                  </>
                                 ) : (
-                                  <span className="inline-flex items-center space-x-1 text-amber-700">
-                                    <AlertTriangleIcon size={16} />
-                                    <span className="text-sm">Pending</span>
-                                  </span>
+                                  <span className="mx-bl-missing">Podaci o opremi nisu dostupni</span>
                                 )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-
-                  {/* Errors Pagination */}
-                  {errorsPagination.totalPages > 1 && (
-                    <div className="mt-6 px-6 py-4 border-t border-slate-200">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-slate-600">
-                          Prikazano {((errorsPagination.currentPage - 1) * errorsPagination.limit) + 1} - {Math.min(errorsPagination.currentPage * errorsPagination.limit, errorsPagination.totalCount)} od {errorsPagination.totalCount} rezultata
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleErrorsPageChange(1)}
-                            disabled={!errorsPagination.hasPreviousPage}
-                          >
-                            &laquo;
-                          </Button>
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleErrorsPageChange(errorsPagination.currentPage - 1)}
-                            disabled={!errorsPagination.hasPreviousPage}
-                          >
-                            &lsaquo;
-                          </Button>
-
-                          {Array.from({ length: errorsPagination.totalPages }, (_, i) => i + 1)
-                            .filter(number => {
-                              return (
-                                number === 1 ||
-                                number === errorsPagination.totalPages ||
-                                Math.abs(number - errorsPagination.currentPage) <= 1
-                              );
-                            })
-                            .map(number => (
-                              <Button
-                                key={number}
-                                type={errorsPagination.currentPage === number ? "primary" : "tertiary"}
-                                size="small"
-                                onClick={() => handleErrorsPageChange(number)}
-                              >
-                                {number}
-                              </Button>
-                            ))}
-
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleErrorsPageChange(errorsPagination.currentPage + 1)}
-                            disabled={!errorsPagination.hasNextPage}
-                          >
-                            &rsaquo;
-                          </Button>
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handleErrorsPageChange(errorsPagination.totalPages)}
-                            disabled={!errorsPagination.hasNextPage}
-                          >
-                            &raquo;
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Performance Tab */}
-            <TabsContent value="performance">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-slate-900">
-                      Performance Logs ({performancePagination.totalCount})
-                    </CardTitle>
-                    <Button
-                      type="secondary"
-                      size="small"
-                      onClick={fetchPerformance}
-                      prefix={<RefreshIcon size={16} />}
-                    >
-                      Osveži
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {performanceLogs.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                      <ZapIcon size={48} className="mx-auto mb-4 text-slate-300" />
-                      <p className="text-sm font-medium">Nema podataka za prikaz</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Vreme</TableHead>
-                            <TableHead>Ruta</TableHead>
-                            <TableHead>Metoda</TableHead>
-                            <TableHead className="text-right">Trajanje</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Korisnik</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {performanceLogs.map((log, index) => (
-                            <TableRow key={index} className={log.isSlow ? 'bg-red-50' : ''}>
-                              <TableCell className="font-mono text-xs text-slate-600">
-                                {formatTimestamp(log.timestamp)}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs text-slate-700">
-                                {log.route}
-                              </TableCell>
-                              <TableCell>
-                                <span className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                                  log.method === 'GET' && "bg-blue-100 text-blue-800",
-                                  log.method === 'POST' && "bg-green-100 text-green-800",
-                                  log.method === 'PUT' && "bg-yellow-100 text-yellow-800",
-                                  log.method === 'DELETE' && "bg-red-100 text-red-800"
-                                )}>
-                                  {log.method}
-                                </span>
-                              </TableCell>
-                              <TableCell className={cn(
-                                "text-right font-mono text-sm font-semibold",
-                                log.isSlow ? "text-red-700" : "text-slate-600"
-                              )}>
-                                {log.duration}ms
-                                {log.isSlow && (
-                                  <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                                    Spor
-                                  </span>
+                                {activity.details?.workOrder && (
+                                  <span className="mx-bl-wo"><span className="sx-muted">Radni nalog:</span> {activity.details.workOrder.tisId}</span>
                                 )}
-                              </TableCell>
-                              <TableCell>
-                                <span className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                                  log.statusCode >= 200 && log.statusCode < 300 && "bg-green-100 text-green-800",
-                                  log.statusCode >= 300 && log.statusCode < 400 && "bg-blue-100 text-blue-800",
-                                  log.statusCode >= 400 && log.statusCode < 500 && "bg-yellow-100 text-yellow-800",
-                                  log.statusCode >= 500 && "bg-red-100 text-red-800"
-                                )}>
-                                  {log.statusCode}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-slate-700">
-                                {log.userName || '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                              </Note>
+                            )}
 
-                  {/* Performance Pagination */}
-                  {performancePagination.totalPages > 1 && (
-                    <div className="mt-6 px-6 py-4 border-t border-slate-200">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-slate-600">
-                          Prikazano {((performancePagination.currentPage - 1) * performancePagination.limit) + 1} - {Math.min(performancePagination.currentPage * performancePagination.limit, performancePagination.totalCount)} od {performancePagination.totalCount} rezultata
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handlePerformancePageChange(1)}
-                            disabled={!performancePagination.hasPreviousPage}
-                          >
-                            &laquo;
-                          </Button>
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handlePerformancePageChange(performancePagination.currentPage - 1)}
-                            disabled={!performancePagination.hasPreviousPage}
-                          >
-                            &lsaquo;
-                          </Button>
+                            {/* Edit actions - Material added/removed */}
+                            {activity.category === 'edit' && (activity.action === 'edit_material_add' || activity.action === 'edit_material_remove') && (
+                              <Note tone={activity.action === 'edit_material_add' ? 'ok' : 'bad'} className="mx-bl-note">
+                                <b>Materijal {activity.action === 'edit_material_add' ? 'dodat' : 'uklonjen'}:</b>
+                                {activity.details?.material ? (
+                                  <>
+                                    <span><span className="sx-muted">Tip:</span> {activity.details.material.type}</span>
+                                    <span><span className="sx-muted">Količina:</span> {activity.details.material.quantity}</span>
+                                  </>
+                                ) : (
+                                  <span className="mx-bl-missing">Podaci o materijalu nisu dostupni</span>
+                                )}
+                                {activity.details?.workOrder && (
+                                  <span className="mx-bl-wo"><span className="sx-muted">Radni nalog:</span> {activity.details.workOrder.tisId}</span>
+                                )}
+                              </Note>
+                            )}
 
-                          {Array.from({ length: performancePagination.totalPages }, (_, i) => i + 1)
-                            .filter(number => {
-                              return (
-                                number === 1 ||
-                                number === performancePagination.totalPages ||
-                                Math.abs(number - performancePagination.currentPage) <= 1
-                              );
-                            })
-                            .map(number => (
-                              <Button
-                                key={number}
-                                type={performancePagination.currentPage === number ? "primary" : "tertiary"}
-                                size="small"
-                                onClick={() => handlePerformancePageChange(number)}
-                              >
-                                {number}
-                              </Button>
-                            ))}
+                            {!activity.details?.before && !activity.details?.after && !activity.details?.summary && !activity.details?.changes && !activity.details?.equipment && !activity.details?.material && activity.category !== 'edit' && <span className="sx-faint">-</span>}
+                            {activity.category === 'edit' && !activity.details?.equipment && !activity.details?.material && (
+                              <span className="mx-bl-debug">
+                                Debug: Edit activity bez detalja (action: {activity.action})
+                              </span>
+                            )}
+                          </td>
+                          <td data-label="Trajanje" className="is-num">
+                            {activity.metadata?.requestDuration ? `${activity.metadata.requestDuration}ms` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handlePerformancePageChange(performancePagination.currentPage + 1)}
-                            disabled={!performancePagination.hasNextPage}
-                          >
-                            &rsaquo;
-                          </Button>
-                          <Button
-                            type="tertiary"
-                            size="small"
-                            onClick={() => handlePerformancePageChange(performancePagination.totalPages)}
-                            disabled={!performancePagination.hasNextPage}
-                          >
-                            &raquo;
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+              {/* Activities Pagination */}
+              <Pager page={activitiesPagination.currentPage} total={activitiesPagination.totalCount} perPage={activitiesPagination.limit} onPage={handleActivitiesPageChange} />
+            </Panel>
+          )}
 
-            {/* AI Analysis Tab */}
-            <TabsContent value="ai-analysis">
-              <AIAnalysisSection />
-            </TabsContent>
+          {/* Errors Tab */}
+          {activeTab === 'errors' && (
+            <Panel
+              pad={false}
+              title={`Greške (${errorsPagination.totalCount})`}
+              actions={<Btn size="sm" icon={RefreshCw} onClick={fetchErrors}>Osveži</Btn>}
+            >
+              {errors.length === 0 ? (
+                <div className="sx-empty-block"><b>Nema grešaka za prikaz</b></div>
+              ) : (
+                <div className="sx-tablewrap">
+                  <table className="sx-table" data-testid="errors-table">
+                    <thead>
+                      <tr>
+                        <th>Vreme</th>
+                        <th>Tip</th>
+                        <th>Poruka</th>
+                        <th>Ruta</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {errors.map((error, index) => (
+                        <tr key={index} style={{ '--i': index }}>
+                          <td className="is-head"><span className="sx-mono">{formatTimestamp(error.timestamp)}</span></td>
+                          <td data-label="Tip"><b className="mx-strong">{error.errorType}</b></td>
+                          <td data-label="Poruka" className="is-wide"><span className="sx-cell__clip mx-bl-msg" title={error.errorMessage}>{error.errorMessage}</span></td>
+                          <td data-label="Ruta"><span className="sx-mono mx-bl-code">{breakable(error.route)}</span></td>
+                          <td data-label="Severity"><Sign tone={SEVERITY_TONE[error.severity] || 'idle'}>{error.severity}</Sign></td>
+                          <td data-label="Status">
+                            {error.resolved ? (
+                              <Sign tone="ok">Rešeno</Sign>
+                            ) : (
+                              <Sign tone="warn">Pending</Sign>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-            {/* AI Technician Analysis Tab */}
-            <TabsContent value="tech-analysis">
-              <AITechnicianAnalysisSection />
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+              {/* Errors Pagination */}
+              <Pager page={errorsPagination.currentPage} total={errorsPagination.totalCount} perPage={errorsPagination.limit} onPage={handleErrorsPageChange} />
+            </Panel>
+          )}
+
+          {/* Performance Tab */}
+          {activeTab === 'performance' && (
+            <Panel
+              pad={false}
+              title={`Performance Logs (${performancePagination.totalCount})`}
+              actions={<Btn size="sm" icon={RefreshCw} onClick={fetchPerformance}>Osveži</Btn>}
+            >
+              {performanceLogs.length === 0 ? (
+                <div className="sx-empty-block"><b>Nema podataka za prikaz</b></div>
+              ) : (
+                <div className="sx-tablewrap">
+                  <table className="sx-table" data-testid="performance-table">
+                    <thead>
+                      <tr>
+                        <th>Vreme</th>
+                        <th>Ruta</th>
+                        <th>Metoda</th>
+                        <th className="is-num">Trajanje</th>
+                        <th>Status</th>
+                        <th>Korisnik</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {performanceLogs.map((log, index) => (
+                        <tr key={index} style={{ '--i': index }} className={log.isSlow ? 'mx-bl-slow' : undefined}>
+                          <td className="is-head"><span className="sx-mono">{formatTimestamp(log.timestamp)}</span></td>
+                          <td data-label="Ruta"><span className="sx-mono mx-bl-code">{breakable(log.route)}</span></td>
+                          <td data-label="Metoda"><span className="sx-tag sx-mono">{log.method}</span></td>
+                          <td data-label="Trajanje" className="is-num">
+                            {log.isSlow ? <Sign tone="bad">{log.duration}ms</Sign> : `${log.duration}ms`}
+                            {log.isSlow && (
+                              <span className="sx-tag is-bad mx-bl-slowtag">
+                                Spor
+                              </span>
+                            )}
+                          </td>
+                          <td data-label="Status"><Sign tone={statusTone(log.statusCode)}>{log.statusCode}</Sign></td>
+                          <td data-label="Korisnik">{log.userName || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Performance Pagination */}
+              <Pager page={performancePagination.currentPage} total={performancePagination.totalCount} perPage={performancePagination.limit} onPage={handlePerformancePageChange} />
+            </Panel>
+          )}
+
+          {/* AI Analysis Tab */}
+          {activeTab === 'ai-analysis' && <AIAnalysisSection />}
+
+          {/* AI Technician Analysis Tab */}
+          {activeTab === 'tech-analysis' && <AITechnicianAnalysisSection />}
+        </>
+      )}
 
       {/* Export Modal */}
       {showExportModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="border-b border-slate-200 p-6 bg-gradient-to-r from-green-50 to-emerald-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-600 rounded-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Export Admin Aktivnosti</h2>
-                    <p className="text-sm text-slate-600 mt-0.5">
-                      Izaberite filtere za export u Excel format
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+        <Dialog
+          onClose={() => setShowExportModal(false)}
+          busy={exportLoading}
+          size="xl"
+          eyebrow="Backend Logs"
+          title="Export Admin Aktivnosti"
+          description="Izaberite filtere za export u Excel format"
+          testId="export-modal"
+          footer={<>
+            <Btn variant="ghost" onClick={() => setShowExportModal(false)} disabled={exportLoading}>Otkaži</Btn>
+            <Btn variant="primary" icon={FileDown} onClick={handleExport} disabled={exportLoading}>
+              {exportLoading ? 'Exportovanje...' : 'Export u Excel'}
+            </Btn>
+          </>}
+        >
+          <div className="sx-form mx-bl-filterform">
+            {/* Date Range */}
+            <DateTimePicker
+              label="Datum od:"
+              value={exportFilters.dateFrom}
+              onChange={(value) => setExportFilters({ ...exportFilters, dateFrom: value })}
+            />
+            <DateTimePicker
+              label="Datum do:"
+              value={exportFilters.dateTo}
+              onChange={(value) => setExportFilters({ ...exportFilters, dateTo: value })}
+            />
+
+            {/* Category */}
+            <Field label="Kategorija" htmlFor="mx-bl-exp-category" wide>
+              <Select
+                id="mx-bl-exp-category"
+                value={exportFilters.category}
+                onChange={(e) => setExportFilters({ ...exportFilters, category: e.target.value, subcategory: 'all', entityFilter: '' })}
+              >
+                <option value="all">Sve kategorije</option>
+                <option value="equipment">📦 Oprema</option>
+                <option value="materials">🔧 Materijali</option>
+                <option value="technicians">👷 Tehničari</option>
+                <option value="workorders">📋 Radni Nalozi</option>
+                <option value="users">👤 Korisnici</option>
+                <option value="vehicles">🚗 Vozila</option>
+                <option value="settings">⚙️ Podešavanja</option>
+                <option value="edit">✏️ Edit (Admin)</option>
+              </Select>
+            </Field>
+
+            {/* Subcategory */}
+            {exportFilters.category !== 'all' && (
+              <Field label="Podkategorija" htmlFor="mx-bl-exp-sub" wide>
+                <Select
+                  id="mx-bl-exp-sub"
+                  value={exportFilters.subcategory}
+                  onChange={(e) => setExportFilters({ ...exportFilters, subcategory: e.target.value, entityFilter: '' })}
                 >
-                  <XIcon size={20} />
-                </button>
-              </div>
-            </div>
+                  {getSubcategories().map(sub => (
+                    <option key={sub.value} value={sub.value}>{sub.label}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-4">
-                {/* Date Range */}
-                <div className="grid grid-cols-2 gap-4">
-                  <DateTimePicker
-                    label="Datum od:"
-                    value={exportFilters.dateFrom}
-                    onChange={(value) => setExportFilters({ ...exportFilters, dateFrom: value })}
-                  />
-                  <DateTimePicker
-                    label="Datum do:"
-                    value={exportFilters.dateTo}
-                    onChange={(value) => setExportFilters({ ...exportFilters, dateTo: value })}
-                  />
-                </div>
+            {/* Entity Filter */}
+            {shouldShowEntityFilter() === 'technician' && (
+              <Field label="Tehničar (opciono)" htmlFor="mx-bl-exp-entity" wide>
+                <Select
+                  id="mx-bl-exp-entity"
+                  value={exportFilters.entityFilter}
+                  onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                >
+                  <option value="">Svi tehničari</option>
+                  {technicians.map(tech => (
+                    <option key={tech._id} value={tech.name}>{tech.name}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
 
-                {/* Category */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 flex items-center">
-                    <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    Kategorija
-                  </label>
-                  <select
-                    value={exportFilters.category}
-                    onChange={(e) => setExportFilters({ ...exportFilters, category: e.target.value, subcategory: 'all', entityFilter: '' })}
-                    className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400"
-                  >
-                    <option value="all">Sve kategorije</option>
-                    <option value="equipment">📦 Oprema</option>
-                    <option value="materials">🔧 Materijali</option>
-                    <option value="technicians">👷 Tehničari</option>
-                    <option value="workorders">📋 Radni Nalozi</option>
-                    <option value="users">👤 Korisnici</option>
-                    <option value="vehicles">🚗 Vozila</option>
-                    <option value="settings">⚙️ Podešavanja</option>
-                    <option value="edit">✏️ Edit (Admin)</option>
-                  </select>
-                </div>
+            {shouldShowEntityFilter() === 'serialNumber' && (
+              <Field label="Serijski Broj (opciono)" htmlFor="mx-bl-exp-entity" wide>
+                <Input
+                  id="mx-bl-exp-entity"
+                  type="text"
+                  mono
+                  value={exportFilters.entityFilter}
+                  onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                  placeholder="Unesite serijski broj..."
+                />
+              </Field>
+            )}
 
-                {/* Subcategory */}
-                {exportFilters.category !== 'all' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 flex items-center">
-                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                      Podkategorija
-                    </label>
-                    <select
-                      value={exportFilters.subcategory}
-                      onChange={(e) => setExportFilters({ ...exportFilters, subcategory: e.target.value, entityFilter: '' })}
-                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400"
-                    >
-                      {getSubcategories().map(sub => (
-                        <option key={sub.value} value={sub.value}>{sub.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+            {shouldShowEntityFilter() === 'materialType' && (
+              <Field label="Tip Materijala (opciono):" htmlFor="mx-bl-exp-entity" wide>
+                <Input
+                  id="mx-bl-exp-entity"
+                  type="text"
+                  value={exportFilters.entityFilter}
+                  onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                  placeholder="Unesite tip materijala..."
+                />
+              </Field>
+            )}
 
-                {/* Entity Filter */}
-                {shouldShowEntityFilter() === 'technician' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 flex items-center">
-                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      Tehničar (opciono)
-                    </label>
-                    <select
-                      value={exportFilters.entityFilter}
-                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
-                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400"
-                    >
-                      <option value="">Svi tehničari</option>
-                      {technicians.map(tech => (
-                        <option key={tech._id} value={tech.name}>{tech.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+            {shouldShowEntityFilter() === 'technicianName' && (
+              <Field label="Ime Tehničara (opciono):" htmlFor="mx-bl-exp-entity" wide>
+                <Input
+                  id="mx-bl-exp-entity"
+                  type="text"
+                  value={exportFilters.entityFilter}
+                  onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                  placeholder="Unesite ime tehničara..."
+                />
+              </Field>
+            )}
 
-                {shouldShowEntityFilter() === 'serialNumber' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 flex items-center">
-                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                      </svg>
-                      Serijski Broj (opciono)
-                    </label>
-                    <input
-                      type="text"
-                      value={exportFilters.entityFilter}
-                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
-                      placeholder="Unesite serijski broj..."
-                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-slate-400 placeholder:text-slate-400"
-                    />
-                  </div>
-                )}
+            {shouldShowEntityFilter() === 'tisJobId' && (
+              <Field label="TIS Job ID (opciono):" htmlFor="mx-bl-exp-entity" wide>
+                <Input
+                  id="mx-bl-exp-entity"
+                  type="text"
+                  mono
+                  value={exportFilters.entityFilter}
+                  onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                  placeholder="Unesite TIS Job ID..."
+                />
+              </Field>
+            )}
 
-                {shouldShowEntityFilter() === 'materialType' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Tip Materijala (opciono):</label>
-                    <input
-                      type="text"
-                      value={exportFilters.entityFilter}
-                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
-                      placeholder="Unesite tip materijala..."
-                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                )}
-
-                {shouldShowEntityFilter() === 'technicianName' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Ime Tehničara (opciono):</label>
-                    <input
-                      type="text"
-                      value={exportFilters.entityFilter}
-                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
-                      placeholder="Unesite ime tehničara..."
-                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                )}
-
-                {shouldShowEntityFilter() === 'tisJobId' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">TIS Job ID (opciono):</label>
-                    <input
-                      type="text"
-                      value={exportFilters.entityFilter}
-                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
-                      placeholder="Unesite TIS Job ID..."
-                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                )}
-
-                {shouldShowEntityFilter() === 'userName' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Ime Korisnika (opciono):</label>
-                    <input
-                      type="text"
-                      value={exportFilters.entityFilter}
-                      onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
-                      placeholder="Unesite ime korisnika..."
-                      className="w-full h-9 px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                )}
-
-                {/* Info Message */}
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4 mt-6">
-                  <div className="flex items-start space-x-3">
-                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    <div>
-                      <p className="text-sm font-medium text-blue-900 mb-1">Napomena o exportu</p>
-                      <p className="text-sm text-blue-700">
-                        Excel fajl će sadržati svaki komad opreme u posebnom redu za lakše filtriranje i analizu podataka.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 bg-slate-50 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => setShowExportModal(false)}
-                disabled={exportLoading}
-                className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-6 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Otkaži
-              </button>
-              <button
-                onClick={handleExport}
-                disabled={exportLoading}
-                className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-6 bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {exportLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Exportovanje...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Export u Excel
-                  </>
-                )}
-              </button>
-            </div>
+            {shouldShowEntityFilter() === 'userName' && (
+              <Field label="Ime Korisnika (opciono):" htmlFor="mx-bl-exp-entity" wide>
+                <Input
+                  id="mx-bl-exp-entity"
+                  type="text"
+                  value={exportFilters.entityFilter}
+                  onChange={(e) => setExportFilters({ ...exportFilters, entityFilter: e.target.value })}
+                  placeholder="Unesite ime korisnika..."
+                />
+              </Field>
+            )}
           </div>
-        </div>
+
+          {/* Info Message */}
+          <Note tone="info" className="mx-bl-exportnote">
+            <b>Napomena o exportu</b>
+            <p>Excel fajl će sadržati svaki komad opreme u posebnom redu za lakše filtriranje i analizu podataka.</p>
+          </Note>
+        </Dialog>
       )}
 
       {/* Bulk Upload Details Modal */}
       {showBulkModal && bulkDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">
-                    {bulkDetails.action === 'bulk_created' && 'Bulk Upload Detalji'}
-                    {bulkDetails.action === 'bulk_assigned' && 'Bulk Assignment Detalji'}
-                    {bulkDetails.action === 'bulk_unassigned' && 'Bulk Unassignment Detalji'}
-                  </h2>
-                  <p className="text-blue-100 mt-1">
-                    Ukupno obrađeno: {bulkDetails.summary?.totalProcessed || 0} stavki
-                    {bulkDetails.summary?.technicianName && ` • Tehničar: ${bulkDetails.summary.technicianName}`}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowBulkModal(false);
-                    setBulkDetails(null);
-                  }}
-                  className="p-2 hover:bg-blue-800 rounded-lg transition-colors"
-                >
-                  <XIcon size={24} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Stats */}
-            {bulkDetails.action === 'bulk_created' && (
-              <div className="grid grid-cols-3 gap-4 p-6 bg-slate-50 border-b">
-                <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="text-3xl font-bold text-green-700">{bulkDetails.summary?.addedCount || 0}</div>
-                  <div className="text-sm text-green-600 mt-1">✅ Uspešno dodato</div>
-                </div>
-                <div className="text-center p-4 bg-amber-50 rounded-lg border border-amber-200">
-                  <div className="text-3xl font-bold text-amber-700">{bulkDetails.summary?.duplicatesCount || 0}</div>
-                  <div className="text-sm text-amber-600 mt-1">⚠️ Duplikati</div>
-                </div>
-                <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                  <div className="text-3xl font-bold text-red-700">{bulkDetails.summary?.errorsCount || 0}</div>
-                  <div className="text-sm text-red-600 mt-1">❌ Greške</div>
-                </div>
-              </div>
-            )}
-
-            {bulkDetails.action === 'bulk_assigned' && (
-              <div className="grid grid-cols-2 gap-4 p-6 bg-slate-50 border-b">
-                <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="text-3xl font-bold text-green-700">{bulkDetails.summary?.assignedCount || 0}</div>
-                  <div className="text-sm text-green-600 mt-1">✅ Dodeljeno opreme</div>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-xl font-bold text-blue-700">{bulkDetails.summary?.technicianName || '-'}</div>
-                  <div className="text-sm text-blue-600 mt-1">👤 Tehničar</div>
-                </div>
-              </div>
-            )}
-
-            {bulkDetails.action === 'bulk_unassigned' && (
-              <div className="grid grid-cols-2 gap-4 p-6 bg-slate-50 border-b">
-                <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                  <div className="text-3xl font-bold text-orange-700">{bulkDetails.summary?.unassignedCount || 0}</div>
-                  <div className="text-sm text-orange-600 mt-1">↩️ Vraćeno opreme</div>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-xl font-bold text-blue-700">{bulkDetails.summary?.technicianName || '-'}</div>
-                  <div className="text-sm text-blue-600 mt-1">👤 Od tehničara</div>
-                </div>
-              </div>
-            )}
-
-            {/* Modal Tabs */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <Tabs defaultValue="added" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="added">
-                    {bulkDetails.action === 'bulk_created' && `Dodato (${bulkDetails.addedItems?.length || 0})`}
-                    {bulkDetails.action === 'bulk_assigned' && `Dodeljeno (${bulkDetails.assignedItems?.length || 0})`}
-                    {bulkDetails.action === 'bulk_unassigned' && `Vraćeno (${bulkDetails.assignedItems?.length || 0})`}
-                  </TabsTrigger>
-                  {bulkDetails.action === 'bulk_created' && (
-                    <>
-                      <TabsTrigger value="duplicates">
-                        Duplikati ({bulkDetails.duplicates?.length || 0})
-                      </TabsTrigger>
-                      <TabsTrigger value="errors">
-                        Greške ({bulkDetails.errors?.length || 0})
-                      </TabsTrigger>
-                    </>
-                  )}
-                </TabsList>
-
-                {/* Added/Assigned Items Tab */}
-                <TabsContent value="added">
-                  {((bulkDetails.addedItems && bulkDetails.addedItems.length > 0) ||
-                    (bulkDetails.assignedItems && bulkDetails.assignedItems.length > 0)) ? (
-                    <div className="overflow-x-auto mt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {/* Get the items array based on action type */}
-                            {(() => {
-                              const items = bulkDetails.addedItems || bulkDetails.assignedItems || [];
-                              const firstItem = items[0] || {};
-                              return (
-                                <>
-                                  {/* Equipment columns */}
-                                  {firstItem.category && <TableHead>Kategorija</TableHead>}
-                                  {firstItem.description && <TableHead>Opis</TableHead>}
-                                  {firstItem.serialNumber && <TableHead>Serijski Broj</TableHead>}
-                                  {firstItem.location && <TableHead>Lokacija</TableHead>}
-                                  {/* WorkOrder columns */}
-                                  {firstItem.tisJobId && <TableHead>TIS Job ID</TableHead>}
-                                  {firstItem.address && <TableHead>Adresa</TableHead>}
-                                  {firstItem.municipality && <TableHead>Opština</TableHead>}
-                                  {firstItem.type && !firstItem.category && <TableHead>Tip</TableHead>}
-                                  {firstItem.date && <TableHead>Datum</TableHead>}
-                                  {firstItem.time && <TableHead>Vreme</TableHead>}
-                                  <TableHead>Status</TableHead>
-                                </>
-                              );
-                            })()}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(bulkDetails.addedItems || bulkDetails.assignedItems || []).map((item, index) => (
-                            <TableRow key={index}>
-                              {/* Equipment cells */}
-                              {item.category && <TableCell className="font-medium">{item.category}</TableCell>}
-                              {item.description && <TableCell>{item.description}</TableCell>}
-                              {item.serialNumber && <TableCell className="font-mono text-sm">{item.serialNumber}</TableCell>}
-                              {item.location && <TableCell>{item.location}</TableCell>}
-                              {/* WorkOrder cells */}
-                              {item.tisJobId && <TableCell className="font-mono text-sm">{item.tisJobId}</TableCell>}
-                              {item.address && <TableCell>{item.address}</TableCell>}
-                              {item.municipality && <TableCell>{item.municipality}</TableCell>}
-                              {item.type && !item.category && <TableCell>{item.type}</TableCell>}
-                              {item.date && <TableCell className="text-sm">{new Date(item.date).toLocaleDateString('sr-RS')}</TableCell>}
-                              {item.time && <TableCell className="text-sm">{item.time}</TableCell>}
-                              <TableCell>
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  {item.status}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">
-                      <p>
-                        {bulkDetails.action === 'bulk_created' && 'Nema dodatih stavki'}
-                        {bulkDetails.action === 'bulk_assigned' && 'Nema dodeljene opreme'}
-                        {bulkDetails.action === 'bulk_unassigned' && 'Nema vraćene opreme'}
-                      </p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Duplicates Tab */}
-                <TabsContent value="duplicates">
-                  {bulkDetails.duplicates && bulkDetails.duplicates.length > 0 ? (
-                    <div className="overflow-x-auto mt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Kategorija</TableHead>
-                            <TableHead>Model</TableHead>
-                            <TableHead>Serijski Broj</TableHead>
-                            <TableHead>Razlog</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {bulkDetails.duplicates.map((item, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="font-medium">{item.category}</TableCell>
-                              <TableCell>{item.model}</TableCell>
-                              <TableCell className="font-mono text-sm">{item.serialNumber}</TableCell>
-                              <TableCell className="text-amber-700 text-sm">{item.reason}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">
-                      <p>Nema duplikata</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Errors Tab */}
-                <TabsContent value="errors">
-                  {bulkDetails.errors && bulkDetails.errors.length > 0 ? (
-                    <div className="mt-4 space-y-2">
-                      {bulkDetails.errors.map((error, index) => (
-                        <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
-                          <p className="text-sm text-red-700 font-mono">{error}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">
-                      <p>Nema grešaka</p>
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 bg-slate-50 border-t flex justify-end">
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={() => {
-                  setShowBulkModal(false);
-                  setBulkDetails(null);
-                }}
-              >
-                Zatvori
-              </Button>
-            </div>
-          </div>
-        </div>
+        <BulkDetailsDialog
+          bulkDetails={bulkDetails}
+          onClose={() => {
+            setShowBulkModal(false);
+            setBulkDetails(null);
+          }}
+        />
       )}
     </div>
   );
 };
+
+const TABS = [
+  { key: 'activities', label: 'Admin Aktivnosti', icon: Activity },
+  { key: 'errors', label: 'Greške', icon: TriangleAlert },
+  { key: 'performance', label: 'Performance', icon: Zap },
+  { key: 'ai-analysis', label: 'AI Analiza', icon: Brain },
+  { key: 'tech-analysis', label: 'AI Tehničari', icon: HardHat }
+];
+
+// Dug naziv akcije ili rute (equipment_assign_to_tech, /api/logs/...) sme da se prelomi posle _ / ? &
+const breakable = (s) => String(s || '').split(/([_/?&])/).map((p, i) => (i % 2 ? <React.Fragment key={i}>{p}<wbr /></React.Fragment> : p));
+
+// Ton znaka: ozbiljnost greške i HTTP status
+const SEVERITY_TONE = { low: 'info', medium: 'warn', high: 'bad', critical: 'bad' };
+const statusTone = (code) => (code >= 500 ? 'bad' : code >= 400 ? 'warn' : code >= 300 ? 'info' : code >= 200 ? 'ok' : 'idle');
+
+const BULK_TITLE = { bulk_created: 'Bulk Upload Detalji', bulk_assigned: 'Bulk Assignment Detalji', bulk_unassigned: 'Bulk Unassignment Detalji' };
+const BULK_EMPTY = { bulk_created: 'Nema dodatih stavki', bulk_assigned: 'Nema dodeljene opreme', bulk_unassigned: 'Nema vraćene opreme' };
+
+// Stavke bulk akcije (dodato / dodeljeno / vraćeno, duplikati, greške)
+function BulkDetailsDialog({ bulkDetails, onClose }) {
+  const [tab, setTab] = useState('added');
+  const items = bulkDetails.addedItems || bulkDetails.assignedItems || [];
+  const firstItem = items[0] || {};
+  const addedLabel = {
+    bulk_created: `Dodato (${bulkDetails.addedItems?.length || 0})`,
+    bulk_assigned: `Dodeljeno (${bulkDetails.assignedItems?.length || 0})`,
+    bulk_unassigned: `Vraćeno (${bulkDetails.assignedItems?.length || 0})`
+  }[bulkDetails.action];
+  const tabs = [
+    { key: 'added', label: addedLabel },
+    ...(bulkDetails.action === 'bulk_created' ? [
+      { key: 'duplicates', label: `Duplikati (${bulkDetails.duplicates?.length || 0})` },
+      { key: 'errors', label: `Greške (${bulkDetails.errors?.length || 0})` }
+    ] : [])
+  ];
+  const summary = bulkDetails.summary || {};
+
+  return (
+    <Dialog
+      onClose={onClose}
+      size="xl"
+      eyebrow="Admin Aktivnosti"
+      title={BULK_TITLE[bulkDetails.action]}
+      description={`Ukupno obrađeno: ${bulkDetails.summary?.totalProcessed || 0} stavki${bulkDetails.summary?.technicianName ? ` • Tehničar: ${bulkDetails.summary.technicianName}` : ''}`}
+      testId="bulk-modal"
+      footer={<Btn onClick={onClose}>Zatvori</Btn>}
+    >
+      {/* Modal Stats */}
+      {bulkDetails.action === 'bulk_created' && (
+        <div className="sx-stats mx-bl-bulkstats">
+          <Stat label="Uspešno dodato" value={summary.addedCount || 0} tone={summary.addedCount ? 'ok' : null} />
+          <Stat label="Duplikati" value={summary.duplicatesCount || 0} tone={summary.duplicatesCount ? 'warn' : null} />
+          <Stat label="Greške" value={summary.errorsCount || 0} tone={summary.errorsCount ? 'bad' : null} />
+        </div>
+      )}
+
+      {bulkDetails.action === 'bulk_assigned' && (
+        <div className="sx-stats mx-bl-bulkstats">
+          <Stat label="Dodeljeno opreme" value={summary.assignedCount || 0} tone={summary.assignedCount ? 'ok' : null} />
+          <div className="sx-stat"><span className="sx-label">Tehničar</span><b className="mx-bl-statname">{summary.technicianName || '-'}</b></div>
+        </div>
+      )}
+
+      {bulkDetails.action === 'bulk_unassigned' && (
+        <div className="sx-stats mx-bl-bulkstats">
+          <Stat label="Vraćeno opreme" value={summary.unassignedCount || 0} tone={summary.unassignedCount ? 'warn' : null} />
+          <div className="sx-stat"><span className="sx-label">Od tehničara</span><b className="mx-bl-statname">{summary.technicianName || '-'}</b></div>
+        </div>
+      )}
+
+      {/* Modal Tabs */}
+      <Tabs items={tabs} value={tab} onChange={setTab} ariaLabel="Stavke" layoutId="mx-bl-bulk-tabs" />
+
+      {/* Added/Assigned Items Tab */}
+      {tab === 'added' && (
+        ((bulkDetails.addedItems && bulkDetails.addedItems.length > 0) ||
+          (bulkDetails.assignedItems && bulkDetails.assignedItems.length > 0)) ? (
+          <Panel pad={false}>
+            <div className="sx-tablewrap">
+              <table className="sx-table" data-testid="bulk-items-table">
+                <thead>
+                  <tr>
+                    {/* Equipment columns */}
+                    {firstItem.category && <th>Kategorija</th>}
+                    {firstItem.description && <th>Opis</th>}
+                    {firstItem.serialNumber && <th>Serijski Broj</th>}
+                    {firstItem.location && <th>Lokacija</th>}
+                    {/* WorkOrder columns */}
+                    {firstItem.tisJobId && <th>TIS Job ID</th>}
+                    {firstItem.address && <th>Adresa</th>}
+                    {firstItem.municipality && <th>Opština</th>}
+                    {firstItem.type && !firstItem.category && <th>Tip</th>}
+                    {firstItem.date && <th>Datum</th>}
+                    {firstItem.time && <th>Vreme</th>}
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={index} style={{ '--i': index }}>
+                      {/* Equipment cells */}
+                      {item.category && <td data-label="Kategorija"><b className="mx-strong">{item.category}</b></td>}
+                      {item.description && <td data-label="Opis">{item.description}</td>}
+                      {item.serialNumber && <td data-label="Serijski Broj"><span className="sx-mono">{item.serialNumber}</span></td>}
+                      {item.location && <td data-label="Lokacija">{item.location}</td>}
+                      {/* WorkOrder cells */}
+                      {item.tisJobId && <td data-label="TIS Job ID"><span className="sx-mono sx-nowrap">{item.tisJobId}</span></td>}
+                      {item.address && <td data-label="Adresa">{item.address}</td>}
+                      {item.municipality && <td data-label="Opština">{item.municipality}</td>}
+                      {item.type && !item.category && <td data-label="Tip">{item.type}</td>}
+                      {item.date && <td data-label="Datum"><span className="sx-mono sx-nowrap">{new Date(item.date).toLocaleDateString('sr-RS')}</span></td>}
+                      {item.time && <td data-label="Vreme"><span className="sx-mono">{item.time}</span></td>}
+                      <td data-label="Status"><Sign tone="ok">{item.status}</Sign></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        ) : (
+          <div className="sx-empty-block"><b>{BULK_EMPTY[bulkDetails.action]}</b></div>
+        )
+      )}
+
+      {/* Duplicates Tab */}
+      {tab === 'duplicates' && (
+        bulkDetails.duplicates && bulkDetails.duplicates.length > 0 ? (
+          <Panel pad={false}>
+            <div className="sx-tablewrap">
+              <table className="sx-table" data-testid="bulk-duplicates-table">
+                <thead>
+                  <tr>
+                    <th>Kategorija</th>
+                    <th>Model</th>
+                    <th>Serijski Broj</th>
+                    <th>Razlog</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkDetails.duplicates.map((item, index) => (
+                    <tr key={index} style={{ '--i': index }}>
+                      <td className="is-head"><b className="mx-strong">{item.category}</b></td>
+                      <td data-label="Model">{item.model}</td>
+                      <td data-label="Serijski Broj"><span className="sx-mono">{item.serialNumber}</span></td>
+                      <td data-label="Razlog" className="is-wide mx-bl-reason">{item.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        ) : (
+          <div className="sx-empty-block"><b>Nema duplikata</b></div>
+        )
+      )}
+
+      {/* Errors Tab */}
+      {tab === 'errors' && (
+        bulkDetails.errors && bulkDetails.errors.length > 0 ? (
+          <div className="mx-gap">
+            {bulkDetails.errors.map((error, index) => (
+              <Note key={index} tone="bad"><span className="sx-mono">{error}</span></Note>
+            ))}
+          </div>
+        ) : (
+          <div className="sx-empty-block"><b>Nema grešaka</b></div>
+        )
+      )}
+    </Dialog>
+  );
+}
 
 export default BackendLogs;

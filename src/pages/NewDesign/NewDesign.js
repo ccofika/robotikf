@@ -1,47 +1,49 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import {
-  BoxIcon,
-  ToolsIcon,
-  UsersIcon,
-  ClipboardIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  HistoryIcon,
-  DollarSignIcon,
-  CalendarIcon,
-  AlertTriangleIcon,
-  SearchIcon,
-  FilterIcon,
-  ViewIcon,
-  DeleteIcon,
-  UserIcon,
-  UserSlashIcon,
-  RefreshIcon,
-  PlusIcon,
-  UserCheckIcon,
-  XIcon,
-  TableIcon,
-  AlertIcon,
-  MapPinIcon,
-  PhoneIcon,
-  ImageIcon,
-  DownloadIcon,
-  CommentIcon,
-  CheckIcon
-} from '../../components/icons/SvgIcons';
+  ClipboardList, Package, HardHat, Wallet, Cable, CheckCircle2, Box, Wrench, Users, Calendar, History, Search, Bell,
+  Plus, Download, RefreshCw, Eye, Trash2, Check, CircleAlert, MapPin, User, Phone, MessageSquare, ImageIcon, Clock,
+  UserX, Table, Upload, RotateCcw, Printer, X, UserCheck
+} from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import api, { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
-import { cn } from '../../utils/cn';
-import { getTimRowClasses } from '../../utils/tim';
+import { getTimRowStyle } from '../../utils/tim';
 import AIVerificationModal from '../../components/AIVerificationModal';
 import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
 import FancyDataTable from '../../components/fancy-table/FancyDataTable';
 import { localYmd } from '../../utils/localDate';
+import { cx, Btn, Led, Sign, State } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Tabs, Stat } from '../../security/sx/layout';
+import { Select, Choice, SearchField, DateField } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { confirm } from '../../security/sx/confirm';
+import { LinkBtn, Loading } from '../../montaza/ui';
+import './NewDesign.mx.css';
+
+// Ton stanja radnog naloga (znak + tekst, kao u ostatku Montaže)
+const STATUS_TONE = { zavrsen: 'ok', nezavrsen: 'warn', odlozen: 'info', otkazan: 'bad' };
+
+// Brojka koja vodi na stranicu: cela kartica je link; redosled kao ranije (ikonica i oznaka, natpis, broj, trend)
+const LinkStat = ({ to, icon: Icon, tag, label, value, sub }) => (
+  <Link to={to} className="sx-stat is-button mx-nd-lstat">
+    <span className="mx-nd-lstat__top">
+      <Icon size={17} strokeWidth={1.9} aria-hidden="true" />
+      <span className="sx-tag">{tag}</span>
+    </span>
+    <span className="sx-label">{label}</span>
+    <span className="sx-stat__num sx-num">{value}</span>
+    <span className="sx-stat__sub">{sub}</span>
+  </Link>
+);
+
+// Traka napretka: natpis, vrednost i popunjenost (širina kao ranije)
+const Meter = ({ label, value, width, tone }) => (
+  <span className="mx-nd-meter">
+    <span className="mx-nd-meter__top"><span>{label}</span><b>{value}</b></span>
+    <span className="mx-nd-meter__track"><span className={cx('mx-nd-meter__fill', tone && `is-${tone}`)} style={{ width }} /></span>
+  </span>
+);
 
 const NewDesign = () => {
   const { user } = useContext(AuthContext);
@@ -69,12 +71,12 @@ const NewDesign = () => {
 
   const getIconForAction = (action) => {
     const iconMap = {
-      'workorder_completed': CheckCircleIcon,
-      'equipment_added': BoxIcon,
-      'material_added': ToolsIcon,
-      'technician_added': UsersIcon,
-      'vehicle_added': CalendarIcon,
-      'default': HistoryIcon
+      'workorder_completed': CheckCircle2,
+      'equipment_added': Box,
+      'material_added': Wrench,
+      'technician_added': Users,
+      'vehicle_added': Calendar,
+      'default': History
     };
     return iconMap[action] || iconMap.default;
   };
@@ -183,11 +185,8 @@ const NewDesign = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-600 font-medium">Loading...</p>
-        </div>
+      <div className="sx-page mx-nd" data-testid="page-new-design">
+        <Loading rows={6} text="Loading..." />
       </div>
     );
   }
@@ -197,455 +196,235 @@ const NewDesign = () => {
     : 0;
 
   return (
-    <div className="min-h-screen bg-white p-8">
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900 mb-1">Dashboard</h1>
-            <p className="text-sm text-slate-500">Welcome back, {user?.name}</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-9 pr-4 py-2 text-sm border-0 rounded-xl focus:outline-none bg-slate-50 hover:bg-slate-100 transition-colors w-64"
-              />
-              <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    <div className="sx-page mx-nd" data-testid="page-new-design">
+      <PageHead
+        eyebrow="Montaža · New Design"
+        title="Dashboard"
+        lead={<>Welcome back, {user?.name}</>}
+        actions={(
+          <>
+            <div className="sx-search mx-nd-headsearch">
+              <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+              <input type="text" placeholder="Search..." />
             </div>
-            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-50">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-            </Button>
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-slate-900 text-white text-sm font-medium">
-                {user?.name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </div>
-
-        {/* Main Stats Grid - 4 cards */}
-        <div className="grid grid-cols-4 gap-4">
-          <Link to="/work-orders">
-            <Card className="bg-slate-900 text-white border-0 hover:bg-slate-800 transition-all cursor-pointer overflow-hidden">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-white/10 rounded-lg">
-                    <ClipboardIcon size={20} className="text-white" />
-                  </div>
-                  <span className="text-xs text-slate-400">Total</span>
-                </div>
-                <p className="text-sm text-slate-400 mb-1">Radni nalozi</p>
-                <p className="text-3xl font-bold mb-2">{stats.workOrders.total.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-emerald-400">
-                  <span>↑ {completionRate}%</span>
-                  <span className="text-slate-500">completed</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/equipment">
-            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <BoxIcon size={20} className="text-blue-600" />
-                  </div>
-                  <span className="text-xs text-slate-400">Active</span>
-                </div>
-                <p className="text-sm text-slate-500 mb-1">Oprema</p>
-                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.equipment.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>↑ +6.1%</span>
-                  <span className="text-slate-400">vs last month</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/technicians">
-            <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-violet-50 rounded-lg">
-                    <UsersIcon size={20} className="text-violet-600" />
-                  </div>
-                  <span className="text-xs text-slate-400">Team</span>
-                </div>
-                <p className="text-sm text-slate-500 mb-1">Tehničari</p>
-                <p className="text-3xl font-bold text-slate-900 mb-2">{stats.technicians.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>↑ +2.8%</span>
-                  <span className="text-slate-400">vs last month</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          {isSuperAdmin && financialStats ? (
-            <Link to="/finances">
-              <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-                <CardContent className="pt-5 pb-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="p-2 bg-emerald-50 rounded-lg">
-                      <DollarSignIcon size={20} className="text-emerald-600" />
-                    </div>
-                    <span className="text-xs text-slate-400">Month</span>
-                  </div>
-                  <p className="text-sm text-slate-500 mb-1">Profit</p>
-                  <p className="text-3xl font-bold text-slate-900 mb-2">
-                    ${((financialStats.totalProfit || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <div className="flex items-center gap-1 text-xs text-emerald-600">
-                    <span>↑ +12%</span>
-                    <span className="text-slate-400">vs last month</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ) : (
-            <Link to="/materials">
-              <Card className="bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer">
-                <CardContent className="pt-5 pb-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="p-2 bg-amber-50 rounded-lg">
-                      <ToolsIcon size={20} className="text-amber-600" />
-                    </div>
-                    <span className="text-xs text-slate-400">Stock</span>
-                  </div>
-                  <p className="text-sm text-slate-500 mb-1">Materijali</p>
-                  <p className="text-3xl font-bold text-slate-900 mb-2">{stats.materials.toLocaleString()}</p>
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
-                    <span>↑ +9%</span>
-                    <span className="text-slate-400">vs last month</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )}
-        </div>
-
-        {/* Middle Section */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Main Chart */}
-          <Card className="col-span-8 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold text-slate-900">Work Orders Overview</CardTitle>
-                  <p className="text-xs text-slate-500 mt-1">Monthly completion tracking</p>
-                </div>
-                <div className="flex gap-1 bg-slate-50 rounded-lg p-1">
-                  <button className="px-3 py-1 text-xs text-slate-600 hover:text-slate-900 rounded">Day</button>
-                  <button className="px-3 py-1 text-xs text-slate-600 hover:text-slate-900 rounded">Week</button>
-                  <button className="px-3 py-1 text-xs bg-white text-slate-900 rounded shadow-sm">Month</button>
-                  <button className="px-3 py-1 text-xs text-slate-600 hover:text-slate-900 rounded">Year</button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-56 flex items-end justify-between gap-3 px-4">
-                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((month, i) => {
-                  const heights = [60, 75, 55, 80, 65, 90, 70, 85];
-                  const isHighlighted = i === 5;
-                  return (
-                    <div key={month} className="flex-1 flex flex-col items-center gap-3">
-                      <div className="w-full flex items-end" style={{height: '200px'}}>
-                        <div
-                          className={`w-full rounded-t-lg transition-all ${
-                            isHighlighted ? 'bg-slate-900' : 'bg-slate-200 hover:bg-slate-300'
-                          }`}
-                          style={{height: `${heights[i]}%`}}
-                        ></div>
-                      </div>
-                      <span className={`text-xs ${isHighlighted ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
-                        {month}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <div className="col-span-4 space-y-4">
-            <Card className="bg-blue-50 border-0">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-blue-600 mb-1">Završeni</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.workOrders.completed}</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl">
-                    <CheckCircleIcon size={24} className="text-blue-600" />
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-blue-100">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600">Success rate</span>
-                    <span className="text-slate-900 font-semibold">{completionRate}%</span>
-                  </div>
-                  <div className="w-full bg-blue-100 rounded-full h-1.5 mt-2">
-                    <div className="bg-blue-600 h-1.5 rounded-full" style={{width: `${completionRate}%`}}></div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-violet-50 border-0">
-              <CardContent className="pt-5 pb-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-violet-600 mb-1">U toku</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.workOrders.pending}</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl">
-                    <ClockIcon size={24} className="text-violet-600" />
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-violet-100">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600">Avg. time</span>
-                    <span className="text-slate-900 font-semibold">{stats.workOrders.avgCompletionTime || 2.5}d</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Work Order Details Table */}
-          <Card className="col-span-5 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900">Status Breakdown</CardTitle>
-                <Link to="/work-orders" className="text-xs text-slate-500 hover:text-slate-900">View all →</Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-0 divide-y divide-slate-50">
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span className="text-sm text-slate-700">Završeni</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500">
-                      {stats.workOrders.total > 0 ? Math.round((stats.workOrders.completed / stats.workOrders.total) * 100) : 0}%
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 w-12 text-right">{stats.workOrders.completed}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-violet-500"></div>
-                    <span className="text-sm text-slate-700">U toku</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500">
-                      {stats.workOrders.total > 0 ? Math.round((stats.workOrders.pending / stats.workOrders.total) * 100) : 0}%
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 w-12 text-right">{stats.workOrders.pending}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                    <span className="text-sm text-slate-700">Odloženi</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500">
-                      {stats.workOrders.total > 0 ? Math.round((stats.workOrders.postponed / stats.workOrders.total) * 100) : 0}%
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900 w-12 text-right">{stats.workOrders.postponed}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Resources summary */}
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <p className="text-xs font-medium text-slate-500 mb-3">Resources</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500 mb-1">Oprema</p>
-                    <p className="text-lg font-semibold text-slate-900">{stats.equipment}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500 mb-1">Materijali</p>
-                    <p className="text-lg font-semibold text-slate-900">{stats.materials}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500 mb-1">Tehničari</p>
-                    <p className="text-lg font-semibold text-slate-900">{stats.technicians}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card className="col-span-4 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900">Recent Activity</CardTitle>
-                <Link to="/logs" className="text-xs text-slate-500 hover:text-slate-900">View all →</Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {recentActivity.length > 0 ? (
-                <div className="space-y-0 divide-y divide-slate-50">
-                  {recentActivity.slice(0, 5).map((activity, index) => {
-                    const IconComponent = activity.icon;
-                    return (
-                      <div key={index} className="flex items-start gap-3 py-3">
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                          <IconComponent size={14} className="text-slate-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-700 truncate">{activity.message}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{formatTimeAgo(activity.timestamp)}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-8">Nema aktivnosti</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Performance Metrics */}
-          <Card className="col-span-3 bg-white border border-slate-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-900">Performance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-slate-500">Completion Rate</span>
-                    <span className="text-sm font-semibold text-slate-900">{completionRate}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-slate-900 h-2 rounded-full" style={{width: `${completionRate}%`}}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-slate-500">Avg. per Technician</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-violet-500 h-2 rounded-full" style={{width: '68%'}}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-slate-500">On-time Delivery</span>
-                    <span className="text-sm font-semibold text-slate-900">89%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-blue-500 h-2 rounded-full" style={{width: '89%'}}></div>
-                  </div>
-                </div>
-              </div>
-
-              {activityStats && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500 mb-1">Today's Activity</p>
-                    <p className="text-2xl font-bold text-slate-900">{activityStats.todayLogs || 0}</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Financial Stats - samo za superadmin */}
-        {isSuperAdmin && financialStats && (
-          <Card className="bg-emerald-50 border-0">
-            <CardContent className="pt-5 pb-5">
-              <div className="grid grid-cols-4 gap-6">
-                <div>
-                  <p className="text-xs text-emerald-700 mb-1">Monthly Revenue</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">
-                    ${((financialStats.totalRevenue || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <p className="text-xs text-slate-600">↑ +12% vs last month</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-600 mb-1">Expenses</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">
-                    ${((financialStats.totalPayouts || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <p className="text-xs text-slate-600">↓ -5% vs last month</p>
-                </div>
-                <div>
-                  <p className="text-xs text-emerald-700 mb-1">Net Profit</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">
-                    ${((financialStats.totalProfit || 0) / 1000).toFixed(1)}k
-                  </p>
-                  <p className="text-xs text-slate-600">↑ +18% vs last month</p>
-                </div>
-                <div className="flex items-center justify-center">
-                  <Link to="/finances">
-                    <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl">
-                      View Details →
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            <Btn variant="ghost" icon={Bell} className="mx-nd-bell" />
+            <span className="sx-avatar mx-nd-ink">{user?.name?.charAt(0) || 'U'}</span>
+          </>
         )}
+      />
 
-        {/* Work Orders by Technician — Design Preview */}
-        <div className="pt-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-medium whitespace-nowrap">
-              Pregled dizajna · Radni nalozi po tehničarima
-            </span>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
-          </div>
-          <TechnicianWorkOrdersPreview />
-        </div>
-
-        {/* Work Order Detail — Design Preview */}
-        <div className="pt-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-200" />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-medium whitespace-nowrap">
-              Pregled dizajna · Detalji radnog naloga
-            </span>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-200" />
-          </div>
-          <WorkOrderDetailPreview />
-        </div>
-
-        {/* WORK ORDERS SECTION */}
-        <WorkOrdersSection />
+      {/* Glavne brojke: svaka kartica vodi na svoju stranicu */}
+      <div className="sx-stats">
+        <LinkStat to="/work-orders" icon={ClipboardList} tag="Total" label="Radni nalozi" value={stats.workOrders.total.toLocaleString()}
+          sub={<><span className="mx-nd-up is-ok">↑ {completionRate}%</span> completed</>} />
+        <LinkStat to="/equipment" icon={Package} tag="Active" label="Oprema" value={stats.equipment.toLocaleString()}
+          sub={<><span className="mx-nd-up">↑ +6.1%</span> vs last month</>} />
+        <LinkStat to="/technicians" icon={HardHat} tag="Team" label="Tehničari" value={stats.technicians.toLocaleString()}
+          sub={<><span className="mx-nd-up">↑ +2.8%</span> vs last month</>} />
+        {isSuperAdmin && financialStats ? (
+          <LinkStat to="/finances" icon={Wallet} tag="Month" label="Profit" value={`$${((financialStats.totalProfit || 0) / 1000).toFixed(1)}k`}
+            sub={<><span className="mx-nd-up is-ok">↑ +12%</span> vs last month</>} />
+        ) : (
+          <LinkStat to="/materials" icon={Cable} tag="Stock" label="Materijali" value={stats.materials.toLocaleString()}
+            sub={<><span className="mx-nd-up">↑ +9%</span> vs last month</>} />
+        )}
       </div>
+
+      {/* Nalozi po mesecima i brze brojke */}
+      <div className="sx-cols sx-cols--main">
+        <Panel
+          className="mx-nd-wrap"
+          title="Work Orders Overview"
+          sub="Monthly completion tracking"
+          actions={(
+            <Choice size="sm" value="Month" onChange={() => {}} layoutId="mx-nd-period"
+              options={['Day', 'Week', 'Month', 'Year'].map((p) => ({ value: p, label: p }))} />
+          )}
+        >
+          <div className="mx-nd-bars">
+            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((month, i) => {
+              const heights = [60, 75, 55, 80, 65, 90, 70, 85];
+              const isHighlighted = i === 5;
+              return (
+                <div key={month} className={cx('mx-nd-bars__col', isHighlighted && 'is-on')}>
+                  <div className="mx-nd-bars__track">
+                    <div className="mx-nd-bars__bar" style={{height: `${heights[i]}%`}}></div>
+                  </div>
+                  <span className="mx-nd-bars__label">{month}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+
+        {/* Brze brojke: dve kartice jedna ispod druge, kao ranije */}
+        <div className="mx-nd-quick">
+          <section className="sx-card mx-nd-qcard">
+            <div className="mx-nd-qcard__top">
+              <div>
+                <p className="sx-label">Završeni</p>
+                <p className="sx-num mx-nd-qcard__n">{stats.workOrders.completed}</p>
+              </div>
+              <span className="sx-item__icon"><CheckCircle2 size={20} strokeWidth={1.8} /></span>
+            </div>
+            <div className="mx-nd-qcard__foot">
+              <Meter label="Success rate" value={`${completionRate}%`} width={`${completionRate}%`} tone="accent" />
+            </div>
+          </section>
+
+          <section className="sx-card mx-nd-qcard">
+            <div className="mx-nd-qcard__top">
+              <div>
+                <p className="sx-label">U toku</p>
+                <p className="sx-num mx-nd-qcard__n">{stats.workOrders.pending}</p>
+              </div>
+              <span className="sx-item__icon"><Clock size={20} strokeWidth={1.8} /></span>
+            </div>
+            <div className="mx-nd-qcard__foot">
+              <span className="mx-nd-meter__top"><span>Avg. time</span><b>{stats.workOrders.avgCompletionTime || 2.5}d</b></span>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Stanja naloga, poslednja aktivnost i učinak */}
+      <div className="mx-nd-grid3">
+        <Panel title="Status Breakdown" actions={<LinkBtn to="/work-orders" size="sm" variant="ghost">View all →</LinkBtn>}>
+          <div className="mx-nd-brk">
+            <div className="mx-nd-brk__row">
+              <span className="mx-nd-brk__label"><Led tone="ok" />Završeni</span>
+              <span className="mx-nd-brk__pct">
+                {stats.workOrders.total > 0 ? Math.round((stats.workOrders.completed / stats.workOrders.total) * 100) : 0}%
+              </span>
+              <b className="mx-nd-brk__n">{stats.workOrders.completed}</b>
+            </div>
+            <div className="mx-nd-brk__row">
+              <span className="mx-nd-brk__label"><Led tone="warn" />U toku</span>
+              <span className="mx-nd-brk__pct">
+                {stats.workOrders.total > 0 ? Math.round((stats.workOrders.pending / stats.workOrders.total) * 100) : 0}%
+              </span>
+              <b className="mx-nd-brk__n">{stats.workOrders.pending}</b>
+            </div>
+            <div className="mx-nd-brk__row">
+              <span className="mx-nd-brk__label"><Led tone="info" />Odloženi</span>
+              <span className="mx-nd-brk__pct">
+                {stats.workOrders.total > 0 ? Math.round((stats.workOrders.postponed / stats.workOrders.total) * 100) : 0}%
+              </span>
+              <b className="mx-nd-brk__n">{stats.workOrders.postponed}</b>
+            </div>
+          </div>
+
+          {/* Resursi */}
+          <div className="mx-nd-res">
+            <p className="sx-label">Resources</p>
+            <div className="mx-nd-res__grid">
+              <div>
+                <p className="mx-nd-res__k">Oprema</p>
+                <p className="sx-num mx-nd-res__v">{stats.equipment}</p>
+              </div>
+              <div>
+                <p className="mx-nd-res__k">Materijali</p>
+                <p className="sx-num mx-nd-res__v">{stats.materials}</p>
+              </div>
+              <div>
+                <p className="mx-nd-res__k">Tehničari</p>
+                <p className="sx-num mx-nd-res__v">{stats.technicians}</p>
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Recent Activity" actions={<LinkBtn to="/logs" size="sm" variant="ghost">View all →</LinkBtn>}>
+          {recentActivity.length > 0 ? (
+            <div className="sx-list">
+              {recentActivity.slice(0, 5).map((activity, index) => {
+                const IconComponent = activity.icon;
+                return (
+                  <div key={index} className="sx-item">
+                    <span className="sx-item__icon">
+                      <IconComponent size={16} strokeWidth={1.8} />
+                    </span>
+                    <div className="sx-item__main">
+                      <b className="mx-nd-clip">{activity.message}</b>
+                      <span>{formatTimeAgo(activity.timestamp)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mx-nd-none">Nema aktivnosti</p>
+          )}
+        </Panel>
+
+        <Panel title="Performance">
+          <div className="mx-nd-meters">
+            <Meter label="Completion Rate" value={`${completionRate}%`} width={`${completionRate}%`} />
+            <Meter
+              label="Avg. per Technician"
+              value={stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0}
+              width="68%"
+              tone="accent"
+            />
+            <Meter label="On-time Delivery" value="89%" width="89%" tone="ok" />
+          </div>
+
+          {activityStats && (
+            <div className="mx-nd-today">
+              <p className="sx-label">Today's Activity</p>
+              <p className="sx-num mx-nd-today__n">{activityStats.todayLogs || 0}</p>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* Finansije - samo za superadmin */}
+      {isSuperAdmin && financialStats && (
+        <div className="sx-stats">
+          <Stat
+            label="Monthly Revenue"
+            value={`$${((financialStats.totalRevenue || 0) / 1000).toFixed(1)}k`}
+            sub="↑ +12% vs last month"
+          />
+          <Stat
+            label="Expenses"
+            value={`$${((financialStats.totalPayouts || 0) / 1000).toFixed(1)}k`}
+            sub="↓ -5% vs last month"
+          />
+          <Stat
+            label="Net Profit"
+            value={`$${((financialStats.totalProfit || 0) / 1000).toFixed(1)}k`}
+            sub="↑ +18% vs last month"
+          />
+          <div className="sx-stat mx-nd-fin__go">
+            <LinkBtn to="/finances" variant="primary">View Details →</LinkBtn>
+          </div>
+        </div>
+      )}
+
+      {/* Pregled dizajna: radni nalozi po tehničarima */}
+      <section className="mx-nd-sec">
+        <div className="mx-nd-divider">
+          <span className="sx-label">Pregled dizajna · Radni nalozi po tehničarima</span>
+        </div>
+        <TechnicianWorkOrdersPreview />
+      </section>
+
+      {/* Pregled dizajna: detalji radnog naloga */}
+      <section className="mx-nd-sec">
+        <div className="mx-nd-divider">
+          <span className="sx-label">Pregled dizajna · Detalji radnog naloga</span>
+        </div>
+        <WorkOrderDetailPreview />
+      </section>
+
+      {/* Radni nalozi po tehničarima (pravi podaci) */}
+      <WorkOrdersSection />
     </div>
   );
 };
 
-// ─── Technician Work Orders Design Preview (Static Data) ─────────────────────
+// Pregled dizajna: radni nalozi po tehničarima (statički podaci)
 const TechnicianWorkOrdersPreview = () => {
   const [selectedTech, setSelectedTech] = React.useState('t1');
   const [activeFilter, setActiveFilter] = React.useState('');
@@ -702,601 +481,431 @@ const TechnicianWorkOrdersPreview = () => {
     : tech.orders;
 
   const statusCfg = {
-    zavrsen: { label: 'Završen', dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-    nezavrsen: { label: 'Nezavršen', dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-    odlozen: { label: 'Odložen', dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-    otkazan: { label: 'Otkazan', dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
+    zavrsen: { label: 'Završen', tone: 'ok' },
+    nezavrsen: { label: 'Nezavršen', tone: 'warn' },
+    odlozen: { label: 'Odložen', tone: 'info' },
+    otkazan: { label: 'Otkazan', tone: 'bad' }
   };
 
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+    <section className="sx-card mx-nd-twp">
 
-      {/* ── Header Bar ──────────────────────────────────────────── */}
-      <div className="bg-slate-900 px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <UsersIcon size={16} className="text-slate-400" />
-            <span className="text-white text-sm font-semibold">Radni nalozi po tehničarima</span>
-          </div>
-          <div className="hidden sm:block w-px h-4 bg-slate-700" />
-          <span className="text-slate-400 text-xs font-mono">{Object.keys(techData).length} tehničara</span>
-          <div className="hidden sm:block w-px h-4 bg-slate-700" />
-          <span className="text-slate-400 text-xs font-mono">
+      {/* Traka zaglavlja */}
+      <div className="mx-nd-bar">
+        <div className="mx-nd-bar__info">
+          <span className="mx-nd-bar__title">
+            <Users size={16} strokeWidth={1.9} aria-hidden="true" />
+            <span>Radni nalozi po tehničarima</span>
+          </span>
+          <span className="mx-nd-bar__sep" />
+          <span className="sx-mono">{Object.keys(techData).length} tehničara</span>
+          <span className="mx-nd-bar__sep" />
+          <span className="sx-mono">
             {Object.values(techData).reduce((s, t) => s + t.stats.total, 0)} naloga
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
-            <PlusIcon size={12} />
-            Novi nalog
-          </button>
-          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
-            <DownloadIcon size={12} />
-            Export
-          </button>
-          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
-            <RefreshIcon size={12} />
-          </button>
+        <div className="mx-nd-bar__actions">
+          <Btn size="sm" icon={Plus}>Novi nalog</Btn>
+          <Btn size="sm" icon={Download}>Export</Btn>
+          <Btn size="sm" icon={RefreshCw} />
         </div>
       </div>
 
-      {/* ── Search Strip ────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 sm:px-5 py-2.5 border-b border-slate-100 bg-slate-50/50">
-        <div className="relative flex-1 max-w-sm">
-          <SearchIcon size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Pretraga po adresi, korisniku, serijskom broju..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
-          />
+      {/* Traka pretrage */}
+      <div className="mx-nd-twp__bar">
+        <div className="sx-search">
+          <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+          <input type="text" placeholder="Pretraga po adresi, korisniku, serijskom broju..." />
         </div>
-        <select className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900">
+        <Select size="sm">
           <option>Svi statusi</option>
           <option>Završeni</option>
           <option>Nezavršeni</option>
           <option>Odloženi</option>
-        </select>
-        <select className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900">
+        </Select>
+        <Select size="sm">
           <option>Svi datumi</option>
           <option>Danas</option>
           <option>Juče</option>
           <option>Ove nedelje</option>
-        </select>
+        </Select>
       </div>
 
-      {/* ── Main Layout: Sidebar + Content ──────────────────────── */}
-      <div className="flex min-h-[520px]">
-
-        {/* LEFT — Technician List */}
-        <div className="w-[280px] flex-shrink-0 border-r border-slate-100 flex flex-col">
-          <div className="flex-1 overflow-y-auto">
-            {Object.entries(techData).map(([id, t]) => {
-              const isActive = selectedTech === id;
-              const rate = t.stats.total > 0 ? Math.round((t.stats.completed / t.stats.total) * 100) : 0;
-              return (
-                <div
-                  key={id}
-                  onClick={() => { setSelectedTech(id); setActiveFilter(''); }}
-                  className={`px-4 py-3 cursor-pointer transition-all border-l-[3px] ${
-                    isActive
-                      ? 'bg-slate-900 border-l-white'
-                      : 'border-l-transparent hover:bg-slate-50'
-                  }`}
-                >
-                  {/* Name row */}
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold ${
-                      isActive ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {t.initials}
+      {/* Levo spisak tehničara, desno nalozi */}
+      <div className="mx-nd-split">
+        <div className="mx-nd-split__in">
+          <div className="mx-nd-split__side">
+            <div className="mx-nd-techlist">
+              {Object.entries(techData).map(([id, t]) => {
+                const isActive = selectedTech === id;
+                const rate = t.stats.total > 0 ? Math.round((t.stats.completed / t.stats.total) * 100) : 0;
+                return (
+                  <div
+                    key={id}
+                    tabIndex={0}
+                    onClick={() => { setSelectedTech(id); setActiveFilter(''); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedTech(id); setActiveFilter(''); } }}
+                    className={cx('mx-nd-tech', isActive && 'is-on')}
+                  >
+                    <div className="mx-nd-who">
+                      <span className={cx('sx-avatar', isActive && 'mx-nd-ink')}>{t.initials}</span>
+                      <div className="mx-nd-who__text">
+                        <b>{t.name}</b>
+                        <span>{t.phone}</span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-[13px] font-semibold truncate ${isActive ? 'text-white' : 'text-slate-900'}`}>
-                        {t.name}
-                      </p>
-                      <p className={`text-[10px] font-mono ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>
-                        {t.phone}
-                      </p>
+
+                    <div className="mx-nd-tstats">
+                      <span className="mx-nd-tstat" onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter(''); }}>
+                        <b>{t.stats.total}</b><small>Sve</small>
+                      </span>
+                      <span className="mx-nd-tstat is-ok" onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('zavrsen'); }}>
+                        <b>{t.stats.completed}</b><small>OK</small>
+                      </span>
+                      <span className="mx-nd-tstat is-warn" onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('nezavrsen'); }}>
+                        <b>{t.stats.pending}</b><small>Akt</small>
+                      </span>
+                      <span className="mx-nd-tstat is-info" onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('odlozen'); }}>
+                        <b>{t.stats.postponed}</b><small>Odl</small>
+                      </span>
+                    </div>
+
+                    <div className="mx-nd-rate">
+                      <span className="mx-nd-meter__track">
+                        <span className="mx-nd-meter__fill is-ok" style={{ width: `${rate}%` }} />
+                      </span>
+                      <span className="sx-mono">{rate}%</span>
                     </div>
                   </div>
-
-                  {/* Stats row */}
-                  <div className="flex items-center gap-1">
-                    <div
-                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-slate-50'}`}
-                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter(''); }}
-                    >
-                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-white' : 'text-slate-900'}`}>{t.stats.total}</p>
-                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>Sve</p>
-                    </div>
-                    <div
-                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-emerald-50/80'}`}
-                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('zavrsen'); }}
-                    >
-                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-emerald-400' : 'text-emerald-600'}`}>{t.stats.completed}</p>
-                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>OK</p>
-                    </div>
-                    <div
-                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-blue-50/80'}`}
-                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('nezavrsen'); }}
-                    >
-                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-blue-400' : 'text-blue-600'}`}>{t.stats.pending}</p>
-                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>Akt</p>
-                    </div>
-                    <div
-                      className={`flex-1 text-center py-1 rounded ${isActive ? 'bg-white/10' : 'bg-amber-50/80'}`}
-                      onClick={(e) => { e.stopPropagation(); setSelectedTech(id); setActiveFilter('odlozen'); }}
-                    >
-                      <p className={`text-sm font-bold leading-none ${isActive ? 'text-amber-400' : 'text-amber-600'}`}>{t.stats.postponed}</p>
-                      <p className={`text-[8px] mt-0.5 uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>Odl</p>
-                    </div>
-                  </div>
-
-                  {/* Completion bar */}
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className={`flex-1 h-1 rounded-full ${isActive ? 'bg-white/10' : 'bg-slate-100'}`}>
-                      <div
-                        className={`h-1 rounded-full transition-all ${isActive ? 'bg-emerald-400' : 'bg-emerald-500'}`}
-                        style={{ width: `${rate}%` }}
-                      />
-                    </div>
-                    <span className={`text-[10px] font-mono font-semibold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>{rate}%</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* RIGHT — Work Orders Table */}
-        <div className="flex-1 flex flex-col min-w-0">
-
-          {/* Tech header + filters */}
-          <div className="px-4 sm:px-5 py-3 border-b border-slate-100">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white text-xs font-bold">
-                  {tech.initials}
+          <div className="mx-nd-split__main">
+            {/* Tehničar i brzi filteri */}
+            <div className="mx-nd-twp__head">
+              <div className="mx-nd-twp__row">
+                <div className="mx-nd-who">
+                  <span className="sx-avatar mx-nd-ink">{tech.initials}</span>
+                  <div className="mx-nd-who__text">
+                    <h3>{tech.name}</h3>
+                    <span>{tech.phone}</span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">{tech.name}</h3>
-                  <p className="text-[11px] text-slate-500 font-mono">{tech.phone}</p>
+                <div className="mx-nd-twp__count">
+                  <span>{filteredOrders.length} od {tech.orders.length} naloga</span>
+                  <Btn size="sm" variant="ghost" icon={Download} />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-400">
-                  {filteredOrders.length} od {tech.orders.length} naloga
+
+              <Choice
+                size="sm"
+                value={activeFilter}
+                onChange={setActiveFilter}
+                layoutId="mx-nd-twp-filter"
+                options={[
+                  { value: '', label: `Svi (${tech.stats.total})` },
+                  { value: 'zavrsen', label: `Završeni (${tech.stats.completed})` },
+                  { value: 'nezavrsen', label: `Nezavršeni (${tech.stats.pending})` },
+                  { value: 'odlozen', label: `Odloženi (${tech.stats.postponed})` }
+                ]}
+              />
+            </div>
+
+            {/* Tabela (vodoravni skrol unutar panela, kao ranije) */}
+            <div className="mx-nd-hscroll mx-nd-twp__table">
+              {filteredOrders.length > 0 ? (
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Datum</th>
+                      <th>Vreme</th>
+                      <th>Opština</th>
+                      <th>Adresa</th>
+                      <th>Korisnik</th>
+                      <th>Tip</th>
+                      <th>Status</th>
+                      <th className="is-end"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order, idx) => {
+                      const st = statusCfg[order.status];
+                      return (
+                        <tr key={order.id} className="is-click" style={{ '--i': idx }}>
+                          <td><b className="mx-strong">{order.date}</b></td>
+                          <td><span className="sx-mono">{order.time}</span></td>
+                          <td>{order.municipality}</td>
+                          <td>
+                            <div className="sx-cell mx-nd-addr">
+                              <b>{order.address}</b>
+                              <span className="sx-mono">TIS {order.tisId}</span>
+                            </div>
+                          </td>
+                          <td>{order.userName}</td>
+                          <td>{order.type}</td>
+                          <td>
+                            <span className="mx-nd-st">
+                              <Sign tone={st.tone}>{st.label}</Sign>
+                              {order.verified && (
+                                <CheckCircle2 size={14} strokeWidth={1.9} className="mx-nd-verified" aria-hidden="true" />
+                              )}
+                            </span>
+                          </td>
+                          <td className="is-end">
+                            <div className="sx-rowacts">
+                              <Btn size="sm" variant="ghost" icon={Eye} />
+                              <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="sx-empty-block mx-nd-center">
+                  <span className="sx-item__icon"><ClipboardList size={18} strokeWidth={1.8} /></span>
+                  <b>Nema radnih naloga</b>
+                  <span>Izaberite drugog tehničara ili promenite filter</span>
+                </div>
+              )}
+            </div>
+
+            {/* Podnožje: strane */}
+            {filteredOrders.length > 0 && (
+              <div className="mx-pager">
+                <span className="mx-pager__text">
+                  Stranica 1 od 1 · {filteredOrders.length} naloga
                 </span>
-                <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all">
-                  <DownloadIcon size={13} />
-                </button>
-              </div>
-            </div>
-
-            {/* Quick filter chips */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setActiveFilter('')}
-                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
-                  !activeFilter
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                Svi ({tech.stats.total})
-              </button>
-              <button
-                onClick={() => setActiveFilter('zavrsen')}
-                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
-                  activeFilter === 'zavrsen'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300'
-                }`}
-              >
-                Završeni ({tech.stats.completed})
-              </button>
-              <button
-                onClick={() => setActiveFilter('nezavrsen')}
-                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
-                  activeFilter === 'nezavrsen'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-300'
-                }`}
-              >
-                Nezavršeni ({tech.stats.pending})
-              </button>
-              <button
-                onClick={() => setActiveFilter('odlozen')}
-                className={`px-2.5 py-1 text-[11px] rounded-md border transition-all ${
-                  activeFilter === 'odlozen'
-                    ? 'bg-amber-600 text-white border-amber-600'
-                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300'
-                }`}
-              >
-                Odloženi ({tech.stats.postponed})
-              </button>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="flex-1 overflow-auto">
-            {filteredOrders.length > 0 ? (
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-24">Datum</th>
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-20">Vreme</th>
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5">Opština</th>
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5">Adresa</th>
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5">Korisnik</th>
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-28">Tip</th>
-                    <th className="text-left text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-24">Status</th>
-                    <th className="text-right text-[10px] font-medium text-slate-400 uppercase tracking-wider px-4 py-2.5 w-16"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order, idx) => {
-                    const st = statusCfg[order.status];
-                    return (
-                      <tr
-                        key={order.id}
-                        className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                      >
-                        <td className="px-4 py-2.5">
-                          <span className="text-xs text-slate-900 font-medium">{order.date}</span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className="text-[11px] font-mono text-slate-500">{order.time}</span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className="text-xs text-slate-700">{order.municipality}</span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <div className="max-w-[220px]">
-                            <p className="text-xs text-slate-900 font-medium truncate">{order.address}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">TIS {order.tisId}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className="text-xs text-slate-600">{order.userName}</span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className="text-[11px] text-slate-600">{order.type}</span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                            <span className={`text-[11px] font-medium ${st.text}`}>{st.label}</span>
-                            {order.verified && (
-                              <CheckCircleIcon size={11} className="text-emerald-500 ml-0.5" />
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors">
-                              <ViewIcon size={13} />
-                            </button>
-                            <button className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                              <DeleteIcon size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center py-12">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                    <ClipboardIcon size={18} className="text-slate-400" />
-                  </div>
-                  <p className="text-sm text-slate-600 font-medium">Nema radnih naloga</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Izaberite drugog tehničara ili promenite filter</p>
-                </div>
+                <span className="mx-pager__btns">
+                  <Btn size="sm" variant="ghost">‹</Btn>
+                  <Btn size="sm" variant="primary" className="mx-pager__num">1</Btn>
+                  <Btn size="sm" variant="ghost">›</Btn>
+                </span>
               </div>
             )}
           </div>
-
-          {/* Footer / Pagination */}
-          {filteredOrders.length > 0 && (
-            <div className="px-4 sm:px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">
-                Stranica 1 od 1 · {filteredOrders.length} naloga
-              </span>
-              <div className="flex items-center gap-1">
-                <button className="px-2 py-1 text-[11px] text-slate-400 bg-white border border-slate-200 rounded-md">‹</button>
-                <button className="px-2.5 py-1 text-[11px] text-white bg-slate-900 rounded-md font-medium">1</button>
-                <button className="px-2 py-1 text-[11px] text-slate-400 bg-white border border-slate-200 rounded-md">›</button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
-// ─── Work Order Detail Design Preview (Static Data) ──────────────────────────
+// Pregled dizajna: detalji radnog naloga (statički podaci)
 const WorkOrderDetailPreview = () => {
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+    <section className="sx-card mx-nd-wod">
 
-      {/* ── Command Bar ─────────────────────────────────────────── */}
-      <div className="bg-slate-900 px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-emerald-500/15 px-2 py-1 rounded-md">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span className="text-emerald-400 text-[11px] font-semibold uppercase tracking-wide">Završen</span>
-          </div>
-          <span className="text-white font-mono text-sm font-bold tracking-tight">WO-2024-08847</span>
-          <span className="hidden sm:inline text-slate-600">·</span>
-          <span className="text-slate-400 text-xs font-mono">15.02.2024 · 09:30</span>
+      {/* Traka sa stanjem, brojem naloga i radnjama */}
+      <div className="mx-nd-bar">
+        <div className="mx-nd-bar__info">
+          <State tone="ok">Završen</State>
+          <span className="sx-mono mx-nd-bar__id">WO-2024-08847</span>
+          <span className="mx-nd-bar__dot">·</span>
+          <span className="sx-mono">15.02.2024 · 09:30</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button className="px-2.5 py-1.5 text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1.5 transition-all">
-            <DownloadIcon size={12} />
-            PDF
-          </button>
-          <button className="px-2.5 py-1.5 text-[11px] text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md flex items-center gap-1.5 transition-all">
-            <CheckIcon size={12} />
-            Verifikuj
-          </button>
-          <button className="px-2.5 py-1.5 text-[11px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-md flex items-center gap-1.5 transition-all">
-            <AlertIcon size={12} />
-            Vrati
-          </button>
+        <div className="mx-nd-bar__actions">
+          <Btn size="sm" icon={Download}>PDF</Btn>
+          <Btn size="sm" icon={Check}>Verifikuj</Btn>
+          <Btn size="sm" icon={CircleAlert}>Vrati</Btn>
         </div>
       </div>
 
-      {/* ── Core Info Grid ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 border-b border-slate-100 bg-slate-50/50">
-        <div className="px-4 sm:px-5 py-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <CalendarIcon size={11} className="text-slate-400" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Datum / Tip</span>
+      <div className="mx-nd-wod__in">
+        {/* Osnovni podaci */}
+        <div className="mx-nd-facts">
+          <div className="mx-nd-fact">
+            <span className="mx-nd-fact__k"><Calendar size={13} strokeWidth={1.9} aria-hidden="true" /><span className="sx-label">Datum / Tip</span></span>
+            <b>15. februar 2024</b>
+            <span>Instalacija GPON · 09:30</span>
           </div>
-          <p className="text-[13px] text-slate-900 font-semibold leading-tight">15. februar 2024</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Instalacija GPON · 09:30</p>
-        </div>
-        <div className="px-4 sm:px-5 py-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <MapPinIcon size={11} className="text-slate-400" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Lokacija</span>
+          <div className="mx-nd-fact">
+            <span className="mx-nd-fact__k"><MapPin size={13} strokeWidth={1.9} aria-hidden="true" /><span className="sx-label">Lokacija</span></span>
+            <b>Novi Beograd</b>
+            <span>Bul. Mihajla Pupina 165a, st. 42</span>
           </div>
-          <p className="text-[13px] text-slate-900 font-semibold leading-tight">Novi Beograd</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Bul. Mihajla Pupina 165a, st. 42</p>
-        </div>
-        <div className="px-4 sm:px-5 py-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <UserIcon size={11} className="text-slate-400" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Tehničar</span>
+          <div className="mx-nd-fact">
+            <span className="mx-nd-fact__k"><User size={13} strokeWidth={1.9} aria-hidden="true" /><span className="sx-label">Tehničar</span></span>
+            <b>Nikola Jovanović</b>
+            <span>+ Stefan Milić <span className="sx-faint">(pomoćni)</span></span>
           </div>
-          <p className="text-[13px] text-slate-900 font-semibold leading-tight">Nikola Jovanović</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">+ Stefan Milić <span className="text-slate-400">(pomoćni)</span></p>
-        </div>
-        <div className="px-4 sm:px-5 py-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <PhoneIcon size={11} className="text-slate-400" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Korisnik</span>
+          <div className="mx-nd-fact">
+            <span className="mx-nd-fact__k"><Phone size={13} strokeWidth={1.9} aria-hidden="true" /><span className="sx-label">Korisnik</span></span>
+            <b>Marko Petrović</b>
+            <span>+381 64 123 4567</span>
           </div>
-          <p className="text-[13px] text-slate-900 font-semibold leading-tight">Marko Petrović</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">+381 64 123 4567</p>
         </div>
-      </div>
 
-      {/* ── IDs Strip ───────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 sm:px-5 py-2 border-b border-slate-100">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 uppercase">TIS</span>
-          <span className="text-[11px] font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">104857</span>
+        {/* Oznake */}
+        <div className="mx-nd-ids">
+          <span className="mx-nd-id"><span className="sx-label">TIS</span><span className="sx-tag sx-mono">104857</span></span>
+          <span className="mx-nd-id"><span className="sx-label">Job</span><span className="sx-tag sx-mono">JOB-29481</span></span>
+          <span className="mx-nd-id"><span className="sx-label">Tehnologija</span><span className="sx-mono">GPON</span></span>
+          <span className="mx-nd-id"><span className="sx-label">Email</span><span>marko.petrovic@gmail.com</span></span>
         </div>
-        <div className="hidden sm:block w-px h-3 bg-slate-200" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 uppercase">Job</span>
-          <span className="text-[11px] font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">JOB-29481</span>
-        </div>
-        <div className="hidden sm:block w-px h-3 bg-slate-200" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 uppercase">Tehnologija</span>
-          <span className="text-[11px] font-mono text-slate-500">GPON</span>
-        </div>
-        <div className="hidden sm:block w-px h-3 bg-slate-200" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 uppercase">Email</span>
-          <span className="text-[11px] text-slate-500">marko.petrovic@gmail.com</span>
-        </div>
-      </div>
 
-      {/* ── Main Content ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12">
-
-        {/* LEFT COLUMN — work details + evidence */}
-        <div className="lg:col-span-7 lg:border-r border-slate-100">
-
-          {/* Details + Comment */}
-          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2 flex items-center gap-1.5">
-                  <CommentIcon size={11} className="text-slate-400" />
-                  Detalji posla
-                </p>
-                <p className="text-xs text-slate-700 leading-relaxed">
-                  Instalacija GPON opreme kod novog korisnika. Potrebno izvesti kabel od PM kutije na 3. spratu do stana 42 na 5. spratu. Korisnik obavestio da postoji kanal za kablove.
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2">Komentar tehničara</p>
-                <div className="border-l-2 border-emerald-400 pl-3 bg-emerald-50/50 py-2 pr-2 rounded-r">
-                  <p className="text-xs text-slate-700 leading-relaxed">
+        <div className="mx-nd-wod__main">
+          {/* Levo: posao, oprema, materijali, slike */}
+          <div className="mx-nd-wod__left">
+            <div className="mx-nd-wsec">
+              <div className="mx-nd-two">
+                <div className="mx-nd-blk">
+                  <p className="sx-label mx-nd-sl"><MessageSquare size={13} strokeWidth={1.9} aria-hidden="true" />Detalji posla</p>
+                  <p className="mx-nd-text">
+                    Instalacija GPON opreme kod novog korisnika. Potrebno izvesti kabel od PM kutije na 3. spratu do stana 42 na 5. spratu. Korisnik obavestio da postoji kanal za kablove.
+                  </p>
+                </div>
+                <div className="mx-nd-blk">
+                  <p className="sx-label">Komentar tehničara</p>
+                  <p className="mx-nd-quote">
                     Instalacija završena uspešno. Kabel provučen kroz postojeći kanal. Signal -18dBm, u granicama normale. Korisnik zadovoljan.
                   </p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Equipment Table */}
-          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium flex items-center gap-1.5">
-                <BoxIcon size={11} className="text-slate-400" />
-                Oprema korisnika
-              </p>
-              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-medium">3</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left font-medium text-slate-500 pb-2 pr-3 w-14">Tip</th>
-                    <th className="text-left font-medium text-slate-500 pb-2 pr-3">Opis</th>
-                    <th className="text-left font-medium text-slate-500 pb-2 pr-3">Serijski br.</th>
-                    <th className="text-right font-medium text-slate-500 pb-2 w-16">Datum</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { type: 'ONT', desc: 'Huawei HG8245H5', serial: 'HWT-48573920145', date: '15.02.24' },
-                    { type: 'STB', desc: 'Motorola VIP1003', serial: 'MOT-93847561022', date: '15.02.24' },
-                    { type: 'RTR', desc: 'TP-Link Archer C6', serial: 'TPL-28374650198', date: '15.02.24' },
-                  ].map((eq, i) => (
-                    <tr key={i} className="border-b border-slate-50 last:border-0">
-                      <td className="py-2 pr-3">
-                        <span className="bg-slate-900 text-white text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide">{eq.type}</span>
-                      </td>
-                      <td className="py-2 pr-3 text-slate-900 font-medium">{eq.desc}</td>
-                      <td className="py-2 pr-3 font-mono text-slate-500 text-[11px]">{eq.serial}</td>
-                      <td className="py-2 text-right text-slate-400">{eq.date}</td>
+            <div className="mx-nd-wsec">
+              <div className="mx-nd-wsec__head">
+                <p className="sx-label mx-nd-sl"><Box size={13} strokeWidth={1.9} aria-hidden="true" />Oprema korisnika</p>
+                <span className="sx-tag is-ink">3</span>
+              </div>
+              <div className="mx-nd-hscroll">
+                <table className="sx-table mx-nd-eqtable">
+                  <thead>
+                    <tr>
+                      <th>Tip</th>
+                      <th>Opis</th>
+                      <th>Serijski br.</th>
+                      <th className="is-end">Datum</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { type: 'ONT', desc: 'Huawei HG8245H5', serial: 'HWT-48573920145', date: '15.02.24' },
+                      { type: 'STB', desc: 'Motorola VIP1003', serial: 'MOT-93847561022', date: '15.02.24' },
+                      { type: 'RTR', desc: 'TP-Link Archer C6', serial: 'TPL-28374650198', date: '15.02.24' },
+                    ].map((eq, i) => (
+                      <tr key={i} style={{ '--i': i }}>
+                        <td><span className="sx-tag is-ink">{eq.type}</span></td>
+                        <td><b className="mx-strong">{eq.desc}</b></td>
+                        <td><span className="sx-mono">{eq.serial}</span></td>
+                        <td className="is-end"><span className="sx-faint">{eq.date}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mx-nd-two is-split">
+              <div className="mx-nd-wsec">
+                <p className="sx-label mx-nd-sl"><Wrench size={13} strokeWidth={1.9} aria-hidden="true" />Utrošeni materijali</p>
+                <div className="mx-nd-mats">
+                  {[
+                    { name: 'Opt. patch cord SC/APC 3m', qty: '1' },
+                    { name: 'UTP Cat6 kabl', qty: '15m' },
+                    { name: 'RJ45 konektor', qty: '4' },
+                    { name: 'Kanalica 40x25mm', qty: '3m' },
+                    { name: 'Tiplovi i šrafovi', qty: '8' },
+                  ].map((mat, i) => (
+                    <div key={i} className="mx-nd-mat">
+                      <span>{mat.name}</span>
+                      <span className="sx-tag is-info sx-mono">×{mat.qty}</span>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Materials + Images */}
-          <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-slate-100">
-            {/* Materials */}
-            <div className="px-4 sm:px-5 py-4 border-b md:border-b-0 border-slate-100">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
-                <ToolsIcon size={11} className="text-slate-400" />
-                Utrošeni materijali
-              </p>
-              <div className="space-y-0.5">
-                {[
-                  { name: 'Opt. patch cord SC/APC 3m', qty: '1' },
-                  { name: 'UTP Cat6 kabl', qty: '15m' },
-                  { name: 'RJ45 konektor', qty: '4' },
-                  { name: 'Kanalica 40x25mm', qty: '3m' },
-                  { name: 'Tiplovi i šrafovi', qty: '8' },
-                ].map((mat, i) => (
-                  <div key={i} className="flex items-center justify-between py-1">
-                    <span className="text-[11px] text-slate-600">{mat.name}</span>
-                    <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">×{mat.qty}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Images */}
-            <div className="px-4 sm:px-5 py-4">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
-                <ImageIcon size={11} className="text-slate-400" />
-                Slike
-                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 rounded-full ml-0.5">4</span>
-              </p>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="aspect-square rounded-md bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer flex items-center justify-center group">
-                    <ImageIcon size={14} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN — summary, history, status */}
-        <div className="lg:col-span-5 border-t lg:border-t-0 border-slate-100">
-
-          {/* Summary Counters */}
-          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5">Pregled</p>
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: 'Oprema', value: '3' },
-                { label: 'Materijali', value: '5' },
-                { label: 'Slike', value: '4' },
-                { label: 'Trajanje', value: '~2h' },
-              ].map((s, i) => (
-                <div key={i} className="text-center py-2 bg-slate-50 rounded-lg">
-                  <p className="text-lg font-bold text-slate-900 leading-none">{s.value}</p>
-                  <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-wide">{s.label}</p>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Additional Jobs */}
-          <div className="px-4 sm:px-5 py-3 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-1">Dodatni poslovi</p>
-            <p className="text-xs text-slate-700">Montaža nosača, testiranje signala</p>
-          </div>
-
-          {/* Postponement History */}
-          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wider text-amber-500 font-medium mb-2.5 flex items-center gap-1.5">
-              <ClockIcon size={11} className="text-amber-500" />
-              Istorija odlaganja
-            </p>
-            <div className="bg-amber-50 rounded-lg p-3 border border-amber-100/80">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono text-amber-700">14.02.2024 · 08:15</span>
-                <span className="text-[9px] bg-amber-200/70 text-amber-800 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Odlaganje #1</span>
               </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">Korisnik nije bio dostupan, zakazano za sutradan.</p>
-              <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-amber-600 font-mono">
-                <span>14.02</span>
-                <span className="text-amber-400">→</span>
-                <span>15.02.2024</span>
+              <div className="mx-nd-wsec">
+                <p className="sx-label mx-nd-sl">
+                  <ImageIcon size={13} strokeWidth={1.9} aria-hidden="true" />
+                  Slike
+                  <span className="sx-tag">4</span>
+                </p>
+                <div className="mx-nd-pics">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="mx-nd-pic">
+                      <ImageIcon size={16} strokeWidth={1.8} aria-hidden="true" />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Cancellation History */}
-          <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wider text-red-500 font-medium mb-2.5 flex items-center gap-1.5">
-              <AlertIcon size={11} className="text-red-500" filled />
-              Istorija otkazivanja
-            </p>
-            <div className="bg-red-50 rounded-lg p-3 border border-red-100/80">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono text-red-700">13.02.2024 · 14:20</span>
-                <span className="text-[9px] bg-red-200/70 text-red-800 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Otkazivanje #1</span>
+          {/* Desno: pregled, dodatni poslovi, istorija, status korisnika */}
+          <div className="mx-nd-wod__right">
+            <div className="mx-nd-wsec">
+              <p className="sx-label">Pregled</p>
+              <div className="mx-nd-cnts">
+                {[
+                  { label: 'Oprema', value: '3' },
+                  { label: 'Materijali', value: '5' },
+                  { label: 'Slike', value: '4' },
+                  { label: 'Trajanje', value: '~2h' },
+                ].map((s, i) => (
+                  <div key={i} className="mx-nd-cnt">
+                    <p className="sx-num">{s.value}</p>
+                    <p className="sx-label">{s.label}</p>
+                  </div>
+                ))}
               </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">Korisnik otkazao prvi termin zbog putovanja.</p>
             </div>
-          </div>
 
-          {/* Customer Status */}
-          <div className="px-4 sm:px-5 py-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
-              <CheckCircleIcon size={11} className="text-emerald-500" />
-              Status korisnika
-            </p>
-            <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100/80">
-              <p className="text-[11px] text-emerald-800 font-medium leading-relaxed">
-                Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala
-              </p>
+            <div className="mx-nd-wsec">
+              <p className="sx-label">Dodatni poslovi</p>
+              <p className="mx-nd-text">Montaža nosača, testiranje signala</p>
+            </div>
+
+            <div className="mx-nd-wsec">
+              <p className="sx-label mx-nd-sl"><Clock size={13} strokeWidth={1.9} aria-hidden="true" />Istorija odlaganja</p>
+              <div className="sx-note" data-tone="warn">
+                <Led tone="warn" />
+                <div className="sx-note__body mx-nd-hist">
+                  <div className="mx-nd-hist__top">
+                    <span className="sx-mono">14.02.2024 · 08:15</span>
+                    <span className="sx-tag is-warn">Odlaganje #1</span>
+                  </div>
+                  <p>Korisnik nije bio dostupan, zakazano za sutradan.</p>
+                  <div className="mx-nd-hist__move sx-mono">
+                    <span>14.02</span>
+                    <span>→</span>
+                    <span>15.02.2024</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mx-nd-wsec">
+              <p className="sx-label mx-nd-sl"><CircleAlert size={13} strokeWidth={1.9} aria-hidden="true" />Istorija otkazivanja</p>
+              <div className="sx-note" data-tone="bad">
+                <Led tone="bad" />
+                <div className="sx-note__body mx-nd-hist">
+                  <div className="mx-nd-hist__top">
+                    <span className="sx-mono">13.02.2024 · 14:20</span>
+                    <span className="sx-tag is-bad">Otkazivanje #1</span>
+                  </div>
+                  <p>Korisnik otkazao prvi termin zbog putovanja.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mx-nd-wsec">
+              <p className="sx-label mx-nd-sl"><CheckCircle2 size={13} strokeWidth={1.9} aria-hidden="true" />Status korisnika</p>
+              <div className="sx-note" data-tone="ok">
+                <Led tone="ok" />
+                <div className="sx-note__body">
+                  <p>
+                    Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -1659,7 +1268,7 @@ const WorkOrdersSection = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Da li ste sigurni da želite da obrišete ovaj radni nalog?')) {
+    if (await confirm({ title: 'Da li ste sigurni da želite da obrišete ovaj radni nalog?', tone: 'danger', confirmLabel: 'Obriši' })) {
       try {
         await workOrdersAPI.delete(id);
         toast.success('Radni nalog je uspešno obrisan!');
@@ -2068,32 +1677,30 @@ const WorkOrdersSection = () => {
     if (totalPages <= 1) return null;
 
     return (
-      <div className="flex justify-center items-center space-x-2 mt-6">
-        <button
+      <div className="mx-nd-pages">
+        <Btn
+          size="sm"
+          variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
             onPageChange(1, e);
           }}
           disabled={currentPage === 1}
-          className={`px-3 py-1 text-sm rounded-lg transition-all ${
-            currentPage === 1 ? 'bg-slate-50 text-slate-400' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
         >
           &laquo;
-        </button>
+        </Btn>
 
-        <button
+        <Btn
+          size="sm"
+          variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
             onPageChange(currentPage - 1, e);
           }}
           disabled={currentPage === 1}
-          className={`px-3 py-1 text-sm rounded-lg transition-all ${
-            currentPage === 1 ? 'bg-slate-50 text-slate-400' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
         >
           &lsaquo;
-        </button>
+        </Btn>
 
         {Array.from({ length: totalPages }, (_, i) => i + 1)
           .filter(number => {
@@ -2104,47 +1711,43 @@ const WorkOrdersSection = () => {
             );
           })
           .map(number => (
-            <button
+            <Btn
               key={number}
+              size="sm"
+              variant={currentPage === number ? 'primary' : 'ghost'}
+              className="mx-pager__num"
               onClick={(e) => {
                 e.stopPropagation();
                 onPageChange(number, e);
               }}
-              className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                currentPage === number
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
             >
               {number}
-            </button>
+            </Btn>
           ))}
 
-        <button
+        <Btn
+          size="sm"
+          variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
             onPageChange(currentPage + 1, e);
           }}
           disabled={currentPage === totalPages}
-          className={`px-3 py-1 text-sm rounded-lg transition-all ${
-            currentPage === totalPages ? 'bg-slate-50 text-slate-400' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
         >
           &rsaquo;
-        </button>
+        </Btn>
 
-        <button
+        <Btn
+          size="sm"
+          variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
             onPageChange(totalPages, e);
           }}
           disabled={currentPage === totalPages}
-          className={`px-3 py-1 text-sm rounded-lg transition-all ${
-            currentPage === totalPages ? 'bg-slate-50 text-slate-400' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
         >
           &raquo;
-        </button>
+        </Btn>
       </div>
     );
   };
@@ -2169,847 +1772,533 @@ const WorkOrdersSection = () => {
   };
 
   return (
-    <div className="space-y-6 mt-12 pt-8 border-t border-slate-100">
-      {/* Work Orders Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900 mb-1">Work Orders by Technician</h2>
-          <p className="text-sm text-slate-500">Manage and track all work orders by technicians</p>
+    <section className="mx-nd-sec mx-nd-wos">
+      {/* Zaglavlje odeljka */}
+      <header className="sx-head">
+        <div className="sx-head__text">
+          <h2 className="sx-title mx-nd-wos__title">Work Orders by Technician</h2>
+          <div className="sx-head__lead"><p>Manage and track all work orders by technicians</p></div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/work-orders/add">
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm transition-colors">
-              <PlusIcon size={16} />
-              Novi nalog
-            </button>
-          </Link>
-          <Link to="/work-orders/upload">
-            <button className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-sm transition-colors">
-              Import
-            </button>
-          </Link>
+        <div className="sx-head__actions">
+          <LinkBtn to="/work-orders/add" variant="primary" icon={Plus}>Novi nalog</LinkBtn>
+          <LinkBtn to="/work-orders/upload" icon={Upload}>Import</LinkBtn>
         </div>
-      </div>
+      </header>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-          {error}
-        </div>
-      )}
+      {error && <Note tone="bad">{error}</Note>}
 
-      {/* Tab Navigation */}
-      <div className="flex gap-1 bg-slate-50 rounded-xl p-1 overflow-x-auto">
-        <button
-          onClick={() => handleTabChange('technicians')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-            activeTab === 'technicians' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <UserIcon size={16} />
-          Tehničari
-          <span className="ml-1 px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-full">
-            {Object.keys(technicianWorkOrders).length}
-          </span>
-        </button>
-        <button
-          onClick={() => handleTabChange('unassigned')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-            activeTab === 'unassigned' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <UserSlashIcon size={16} />
-          Nedodeljeni
-          <span className="ml-1 px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-full">
-            {getAllUnassignedOrders().length}
-          </span>
-        </button>
-        <button
-          onClick={() => handleTabChange('verification')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-            activeTab === 'verification' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <CheckCircleIcon size={16} />
-          Za verifikaciju
-          <span className="ml-1 px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-full">
-            {verificationOrders.length}
-          </span>
-        </button>
-        <button
-          onClick={() => handleTabChange('all')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-            activeTab === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <ClipboardIcon size={16} />
-          Svi radni nalozi
-          <span className="ml-1 px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-full">
-            {getAllWorkOrders().length}
-          </span>
-        </button>
-        <button
-          onClick={() => handleTabChange('pregled')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-            activeTab === 'pregled' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <TableIcon size={16} />
-          Pregled
-          <span className="ml-1 px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-full">
-            {fancyTablePagination?.totalCount || 0}
-          </span>
-        </button>
-      </div>
+      {/* Tabovi */}
+      <Tabs
+        value={activeTab}
+        onChange={handleTabChange}
+        layoutId="mx-nd-wos-tabs"
+        items={[
+          // broj kao tekst: Tabs ne prikazuje 0, a ranije se i 0 videla
+          { key: 'technicians', label: 'Tehničari', icon: User, count: String(Object.keys(technicianWorkOrders).length) },
+          { key: 'unassigned', label: 'Nedodeljeni', icon: UserX, count: String(getAllUnassignedOrders().length) },
+          { key: 'verification', label: 'Za verifikaciju', icon: CheckCircle2, count: String(verificationOrders.length) },
+          { key: 'all', label: 'Svi radni nalozi', icon: ClipboardList, count: String(getAllWorkOrders().length) },
+          { key: 'pregled', label: 'Pregled', icon: Table, count: String(fancyTablePagination?.totalCount || 0) }
+        ]}
+      />
 
-      {/* Search and Filters */}
+      {/* Pretraga i filteri */}
       {activeTab !== 'pregled' && (
-        <Card className="bg-white border border-slate-100">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Search */}
-              <div className="relative flex-1 min-w-[300px]">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="Pretraga po adresi, korisniku, serijskom broju..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPageUnassigned(1);
-                    setCurrentPageVerification(1);
-                    setCurrentPageAllOrders(1);
-                    setTechnicianCurrentPages({});
-                  }}
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                />
-              </div>
+        <Panel>
+          <div className="mx-nd-filters">
+          <SearchField
+            value={searchTerm}
+            placeholder="Pretraga po adresi, korisniku, serijskom broju..."
+            onChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPageUnassigned(1);
+              setCurrentPageVerification(1);
+              setCurrentPageAllOrders(1);
+              setTechnicianCurrentPages({});
+            }}
+          />
 
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPageUnassigned(1);
-                  setCurrentPageVerification(1);
+          <Select
+            size="sm"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPageUnassigned(1);
+              setCurrentPageVerification(1);
+              setCurrentPageAllOrders(1);
+              setTechnicianCurrentPages({});
+            }}
+          >
+            <option value="">Svi statusi</option>
+            <option value="zavrsen">Završeni</option>
+            <option value="nezavrsen">Nezavršeni</option>
+            <option value="odlozen">Odloženi</option>
+            <option value="otkazan">Otkazani</option>
+          </Select>
+
+          {(activeTab === 'all' || activeTab === 'verification') && (
+            <Select
+              size="sm"
+              value={technicianFilter}
+              onChange={(e) => {
+                setTechnicianFilter(e.target.value);
+                setCurrentPageUnassigned(1);
+                setCurrentPageVerification(1);
+                setCurrentPageAllOrders(1);
+                setTechnicianCurrentPages({});
+              }}
+            >
+              <option value="">Svi tehničari</option>
+              {technicians.filter(tech => !tech.deletedAt).map(tech => (
+                <option key={tech._id} value={tech._id}>
+                  {tech.name}
+                </option>
+              ))}
+            </Select>
+          )}
+
+          {activeTab === 'all' && (
+            <>
+              <DateField
+                value={dateFilter}
+                clearable
+                compact
+                onChange={(value) => {
+                  setDateFilter(value);
                   setCurrentPageAllOrders(1);
-                  setTechnicianCurrentPages({});
                 }}
-                className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-              >
-                <option value="">Svi statusi</option>
-                <option value="zavrsen">Završeni</option>
-                <option value="nezavrsen">Nezavršeni</option>
-                <option value="odlozen">Odloženi</option>
-                <option value="otkazan">Otkazani</option>
-              </select>
+              />
 
-              {/* Technician Filter */}
-              {(activeTab === 'all' || activeTab === 'verification') && (
-                <select
-                  value={technicianFilter}
+              {dateFilter && (
+                <Select
+                  size="sm"
+                  value={timeSortOrder}
                   onChange={(e) => {
-                    setTechnicianFilter(e.target.value);
-                    setCurrentPageUnassigned(1);
-                    setCurrentPageVerification(1);
+                    setTimeSortOrder(e.target.value);
                     setCurrentPageAllOrders(1);
-                    setTechnicianCurrentPages({});
                   }}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                 >
-                  <option value="">Svi tehničari</option>
-                  {technicians.filter(tech => !tech.deletedAt).map(tech => (
-                    <option key={tech._id} value={tech._id}>
-                      {tech.name}
-                    </option>
-                  ))}
-                </select>
+                  <option value="asc">Najstarije → Najnovije</option>
+                  <option value="desc">Najnovije → Najstarije</option>
+                </Select>
               )}
+            </>
+          )}
 
-              {/* Date Filter */}
-              {activeTab === 'all' && (
-                <>
-                  <input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => {
-                      setDateFilter(e.target.value);
-                      setCurrentPageAllOrders(1);
-                    }}
-                    className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-
-                  {dateFilter && (
-                    <select
-                      value={timeSortOrder}
-                      onChange={(e) => {
-                        setTimeSortOrder(e.target.value);
-                        setCurrentPageAllOrders(1);
-                      }}
-                      className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    >
-                      <option value="asc">Najstarije → Najnovije</option>
-                      <option value="desc">Najnovije → Najstarije</option>
-                    </select>
-                  )}
-                </>
-              )}
-
-              {/* Action buttons */}
-              <button
-                onClick={resetFilters}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                <RefreshIcon size={16} />
-                Resetuj
-              </button>
-              <button
-                onClick={fetchData}
-                disabled={dashboardLoading || recentLoading}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-              >
-                <RefreshIcon size={16} className={(dashboardLoading || recentLoading || olderLoading) ? 'animate-spin' : ''} />
-                Osveži
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+          <Btn size="sm" icon={RotateCcw} onClick={resetFilters}>Resetuj</Btn>
+            <Btn
+              size="sm"
+              icon={RefreshCw}
+              onClick={fetchData}
+              disabled={dashboardLoading || recentLoading}
+              className={(dashboardLoading || recentLoading || olderLoading) ? 'mx-nd-spin' : undefined}
+            >
+              Osveži
+            </Btn>
+          </div>
+        </Panel>
       )}
 
-      {/* Loading State */}
+      {/* Učitavanje */}
       {(dashboardLoading && recentLoading) ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-600">Učitavanje osnovnih podataka...</p>
-          </div>
-        </div>
+        <Panel pad={false}>
+          <Loading text="Učitavanje osnovnih podataka..." />
+        </Panel>
       ) : (
-        <div className="space-y-4">
-          {/* NOTE: Due to length limits, I'll continue with a simplified version that maintains clean design.
-              The full implementation would require the complete JSX for all 5 tabs which is too long.
-              This shows the structure with technicians tab as primary example. */}
-
-          {/* Technicians Tab - Hybrid Sidebar Layout */}
+        <>
+          {/* Tehničari: spisak levo, nalozi izabranog tehničara desno */}
           {activeTab === 'technicians' && (
-            <div className="flex gap-4 h-[calc(100vh-450px)] min-h-[600px]">
-              {/* Left Sidebar - Technician List */}
-              <div className="w-[350px] flex-shrink-0">
-                <Card className="bg-white border border-slate-100 h-full flex flex-col overflow-hidden">
-                  <div className="p-4 border-b border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-900">Tehničari</h3>
-                    <p className="text-xs text-slate-500 mt-1">{Object.keys(technicianWorkOrders).length} ukupno</p>
+            <div className="mx-nd-techs">
+              <section className="sx-card mx-nd-techs__side">
+                <div className="mx-nd-techs__sidehead">
+                  <h3 className="mx-nd-h3">Tehničari</h3>
+                  <p className="mx-nd-muted">{Object.keys(technicianWorkOrders).length} ukupno</p>
+                  <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga tehničara..." />
+                </div>
+                <div className="mx-nd-techlist mx-nd-techs__list">
+                  {Object.entries(technicianWorkOrders)
+                    .filter(([techId, techData]) => {
+                      if (!searchTerm) return true;
+                      const searchLower = searchTerm.toLowerCase();
+                      return techData.technicianInfo.name.toLowerCase().includes(searchLower) ||
+                             techData.technicianInfo.phone.toLowerCase().includes(searchLower);
+                    })
+                    .map(([techId, techData]) => {
+                    const isSelected = selectedTechnicianId === techId;
+                    const totalOrders = techData.workOrders.length;
+                    const completedOrders = techData.workOrders.filter(o => o.status === 'zavrsen').length;
+                    const pendingOrders = techData.workOrders.filter(o => o.status === 'nezavrsen').length;
+                    const postponedOrders = techData.workOrders.filter(o => o.status === 'odlozen').length;
+                    const selectTechnician = () => {
+                      setSelectedTechnicianId(techId);
+                      setStatusFilter('');
+                      setTechnicianCurrentPages(prev => ({ ...prev, [techId]: 1 }));
+                    };
 
-                    {/* Sidebar Search */}
-                    <div className="relative mt-3">
-                      <SearchIcon className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-slate-400" size={14} />
-                      <input
-                        type="text"
-                        placeholder="Pretraga tehničara..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                    return (
+                      <div
+                        key={techId}
+                        tabIndex={0}
+                        onClick={selectTechnician}
+                        onKeyDown={(e) => { if (e.key === 'Enter') selectTechnician(); }}
+                        className={cx('mx-nd-tech', isSelected && 'is-on')}
+                      >
+                        <div className="mx-nd-who">
+                          <span className={cx('sx-item__icon', isSelected && 'is-ink')}>
+                            <User size={16} strokeWidth={1.9} />
+                          </span>
+                          <div className="mx-nd-who__text">
+                            <h4>{techData.technicianInfo.name}</h4>
+                            <p>{techData.technicianInfo.phone}</p>
+                          </div>
+                        </div>
+
+                        <div className="mx-nd-tstats">
+                          <span className="mx-nd-tstat" onClick={(e) => { e.stopPropagation(); handleStatClick(techId, '', e); }}>
+                            <b>{totalOrders}</b><small>Sve</small>
+                          </span>
+                          <span className="mx-nd-tstat is-ok" onClick={(e) => { e.stopPropagation(); handleStatClick(techId, 'zavrsen', e); }}>
+                            <b>{completedOrders}</b><small>OK</small>
+                          </span>
+                          <span className="mx-nd-tstat is-warn" onClick={(e) => { e.stopPropagation(); handleStatClick(techId, 'nezavrsen', e); }}>
+                            <b>{pendingOrders}</b><small>Akt</small>
+                          </span>
+                          <span className="mx-nd-tstat is-info" onClick={(e) => { e.stopPropagation(); handleStatClick(techId, 'odlozen', e); }}>
+                            <b>{postponedOrders}</b><small>Odl</small>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="sx-card mx-nd-techs__main">
+                {selectedTechnicianId ? (
+                  <>
+                    <div className="mx-nd-techs__head">
+                      <div className="mx-nd-techs__title">
+                        <div>
+                          <h3 className="mx-nd-h3">
+                            {technicianWorkOrders[selectedTechnicianId]?.technicianInfo.name}
+                          </h3>
+                          <p className="mx-nd-muted">
+                            {filterOrders(technicianWorkOrders[selectedTechnicianId]?.workOrders || []).length} radnih naloga
+                            {statusFilter && ` (${getStatusLabel(statusFilter)})`}
+                          </p>
+                        </div>
+                        <div className="mx-inline">
+                          <Select
+                            size="sm"
+                            value={dateFilter ? 'custom' : ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const today = new Date();
+                              let newDate = '';
+
+                              switch(value) {
+                                case 'today':
+                                  newDate = localYmd(today);
+                                  break;
+                                case 'yesterday':
+                                  const yesterday = new Date(today);
+                                  yesterday.setDate(yesterday.getDate() - 1);
+                                  newDate = localYmd(yesterday);
+                                  break;
+                                case 'thisWeek':
+                                  const weekStart = new Date(today);
+                                  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                                  newDate = localYmd(weekStart);
+                                  break;
+                                case 'thisMonth':
+                                  newDate = localYmd(new Date(today.getFullYear(), today.getMonth(), 1));
+                                  break;
+                                default:
+                                  newDate = '';
+                              }
+                              setDateFilter(newDate);
+                            }}
+                          >
+                            <option value="">Svi datumi</option>
+                            <option value="today">Danas</option>
+                            <option value="yesterday">Juče</option>
+                            <option value="thisWeek">Ove nedelje</option>
+                            <option value="thisMonth">Ovog meseca</option>
+                            <option value="custom">Prilagođeno</option>
+                          </Select>
+
+                          {dateFilter && (
+                            <Select
+                              size="sm"
+                              value={timeSortOrder}
+                              onChange={(e) => setTimeSortOrder(e.target.value)}
+                            >
+                              <option value="asc">Najstarije → Najnovije</option>
+                              <option value="desc">Najnovije → Najstarije</option>
+                            </Select>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Aktivni filteri */}
+                      {(statusFilter || dateFilter) && (
+                        <div className="sx-chips mx-nd-active">
+                          <span className="mx-nd-muted">Aktivni filteri:</span>
+                          {statusFilter && (
+                            <button type="button" className="sx-chip" onClick={() => setStatusFilter('')}>
+                              {getStatusLabel(statusFilter)}
+                              <span className="sx-chip__x"><X size={12} strokeWidth={2} /></span>
+                            </button>
+                          )}
+                          {dateFilter && (
+                            <button type="button" className="sx-chip" onClick={() => setDateFilter('')}>
+                              {formatDate(dateFilter)}
+                              <span className="sx-chip__x"><X size={12} strokeWidth={2} /></span>
+                            </button>
+                          )}
+                          <Btn
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setStatusFilter('');
+                              setDateFilter('');
+                            }}
+                          >
+                            Obriši sve
+                          </Btn>
+                        </div>
+                      )}
+
+                      {/* Brzi filteri po statusu */}
+                      <Choice
+                        size="sm"
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        layoutId="mx-nd-wos-status"
+                        options={[
+                          { value: '', label: `Svi (${technicianWorkOrders[selectedTechnicianId]?.workOrders.length || 0})` },
+                          { value: 'zavrsen', label: `Završeni (${technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'zavrsen').length || 0})` },
+                          { value: 'nezavrsen', label: `Nezavršeni (${technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'nezavrsen').length || 0})` },
+                          { value: 'odlozen', label: `Odloženi (${technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'odlozen').length || 0})` }
+                        ]}
                       />
                     </div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="p-2 space-y-2">
-                      {Object.entries(technicianWorkOrders)
-                        .filter(([techId, techData]) => {
-                          if (!searchTerm) return true;
-                          const searchLower = searchTerm.toLowerCase();
-                          return techData.technicianInfo.name.toLowerCase().includes(searchLower) ||
-                                 techData.technicianInfo.phone.toLowerCase().includes(searchLower);
-                        })
-                        .map(([techId, techData]) => {
-                        const isSelected = selectedTechnicianId === techId;
-                        const totalOrders = techData.workOrders.length;
-                        const completedOrders = techData.workOrders.filter(o => o.status === 'zavrsen').length;
-                        const pendingOrders = techData.workOrders.filter(o => o.status === 'nezavrsen').length;
-                        const postponedOrders = techData.workOrders.filter(o => o.status === 'odlozen').length;
 
-                        return (
-                          <div
-                            key={techId}
-                            onClick={() => {
-                              setSelectedTechnicianId(techId);
-                              setStatusFilter('');
-                              setTechnicianCurrentPages(prev => ({ ...prev, [techId]: 1 }));
-                            }}
-                            className={cn(
-                              "p-3 rounded-lg cursor-pointer transition-all border",
-                              isSelected
-                                ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                                : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={cn(
-                                "p-1.5 rounded-lg",
-                                isSelected ? "bg-white/10" : "bg-blue-50"
-                              )}>
-                                <UserIcon size={16} className={isSelected ? "text-white" : "text-blue-600"} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className={cn(
-                                  "text-sm font-semibold truncate",
-                                  isSelected ? "text-white" : "text-slate-900"
-                                )}>{techData.technicianInfo.name}</h4>
-                                <p className={cn(
-                                  "text-xs truncate",
-                                  isSelected ? "text-slate-300" : "text-slate-500"
-                                )}>{techData.technicianInfo.phone}</p>
-                              </div>
-                            </div>
+                    {/* Tabela naloga */}
+                    <div className="mx-nd-techs__body">
+                      {(() => {
+                        const filteredTechOrders = filterOrders(technicianWorkOrders[selectedTechnicianId]?.workOrders || []);
+                        const currentPageTech = technicianCurrentPages[selectedTechnicianId] || 1;
+                        const indexOfLastTech = currentPageTech * itemsPerPage;
+                        const indexOfFirstTech = indexOfLastTech - itemsPerPage;
+                        const currentTechItems = filteredTechOrders.slice(indexOfFirstTech, indexOfLastTech);
+                        const totalPagesTech = Math.ceil(filteredTechOrders.length / itemsPerPage);
 
-                            <div className="grid grid-cols-4 gap-1.5 mt-2">
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStatClick(techId, '', e);
-                                }}
-                                className={cn(
-                                  "text-center p-1.5 rounded transition-colors",
-                                  isSelected ? "hover:bg-white/10" : "hover:bg-slate-100"
-                                )}
-                              >
-                                <div className={cn(
-                                  "text-base font-bold",
-                                  isSelected ? "text-white" : "text-slate-900"
-                                )}>{totalOrders}</div>
-                                <div className={cn(
-                                  "text-[10px]",
-                                  isSelected ? "text-slate-300" : "text-slate-500"
-                                )}>Sve</div>
-                              </div>
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStatClick(techId, 'zavrsen', e);
-                                }}
-                                className={cn(
-                                  "text-center p-1.5 rounded transition-colors",
-                                  isSelected ? "hover:bg-white/10" : "hover:bg-emerald-50"
-                                )}
-                              >
-                                <div className={cn(
-                                  "text-base font-bold",
-                                  isSelected ? "text-white" : "text-emerald-600"
-                                )}>{completedOrders}</div>
-                                <div className={cn(
-                                  "text-[10px]",
-                                  isSelected ? "text-slate-300" : "text-slate-500"
-                                )}>OK</div>
-                              </div>
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStatClick(techId, 'nezavrsen', e);
-                                }}
-                                className={cn(
-                                  "text-center p-1.5 rounded transition-colors",
-                                  isSelected ? "hover:bg-white/10" : "hover:bg-amber-50"
-                                )}
-                              >
-                                <div className={cn(
-                                  "text-base font-bold",
-                                  isSelected ? "text-white" : "text-amber-600"
-                                )}>{pendingOrders}</div>
-                                <div className={cn(
-                                  "text-[10px]",
-                                  isSelected ? "text-slate-300" : "text-slate-500"
-                                )}>Akt</div>
-                              </div>
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStatClick(techId, 'odlozen', e);
-                                }}
-                                className={cn(
-                                  "text-center p-1.5 rounded transition-colors",
-                                  isSelected ? "hover:bg-white/10" : "hover:bg-violet-50"
-                                )}
-                              >
-                                <div className={cn(
-                                  "text-base font-bold",
-                                  isSelected ? "text-white" : "text-violet-600"
-                                )}>{postponedOrders}</div>
-                                <div className={cn(
-                                  "text-[10px]",
-                                  isSelected ? "text-slate-300" : "text-slate-500"
-                                )}>Odl</div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Right Content Area - Work Orders for Selected Technician */}
-              <div className="flex-1 min-w-0">
-                <Card className="bg-white border border-slate-100 h-full flex flex-col overflow-hidden">
-                  {selectedTechnicianId ? (
-                    <>
-                      {/* Header */}
-                      <div className="p-4 border-b border-slate-100 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-base font-semibold text-slate-900">
-                              {technicianWorkOrders[selectedTechnicianId]?.technicianInfo.name}
-                            </h3>
-                            <p className="text-sm text-slate-500">
-                              {filterOrders(technicianWorkOrders[selectedTechnicianId]?.workOrders || []).length} radnih naloga
-                              {statusFilter && ` (${getStatusLabel(statusFilter)})`}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={dateFilter ? 'custom' : ''}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                const today = new Date();
-                                let newDate = '';
-
-                                switch(value) {
-                                  case 'today':
-                                    newDate = localYmd(today);
-                                    break;
-                                  case 'yesterday':
-                                    const yesterday = new Date(today);
-                                    yesterday.setDate(yesterday.getDate() - 1);
-                                    newDate = localYmd(yesterday);
-                                    break;
-                                  case 'thisWeek':
-                                    const weekStart = new Date(today);
-                                    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                                    newDate = localYmd(weekStart);
-                                    break;
-                                  case 'thisMonth':
-                                    newDate = localYmd(new Date(today.getFullYear(), today.getMonth(), 1));
-                                    break;
-                                  default:
-                                    newDate = '';
-                                }
-                                setDateFilter(newDate);
-                              }}
-                              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                            >
-                              <option value="">Svi datumi</option>
-                              <option value="today">Danas</option>
-                              <option value="yesterday">Juče</option>
-                              <option value="thisWeek">Ove nedelje</option>
-                              <option value="thisMonth">Ovog meseca</option>
-                              <option value="custom">Prilagođeno</option>
-                            </select>
-
-                            {dateFilter && (
-                              <select
-                                value={timeSortOrder}
-                                onChange={(e) => setTimeSortOrder(e.target.value)}
-                                className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                              >
-                                <option value="asc">Najstarije → Najnovije</option>
-                                <option value="desc">Najnovije → Najstarije</option>
-                              </select>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Active Filters Display */}
-                        {(statusFilter || dateFilter) && (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs text-slate-500">Aktivni filteri:</span>
-                            {statusFilter && (
-                              <button
-                                onClick={() => setStatusFilter('')}
-                                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-                              >
-                                {getStatusLabel(statusFilter)}
-                                <XIcon size={12} />
-                              </button>
-                            )}
-                            {dateFilter && (
-                              <button
-                                onClick={() => setDateFilter('')}
-                                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-                              >
-                                {formatDate(dateFilter)}
-                                <XIcon size={12} />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                setStatusFilter('');
-                                setDateFilter('');
-                              }}
-                              className="text-xs text-slate-500 hover:text-slate-900 underline"
-                            >
-                              Obriši sve
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Quick Filter Chips */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            onClick={() => setStatusFilter('')}
-                            className={cn(
-                              "px-3 py-1 text-xs rounded-lg border transition-all",
-                              !statusFilter
-                                ? "bg-slate-900 text-white border-slate-900"
-                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
-                            )}
-                          >
-                            Svi ({technicianWorkOrders[selectedTechnicianId]?.workOrders.length || 0})
-                          </button>
-                          <button
-                            onClick={() => setStatusFilter('zavrsen')}
-                            className={cn(
-                              "px-3 py-1 text-xs rounded-lg border transition-all",
-                              statusFilter === 'zavrsen'
-                                ? "bg-emerald-600 text-white border-emerald-600"
-                                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-300"
-                            )}
-                          >
-                            Završeni ({technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'zavrsen').length || 0})
-                          </button>
-                          <button
-                            onClick={() => setStatusFilter('nezavrsen')}
-                            className={cn(
-                              "px-3 py-1 text-xs rounded-lg border transition-all",
-                              statusFilter === 'nezavrsen'
-                                ? "bg-amber-600 text-white border-amber-600"
-                                : "bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-300"
-                            )}
-                          >
-                            Nezavršeni ({technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'nezavrsen').length || 0})
-                          </button>
-                          <button
-                            onClick={() => setStatusFilter('odlozen')}
-                            className={cn(
-                              "px-3 py-1 text-xs rounded-lg border transition-all",
-                              statusFilter === 'odlozen'
-                                ? "bg-violet-600 text-white border-violet-600"
-                                : "bg-violet-50 text-violet-700 border-violet-200 hover:border-violet-300"
-                            )}
-                          >
-                            Odloženi ({technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'odlozen').length || 0})
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Table Content */}
-                      <div className="flex-1 overflow-auto">
-                        {(() => {
-                          const filteredTechOrders = filterOrders(technicianWorkOrders[selectedTechnicianId]?.workOrders || []);
-                          const currentPageTech = technicianCurrentPages[selectedTechnicianId] || 1;
-                          const indexOfLastTech = currentPageTech * itemsPerPage;
-                          const indexOfFirstTech = indexOfLastTech - itemsPerPage;
-                          const currentTechItems = filteredTechOrders.slice(indexOfFirstTech, indexOfLastTech);
-                          const totalPagesTech = Math.ceil(filteredTechOrders.length / itemsPerPage);
-
-                          if (filteredTechOrders.length === 0) {
-                            return (
-                              <div className="flex items-center justify-center h-full">
-                                <div className="text-center">
-                                  <div className="p-4 bg-slate-50 rounded-full inline-block mb-3">
-                                    <ClipboardIcon size={32} className="text-slate-400" />
-                                  </div>
-                                  <p className="text-slate-600 font-medium">Nema radnih naloga</p>
-                                  <p className="text-sm text-slate-400 mt-1">
-                                    {statusFilter ? 'Pokušajte sa drugim filterom' : 'Ovaj tehničar trenutno nema dodeljenih naloga'}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          }
-
+                        if (filteredTechOrders.length === 0) {
                           return (
-                            <div className="p-4">
-                              {/* Table Actions Bar */}
-                              <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500">
-                                    {currentTechItems.length} od {filteredTechOrders.length} naloga
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => {
-                                      const data = sortByDate(currentTechItems).map(order => ({
-                                        Datum: formatDate(order.date),
-                                        Opština: order.municipality,
-                                        Adresa: order.address,
-                                        Tip: order.type,
-                                        Status: getStatusLabel(order.status)
-                                      }));
-
-                                      const csv = [
-                                        Object.keys(data[0]).join(','),
-                                        ...data.map(row => Object.values(row).join(','))
-                                      ].join('\n');
-
-                                      const blob = new Blob([csv], { type: 'text/csv' });
-                                      const url = window.URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = url;
-                                      a.download = `radni-nalozi-${technicianWorkOrders[selectedTechnicianId]?.technicianInfo.name}-${localYmd()}.csv`;
-                                      a.click();
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                      <polyline points="7 10 12 15 17 10"/>
-                                      <line x1="12" y1="15" x2="12" y2="3"/>
-                                    </svg>
-                                    Export CSV
-                                  </button>
-                                  <button
-                                    onClick={() => window.print()}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="6 9 6 2 18 2 18 9"/>
-                                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                                      <rect x="6" y="14" width="12" height="8"/>
-                                    </svg>
-                                    Print
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setStatusFilter('');
-                                      setDateFilter('');
-                                      setTechnicianCurrentPages(prev => ({ ...prev, [selectedTechnicianId]: 1 }));
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                                  >
-                                    <RefreshIcon size={14} />
-                                    Reset
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div className="overflow-x-auto">
-                                <table className="w-full">
-                                  <thead>
-                                    <tr className="border-b border-slate-100">
-                                      <th
-                                        onClick={() => handleSort('date')}
-                                        className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer hover:bg-slate-50 transition-colors group"
-                                      >
-                                        <div className="flex items-center gap-1">
-                                          Datum
-                                          {tableSortConfig.key === 'date' && (
-                                            <span className="text-slate-900">
-                                              {tableSortConfig.direction === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </th>
-                                      <th
-                                        onClick={() => handleSort('municipality')}
-                                        className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer hover:bg-slate-50 transition-colors group"
-                                      >
-                                        <div className="flex items-center gap-1">
-                                          Opština
-                                          {tableSortConfig.key === 'municipality' && (
-                                            <span className="text-slate-900">
-                                              {tableSortConfig.direction === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </th>
-                                      <th
-                                        onClick={() => handleSort('address')}
-                                        className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer hover:bg-slate-50 transition-colors group"
-                                      >
-                                        <div className="flex items-center gap-1">
-                                          Adresa
-                                          {tableSortConfig.key === 'address' && (
-                                            <span className="text-slate-900">
-                                              {tableSortConfig.direction === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </th>
-                                      <th
-                                        onClick={() => handleSort('type')}
-                                        className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer hover:bg-slate-50 transition-colors group"
-                                      >
-                                        <div className="flex items-center gap-1">
-                                          Tip
-                                          {tableSortConfig.key === 'type' && (
-                                            <span className="text-slate-900">
-                                              {tableSortConfig.direction === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </th>
-                                      <th
-                                        onClick={() => handleSort('status')}
-                                        className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer hover:bg-slate-50 transition-colors group"
-                                      >
-                                        <div className="flex items-center gap-1">
-                                          Status
-                                          {tableSortConfig.key === 'status' && (
-                                            <span className="text-slate-900">
-                                              {tableSortConfig.direction === 'asc' ? '↑' : '↓'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </th>
-                                      <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Akcije</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-50">
-                                    {sortTableData(currentTechItems, tableSortConfig).map((order) => (
-                                      <tr
-                                        key={order._id}
-                                        onClick={(e) => navigateToOrderDetails(order._id, e)}
-                                        className={cn("transition-colors cursor-pointer", getTimRowClasses(order.tim, 'hover:bg-slate-50'))}
-                                      >
-                                        <td className="px-4 py-3 text-sm text-slate-700">{formatDate(order.date)}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-600">{order.municipality}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-600">{order.address}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-600">{order.type}</td>
-                                        <td className="px-4 py-3 text-sm">
-                                          <span className={cn(
-                                            "inline-flex px-2 py-0.5 text-xs font-medium rounded-lg border",
-                                            order.status === 'zavrsen' && "bg-emerald-50 text-emerald-700 border-emerald-200",
-                                            order.status === 'nezavrsen' && "bg-amber-50 text-amber-700 border-amber-200",
-                                            order.status === 'odlozen' && "bg-violet-50 text-violet-700 border-violet-200",
-                                            order.status === 'otkazan' && "bg-red-50 text-red-700 border-red-200"
-                                          )}>
-                                            {getStatusLabel(order.status)}
-                                          </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-right">
-                                          <div className="flex items-center justify-end gap-2">
-                                            <Link to={`/work-orders/${order._id}`} target="_blank">
-                                              <button className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors">
-                                                <ViewIcon size={16} />
-                                              </button>
-                                            </Link>
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDelete(order._id);
-                                              }}
-                                              className="delete-btn p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                            >
-                                              <DeleteIcon size={16} />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-
-                              <PaginationComponent
-                                currentPage={currentPageTech}
-                                totalPages={totalPagesTech}
-                                onPageChange={(page) => paginateTechnician(selectedTechnicianId, page)}
-                              />
+                            <div className="sx-empty-block mx-nd-center">
+                              <span className="sx-item__icon"><ClipboardList size={18} strokeWidth={1.8} /></span>
+                              <b>Nema radnih naloga</b>
+                              <span>
+                                {statusFilter ? 'Pokušajte sa drugim filterom' : 'Ovaj tehničar trenutno nema dodeljenih naloga'}
+                              </span>
                             </div>
                           );
-                        })()}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <div className="p-4 bg-slate-50 rounded-full inline-block mb-3">
-                          <UserCheckIcon size={32} className="text-slate-400" />
-                        </div>
-                        <p className="text-slate-600 font-medium">Izaberite tehničara</p>
-                        <p className="text-sm text-slate-400 mt-1">Kliknite na karticu tehničara sa leve strane</p>
-                      </div>
+                        }
+
+                        // Zaglavlje kolone koje sortira (klik ili Enter), strelica pokazuje smer
+                        const sortTh = (key, label) => (
+                          <th
+                            className="mx-nd-sortth"
+                            tabIndex={0}
+                            aria-sort={tableSortConfig.key === key ? (tableSortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
+                            onClick={() => handleSort(key)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSort(key); }}
+                          >
+                            {label}
+                            {tableSortConfig.key === key && (
+                              <span className="mx-nd-sortdir">
+                                {tableSortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </th>
+                        );
+
+                        return (
+                          <>
+                            <div className="mx-nd-tablebar">
+                              <span className="mx-nd-muted">
+                                {currentTechItems.length} od {filteredTechOrders.length} naloga
+                              </span>
+                              <div className="mx-inline">
+                                <Btn
+                                  size="sm"
+                                  icon={Download}
+                                  onClick={() => {
+                                    const data = sortByDate(currentTechItems).map(order => ({
+                                      Datum: formatDate(order.date),
+                                      Opština: order.municipality,
+                                      Adresa: order.address,
+                                      Tip: order.type,
+                                      Status: getStatusLabel(order.status)
+                                    }));
+
+                                    const csv = [
+                                      Object.keys(data[0]).join(','),
+                                      ...data.map(row => Object.values(row).join(','))
+                                    ].join('\n');
+
+                                    const blob = new Blob([csv], { type: 'text/csv' });
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `radni-nalozi-${technicianWorkOrders[selectedTechnicianId]?.technicianInfo.name}-${localYmd()}.csv`;
+                                    a.click();
+                                  }}
+                                >
+                                  Export CSV
+                                </Btn>
+                                <Btn size="sm" icon={Printer} onClick={() => window.print()}>
+                                  Print
+                                </Btn>
+                                <Btn
+                                  size="sm"
+                                  icon={RotateCcw}
+                                  onClick={() => {
+                                    setStatusFilter('');
+                                    setDateFilter('');
+                                    setTechnicianCurrentPages(prev => ({ ...prev, [selectedTechnicianId]: 1 }));
+                                  }}
+                                >
+                                  Reset
+                                </Btn>
+                              </div>
+                            </div>
+
+                            <div className="mx-nd-hscroll">
+                              <table className="sx-table">
+                                <thead>
+                                  <tr>
+                                    {sortTh('date', 'Datum')}
+                                    {sortTh('municipality', 'Opština')}
+                                    {sortTh('address', 'Adresa')}
+                                    {sortTh('type', 'Tip')}
+                                    {sortTh('status', 'Status')}
+                                    <th className="is-end">Akcije</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sortTableData(currentTechItems, tableSortConfig).map((order, i) => (
+                                    <tr
+                                      key={order._id}
+                                      tabIndex={0}
+                                      onClick={(e) => navigateToOrderDetails(order._id, e)}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') navigateToOrderDetails(order._id, e); }}
+                                      className="is-click"
+                                      style={{ '--i': i, ...getTimRowStyle(order.tim) }}
+                                    >
+                                      <td><b className="mx-strong">{formatDate(order.date)}</b></td>
+                                      <td>{order.municipality}</td>
+                                      <td>{order.address}</td>
+                                      <td>{order.type}</td>
+                                      <td>
+                                        <Sign tone={STATUS_TONE[order.status] || 'idle'}>{getStatusLabel(order.status)}</Sign>
+                                      </td>
+                                      <td className="is-end">
+                                        <div className="sx-rowacts">
+                                          <LinkBtn to={`/work-orders/${order._id}`} target="_blank" size="sm" variant="ghost" icon={Eye} />
+                                          <Btn
+                                            size="sm"
+                                            variant="ghost"
+                                            icon={Trash2}
+                                            className="delete-btn mx-danger"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDelete(order._id);
+                                            }}
+                                          />
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <PaginationComponent
+                              currentPage={currentPageTech}
+                              totalPages={totalPagesTech}
+                              onPageChange={(page) => paginateTechnician(selectedTechnicianId, page)}
+                            />
+                          </>
+                        );
+                      })()}
                     </div>
-                  )}
-                </Card>
-              </div>
+                  </>
+                ) : (
+                  <div className="sx-empty-block mx-nd-pick">
+                    <span className="sx-item__icon"><UserCheck size={18} strokeWidth={1.8} /></span>
+                    <b>Izaberite tehničara</b>
+                    <span>Kliknite na karticu tehničara sa leve strane</span>
+                  </div>
+                )}
+              </section>
             </div>
           )}
 
-          {/* NOTE: Full implementation of other tabs (unassigned, verification, all, pregled) would follow same pattern
-              Due to character limits, providing simplified message */}
+          {/* Ostali tabovi: samo broj naloga, kao ranije */}
           {activeTab !== 'technicians' && (
-            <Card className="bg-white border border-slate-100">
-              <CardContent className="p-12 text-center">
-                <p className="text-slate-600">
+            <Panel pad={false}>
+              <div className="sx-empty-block">
+                <b>
                   {activeTab === 'unassigned' && `${filteredUnassigned.length} nedodelјenih naloga`}
                   {activeTab === 'verification' && `${filteredVerification.length} naloga za verifikaciju`}
                   {activeTab === 'all' && `${filteredAllOrders.length} naloga ukupno`}
                   {activeTab === 'pregled' && 'Fancy table pregled'}
-                </p>
-                <p className="text-sm text-slate-400 mt-2">
-                  Full implementation available - displaying placeholder
-                </p>
-              </CardContent>
-            </Card>
+                </b>
+                <span>Full implementation available - displaying placeholder</span>
+              </div>
+            </Panel>
           )}
-        </div>
+        </>
       )}
 
-      {/* Customer Status Modal */}
-      {customerStatusModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ overflow: 'hidden' }} onClick={(e) => { if (e.target === e.currentTarget) closeCustomerStatusModal(); }}>
-          <Card className="max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
-            <CardHeader className="border-b border-slate-100 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <CardTitle>Status korisnika</CardTitle>
-                <button
-                  onClick={closeCustomerStatusModal}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <XIcon size={20} className="text-slate-400" />
-                </button>
-              </div>
-              <p className="text-sm text-slate-600 mt-2">
-                Izaberite status korisnika za ovaj radni nalog
-              </p>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3 overflow-y-auto flex-1">
-              {[
-                'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima sa isporukom materijala',
-                'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova sa isporukom materijala',
-                'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju) - ASTRA TELEKOM',
-                'Dodavanje drugog uređaja ili dorada - ASTRA TELEKOM',
-                'Demontaža postojeće opreme kod korisnika (po korisniku) - ASTRA TELEKOM',
-                'Intervencija kod korisnika - ASTRA TELEKOM',
-                'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa) - ASTRA TELEKOM'
-              ].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
-                  className={cn(
-                    "w-full p-3 text-left rounded-lg border-2 transition-all hover:shadow-sm text-sm",
-                    orderStatuses[customerStatusModal.orderId] === status
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-900">{status}</span>
-                    {orderStatuses[customerStatusModal.orderId] === status && (
-                      <CheckCircleIcon size={18} className="text-blue-600 flex-shrink-0 ml-2" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
+      {/* Status korisnika */}
+      <Dialog
+        open={customerStatusModal.isOpen}
+        onClose={closeCustomerStatusModal}
+        title="Status korisnika"
+        description="Izaberite status korisnika za ovaj radni nalog"
+        size="lg"
+      >
+        <div className="mx-nd-statuses">
+          {[
+            'Priključenje korisnika na HFC KDS mreža u zgradi sa instalacijom CPE opreme (izrada kompletne instalacije od RO do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+            'Priključenje korisnika na HFC KDS mreža u privatnim kućama sa instalacijom CPE opreme (izrada instalacije od PM-a do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+            'Priključenje korisnika na GPON mrežu u privatnim kućama (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+            'Priključenje korisnika na GPON mrežu u zgradi (izrada kompletne instalacije od PM do korisnika sa instalacijom kompletne CPE opreme) sa isporukom materijala',
+            'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji sa montažnim radovima sa isporukom materijala',
+            'Radovi kod postojećeg korisnika na unutrašnjoj instalaciji bez montažnih radova sa isporukom materijala',
+            'Priključenje novog korisnika WiFi tehnologijom (postavljanje nosača antene, postavljanje i usmeravanje antene ka baznoj stanici sa postavljanjem napajanja za antenu, postavljanje rutera i jednog uređaja za televiziju) - ASTRA TELEKOM',
+            'Dodavanje drugog uređaja ili dorada - ASTRA TELEKOM',
+            'Demontaža postojeće opreme kod korisnika (po korisniku) - ASTRA TELEKOM',
+            'Intervencija kod korisnika - ASTRA TELEKOM',
+            'Priključenje korisnika GPON tehnologijom (povezivanje svih uređaja u okviru paketa) - ASTRA TELEKOM'
+          ].map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => handleCustomerStatusChange(customerStatusModal.orderId, status)}
+              className={cx('mx-nd-status', orderStatuses[customerStatusModal.orderId] === status && 'is-on')}
+            >
+              <span>{status}</span>
+              {orderStatuses[customerStatusModal.orderId] === status && (
+                <CheckCircle2 size={18} strokeWidth={1.9} aria-hidden="true" />
+              )}
+            </button>
+          ))}
         </div>
-      )}
+      </Dialog>
 
       {/* AI Verification Modal */}
       <AIVerificationModal
@@ -3032,7 +2321,7 @@ const WorkOrdersSection = () => {
         onClose={() => setAiReturnModal({ isOpen: false, orderId: null, comment: '' })}
         onReturned={handleAIReturned}
       />
-    </div>
+    </section>
   );
 };
 

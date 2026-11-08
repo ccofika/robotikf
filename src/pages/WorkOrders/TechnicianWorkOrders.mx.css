@@ -1,0 +1,37 @@
+/* Moji radni nalozi (tehničar): kartice na telefonu i red sa razlogom vraćanja u tabeli
+   (zaglavlje, brojke, pretraga u kartici, filteri i paginacija na telefonu su u TechniciansInventory/TechnicianInventory.mx.css).
+   Pravila su pod .mx-mynalozi jer se ovaj fajl učitava pre sx osnove (ista težina bi izgubila). Boje samo iz tokena. */
+
+/* ---------- telefon: kartica naloga (vodoravno prevlačenje radi skripta, uspravni skrol ostaje pregledaču) ---------- */
+.mx-mynalozi .mx-mynalozi-cards { display: grid; gap: 10px; padding: 12px; }
+.mx-mynalozi .mx-mynalozi-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--sx-line);
+  border-radius: 14px;
+  background: var(--sx-surface);
+  touch-action: pan-y;
+  animation: sx-fade 160ms linear calc(min(var(--i, 0), 14) * 18ms) backwards, sx-row-in 300ms var(--ease-enter) calc(min(var(--i, 0), 14) * 18ms) backwards;
+}
+.mx-mynalozi .mx-mynalozi-card__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.mx-mynalozi .mx-mynalozi-card__when { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-muted); white-space: nowrap; }
+.mx-mynalozi .mx-mynalozi-card__place { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; }
+.mx-mynalozi .mx-mynalozi-card__place > svg { margin-top: 2px; color: var(--sx-accent-text); }
+.mx-mynalozi .mx-mynalozi-card__place b { display: block; font-size: 14.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-mynalozi .mx-mynalozi-card__place span { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.mx-mynalozi .mx-mynalozi-card__tel { display: inline-flex; align-items: center; gap: 8px; width: max-content; min-height: 36px; font-size: 13.5px; font-weight: 600; color: var(--sx-accent-text); }
+.mx-mynalozi .mx-mynalozi-card__foot { display: flex; padding-top: 10px; border-top: 1px solid var(--sx-line); }
+
+/* ---------- tabela: obojen red tima (robotik/mtel) ne izlazi preko zaobljenih uglova panela (clip ne kvari lepljivo zaglavlje) ---------- */
+.mx-mynalozi .mx-mynalozi-panel { overflow: clip; }
+
+/* ---------- tabela: razlog vraćanja je poseban red ispod naloga, preko cele širine ---------- */
+.mx-mynalozi .mx-mynalozi-table tr.has-note > td { border-bottom: 0; }
+.mx-mynalozi .mx-mynalozi-table tr.mx-mynalozi-note { background: var(--mx-tim, transparent); }
+.mx-mynalozi .mx-mynalozi-table tr.mx-mynalozi-note > td { padding-top: 0; }
+/* uska tabela (kartice): napomena ide odmah ispod kartice naloga, bez sopstvenog okvira */
+@container tbl (max-width: 760px) {
+  .mx-mynalozi .mx-mynalozi-table tbody tr.mx-mynalozi-note { display: block; margin-top: -4px; padding: 0; border: 0; border-radius: 0; background: none; }
+}

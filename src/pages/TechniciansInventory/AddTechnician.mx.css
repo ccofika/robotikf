@@ -1,0 +1,2 @@
+/* Novi tehničar: na telefonu dugmad preko cele širine, jedno ispod drugog (kao ranije) */
+@media (max-width: 639px) { .mx-addtech > .sx-panel__foot > .sx-btn { flex: 1 1 100%; } }

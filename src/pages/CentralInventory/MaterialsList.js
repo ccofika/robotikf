@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { materialsAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
 import { Btn, Sign } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
 import { SearchField } from '../../security/sx/forms';
 import { confirm } from '../../security/sx/confirm';
 import { Pager, ColumnMenu, Loading, LinkBtn } from '../../montaza/ui';
@@ -191,16 +191,16 @@ const MaterialsList = () => {
         <Stat label="Malo na stanju" value={dashboardStats?.lowStock || 0} small={`${pct(dashboardStats?.lowStock || 0)}%`} tone={dashboardStats?.lowStock ? 'warn' : null} sub="manje od 5" />
       </div>
 
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po nazivu materijala..." />
-        <div className="sx-toolbar__end">
-          <ColumnMenu columns={{ type: 'Vrsta materijala', quantity: 'Količina', actions: 'Akcije' }} visible={visibleColumns}
-            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))} />
-          <Btn size="sm" icon={RefreshCw} onClick={fetchMaterials} busy={busy}>Osveži</Btn>
+      {/* kao ranije: pretraga, kolone i osvežavanje su u vrhu kartice sa tabelom */}
+      <Panel pad={false} className="mx-tablecard">
+        <div className="mx-panelbar">
+          <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po nazivu materijala..." />
+          <div className="mx-panelbar__end">
+            <ColumnMenu columns={{ type: 'Vrsta materijala', quantity: 'Količina', actions: 'Akcije' }} visible={visibleColumns}
+              onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))} />
+            <Btn size="sm" icon={RefreshCw} onClick={fetchMaterials} busy={busy}>Osveži</Btn>
+          </div>
         </div>
-      </Toolbar>
-
-      <Panel pad={false}>
         {(dashboardLoading || recentLoading) ? (
           <Loading text="Učitavanje materijala..." />
         ) : (

@@ -1,0 +1,33 @@
+/* =============================================================================
+   FancyDataTable u izgledu Security dela: filteri levo (na uskom prostoru iznad), tabela desno.
+   Sve je pod .mx-fancy (ovaj CSS se učitava pre sx.css). Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+.mx-fancy { container: fancy / inline-size; min-width: 0; }
+.mx-fancy .mx-fancy__in { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@container fancy (min-width: 900px) {
+  .mx-fancy .mx-fancy__in.has-side { grid-template-columns: minmax(240px, 288px) minmax(0, 1fr); }
+  .mx-fancy .mx-fancy__side { position: sticky; top: 24px; }
+}
+.mx-fancy .mx-fancy__side { display: grid; gap: 12px; min-width: 0; }
+.mx-fancy .mx-fancy__main { min-width: 0; }
+.mx-fancy .mx-fancy__fields { display: grid; margin-top: 14px; }
+.mx-fancy .mx-fancy__field { padding: 12px 0; border-top: 1px solid var(--sx-line); }
+.mx-fancy .mx-fancy__field:last-child { padding-bottom: 0; }
+.mx-fancy .mx-fancy__toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 28px; font-size: 12.5px; font-weight: 600; color: var(--sx-text-2); }
+@media (hover: hover) and (pointer: fine) { .mx-fancy .mx-fancy__toggle:hover { color: var(--sx-text); } }
+.mx-fancy .mx-fancy__body { margin-top: 8px; }
+.mx-fancy .mx-fancy__body .sx-select, .mx-fancy .mx-fancy__body .sx-dt { width: 100%; max-width: none; }
+.mx-fancy .mx-fancy__checks { display: grid; gap: 8px; max-height: 192px; overflow-y: auto; }
+.mx-fancy .mx-fancy__count { margin-left: 6px; font-family: var(--sx-font-mono); font-size: 11.5px; color: var(--sx-muted); }
+.mx-fancy .mx-fancy__res { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-fancy .mx-fancy__res .sx-num { font-size: 20px; color: var(--sx-text); }
+.mx-fancy .mx-fancy__res .sx-sign { flex-basis: 100%; }
+.mx-fancy .mx-fancy__total { font-size: 13px; color: var(--sx-muted); }
+.mx-fancy .mx-fancy__spin > svg { animation: sx-spin 0.9s linear infinite; }
+.mx-fancy .mx-fancy__toolbar + .sx-panel { margin-top: 16px; }
+.mx-fancy .mx-fancy__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; }
+.mx-fancy .mx-fancy__group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* tabela kao ranije: vodoravni skrol unutar kartice */
+.mx-fancy .mx-fancy__scroll { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+.mx-fancy .mx-fancy__empty { justify-items: center; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .mx-fancy .mx-fancy__spin > svg { animation: none; } }
