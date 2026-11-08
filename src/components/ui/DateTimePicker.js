@@ -1,12 +1,39 @@
-import React from 'react';
+import React, { useEffect, useId, useState } from 'react';
+import { X } from 'lucide-react';
+import { Btn } from '../../security/sx/ui';
+import { Field, DateField, TimeField } from '../../security/sx/forms';
+import './DateTimePicker.mx.css';
+
+// Datum + vreme (sx kalendar i lista vremena). Vrednost je kao kod datetime-local: 'GGGG-MM-DDTHH:MM' ili ''.
+// Kao i datetime-local, vrednost se šalje tek kad su upisani i datum i vreme; brisanje datuma šalje ''.
+const split = (v) => ({ d: v ? v.slice(0, 10) : '', t: v ? v.slice(11, 16) : '' });
+
+export function DateTimeInput({ value, onChange, id, disabled, compact, clearable, 'aria-label': ariaLabel }) {
+  const [part, setPart] = useState(() => split(value));
+  useEffect(() => { setPart(split(value)); }, [value]);
+  const set = (d, t) => {
+    setPart({ d, t });
+    if (d && t) onChange(`${d}T${t}`);
+    else if (!d && value) onChange('');
+  };
+  return (
+    <span className="mx-dtp__in">
+      <DateField id={id} compact={compact} value={part.d} onChange={(d) => set(d, part.t)} disabled={disabled} aria-label={ariaLabel} />
+      <TimeField compact={compact} value={part.t} onChange={(t) => set(part.d, t)} disabled={disabled} invalid={!!part.d && !part.t} aria-label="Vreme" />
+      {clearable && (value || part.d) && (
+        <Btn size="sm" variant="ghost" icon={X} onClick={() => set('', '')} disabled={disabled} aria-label="Obriši" title="Obriši" />
+      )}
+    </span>
+  );
+}
 
 const DateTimePicker = ({
   value,
   onChange,
   label,
-  placeholder = "Izaberite datum i vreme",
   className = ""
 }) => {
+  const id = useId();
   // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
   const formatDateTimeLocal = (isoString) => {
     if (!isoString) return '';
@@ -17,10 +44,6 @@ const DateTimePicker = ({
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
-
-  const handleChange = (e) => {
-    onChange(e.target.value);
   };
 
   const setToday = () => {
@@ -61,85 +84,20 @@ const DateTimePicker = ({
     onChange(formatDateTimeLocal(lastMonth.toISOString()));
   };
 
-  const clearValue = () => {
-    onChange('');
-  };
-
   return (
-    <div className={`space-y-2 ${className}`}>
-      {label && (
-        <label className="text-sm font-medium text-slate-700">
-          {label}
-        </label>
-      )}
-      <div className="relative">
-        <input
-          type="datetime-local"
-          value={value}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className="w-full h-10 px-3 pr-10 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-400"
-        />
-        {value && (
-          <button
-            type="button"
-            onClick={clearValue}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
-            title="Obriši"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
+    <Field label={label} htmlFor={id} className={className}>
+      <DateTimeInput id={id} value={value} onChange={onChange} clearable />
 
-      {/* Quick select buttons */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={setToday}
-          className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
-        >
-          Sada
-        </button>
-        <button
-          type="button"
-          onClick={setTodayStart}
-          className="px-2 py-1 text-xs bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
-        >
-          Danas 00:00
-        </button>
-        <button
-          type="button"
-          onClick={setTodayEnd}
-          className="px-2 py-1 text-xs bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
-        >
-          Danas 23:59
-        </button>
-        <button
-          type="button"
-          onClick={setYesterdayStart}
-          className="px-2 py-1 text-xs bg-purple-50 text-purple-700 rounded hover:bg-purple-100 transition-colors"
-        >
-          Juče 00:00
-        </button>
-        <button
-          type="button"
-          onClick={setLastWeekStart}
-          className="px-2 py-1 text-xs bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition-colors"
-        >
-          Pre 7 dana
-        </button>
-        <button
-          type="button"
-          onClick={setLastMonthStart}
-          className="px-2 py-1 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
-        >
-          Pre 30 dana
-        </button>
+      {/* Brzi izbor */}
+      <div className="mx-dtp__quick">
+        <Btn size="sm" onClick={setToday}>Sada</Btn>
+        <Btn size="sm" onClick={setTodayStart}>Danas 00:00</Btn>
+        <Btn size="sm" onClick={setTodayEnd}>Danas 23:59</Btn>
+        <Btn size="sm" onClick={setYesterdayStart}>Juče 00:00</Btn>
+        <Btn size="sm" onClick={setLastWeekStart}>Pre 7 dana</Btn>
+        <Btn size="sm" onClick={setLastMonthStart}>Pre 30 dana</Btn>
       </div>
-    </div>
+    </Field>
   );
 };
 
