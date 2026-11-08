@@ -1,49 +1,37 @@
 import React from 'react';
 import { Dock } from './dock-two';
-import {
-  ActivityIcon,
-  CheckCircleIcon,
-  UsersIcon,
-  ClockIcon,
-  TrendingUpIcon,
-  BarChartIcon,
-  AlertTriangleIcon,
-  MapPinIcon,
-  DollarSignIcon,
-  UserCheckIcon,
-  CalendarIcon,
-  PieChartIcon
-} from '../icons/SvgIcons';
+import { MapPin, TriangleAlert, Clock, DollarSign, UserCheck } from 'lucide-react';
+import { cx } from '../../security/sx/ui';
 
 const DashboardDock = ({ onKPISelect, activeKPI, kpiData }) => {
   // KPI dock items configuration
   const dockItems = [
     {
-      icon: MapPinIcon,
+      icon: MapPin,
       label: 'Interactive Map',
       id: 'map',
       hasData: !!kpiData?.map
     },
     {
-      icon: AlertTriangleIcon,
+      icon: TriangleAlert,
       label: 'Cancellation Analysis',
       id: 'cancellation',
       hasData: !!kpiData?.cancellation
     },
     {
-      icon: ClockIcon,
+      icon: Clock,
       label: 'Hourly Activity',
       id: 'hourly',
       hasData: !!kpiData?.hourly
     },
     {
-      icon: DollarSignIcon,
+      icon: DollarSign,
       label: 'Financial Analysis',
       id: 'financial',
       hasData: !!kpiData?.financial
     },
     {
-      icon: UserCheckIcon,
+      icon: UserCheck,
       label: 'Technician Comparison',
       id: 'technician',
       hasData: !!kpiData?.technician
@@ -58,36 +46,30 @@ const DashboardDock = ({ onKPISelect, activeKPI, kpiData }) => {
   }));
 
   return (
-    <div className="dock-container">
-      <div className="dock-background">
-        <div className="flex items-center gap-2 p-2">
-          {dockItems.map((item, index) => {
-            const IconComponent = item.icon;
-            const isActive = activeKPI === item.id;
-            const hasData = item.hasData;
+    <nav className="mx-logdash-dock" aria-label="KPI">
+      {dockItems.map((item) => {
+        const IconComponent = item.icon;
+        const isActive = activeKPI === item.id;
+        const hasData = item.hasData;
 
-            return (
-              <div
-                key={item.id}
-                className={`dock-item ${isActive ? 'active' : ''}`}
-                onClick={() => onKPISelect(item.id)}
-                title={item.label}
-              >
-                <IconComponent className="w-5 h-5" />
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={cx('mx-logdash-dock__btn', isActive && 'is-on')}
+            onClick={() => onKPISelect(item.id)}
+            title={item.label}
+            aria-label={item.label}
+            aria-pressed={isActive}
+          >
+            <IconComponent size={20} strokeWidth={1.8} aria-hidden="true" />
 
-                {/* Indicator */}
-                <div className={`dock-indicator ${isActive ? 'active' : hasData ? 'loaded' : ''}`}></div>
-
-                {/* Tooltip */}
-                <div className="dock-tooltip">
-                  {item.label}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+            {/* Indikator: otvoren ili učitan */}
+            {(isActive || hasData) && <span className="mx-logdash-dock__dot" aria-hidden="true" />}
+          </button>
+        );
+      })}
+    </nav>
   );
 };
 

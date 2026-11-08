@@ -1,15 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  ClockIcon,
-  RefreshIcon,
-  TrendingUpIcon,
-  BarChartIcon,
-  HardHatIcon,
-  ChartIcon,
-  CheckIcon,
-  CloseIcon
-} from '../../../components/icons/SvgIcons';
-import { Button } from '../../../components/ui/button-1';
+import { X, CircleCheck, TrendingUp, ChartColumn } from 'lucide-react';
+import { Btn, Sign } from '../../../security/sx/ui';
+import { Stat, KV } from '../../../security/sx/layout';
+import Dialog from '../../../security/sx/Dialog';
+import { Loading } from '../../../montaza/ui';
 import { cn } from '../../../utils/cn';
 import GlobalDashboardFilters from '../../../components/ui/GlobalDashboardFilters';
 import DrilldownModal from '../../../components/ui/DrilldownModal';
@@ -31,8 +25,8 @@ import InteractiveActivityMap from '../../../components/ui/InteractiveActivityMa
 import FinancialAnalysis from '../../../components/ui/FinancialAnalysis';
 import TechnicianComparison from '../../../components/ui/TechnicianComparison';
 
-// Import CSS styles
-import '../../../components/ui/DashboardStyles.css';
+// Izgled taba (mx-logdash-)
+import './DashboardSectionNew.mx.css';
 
 const DashboardSection = ({
   technicianLogs = [],
@@ -465,8 +459,8 @@ const DashboardSection = ({
   const renderKPIContent = (kpiType) => {
     if (!kpiType || !memoizedKpiData[kpiType]) {
       return (
-        <div className="text-center py-8">
-          <p className="text-gray-600">Nema podataka za prikazivanje</p>
+        <div className="sx-empty-block">
+          <span>Nema podataka za prikazivanje</span>
         </div>
       );
     }
@@ -476,19 +470,9 @@ const DashboardSection = ({
     // Show loading message if we only have stats and are loading full data
     if (data.isStatsOnly) {
       return (
-        <div className="text-center py-8">
-          <div className="mb-4">
-            <div className="inline-flex items-center px-4 py-2 bg-blue-50 rounded-lg">
-              <span className="text-lg font-semibold text-blue-600 mr-2">
-                {data.total}
-              </span>
-              <span className="text-sm text-gray-600">ukupno stavki</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-center">
-            <RefreshIcon className="w-6 h-6 text-blue-500 animate-spin mr-2" />
-            <p className="text-gray-600">Učitavanje detaljnih podataka...</p>
-          </div>
+        <div className="sx-empty-block">
+          <b><span className="sx-mono">{data.total}</span> ukupno stavki</b>
+          <span>Učitavanje detaljnih podataka...</span>
         </div>
       );
     }
@@ -548,8 +532,8 @@ const DashboardSection = ({
         );
       default:
         return (
-          <div className="text-center py-8">
-            <p className="text-gray-600">Nepoznat tip KPI-a: {kpiType}</p>
+          <div className="sx-empty-block">
+            <span>Nepoznat tip KPI-a: {kpiType}</span>
           </div>
         );
     }
@@ -655,94 +639,65 @@ const DashboardSection = ({
   }, [filterSummary]); // Removed activeKPI from dependencies to prevent double loading
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="mx-logdash" data-testid="logs-dashboard">
+      <header className="mx-logdash__head">
+        <h1 className="mx-logdash__title">Dashboard Analitike</h1>
+        <p className="mx-logdash__lead">Izaberite KPI koji želite da analizirate koristeći dock na dnu stranice</p>
+      </header>
 
-      {/* Main Content Area */}
-      <div className="p-6 pb-32"> {/* Extra bottom padding for dock */}
-        {/* Welcome Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Dashboard Analitike
-          </h1>
-          <p className="text-gray-600">
-            Izaberite KPI koji želite da analizirate koristeći dock na dnu stranice
-          </p>
+      {/* KPI kartice - dok nijedan KPI nije otvoren */}
+      {!activeKPI && (
+        <KPICards
+          kpiData={kpiData}
+          onCardClick={handleCardClick}
+          activeCard={activeKPI}
+        />
+      )}
+
+      {/* Otvoreni KPI */}
+      {activeKPI && (
+        <section className="mx-logdash__active">
+          <div className="mx-logdash__bar">
+            <h2 className="mx-logdash__kpi">
+              {dashboardTitles.find(t => t.id === activeKPI)?.title}
+            </h2>
+            <Btn size="sm" variant="ghost" icon={X} onClick={handleKPIClose} aria-label="Zatvori" title="Zatvori" />
+          </div>
+
+          {kpiLoading[activeKPI] ? (
+            <Loading rows={4} h={64} text="Učitavanje podataka..." />
+          ) : (
+            renderKPIContent(activeKPI)
+          )}
+        </section>
+      )}
+
+      {/* Stanje */}
+      <div className="mx-logdash-status">
+        <div className="mx-logdash-status__item">
+          <span className="sx-item__icon"><CircleCheck size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+          <div className="mx-logdash-status__text">
+            <h3>Dashboard Status</h3>
+            <Sign tone="ok">Sistem je operativan</Sign>
+          </div>
         </div>
-
-        {/* KPI Title Cards - Show initially */}
-        {!activeKPI && (
-          <KPICards
-            kpiData={kpiData}
-            onCardClick={handleCardClick}
-            activeCard={activeKPI}
-          />
-        )}
-
-        {/* Active KPI Content - Only show when KPI is selected */}
-        {activeKPI && (
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold text-gray-900">
-                {dashboardTitles.find(t => t.id === activeKPI)?.title}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleKPIClose}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <CloseIcon className="w-5 h-5" />
-              </Button>
-            </div>
-
-            {kpiLoading[activeKPI] ? (
-              <div className="text-center py-12">
-                <RefreshIcon className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Učitavanje podataka...</p>
-              </div>
-            ) : (
-              <div className="w-full">
-                {renderKPIContent(activeKPI)}
-              </div>
-            )}
+        <div className="mx-logdash-status__item">
+          <span className="sx-item__icon"><TrendingUp size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+          <div className="mx-logdash-status__text">
+            <h3>Performance</h3>
+            <p>Optimizovano za brzinu</p>
           </div>
-        )}
-
-        {/* Status Information */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
-            <div className="flex items-center space-x-3">
-              <CheckIcon className="w-8 h-8 text-green-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Dashboard Status</h3>
-                <p className="text-sm text-gray-600">Sistem je operativan</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
-            <div className="flex items-center space-x-3">
-              <TrendingUpIcon className="w-8 h-8 text-blue-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Performance</h3>
-                <p className="text-sm text-gray-600">Optimizovano za brzinu</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
-            <div className="flex items-center space-x-3">
-              <BarChartIcon className="w-8 h-8 text-purple-500" />
-              <div>
-                <h3 className="font-semibold text-gray-900">Data Freshness</h3>
-                <p className="text-sm text-gray-600">Real-time podaci</p>
-              </div>
-            </div>
+        </div>
+        <div className="mx-logdash-status__item">
+          <span className="sx-item__icon"><ChartColumn size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+          <div className="mx-logdash-status__text">
+            <h3>Data Freshness</h3>
+            <p>Real-time podaci</p>
           </div>
         </div>
       </div>
 
-      {/* Dashboard Dock - Fixed at bottom */}
+      {/* Dock - lepi se uz dno ekrana */}
       <DashboardDock
         onKPISelect={handleKPISelect}
         activeKPI={activeKPI}
@@ -761,97 +716,60 @@ const DashboardSection = ({
         subtitle={selectedChartData?.subtitle}
       />
 
-      {/* Municipality Modal */}
-      {municipalityModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {municipalityModal.municipalityData?.municipality || 'Opština'}
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={closeMunicipalityModal}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <CloseIcon className="w-5 h-5" />
-                </Button>
-              </div>
-
-              {municipalityModal.municipalityData && (
-                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-sm text-blue-600 font-medium">Aktivnosti</p>
-                    <p className="text-lg font-bold text-blue-900">
-                      {municipalityModal.municipalityData.activities || 0}
-                    </p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm text-green-600 font-medium">Adrese</p>
-                    <p className="text-lg font-bold text-green-900">
-                      {municipalityModal.municipalityData.uniqueAddresses || 0}
-                    </p>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-sm text-purple-600 font-medium">Tehničari</p>
-                    <p className="text-lg font-bold text-purple-900">
-                      {municipalityModal.municipalityData.uniqueTechnicians || 0}
-                    </p>
-                  </div>
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-sm text-yellow-600 font-medium">Završeno</p>
-                    <p className="text-lg font-bold text-yellow-900">
-                      {municipalityModal.municipalityData.completed || 0}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Radni nalozi (prikazano {municipalityModal.workOrders.length} od {municipalityModal.municipalityData?.activities || 0})
-              </h3>
-
-              {municipalityModal.workOrders.length > 0 ? (
-                <div className="space-y-3">
-                  {municipalityModal.workOrders.slice(0, 20).map((wo, index) => (
-                    <div key={wo._id || index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-gray-900">
-                          {wo.workOrderId || wo._id}
-                        </span>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                          Završen
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p><strong>Adresa:</strong> {wo.address}</p>
-                        <p><strong>Korisnik:</strong> {wo.userName}</p>
-                        <p><strong>Tehničar:</strong> {wo.primaryTechnician || wo.technician || 'N/A'}</p>
-                        <p><strong>Tip:</strong> {wo.type}</p>
-                        <p><strong>Datum:</strong> {new Date(wo.date).toLocaleDateString('sr-RS')}</p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {municipalityModal.workOrders.length > 20 && (
-                    <p className="text-center text-gray-500 mt-4">
-                      Prikazano prvih 20 od {municipalityModal.workOrders.length} radnih naloga
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">
-                  Nema dostupnih radnih naloga za ovu opštinu
-                </p>
-              )}
-            </div>
+      {/* Opština (klik na mapi) */}
+      <Dialog
+        open={municipalityModal.isOpen}
+        onClose={closeMunicipalityModal}
+        size="lg"
+        title={municipalityModal.municipalityData?.municipality || 'Opština'}
+        testId="municipality-modal"
+      >
+        {municipalityModal.municipalityData && (
+          <div className="sx-stats mx-logdash-dlgstats">
+            <Stat label="Aktivnosti" value={municipalityModal.municipalityData.activities || 0} />
+            <Stat label="Adrese" value={municipalityModal.municipalityData.uniqueAddresses || 0} />
+            <Stat label="Tehničari" value={municipalityModal.municipalityData.uniqueTechnicians || 0} />
+            <Stat label="Završeno" value={municipalityModal.municipalityData.completed || 0} />
           </div>
-        </div>
-      )}
+        )}
+
+        <h3 className="mx-logdash-dlg__title">
+          Radni nalozi (prikazano {municipalityModal.workOrders.length} od {municipalityModal.municipalityData?.activities || 0})
+        </h3>
+
+        {municipalityModal.workOrders.length > 0 ? (
+          <div className="sx-list">
+            {municipalityModal.workOrders.slice(0, 20).map((wo, index) => (
+              <div key={wo._id || index} className="mx-logdash-wo">
+                <div className="mx-logdash-wo__head">
+                  <b className="sx-mono">{wo.workOrderId || wo._id}</b>
+                  <Sign tone="ok">Završen</Sign>
+                </div>
+                <KV
+                  className="mx-logdash-wo__kv"
+                  items={[
+                    { k: 'Adresa', v: wo.address },
+                    { k: 'Korisnik', v: wo.userName },
+                    { k: 'Tehničar', v: wo.primaryTechnician || wo.technician || 'N/A' },
+                    { k: 'Tip', v: wo.type },
+                    { k: 'Datum', v: new Date(wo.date).toLocaleDateString('sr-RS') }
+                  ]}
+                />
+              </div>
+            ))}
+
+            {municipalityModal.workOrders.length > 20 && (
+              <p className="mx-logdash-dlg__more">
+                Prikazano prvih 20 od {municipalityModal.workOrders.length} radnih naloga
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="sx-empty-block">
+            <span>Nema dostupnih radnih naloga za ovu opštinu</span>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 };
