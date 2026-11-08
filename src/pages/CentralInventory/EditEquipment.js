@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { BackIcon, SaveIcon, EditIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { equipmentAPI, techniciansAPI } from '../../services/api';
-import { cn } from '../../utils/cn';
+import { Btn } from '../../security/sx/ui';
+import { PageHead, Panel, Note } from '../../security/sx/layout';
+import { Field, Input, Select } from '../../security/sx/forms';
+import { LinkBtn, Loading } from '../../montaza/ui';
+import './EditEquipment.mx.css';
 
 const EditEquipment = () => {
   const { id } = useParams();
@@ -157,194 +160,84 @@ const EditEquipment = () => {
     }
   };
   
+  const head = (
+    <PageHead
+      eyebrow="Montaža · Inventar"
+      title="Izmena opreme"
+      lead="Uredite detalje o opremi"
+      actions={<LinkBtn to="/equipment" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
+    />
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="flex items-center justify-center py-12">
-          <div className="flex items-center space-x-3 text-slate-600">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-sm font-medium">Učitavanje opreme...</span>
-          </div>
-        </div>
+      <div className="sx-page" data-testid="page-equipment-edit">
+        {head}
+        <Panel pad={false}><Loading text="Učitavanje opreme..." /></Panel>
       </div>
     );
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Modern Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <EditIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Izmena opreme</h1>
-              <p className="text-slate-600 mt-1">Uredite detalje o opremi</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Link to="/equipment">
-              <Button
-                type="secondary"
-                size="medium"
-                prefix={<BackIcon size={16} />}
-              >
-                Povratak na listu
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+    <div className="sx-page" data-testid="page-equipment-edit">
+      {head}
 
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
+      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
-      {/* Modern Form Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* First Row - Category and Description */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="category" className="block text-sm font-medium text-slate-700">
-                  Kategorija
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  value={equipment.category}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                >
-                  <option value="" disabled>Izaberite kategoriju</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
+      {/* Sačuvaj je kao ranije "submit" dugme forme sa onClick (handleSubmit sprečava dupli poziv) */}
+      <form onSubmit={handleSubmit}>
+        <Panel
+          footer={<>
+            <LinkBtn to="/equipment" variant="ghost">Otkaži</LinkBtn>
+            <Btn type="submit" variant="primary" icon={Save} onClick={handleSubmit}>Sačuvaj izmene</Btn>
+          </>}
+        >
+          <div className="sx-form">
+            <Field label="Kategorija" htmlFor="category">
+              <Select id="category" name="category" value={equipment.category} onChange={handleInputChange} required>
+                <option value="" disabled>Izaberite kategoriju</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </Select>
+            </Field>
 
-              <div className="space-y-2">
-                <label htmlFor="description" className="block text-sm font-medium text-slate-700">
-                  Opis
-                </label>
-                <input
-                  type="text"
-                  id="description"
-                  name="description"
-                  value={equipment.description}
-                  onChange={handleInputChange}
-                  placeholder="Unesite opis opreme"
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                />
-              </div>
-            </div>
+            <Field label="Opis" htmlFor="description">
+              <Input type="text" id="description" name="description" value={equipment.description} onChange={handleInputChange} placeholder="Unesite opis opreme" required />
+            </Field>
 
-            {/* Second Row - Serial Number and Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="serialNumber" className="block text-sm font-medium text-slate-700">
-                  Serijski broj
-                </label>
-                <input
-                  type="text"
-                  id="serialNumber"
-                  name="serialNumber"
-                  value={equipment.serialNumber}
-                  onChange={handleInputChange}
-                  placeholder="Unesite serijski broj"
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50 font-mono"
-                />
-              </div>
+            <Field label="Serijski broj" htmlFor="serialNumber">
+              <Input type="text" id="serialNumber" name="serialNumber" value={equipment.serialNumber} onChange={handleInputChange} placeholder="Unesite serijski broj" required mono />
+            </Field>
 
-              <div className="space-y-2">
-                <label htmlFor="location" className="block text-sm font-medium text-slate-700">
-                  Lokacija
-                </label>
-                <select
-                  id="location"
-                  name="location"
-                  value={equipment.location}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                >
-                  {renderLocationOptions()}
-                </select>
-              </div>
-            </div>
+            <Field label="Lokacija" htmlFor="location">
+              <Select id="location" name="location" value={equipment.location} onChange={handleInputChange} required>
+                {renderLocationOptions()}
+              </Select>
+            </Field>
 
-            {/* Third Row - Status */}
-            <div className="space-y-2">
-              <label htmlFor="status" className="block text-sm font-medium text-slate-700">
-                Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={equipment.status}
-                onChange={handleInputChange}
-                required
-                className="w-full md:w-1/2 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-              >
+            <Field label="Status" htmlFor="status">
+              <Select id="status" name="status" value={equipment.status} onChange={handleInputChange} required>
                 <option value="available">Dostupno</option>
                 <option value="assigned">Zaduženo</option>
                 <option value="defective">Neispravno</option>
-              </select>
+              </Select>
+            </Field>
 
-              {/* Defective Status Warning */}
-              {equipment.status === 'defective' && (
-                <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <span className="text-amber-600 text-lg">⚠️</span>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-amber-800 mb-2">Napomena o neispravnoj opremi</h4>
-                      <p className="text-sm text-amber-700 mb-2">
-                        Kada označite opremu kao neispravnu, ona će automatski biti:
-                      </p>
-                      <ul className="text-sm text-amber-700 space-y-1 ml-4 list-disc">
-                        <li>Premeštena u lokaciju "defective"</li>
-                        <li>Uklonjena iz dodele tehničaru/korisniku</li>
-                        <li>Dostupna u listi neispravne opreme</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Form Actions */}
-            <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200">
-              <Link to="/equipment">
-                <Button
-                  type="tertiary"
-                  size="medium"
-                >
-                  Otkaži
-                </Button>
-              </Link>
-              <Button
-                type="primary"
-                size="medium"
-                prefix={<SaveIcon size={16} />}
-                onClick={handleSubmit}
-              >
-                Sačuvaj izmene
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
+            {equipment.status === 'defective' && (
+              <Note tone="warn" className="is-wide">
+                <b>Napomena o neispravnoj opremi</b>
+                <p className="mx-ee-p">Kada označite opremu kao neispravnu, ona će automatski biti:</p>
+                <ul className="mx-ee-list">
+                  <li>Premeštena u lokaciju "defective"</li>
+                  <li>Uklonjena iz dodele tehničaru/korisniku</li>
+                  <li>Dostupna u listi neispravne opreme</li>
+                </ul>
+              </Note>
+            )}
+          </div>
+        </Panel>
+      </form>
     </div>
   );
 };

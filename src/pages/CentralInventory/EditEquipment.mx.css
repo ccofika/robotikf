@@ -1,0 +1,4 @@
+/* Izmena opreme: spisak u napomeni o neispravnoj opremi (element + klasa, da nadjača sx osnovu za p i ul) */
+p.mx-ee-p { margin-top: 4px; }
+ul.mx-ee-list { margin-top: 6px; padding-left: 18px; list-style: disc; }
+ul.mx-ee-list li + li { margin-top: 2px; }
