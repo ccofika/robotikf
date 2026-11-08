@@ -9,5 +9,6 @@
   background: var(--sx-bg);
   contain: layout;
   animation: sx-fade 160ms linear both;
+  --sx-rail-w: 0px; /* prozor pokriva i šinu: traka sa radnjama ide od ivice do ivice ekrana */
 }
 .mx-wom__body { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }

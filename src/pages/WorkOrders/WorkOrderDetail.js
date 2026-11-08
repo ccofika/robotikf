@@ -1,6 +1,6 @@
 // Detalj radnog naloga (admin, i kao prozor preko liste naloga): podaci sa izmenom na olovku, oprema, materijal,
 // slike, istorije (vraćanja, reklamacije, odlaganja, otkazivanja), pozivi i traka sa radnjama na dnu.
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
@@ -129,6 +129,15 @@ const buildFormData = (data) => ({
 });
 
 const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) => {
+  // Visina fiksne trake sa radnjama: stranica dobija toliko prostora ispod, da traka ništa ne prekrije
+  const [barH, setBarH] = useState(0);
+  const barObserver = useRef(null);
+  const barRef = useCallback((el) => {
+    if (barObserver.current) { barObserver.current.disconnect(); barObserver.current = null; }
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    barObserver.current = new ResizeObserver(() => setBarH(el.offsetHeight));
+    barObserver.current.observe(el);
+  }, []);
   const params = useParams();
   const id = modalWorkOrderId || params.id;
   const navigate = useNavigate();
@@ -1014,7 +1023,8 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
 
   // Glavni prikaz
   return (
-    <div className="sx-page mx-wod" data-testid="page-work-order-detail">
+    <>
+    <div className="sx-page mx-wod" data-testid="page-work-order-detail" style={barH ? { paddingBottom: barH + 36 } : undefined}>
       {error && <Note tone="bad" className="mx-wod-block">{error}</Note>}
 
       {/* Povratak na nalog sa kog se došlo (klik iz sekcije "Nalozi na istoj adresi") */}
@@ -1712,9 +1722,11 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           )}
         </div>
       </div>
+    </div>
 
-      {/* Traka sa radnjama (lepi se uz dno) */}
-      <div className="mx-wod-bar" data-testid="wod-actions">
+      {/* Traka sa radnjama: uvek fiksirana uz dno ekrana, na istom mestu (van .sx-page, jer njen kontejner vezuje fixed za sebe) */}
+      <div className="mx-wod-bar" ref={barRef} data-testid="wod-actions">
+        <div className="mx-wod-bar__in">
         <div className="mx-wod-bar__group">
           <State tone={statusConfig.tone} testId="wod-status">{statusConfig.label}</State>
 
@@ -1818,6 +1830,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
           <Btn size="sm" variant="primary" icon={Save} onClick={handleSubmit} disabled={saving} data-testid="wod-save">
             {saving ? 'Čuva...' : 'Sačuvaj'}
           </Btn>
+        </div>
         </div>
       </div>
 
@@ -2010,7 +2023,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
         onAccept={handleAcceptAI}
         onReject={handleRejectAI}
       />
-    </div>
+    </>
   );
 };
 

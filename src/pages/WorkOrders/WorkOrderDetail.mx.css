@@ -171,17 +171,26 @@ button.mx-wod-pick {
 /* dugi spiskovi na širokom ekranu imaju svoj skrol (kao ranije), na telefonu ne */
 @container page (min-width: 980px) { .mx-wod-scroll { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; } }
 
-/* ---------- traka sa radnjama ---------- */
+/* ---------- traka sa radnjama: uvek fiksirana uz dno ekrana, na istom mestu ----------
+   Leži van .sx-page (kontejner stranice bi vezao position: fixed za sebe); širina prati glavni deo
+   (šina 248/76 px, na telefonu 0; u prozoru preko liste --sx-rail-w je 0). Stranica dobija prostor ispod
+   (visina trake se meri u WorkOrderDetail.js), pa traka ne prekriva sadržaj. */
 .mx-wod-bar {
-  position: sticky;
+  --mx-wod-gutter: clamp(16px, 2.6vw, 44px);
+  position: fixed;
+  left: calc(var(--sx-rail-w, 0px) + var(--mx-wod-gutter));
+  right: var(--mx-wod-gutter);
   bottom: 12px;
-  z-index: 25;
+  z-index: 30;
+  container: wodbar / inline-size;
+  transition: left 500ms var(--ease-move);
+}
+.mx-wod-bar__in {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px 12px;
-  margin-top: 24px;
   padding: 8px;
   border-radius: 18px;
   border: 1px solid var(--sx-line);
@@ -194,26 +203,22 @@ button.mx-wod-pick {
 .mx-wod-bar__end { margin-left: auto; justify-content: flex-end; }
 .mx-wod-bar__sep { width: 1px; height: 22px; margin: 0 2px; background: var(--sx-line-2); }
 /* uže: dugmad samo sa ikonicom (naziv ostaje u title), kvadratna */
-@container page (max-width: 899px) {
+@container wodbar (max-width: 899px) {
   .mx-wod-lbl-lg { display: none; }
   .mx-wod-bar .sx-btn:has(> .mx-wod-lbl-lg) { padding: 0; aspect-ratio: 1; }
 }
-/* telefon: traka je usidrena uz dno preko cele širine (dva reda: stanje, pa radnje) */
-@container page (max-width: 559px) {
+@container wodbar (max-width: 559px) {
   .mx-wod-lbl-sm { display: none; }
   .mx-wod-bar .sx-btn:has(> .mx-wod-lbl-sm) { padding: 0; aspect-ratio: 1; }
-  .mx-wod-bar {
-    bottom: 0;
-    gap: 6px;
-    margin: 24px calc(-1 * clamp(16px, 2.6vw, 44px)) -64px;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-    border-width: 1px 0 0;
-    border-radius: 0;
-    box-shadow: var(--sx-shadow-pop);
-  }
+  .mx-wod-bar__in { gap: 6px; }
   .mx-wod-bar__group { gap: 4px; }
   .mx-wod-bar__end { margin-left: 0; }
   .mx-wod-bar__end .mx-wod-bar__sep { display: none; }
+}
+/* telefon: traka preko cele širine, uz samo dno (dva reda: stanje, pa radnje) */
+@media (max-width: 639px) {
+  .mx-wod-bar { left: 0; right: 0; bottom: 0; }
+  .mx-wod-bar__in { padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: 0; }
 }
 .mx-wod-menuwrap { position: relative; }
 .mx-wod-menubtn.is-open > svg:last-child { transform: rotate(180deg); }
