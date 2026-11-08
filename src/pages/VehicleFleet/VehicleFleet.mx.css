@@ -1,0 +1,28 @@
+/* Vozni park: polja servisa (delovi i rad u istom redu), slike fakture i istorija servisa u dijalogu.
+   Boje samo iz tokena (tokens.css). */
+
+.mx-vehicles .sx-panel__head { flex-wrap: wrap; }
+
+/* forma servisa */
+.sx-fieldset.mx-vehicles-first { padding-top: 0; }
+.mx-vehicles-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mx-vehicles-pair > .sx-field + .sx-field { margin-top: 0; }
+.mx-vehicles-preview { display: block; max-width: 100%; max-height: 160px; margin-top: 10px; border-radius: 12px; border: 1px solid var(--sx-line); }
+.mx-vehicles-invoice { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto; object-fit: contain; border-radius: 12px; }
+
+/* istorija servisa */
+.mx-vehicles-line { display: block; white-space: nowrap; }
+/* komentar: najviše dva reda u tabeli, ceo tekst na kartici (i u oblačiću) */
+.mx-vehicles-clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 240px; overflow-wrap: anywhere; }
+/* u dijalogu: tabela u okviru sa užim ćelijama (široko), kartice bez dodatnog razmaka (usko) */
+@container tbl (min-width: 761px) {
+  .mx-vehicles-history__box { border: 1px solid var(--sx-line); border-radius: 14px; overflow-x: auto; overscroll-behavior-x: contain; }
+  .mx-vehicles-history .sx-table th, .mx-vehicles-history .sx-table td { padding-left: 10px; padding-right: 10px; }
+  .mx-vehicles-history .sx-table th:first-child, .mx-vehicles-history .sx-table td:first-child { padding-left: 16px; }
+  .mx-vehicles-history .sx-table th:last-child, .mx-vehicles-history .sx-table td:last-child { padding-right: 16px; }
+}
+@container tbl (max-width: 760px) {
+  .mx-vehicles-clip { display: block; max-width: none; }
+  .mx-vehicles-history .sx-table tbody { padding: 0; }
+}
+@media (min-width: 768px) { .mx-vehicles .sx-toolbar .sx-search { flex-basis: 380px; } }
