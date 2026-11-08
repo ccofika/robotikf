@@ -4,14 +4,20 @@
 .mx-gps-map .leaflet-container { font-family: inherit; }
 @media (max-width: 639px) { .mx-gps-map { height: 360px; } }
 
-.mx-gps-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; width: 100%; font-size: 13px; color: var(--sx-text-2); }
+.mx-gps-left { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.mx-gps-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 14px 20px; font-size: 13px; color: var(--sx-text-2); }
 .mx-gps-legend > span:not(.sx-label) { display: inline-flex; align-items: center; gap: 7px; }
 
 /* lista uz mapu: iste visine kao mapa sa legendom, pomera se sama */
 @container page (min-width: 980px) {
-  .mx-gps-list { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+  .mx-gps-list { max-height: 510px; overflow-y: auto; overscroll-behavior: contain; }
   .mx-gps-list .sx-item__side { flex-direction: column; align-items: flex-end; gap: 2px; }
 }
+/* stavke liste preko cele širine kartice; tehničar sa lokacijom ima zelenkastu pozadinu (kao ranije) */
+.mx-gps-list { border-top: 1px solid var(--sx-line); }
+.mx-gps-list .sx-item.mx-gps-item { margin: 0; padding: 12px 20px; }
+.mx-gps-list .sx-item.mx-gps-item.is-on { background: color-mix(in oklab, var(--sx-ok) 5%, var(--sx-surface)); }
+@media (max-width: 639px) { .mx-gps-list .sx-item.mx-gps-item { padding: 12px 16px; } }
 .mx-gps-phone, .mx-gps-acc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sx-muted); }
 
 .mx-gps-dot { margin: 0 8px; color: var(--sx-accent-text); }
