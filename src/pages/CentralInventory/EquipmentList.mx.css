@@ -1,0 +1,4 @@
+/* Pregled opreme: razmak ispod kategorija, lokacija i "zaduženo pre praćenja" */
+.sx-choice.mx-eq-cats { margin-bottom: 16px; }
+.sx-sign.mx-eq-loc { white-space: normal; }
+.mx-eq-legacy { font-size: 12px; font-style: italic; color: var(--sx-faint); }
