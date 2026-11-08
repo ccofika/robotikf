@@ -1,0 +1,46 @@
+/* Backend Logs: filteri, detalji aktivnosti u tabeli, bulk dijalog i AI analize. Boje samo iz tokena. */
+.mx-bl-filters { margin-bottom: 20px; }
+/* polje datum + vreme + brzi izbor treba bar ~320 px, pa kolone prelaze u novi red ranije nego u sx-form */
+.sx-form.mx-bl-form { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+
+/* ---------- tabele ---------- */
+.mx-bl-code { overflow-wrap: break-word; }
+.mx-bl-details .sx-note.mx-bl-note { max-width: 340px; }
+/* aktivnosti imaju 7 kolona i bogate detalje: u prikazu tabele uži razmaci, detalji dobijaju četvrtinu širine */
+@container tbl (min-width: 761px) {
+  .sx-table.mx-bl-acts td, .sx-table.mx-bl-acts thead th { padding-left: 10px; padding-right: 10px; }
+  .sx-table.mx-bl-acts th.mx-bl-details { width: 26%; }
+}
+.sx-note.mx-bl-note { gap: 9px; padding: 8px 11px; border-radius: 11px; font-size: 12.5px; line-height: 1.45; }
+.sx-note.mx-bl-note + .sx-note.mx-bl-note { margin-top: 6px; }
+.mx-bl-note .sx-note__body { display: grid; gap: 2px; justify-items: start; overflow-wrap: break-word; }
+.mx-bl-note .sx-note__body > .sx-btn { margin: 4px 0 -2px -12px; }
+ul.mx-bl-changes { list-style: disc; padding-left: 16px; }
+.mx-bl-missing { color: var(--sx-bad-text); }
+.mx-bl-wo { justify-self: stretch; margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--sx-line); }
+.mx-bl-debug { display: block; margin-top: 4px; font-size: 12px; color: var(--sx-warn-text); }
+.sx-table tbody tr.mx-bl-slow { background: color-mix(in oklab, var(--sx-bad) 5%, var(--sx-surface)); }
+.mx-bl-slowtag { margin-left: 8px; font-family: var(--sx-font-ui); }
+.mx-bl-reason { color: var(--sx-warn-text); }
+
+/* ---------- dijalozi ---------- */
+.mx-bl-exportnote { margin-top: 18px; }
+.sx-stats.mx-bl-bulkstats { box-shadow: none; grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr)); }
+.mx-bl-statname { font-size: 18px; font-weight: 650; line-height: 1.25; color: var(--sx-text); overflow-wrap: anywhere; }
+
+/* ---------- AI analize ---------- */
+.mx-bl-runrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.mx-bl-runrow > .mx-dtp__in { flex: 0 1 340px; }
+.sx-stats.mx-bl-aistats { box-shadow: none; margin-bottom: 16px; }
+.sx-note.mx-bl-summary { margin-bottom: 16px; }
+.mx-bl-summary__title { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-bl-aigrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 14px; }
+.mx-bl-aisec { min-width: 0; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-bl-aisec.is-wide { grid-column: 1 / -1; }
+.mx-bl-aisec__head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mx-bl-aisec__title { font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.mx-bl-aitext { white-space: pre-line; font-size: 13.5px; line-height: 1.6; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.sx-item.mx-bl-hist { width: calc(100% + 24px); }
+.sx-item.mx-bl-hist.is-on { background: var(--sx-accent-soft); }
+.mx-bl-hist__check { color: var(--sx-accent-text); }
+.mx-bl-histlist { max-height: 384px; overflow-y: auto; margin: 0 -12px; padding: 0 12px; }
