@@ -145,8 +145,8 @@ const EquipmentConfirmation = ({ onConfirmationComplete }) => {
         testId="equipment-confirmation"
         footer={loading ? null : (
           <>
-            <Btn variant="danger" icon={X} onClick={() => setShowRejectModal(true)} disabled={processing}>Odbij opremu</Btn>
             <Btn variant="primary" icon={Check} onClick={handleConfirm} disabled={processing}>{processing ? 'Potvrđujem...' : 'Potvrdi opremu'}</Btn>
+            <Btn variant="danger" icon={X} onClick={() => setShowRejectModal(true)} disabled={processing}>Odbij opremu</Btn>
           </>
         )}
       >
@@ -191,8 +191,8 @@ const EquipmentConfirmation = ({ onConfirmationComplete }) => {
         testId="equipment-reject"
         footer={
           <>
-            <Btn variant="ghost" onClick={closeReject} disabled={processing}>Odustani</Btn>
             <Btn variant="danger" onClick={handleReject} disabled={processing || !rejectionReason.trim()}>{processing ? 'Odbijam...' : 'Odbij opremu'}</Btn>
+            <Btn onClick={closeReject} disabled={processing}>Odustani</Btn>
           </>
         }
       >

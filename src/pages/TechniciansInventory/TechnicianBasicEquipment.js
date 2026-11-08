@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Filter, X, Package } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { techniciansAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
-import { cx, Btn, Sign } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
-import { SearchField, Select } from '../../security/sx/forms';
-import { Pager, Loading } from '../../montaza/ui';
+import { cx, Btn } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
+import { SearchField, Select, Choice } from '../../security/sx/forms';
+import { Loading } from '../../montaza/ui';
+import { MobilePager, PagePager } from './TechnicianPagers';
 import './TechnicianInventory.mx.css';
 
 const TechnicianBasicEquipment = () => {
@@ -16,6 +17,7 @@ const TechnicianBasicEquipment = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -132,6 +134,8 @@ const TechnicianBasicEquipment = () => {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = sortedBasicEquipment.slice(indexOfFirstItem, indexOfLastItem);
+  
+  const totalPages = Math.ceil(sortedBasicEquipment.length / itemsPerPage);
 
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -159,7 +163,7 @@ const TechnicianBasicEquipment = () => {
   };
 
   return (
-    <div className="sx-page mx-tinv" data-testid="page-my-basic-equipment">
+    <div className="sx-page mx-tech" data-testid="page-my-basic-equipment">
       {/* povuci nadole na vrhu strane (telefon) = osveži */}
       {isMobile && (
         <div className={cx('mx-tinv-ptr', refreshing && 'is-on')} role="status" aria-live="polite">
@@ -168,11 +172,23 @@ const TechnicianBasicEquipment = () => {
         </div>
       )}
 
-      <PageHead eyebrow="Montaža · Inventar" title="Moja osnovna oprema" lead="Pregled dodeljene osnovne opreme" />
+      <PageHead
+        eyebrow="Montaža · Inventar"
+        title="Moja osnovna oprema"
+        lead="Pregled dodeljene osnovne opreme"
+        actions={isMobile ? (
+          <>
+            <Btn icon={RefreshCw} onClick={fetchBasicEquipment} busy={loading} aria-label="Osveži" />
+            <Btn icon={Filter} variant={showFilters ? 'primary' : undefined} onClick={() => setShowFilters(!showFilters)} aria-label="Filteri" aria-pressed={showFilters} />
+          </>
+        ) : (
+          <Btn icon={RefreshCw} onClick={fetchBasicEquipment} busy={loading}>Osveži</Btn>
+        )}
+      />
 
       {error && <Note tone="bad" className="mx-mb"><b>Greška:</b> {error}</Note>}
 
-      <div className="sx-stats">
+      <div className="mx-tech-stats is-4">
         <Stat label="Tipova" value={stats.total} />
         <Stat label="Ukupno" value={stats.totalQuantity} />
         {/* prva dva tipa sa količinom */}
@@ -181,49 +197,97 @@ const TechnicianBasicEquipment = () => {
         ))}
       </div>
 
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po tipu osnovne opreme..." />
-        <Select size="sm" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Tip osnovne opreme">
-          <option value="">Svi tipovi</option>
-          {types.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </Select>
-        <div className="sx-toolbar__end">
-          <Btn size="sm" icon={RefreshCw} onClick={fetchBasicEquipment} busy={loading}>Osveži</Btn>
-        </div>
-      </Toolbar>
+      <Panel pad={false}>
+        {/* Telefon: filteri u kartici iznad naslova, kao ranije */}
+        {isMobile && showFilters && (
+          <div className="mx-tech-inlinefilter">
+            <div className="mx-tech-inlinefilter__head">
+              <h3 className="sx-card__title">Filteri</h3>
+              <Btn size="sm" variant="ghost" icon={X} onClick={() => setShowFilters(false)} aria-label="Zatvori" />
+            </div>
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po tipu..." />
+            <div className="mx-tech-filter__group">
+              <h4 className="sx-label">Tip osnovne opreme</h4>
+              <Choice
+                size="sm"
+                label="Tip osnovne opreme"
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={[{ value: '', label: 'Sve' }, ...types.map(type => ({ value: type, label: type, title: type }))]}
+              />
+            </div>
+          </div>
+        )}
 
-      <Panel pad={false} title="Lista osnovne opreme" sub={`${filteredBasicEquipment.length} od ${basicEquipment.length} tipova`}>
+        <header className="sx-card__head sx-panel__head">
+          <div className="sx-panel__titles">
+            <h2 className="sx-card__title">Lista osnovne opreme</h2>
+            <p className="sx-card__sub">{filteredBasicEquipment.length} od {basicEquipment.length} tipova</p>
+          </div>
+        </header>
+
+        {/* Desktop: pretraga i tip ispod naslova kartice */}
+        {!isMobile && (
+          <div className="mx-tech-controls">
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po tipu osnovne opreme..." />
+            <Select size="sm" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Tip osnovne opreme">
+              <option value="">Svi tipovi</option>
+              {types.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </Select>
+          </div>
+        )}
+
         {loading ? (
           <Loading text="Učitavanje osnovne opreme..." />
         ) : currentItems.length === 0 ? (
           <div className="sx-empty-block">
             <b>{searchTerm || typeFilter ? 'Nema rezultata za zadatu pretragu' : 'Nemate zaduženu osnovnu opremu'}</b>
           </div>
+        ) : isMobile ? (
+          // Telefon: kartice (ikonica, tip i podnaslov, količina)
+          <div className="mx-tech-cards">
+            {currentItems.map((item, index) => (
+              <div key={item.id} className="mx-tech-card mx-tech-qcard" style={{ '--i': index }}>
+                <span className="sx-item__icon"><Package size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+                <div className="mx-tech-qcard__main">
+                  <b title={item.type}>{item.type}</b>
+                  <span>Osnovna oprema</span>
+                </div>
+                <div className="mx-tech-qcard__qty">
+                  <b>{item.quantity}</b>
+                  <span>kom</span>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="sx-tablewrap">
-            <table className="sx-table mx-tinv-qtable" data-testid="my-basic-equipment-table">
+            <table className="sx-table" data-testid="my-basic-equipment-table">
               <thead>
                 <tr>
                   <th>Tip osnovne opreme</th>
-                  <th className="is-num">Količina</th>
+                  <th>Količina</th>
                 </tr>
               </thead>
               <tbody>
                 {currentItems.map((item, index) => (
                   <tr key={item.id} style={{ '--i': index }}>
-                    <td className="is-head"><b className="mx-strong">{item.type}</b></td>
-                    <td data-label="Količina" className="is-num">
-                      {item.quantity === 0 ? <Sign tone="bad">{item.quantity} kom</Sign> : <span>{item.quantity} kom</span>}
-                    </td>
+                    <td className="is-head"><span className="sx-tag">{item.type}</span></td>
+                    <td data-label="Količina"><b className="mx-strong">{item.quantity}</b> kom</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        {!loading && <Pager page={currentPage} total={sortedBasicEquipment.length} perPage={itemsPerPage} onPage={paginate} />}
+
+        {!loading && (isMobile ? (
+          <MobilePager page={currentPage} pages={totalPages} onPage={paginate} prevLabel="Prethodna" nextLabel="Sledeća" text={`${currentPage} od ${totalPages}`} />
+        ) : (
+          <PagePager page={currentPage} pages={totalPages} onPage={paginate} text={`Stranica ${currentPage} od ${totalPages}`} />
+        ))}
       </Panel>
     </div>
   );

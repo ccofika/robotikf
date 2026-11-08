@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Filter, CalendarDays } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { techniciansAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { cx, Btn } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
-import { SearchField, Select } from '../../security/sx/forms';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
+import { SearchField, Select, Choice } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
 import { Pager, Loading } from '../../montaza/ui';
+import { MobilePager } from './TechnicianPagers';
 import './TechnicianInventory.mx.css';
 
 const TechnicianEquipment = () => {
@@ -16,6 +18,7 @@ const TechnicianEquipment = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -126,6 +129,8 @@ const TechnicianEquipment = () => {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = sortedEquipment.slice(indexOfFirstItem, indexOfLastItem);
   
+  const totalPages = Math.ceil(sortedEquipment.length / itemsPerPage);
+  
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
     // Scroll to top on mobile when paginating
@@ -155,7 +160,7 @@ const TechnicianEquipment = () => {
   };
   
   return (
-    <div className="sx-page mx-tinv" data-testid="page-my-equipment">
+    <div className="sx-page mx-tech" data-testid="page-my-equipment">
       {/* povuci nadole na vrhu strane (telefon) = osveži */}
       {isMobile && (
         <div className={cx('mx-tinv-ptr', refreshing && 'is-on')} role="status" aria-live="polite">
@@ -164,11 +169,23 @@ const TechnicianEquipment = () => {
         </div>
       )}
 
-      <PageHead eyebrow="Montaža · Inventar" title="Moja oprema" lead="Pregled zadužene opreme" />
+      <PageHead
+        eyebrow="Montaža · Inventar"
+        title="Moja oprema"
+        lead="Pregled zadužene opreme"
+        actions={isMobile ? (
+          <>
+            <Btn icon={RefreshCw} onClick={fetchEquipment} busy={loading} aria-label="Osveži" />
+            <Btn icon={Filter} variant={showFilters ? 'primary' : undefined} onClick={() => setShowFilters(!showFilters)} aria-label="Filteri" aria-pressed={showFilters} />
+          </>
+        ) : (
+          <Btn icon={RefreshCw} onClick={fetchEquipment} busy={loading}>Osveži</Btn>
+        )}
+      />
 
       {error && <Note tone="bad" className="mx-mb"><b>Greška:</b> {error}</Note>}
 
-      <div className="sx-stats">
+      <div className="mx-tech-stats">
         <Stat label="Ukupno" value={stats.total} />
         {/* kategorije: na telefonu do 5, inače do 3 */}
         {Object.entries(stats.byCategory).slice(0, isMobile ? 5 : 3).map(([category, count]) => (
@@ -176,28 +193,45 @@ const TechnicianEquipment = () => {
         ))}
       </div>
 
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po serijskom broju, opisu..." />
-        <Select size="sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Kategorija opreme">
-          <option value="">Sve kategorije</option>
-          {categories.map(category => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </Select>
-        <div className="sx-toolbar__end">
-          <Btn size="sm" icon={RefreshCw} onClick={fetchEquipment} busy={loading}>Osveži</Btn>
-        </div>
-      </Toolbar>
+      <Panel pad={false} title="Lista opreme" actions={<span className="sx-tag">{filteredEquipment.length} od {equipment.length} komada</span>}>
+        {/* Desktop: pretraga i kategorija ispod naslova kartice */}
+        {!isMobile && (
+          <div className="mx-tech-controls">
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po serijskom broju, opisu..." />
+            <Select size="sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Kategorija opreme">
+              <option value="">Sve kategorije</option>
+              {categories.map(category => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
 
-      <Panel pad={false} title="Lista opreme" sub={`${filteredEquipment.length} od ${equipment.length} komada`}>
         {loading ? (
           <Loading text="Učitavanje opreme..." />
         ) : currentItems.length === 0 ? (
           <div className="sx-empty-block">
             <b>{searchTerm || categoryFilter ? 'Nema rezultata za zadatu pretragu' : 'Nemate zadužene opreme'}</b>
             {!isMobile && <span>Promenite filtere za pristup opremi</span>}
+          </div>
+        ) : isMobile ? (
+          // Telefon: kartice (kategorija i datum, opis, S/N)
+          <div className="mx-tech-cards">
+            {currentItems.map((item, index) => (
+              <div key={item.id} className="mx-tech-card" style={{ '--i': index }}>
+                <div className="mx-tech-card__top">
+                  <span className="sx-tag">{item.category}</span>
+                  <span className="mx-tech-card__when">
+                    <CalendarDays size={13} strokeWidth={1.9} aria-hidden="true" />
+                    <span>{formatDate(item.assignedAt)}</span>
+                  </span>
+                </div>
+                <b className="mx-tech-card__title">{item.description}</b>
+                <span className="mx-tech-card__line"><b>S/N:</b> <span className="sx-mono">{item.serialNumber}</span></span>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="sx-tablewrap">
@@ -223,8 +257,39 @@ const TechnicianEquipment = () => {
             </table>
           </div>
         )}
-        {!loading && <Pager page={currentPage} total={sortedEquipment.length} perPage={itemsPerPage} onPage={paginate} />}
+
+        {!loading && (isMobile ? (
+          <MobilePager narrow page={currentPage} pages={totalPages} onPage={paginate} text={`Stranica ${currentPage} od ${totalPages}`} />
+        ) : (
+          <Pager page={currentPage} total={sortedEquipment.length} perPage={itemsPerPage} onPage={paginate} />
+        ))}
       </Panel>
+
+      {/* Telefon: filteri u listu odozdo, kao ranije (pretraga i kategorija se primenjuju odmah) */}
+      {isMobile && (
+        <Dialog
+          open={showFilters}
+          onClose={() => setShowFilters(false)}
+          title="Filteri"
+          size="sm"
+          initialFocus={false}
+          testId="my-equipment-filters"
+          footer={<Btn variant="primary" size="lg" className="mx-btn--full" onClick={() => setShowFilters(false)}>Primeni filtere</Btn>}
+        >
+          <div className="mx-tech-filter">
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga..." />
+            <div className="mx-tech-filter__group">
+              <h4 className="sx-label">Kategorija opreme</h4>
+              <Choice
+                label="Kategorija opreme"
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={[{ value: '', label: 'Sve' }, ...categories.map(category => ({ value: category, label: category }))]}
+              />
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 };

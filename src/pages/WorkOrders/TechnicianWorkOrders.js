@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, Eye, Phone, MapPin, CalendarDays } from 'lucide-react';
+import { RefreshCw, Filter, Eye, Phone, MapPin, CalendarDays } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { getTimRowStyle } from '../../utils/tim';
 import { Btn, Sign } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
-import { SearchField, Select } from '../../security/sx/forms';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
+import { SearchField, Select, Choice } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
 import { Pager, Loading } from '../../montaza/ui';
+import { MobilePager } from '../TechniciansInventory/TechnicianPagers';
 import TechnicianAPKDownload from '../../components/TechnicianAPKDownload';
+import '../TechniciansInventory/TechnicianInventory.mx.css';
 import './TechnicianWorkOrders.mx.css';
 
 // Ton statusa: završen ok, nezavršen warn, odložen info, otkazan bad, nov (termin još nije prošao) info
@@ -23,6 +26,7 @@ const TechnicianWorkOrders = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   // Touch gestures
@@ -245,6 +249,8 @@ const TechnicianWorkOrders = () => {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = sortedWorkOrders.slice(indexOfFirstItem, indexOfLastItem);
   
+  const totalPages = Math.ceil(sortedWorkOrders.length / itemsPerPage);
+  
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber);
     // Scroll to top on mobile when paginating
@@ -312,12 +318,24 @@ const TechnicianWorkOrders = () => {
   
   
   return (
-    <div className="sx-page mx-mynalozi" data-testid="page-my-work-orders">
-      <PageHead eyebrow="Montaža · Radni nalozi" title="Moji radni nalozi" lead="Pregled i upravljanje radnim nalozima" />
+    <div className="sx-page mx-tech mx-mynalozi" data-testid="page-my-work-orders">
+      <PageHead
+        eyebrow="Montaža · Radni nalozi"
+        title="Moji radni nalozi"
+        lead="Pregled i upravljanje radnim nalozima"
+        actions={isMobile ? (
+          <>
+            <Btn icon={RefreshCw} onClick={fetchWorkOrders} busy={loading} aria-label="Osveži" />
+            <Btn icon={Filter} variant={showFilters ? 'primary' : undefined} onClick={() => setShowFilters(!showFilters)} aria-label="Filteri" aria-pressed={showFilters} />
+          </>
+        ) : (
+          <Btn icon={RefreshCw} onClick={fetchWorkOrders} busy={loading}>Osveži</Btn>
+        )}
+      />
 
       {error && <Note tone="bad" className="mx-mb"><b>Greška:</b> {error}</Note>}
 
-      <div className="sx-stats">
+      <div className="mx-tech-stats">
         <Stat label="Ukupno" value={stats.total} />
         <Stat label="Završeno" value={stats.completed} small={`${stats.completionRate}%`} tone={stats.completed ? 'ok' : null} />
         <Stat label="Nezavršeno" value={stats.pending} tone={stats.pending ? 'warn' : null} />
@@ -326,22 +344,27 @@ const TechnicianWorkOrders = () => {
         <Stat label="Novi" value={stats.newOrders || 0} />
       </div>
 
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po opštini, adresi, tipu..." />
-        <Select size="sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Status naloga">
-          <option value="">Svi statusi</option>
-          <option value="zavrsen">Završeni</option>
-          <option value="nezavrsen">Nezavršeni</option>
-          <option value="odlozen">Odloženi</option>
-          <option value="otkazan">Otkazani</option>
-        </Select>
-        <div className="sx-toolbar__end">
-          <Btn size="sm" icon={RefreshCw} onClick={fetchWorkOrders} busy={loading}>Osveži</Btn>
-        </div>
-      </Toolbar>
-
       <div className="sx-stack">
-        <Panel pad={false} className="mx-mynalozi-panel" title="Radni nalozi" sub={`${filteredWorkOrders.length} od ${workOrders.length} naloga`}>
+        <Panel
+          pad={false}
+          className="mx-mynalozi-panel"
+          title="Radni nalozi"
+          actions={<span className="sx-tag">{filteredWorkOrders.length} od {workOrders.length} naloga</span>}
+        >
+          {/* Desktop: pretraga i status ispod naslova kartice */}
+          {!isMobile && (
+            <div className="mx-tech-controls">
+              <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga po opštini, adresi, tipu..." />
+              <Select size="sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Status naloga">
+                <option value="">Svi statusi</option>
+                <option value="zavrsen">Završeni</option>
+                <option value="nezavrsen">Nezavršeni</option>
+                <option value="odlozen">Odloženi</option>
+                <option value="otkazan">Otkazani</option>
+              </Select>
+            </div>
+          )}
+
           {loading ? (
             <Loading text="Učitavanje radnih naloga..." />
           ) : currentItems.length === 0 ? (
@@ -441,11 +464,48 @@ const TechnicianWorkOrders = () => {
               </table>
             </div>
           )}
-          {!loading && <Pager page={currentPage} total={sortedWorkOrders.length} perPage={itemsPerPage} onPage={paginate} />}
+
+          {!loading && (isMobile ? (
+            <MobilePager narrow page={currentPage} pages={totalPages} onPage={paginate} text={`Stranica ${currentPage} od ${totalPages}`} />
+          ) : (
+            <Pager page={currentPage} total={sortedWorkOrders.length} perPage={itemsPerPage} onPage={paginate} />
+          ))}
         </Panel>
 
+        {/* APK Download Section - Only for Technicians */}
         <TechnicianAPKDownload />
       </div>
+
+      {/* Telefon: filteri u listu odozdo, kao ranije (pretraga i status se primenjuju odmah) */}
+      {isMobile && (
+        <Dialog
+          open={showFilters}
+          onClose={() => setShowFilters(false)}
+          title="Filteri"
+          size="sm"
+          initialFocus={false}
+          testId="my-work-orders-filters"
+          footer={<Btn variant="primary" size="lg" className="mx-btn--full" onClick={() => setShowFilters(false)}>Primeni filtere</Btn>}
+        >
+          <div className="mx-tech-filter">
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraga..." />
+            <div className="mx-tech-filter__group">
+              <h4 className="sx-label">Status naloga</h4>
+              <Choice
+                label="Status naloga"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: '', label: 'Svi' },
+                  { value: 'nezavrsen', label: 'Nezavršeni' },
+                  { value: 'zavrsen', label: 'Završeni' },
+                  { value: 'odlozen', label: 'Odloženi' }
+                ]}
+              />
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 };

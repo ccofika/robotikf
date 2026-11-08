@@ -79,9 +79,10 @@ const TechnicianAPKDownload = ({ className = '' }) => {
             <span>Objavljena: {formatDate(apkInfo.publishedAt)}</span>
             <span>Preuzimanja: {apkInfo.downloadCount}</span>
           </span>
-        </div>
-        <div className="sx-item__side">
-          <Btn variant="primary" icon={Download} onClick={handleDownload}>Preuzmi aplikaciju</Btn>
+          {/* dugme ispod podataka o verziji, kao ranije */}
+          <div className="mt-3">
+            <Btn variant="primary" icon={Download} onClick={handleDownload}>Preuzmi aplikaciju</Btn>
+          </div>
         </div>
       </div>
     </Panel>
