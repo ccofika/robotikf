@@ -1,0 +1,52 @@
+/* Upload opreme iz Excel-a: jedna kartica kao ranije (uputstvo, crta, forma i rezultat obrade) */
+.mx-up-sec { display: grid; gap: 14px; padding: 4px 20px 20px; }
+.mx-up-sec.is-form { padding-top: 20px; border-top: 1px solid var(--sx-line); }
+ul.mx-up-cols { display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; background: var(--sx-surface-2); border: 1px solid var(--sx-line); }
+ul.mx-up-cols li { display: flex; align-items: baseline; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--sx-text-2); }
+ul.mx-up-cols li .sx-led { flex-shrink: 0; transform: translateY(-1px); }
+ul.mx-up-cols b { font-weight: 650; color: var(--sx-text); }
+.mx-up-results { display: grid; gap: 14px; margin-top: 12px; padding: 18px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-up-title { font-family: var(--sx-font-display); font-size: 16px; font-weight: 660; font-stretch: 112%; color: var(--sx-text); }
+@media (max-width: 639px) { .mx-up-sec { padding-left: 16px; padding-right: 16px; } .mx-up-results { padding: 14px; } }
+
+/* polje za fajl, okviri sa greškama i duplikatima */
+.mx-up-form { display: grid; gap: 16px; }
+.mx-up-actions { display: flex; justify-content: flex-end; }
+.mx-up-drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 26px 16px;
+  border: 1.5px dashed var(--sx-line-3);
+  border-radius: var(--sx-radius-card);
+  background: var(--sx-surface-2);
+  color: var(--sx-muted);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--hover-out) var(--ease-move), background-color var(--hover-out) var(--ease-move);
+}
+.mx-up-drop b { font-size: 14px; font-weight: 600; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-up-drop span { font-size: 12.5px; }
+.mx-up-drop.is-picked { border-color: var(--sx-ok); background: color-mix(in oklab, var(--sx-ok) 6%, var(--sx-surface)); color: var(--sx-ok-text); }
+.mx-up-drop.is-picked b { color: var(--sx-ok-text); }
+.mx-up-drop.is-disabled { opacity: 0.5; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) {
+  .mx-up-drop:not(.is-disabled):not(.is-picked):hover { border-color: var(--sx-text-2); background: var(--sx-surface-3); transition-duration: var(--hover-in); }
+}
+.mx-up-input:focus-visible + .mx-up-drop { outline: 2px solid var(--sx-accent); outline-offset: 2px; }
+
+.mx-up-box { display: grid; gap: 12px; padding: 16px; border-radius: 14px; border: 1px solid var(--sx-line); }
+.mx-up-box.is-bad { border-color: color-mix(in oklab, var(--sx-bad) 30%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 4%, var(--sx-surface)); }
+.mx-up-box.is-warn { border-color: color-mix(in oklab, var(--sx-warn) 38%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-warn) 5%, var(--sx-surface)); }
+.mx-up-h { display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
+.mx-up-p { font-size: 13.5px; line-height: 1.5; color: var(--sx-text-2); }
+.mx-up-p.has-led { display: flex; align-items: center; gap: 8px; }
+.mx-up-p strong { font-weight: 650; color: var(--sx-text); }
+.mx-up-part { display: grid; gap: 8px; }
+.mx-up-valid { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface); }
+.mx-up-scroll { max-height: 256px; overflow-y: auto; overscroll-behavior: contain; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface); }
+.mx-up-scroll.is-sm { max-height: 160px; }
+.sx-table td.mx-up-problem { color: var(--sx-bad-text); }
+.mx-up-stats { box-shadow: none; }
+.mx-up-dups { display: grid; gap: 10px; }
+p.mx-up-reason { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sx-line); font-size: 12.5px; color: var(--sx-warn-text); }

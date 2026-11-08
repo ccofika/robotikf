@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { UploadIcon, SearchIcon, FilterIcon, EditIcon, BoxIcon, PlusIcon, EyeIcon, SettingsIcon, RefreshIcon, CloseIcon, DownloadIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { RefreshCw, Warehouse, Plus, Upload, Download, X, Pencil } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { equipmentAPI, techniciansAPI } from '../../services/api';
-import { cn } from '../../utils/cn';
 import { describeAssignment, formatAssignedAt } from '../../utils/equipmentAssignment';
 import { localYmd } from '../../utils/localDate';
+import { Btn, Sign, Skeleton } from '../../security/sx/ui';
+import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { Field, Input, Select, Choice, SearchField } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { Pager, ColumnMenu, Loading, LinkBtn } from '../../montaza/ui';
+import './EquipmentList.mx.css';
 
 const EquipmentList = () => {
   const navigate = useNavigate();
@@ -51,7 +55,6 @@ const EquipmentList = () => {
     assignedAt: true,
     actions: true
   });
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   const [technicians, setTechnicians] = useState([]);
   const [equipmentByDescription, setEquipmentByDescription] = useState([]);
@@ -96,21 +99,7 @@ const EquipmentList = () => {
     fetchAllLocations(); // Load all possible locations
     fetchEquipment();
   }, []);
-  
-  // Close column menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showColumnMenu && !event.target.closest('.relative')) {
-        setShowColumnMenu(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showColumnMenu]);
-  
+
   // Fetch dashboard stats for current category
   const fetchDashboardStats = async (category = selectedCategory) => {
     setDashboardLoading(true);
@@ -452,198 +441,76 @@ const EquipmentList = () => {
     }
   };
   
+  // SearchField šalje vrednost: X (prazno) briše odmah kao staro dugme, kucanje ide kroz handleSearch
+  const onSearch = (value) => {
+    if (value === '') {
+      setSearchTerm('');
+      setDebouncedSearchTerm('');
+      return;
+    }
+    handleSearch({ target: { value } });
+  };
+
+  const hasFilters = searchTerm || locationFilter || selectedCategory !== 'all';
+  const pctOf = (n) => (dashboardStats.total > 0 ? Math.round(n / dashboardStats.total * 100) : 0);
+  const statNum = (n) => (dashboardLoading ? <Skeleton h={30} w={56} r={8} /> : n);
+  const showByType = locationFilter && (locationFilter.startsWith('tehnicar-') || locationFilter === 'magacin') && equipmentByDescription.length > 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Modern Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <BoxIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Pregled opreme</h1>
-              <p className="text-slate-600 mt-1">Server-side pagination - {pagination.totalCount} komada opreme</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button
-              type="secondary"
-              size="medium"
-              onClick={handleRefresh}
-              disabled={isRefreshing || dashboardLoading || loading}
-              prefix={<RefreshIcon size={16} className={(isRefreshing || dashboardLoading || loading) ? 'animate-spin' : ''} />}
-            >
-              Osveži
-            </Button>
-            <Button
-              type="secondary"
-              size="medium"
-              onClick={() => navigate('/virtual-warehouse')}
-              prefix={<BoxIcon size={16} />}
-            >
-              Virtuelni magacin
-            </Button>
-            <Button
-              type="secondary"
-              size="medium"
-              onClick={() => setShowAddModal(true)}
-              prefix={<PlusIcon size={16} />}
-            >
-              Dodaj opremu
-            </Button>
-            <Link to="/equipment/upload">
-              <Button
-                type="primary"
-                size="medium"
-                prefix={<UploadIcon size={16} />}
-              >
-                Dodaj iz Excel-a
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-      
-      {/* Modern Category Navigation */}
-      <div className="mb-6">
-        <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
-          <button 
-            onClick={() => setSelectedCategory('all')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              selectedCategory === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <span>Sve kategorije</span>
-            <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-              {getCategoryCount('all')}
-            </span>
-          </button>
-          {categories
-            .filter(category => getCategoryCount(category) > 0)
-            .map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={cn(
-                "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-                "hover:bg-white hover:text-slate-900",
-                selectedCategory === category ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-              )}
-            >
-              <span>{formatCategoryName(category)}</span>
-              <span className="ml-2 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-full">
-                {getCategoryCount(category)}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Stats Cards */}
-      <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <BoxIcon size={20} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">
-                  {selectedCategory === 'all' ? 'Ukupno opreme' : `${formatCategoryName(selectedCategory)}`}
-                </p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {dashboardLoading ? (
-                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
-                  ) : (
-                    dashboardStats.total
-                  )}
-                </h3>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-green-100 text-green-700 rounded-lg font-bold">
-                {dashboardLoading ? (
-                  <span className="animate-pulse bg-slate-200 rounded w-6 h-6 inline-block"></span>
-                ) : (
-                  dashboardStats.inWarehouse
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">U magacinu</p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {dashboardLoading ? (
-                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
-                  ) : (
-                    dashboardStats.total > 0 ?
-                      Math.round(dashboardStats.inWarehouse / dashboardStats.total * 100) : 0
-                  )}%
-                </h3>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-700 rounded-lg font-bold">
-                {dashboardLoading ? (
-                  <span className="animate-pulse bg-slate-200 rounded w-6 h-6 inline-block"></span>
-                ) : (
-                  dashboardStats.assigned
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Zaduženo</p>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {dashboardLoading ? (
-                    <span className="animate-pulse bg-slate-200 rounded w-8 h-6 inline-block"></span>
-                  ) : (
-                    dashboardStats.total > 0 ?
-                      Math.round(dashboardStats.assigned / dashboardStats.total * 100) : 0
-                  )}%
-                </h3>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="sx-page" data-testid="page-equipment">
+      <PageHead
+        className="mx-eq-head"
+        eyebrow="Montaža · Inventar"
+        title="Pregled opreme"
+        lead={`Server-side pagination - ${pagination.totalCount} komada opreme`}
+        actions={<>
+          <Btn icon={RefreshCw} onClick={handleRefresh} busy={isRefreshing || dashboardLoading || loading}>Osveži</Btn>
+          <Btn icon={Warehouse} onClick={() => navigate('/virtual-warehouse')}>Virtuelni magacin</Btn>
+          <Btn icon={Plus} onClick={() => setShowAddModal(true)}>Dodaj opremu</Btn>
+          <LinkBtn to="/equipment/upload" variant="primary" icon={Upload}>Dodaj iz Excel-a</LinkBtn>
+        </>}
+      />
+
+      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+
+      {/* Traka sa kategorijama (isto mesto kao ranije): pilule po sredini, na telefonu jedan red koji se pomera */}
+      <div className="mx-eq-catbar">
+        <Choice
+          size="sm"
+          scroll
+          label="Kategorije"
+          layoutId="mx-eq-cat"
+          value={selectedCategory}
+          onChange={setSelectedCategory}
+          options={[
+            { value: 'all', label: 'Sve kategorije', count: getCategoryCount('all') },
+            ...categories
+              .filter(category => getCategoryCount(category) > 0)
+              .map(category => ({ value: category, label: formatCategoryName(category), count: getCategoryCount(category) }))
+          ]}
+        />
       </div>
 
-      {/* Equipment by Description Table - shown when technician or warehouse is selected */}
-      {locationFilter && (locationFilter.startsWith('tehnicar-') || locationFilter === 'magacin') && equipmentByDescription.length > 0 && (
-        <div className="mb-6 bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-4 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900">Oprema po tipu</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
+      <div className="sx-stats">
+        <Stat label={selectedCategory === 'all' ? 'Ukupno opreme' : `${formatCategoryName(selectedCategory)}`} value={statNum(dashboardStats.total)} />
+        <Stat label="U magacinu" value={statNum(dashboardStats.inWarehouse)} small={dashboardLoading ? null : `${pctOf(dashboardStats.inWarehouse)}%`} />
+        <Stat label="Zaduženo" value={statNum(dashboardStats.assigned)} small={dashboardLoading ? null : `${pctOf(dashboardStats.assigned)}%`} />
+      </div>
+
+      {/* Oprema po tipu: kad je izabran tehničar ili magacin (dve stavke u redu) */}
+      {showByType && (
+        <Panel title="Oprema po tipu" pad={false} className="mx-mb">
+          <div className="sx-tablewrap">
+            <table className="sx-table mx-eq-types">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-[35%]">
-                    Opis opreme
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider w-[15%]">
-                    Broj
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-[35%]">
-                    Opis opreme
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider w-[15%]">
-                    Broj
-                  </th>
+                  <th>Opis opreme</th>
+                  <th className="is-num">Broj</th>
+                  <th>Opis opreme</th>
+                  <th className="is-num">Broj</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody>
                 {equipmentByDescription.reduce((rows, item, index) => {
                   if (index % 2 === 0) {
                     rows.push([item]);
@@ -652,410 +519,145 @@ const EquipmentList = () => {
                   }
                   return rows;
                 }, []).map((row, rowIndex) => (
-                  <tr key={rowIndex} className={`hover:bg-slate-50 transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                    <td className="px-6 py-3 text-sm font-medium text-slate-900">
-                      {row[0]?.description}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-slate-700 text-right font-semibold">
-                      {row[0]?.count}
-                    </td>
-                    <td className="px-6 py-3 text-sm font-medium text-slate-900">
-                      {row[1]?.description || ''}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-slate-700 text-right font-semibold">
-                      {row[1]?.count || ''}
-                    </td>
+                  <tr key={rowIndex} style={{ '--i': rowIndex }}>
+                    <td data-label="Opis opreme"><b className="mx-strong">{row[0]?.description}</b></td>
+                    <td data-label="Broj" className="is-num">{row[0]?.count}</td>
+                    <td data-label={row[1] ? 'Opis opreme' : undefined}>{row[1] ? <b className="mx-strong">{row[1].description}</b> : ''}</td>
+                    <td data-label={row[1] ? 'Broj' : undefined} className="is-num">{row[1]?.count || ''}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Panel>
       )}
 
-      {/* Modern Table Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        {/* Table Controls */}
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center space-x-4 flex-1">
-              {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-                <input
-                  type="text"
-                  placeholder="Pretraži po serijskom broju ili opisu..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="h-9 w-full pl-10 pr-4 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:bg-slate-50"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setDebouncedSearchTerm('');
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <CloseIcon size={16} />
-                  </button>
-                )}
-              </div>
-              
-              {/* Location Filter */}
-              <div className="relative">
-                <select
-                  value={locationFilter}
-                  onChange={(e) => {
-                    setLocationFilter(e.target.value);
-                    setPagination(prev => ({ ...prev, currentPage: 1 }));
-                  }}
-                  className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none hover:bg-slate-50"
-                >
-                  {locationOptions.map((location, idx) => (
-                    <option key={idx} value={location.value}>
-                      {location.label}
-                    </option>
-                  ))}
-                </select>
-                <FilterIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
-              </div>
-
-              {/* Export Button - shows when a specific location is selected */}
-              {locationFilter && (
-                <Button
-                  type="primary"
-                  size="medium"
-                  onClick={handleExportToExcel}
-                  disabled={isExporting}
-                  prefix={<DownloadIcon size={16} className={isExporting ? 'animate-pulse' : ''} />}
-                >
-                  {isExporting ? 'Eksportujem...' : 'Eksportuj u Excel'}
-                </Button>
-              )}
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              {/* Clear Filters */}
-              {(searchTerm || locationFilter || selectedCategory !== 'all') && (
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={clearAllFilters}
-                >
-                  Obriši filtere
-                </Button>
-              )}
-
-              {/* Column Visibility Toggle */}
-              <div className="relative">
-                <Button
-                  type="tertiary"
-                  size="medium"
-                  prefix={<EyeIcon size={16} />}
-                  onClick={() => setShowColumnMenu(!showColumnMenu)}
-                >
-                  Kolone
-                </Button>
-                
-                {/* Column Visibility Dropdown */}
-                {showColumnMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-md shadow-md z-50">
-                    <div className="p-1">
-                      <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Prikaži kolone</div>
-                      {Object.entries({
-                        description: 'Opis',
-                        serialNumber: 'Serijski broj',
-                        location: 'Lokacija',
-                        assignedAt: 'Zaduženo',
-                        actions: 'Akcije'
-                      }).map(([key, label]) => (
-                        <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={visibleColumns[key]}
-                            onChange={(e) => setVisibleColumns(prev => ({...prev, [key]: e.target.checked}))}
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-            </div>
-          </div>
+      <Toolbar>
+        <SearchField value={searchTerm} onChange={onSearch} placeholder="Pretraži po serijskom broju ili opisu..." />
+        <Select
+          size="sm"
+          aria-label="Lokacija"
+          value={locationFilter}
+          onChange={(e) => {
+            setLocationFilter(e.target.value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+          }}
+        >
+          {locationOptions.map((location, idx) => (
+            <option key={idx} value={location.value}>{location.label}</option>
+          ))}
+        </Select>
+        {locationFilter && (
+          <Btn size="sm" variant="primary" icon={Download} onClick={handleExportToExcel} disabled={isExporting}>
+            {isExporting ? 'Eksportujem...' : 'Eksportuj u Excel'}
+          </Btn>
+        )}
+        <div className="sx-toolbar__end">
+          {hasFilters && <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Obriši filtere</Btn>}
+          <ColumnMenu
+            columns={{ description: 'Opis', serialNumber: 'Serijski broj', location: 'Lokacija', assignedAt: 'Zaduženo', actions: 'Akcije' }}
+            visible={visibleColumns}
+            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
+          />
         </div>
-        
+      </Toolbar>
+
+      <Panel pad={false}>
         {loading ? (
-          <div className="flex items-center justify-center p-12">
-            <div className="flex items-center space-x-3 text-slate-600">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-sm font-medium">Učitavanje opreme...</span>
-            </div>
-          </div>
+          <Loading text="Učitavanje opreme..." />
         ) : (
           <>
-            {/* Modern Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    {visibleColumns.description && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Opis
-                      </th>
-                    )}
-                    {visibleColumns.serialNumber && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Serijski broj
-                      </th>
-                    )}
-                    {visibleColumns.location && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Lokacija
-                      </th>
-                    )}
-                    {visibleColumns.assignedAt && (
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Zaduženo
-                      </th>
-                    )}
-                    {visibleColumns.actions && (
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Akcije
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {equipment.length === 0 ? (
+            {equipment.length === 0 ? (
+              <div className="sx-empty-block">
+                <b>Nema rezultata za prikazivanje</b>
+                {hasFilters && <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Obriši filtere</Btn>}
+              </div>
+            ) : (
+              <div className="sx-tablewrap">
+                <table className="sx-table" data-testid="equipment-table">
+                  <thead>
                     <tr>
-                      <td colSpan={Object.values(visibleColumns).filter(Boolean).length || 1} className="px-6 py-12 text-center text-slate-500">
-                        <div className="flex flex-col items-center space-y-2">
-                          <BoxIcon size={48} className="text-slate-300" />
-                          <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
-                          {(searchTerm || locationFilter || selectedCategory !== 'all') && (
-                            <Button
-                              type="tertiary"
-                              size="small"
-                              onClick={clearAllFilters}
-                              className="mt-3"
-                            >
-                              Obriši filtere
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+                      {visibleColumns.description && <th>Opis</th>}
+                      {visibleColumns.serialNumber && <th>Serijski broj</th>}
+                      {visibleColumns.location && <th>Lokacija</th>}
+                      {visibleColumns.assignedAt && <th>Zaduženo</th>}
+                      {visibleColumns.actions && <th className="is-end">Akcije</th>}
                     </tr>
-                  ) : (
-                    equipment.map((item, index) => (
-                      <tr key={item._id} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                        {visibleColumns.description && (
-                          <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                            {item.description}
-                          </td>
-                        )}
-                        {visibleColumns.serialNumber && (
-                          <td className="px-6 py-4 text-sm text-slate-700 font-mono">
-                            {item.serialNumber}
-                          </td>
-                        )}
+                  </thead>
+                  <tbody>
+                    {equipment.map((item, index) => (
+                      <tr key={item._id} style={{ '--i': index }}>
+                        {visibleColumns.description && <td className="is-head"><b className="mx-strong">{item.description}</b></td>}
+                        {visibleColumns.serialNumber && <td data-label="Serijski broj"><span className="sx-mono">{item.serialNumber}</span></td>}
                         {visibleColumns.location && (
-                          <td className="px-6 py-4">
-                            <Button
-                              type={item.location === 'magacin' ? 'primary' : 'secondary'}
-                              size="small"
-                              className="text-xs"
-                            >
-                              {translateLocation(item.location)}
-                            </Button>
+                          <td data-label="Lokacija">
+                            <Sign tone={item.location === 'magacin' ? 'idle' : 'info'} className="mx-eq-loc">{translateLocation(item.location)}</Sign>
                           </td>
                         )}
                         {visibleColumns.assignedAt && (() => {
                           const assignment = describeAssignment(item);
                           return (
-                            <td className="px-6 py-4 text-sm whitespace-nowrap">
-                              <span className={cn(
-                                assignment.variant === 'stamped' && 'text-slate-700 font-mono',
-                                assignment.variant === 'legacy' && 'text-slate-400 italic text-xs',
-                                assignment.variant === 'none' && 'text-slate-300'
-                              )}>
+                            <td data-label="Zaduženo">
+                              <span className={assignment.variant === 'stamped' ? 'sx-mono' : assignment.variant === 'legacy' ? 'mx-eq-legacy' : 'sx-faint'}>
                                 {assignment.text}
                               </span>
                             </td>
                           );
                         })()}
                         {visibleColumns.actions && (
-                          <td className="px-6 py-4 text-right space-x-2">
-                            <Link to={`/equipment/edit/${item._id}`}>
-                              <Button
-                                type="tertiary"
-                                size="small"
-                                prefix={<EditIcon size={14} />}
-                              >
-                                Izmeni
-                              </Button>
-                            </Link>
+                          <td className="is-actions is-end">
+                            <div className="sx-rowacts">
+                              <LinkBtn to={`/equipment/edit/${item._id}`} size="sm" variant="ghost" icon={Pencil}>Izmeni</LinkBtn>
+                            </div>
                           </td>
                         )}
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Server-side Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-600">
-                    Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount} rezultata
-                    {performance.queryTime && (
-                      <span className="ml-2 text-slate-400">({performance.queryTime}ms)</span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(1)}
-                      disabled={!pagination.hasPreviousPage}
-                    >
-                      &laquo;
-                    </Button>
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={!pagination.hasPreviousPage}
-                    >
-                      &lsaquo;
-                    </Button>
-
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                      .filter(number => {
-                        return (
-                          number === 1 ||
-                          number === pagination.totalPages ||
-                          Math.abs(number - pagination.currentPage) <= 1
-                        );
-                      })
-                      .map(number => (
-                        <Button
-                          key={number}
-                          type={pagination.currentPage === number ? "primary" : "tertiary"}
-                          size="small"
-                          onClick={() => handlePageChange(number)}
-                        >
-                          {number}
-                        </Button>
-                      ))}
-
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={!pagination.hasNextPage}
-                    >
-                      &rsaquo;
-                    </Button>
-                    <Button
-                      type="tertiary"
-                      size="small"
-                      onClick={() => handlePageChange(pagination.totalPages)}
-                      disabled={!pagination.hasNextPage}
-                    >
-                      &raquo;
-                    </Button>
-                  </div>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
+            <Pager
+              page={pagination.currentPage}
+              total={pagination.totalCount}
+              perPage={pagination.limit}
+              onPage={handlePageChange}
+              label={performance.queryTime ? <>rezultata <span className="sx-faint">({performance.queryTime}ms)</span></> : 'rezultata'}
+            />
           </>
         )}
-        
-      </div>
-      
-      {/* Modern Modal Dialog */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Dodaj novu opremu</h2>
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => setShowAddModal(false)}
-                className="!p-2"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </Button>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleAddEquipment} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Kategorija:</label>
-                  <select
-                    onChange={handleCategoryChange}
-                    defaultValue=""
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="" disabled>Izaberite kategoriju</option>
-                    {ALL_VALID_CATEGORIES.map(category => (
-                      <option key={category} value={category}>{formatCategoryName(category)}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Opis:</label>
-                  <input 
-                    type="text" 
-                    name="description"
-                    value={newEquipment.description}
-                    onChange={handleInputChange}
-                    placeholder="Unesite opis opreme"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Serijski broj:</label>
-                  <input 
-                    type="text" 
-                    name="serialNumber"
-                    value={newEquipment.serialNumber}
-                    onChange={handleInputChange}
-                    placeholder="Unesite serijski broj"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button 
-                    type="secondary"
-                    size="medium"
-                    onClick={() => setShowAddModal(false)}
-                  >
-                    Otkaži
-                  </Button>
-                  <Button 
-                    type="primary"
-                    size="medium"
-                    onClick={handleAddEquipment}
-                  >
-                    Dodaj opremu
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      </Panel>
+
+      {/* Dodavanje pojedinačne opreme; dugmad su kao ranije "submit" dugmad forme (Otkaži je prvo) */}
+      <Dialog
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        eyebrow="Oprema"
+        title="Dodaj novu opremu"
+        size="sm"
+        testId="add-equipment-dialog"
+        footer={<>
+          <Btn type="submit" form="mx-eq-add" variant="ghost" onClick={() => setShowAddModal(false)}>Otkaži</Btn>
+          <Btn type="submit" form="mx-eq-add" variant="primary" icon={Plus} onClick={handleAddEquipment}>Dodaj opremu</Btn>
+        </>}
+      >
+        <form id="mx-eq-add" onSubmit={handleAddEquipment} className="sx-form">
+          <Field label="Kategorija:" htmlFor="mx-eq-category">
+            <Select id="mx-eq-category" onChange={handleCategoryChange} defaultValue="">
+              <option value="" disabled>Izaberite kategoriju</option>
+              {ALL_VALID_CATEGORIES.map(category => (
+                <option key={category} value={category}>{formatCategoryName(category)}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Opis:" htmlFor="mx-eq-description">
+            <Input type="text" id="mx-eq-description" name="description" value={newEquipment.description} onChange={handleInputChange} placeholder="Unesite opis opreme" />
+          </Field>
+          <Field label="Serijski broj:" htmlFor="mx-eq-serial">
+            <Input type="text" id="mx-eq-serial" name="serialNumber" value={newEquipment.serialNumber} onChange={handleInputChange} placeholder="Unesite serijski broj" mono />
+          </Field>
+        </form>
+      </Dialog>
     </div>
   );
 };

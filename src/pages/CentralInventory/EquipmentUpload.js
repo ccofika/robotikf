@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { UploadIcon, BackIcon, ExcelIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Upload, FileSpreadsheet } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { equipmentAPI } from '../../services/api';
-import { cn } from '../../utils/cn';
+import { cx, Btn, Led } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Stat, KV } from '../../security/sx/layout';
+import { Field } from '../../security/sx/forms';
+import { LinkBtn } from '../../montaza/ui';
+import './EquipmentUpload.mx.css';
 
 const EquipmentUpload = () => {
   const [file, setFile] = useState(null);
@@ -125,317 +128,190 @@ const EquipmentUpload = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Modern Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-green-50 rounded-xl">
-              <ExcelIcon size={24} className="text-green-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Dodavanje opreme putem Excel fajla</h1>
-              <p className="text-slate-600 mt-1">Upload Excel fajla sa listom opreme</p>
-            </div>
-          </div>
-          <div>
-            <Link to="/equipment">
-              <Button 
-                type="secondary"
-                size="medium"
-                prefix={<BackIcon size={16} />}
-              >
-                Povratak na listu
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        {/* Instructions Section */}
-        <div className="p-6 border-b border-slate-200">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900 mb-3">Uputstvo za upload</h2>
-              <p className="text-slate-600 mb-4">
-                Excel fajl mora sadržati sledeće kolone:
-              </p>
-              <div className="bg-slate-50 rounded-lg p-4 mb-4">
-                <ul className="space-y-2 text-sm text-slate-700">
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span><strong>Kategorija</strong> - kategorija opreme (npr. "CAM", "modem", "STB", itd.)</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span><strong>MODEL</strong> - naziv modela opreme</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span><strong>SN</strong> - jedinstveni serijski broj opreme</span>
-                  </li>
-                </ul>
-              </div>
-              <Button 
-                type="tertiary"
-                size="medium"
-                onClick={downloadTemplate}
-                prefix={<ExcelIcon size={16} />}
-              >
-                Preuzmi šablon
-              </Button>
-          </div>
-        </div>
-        
-        {/* Upload Form Section */}
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error/Success Messages */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
+    <div className="sx-page" data-testid="page-equipment-upload">
+      <PageHead
+        eyebrow="Montaža · Inventar"
+        title="Dodavanje opreme putem Excel fajla"
+        lead="Upload Excel fajla sa listom opreme"
+        actions={<LinkBtn to="/equipment" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
+      />
 
-            {/* Invalid Categories Error Details */}
+      {/* Jedna kartica kao ranije: uputstvo, pa (ispod crte) forma za fajl i rezultat obrade */}
+      <Panel title="Uputstvo za upload" pad={false} className="mx-up-card">
+        <div className="mx-up-sec">
+          <p className="mx-up-p">Excel fajl mora sadržati sledeće kolone:</p>
+          <ul className="mx-up-cols">
+            <li><Led tone="info" /><span><b>Kategorija</b> - kategorija opreme (npr. "CAM", "modem", "STB", itd.)</span></li>
+            <li><Led tone="info" /><span><b>MODEL</b> - naziv modela opreme</span></li>
+            <li><Led tone="info" /><span><b>SN</b> - jedinstveni serijski broj opreme</span></li>
+          </ul>
+          <div>
+            <Btn variant="ghost" icon={FileSpreadsheet} onClick={downloadTemplate}>Preuzmi šablon</Btn>
+          </div>
+        </div>
+
+        <div className="mx-up-sec is-form">
+          {/* dugme je kao ranije "submit" dugme forme sa onClick (handleSubmit sprečava dupli poziv) */}
+          <form onSubmit={handleSubmit} className="mx-up-form">
+            {error && <Note tone="bad">{error}</Note>}
+
             {invalidCategoriesError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h4 className="font-semibold text-red-800 mb-3">⚠️ Pronađene nevalidne kategorije:</h4>
+              <div className="mx-up-box is-bad">
+                <h4 className="mx-up-h"><Led tone="bad" />Pronađene nevalidne kategorije:</h4>
 
-                <div className="mb-4">
-                  <p className="text-sm text-red-700 mb-2">Sledeće kategorije nisu prepoznate:</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mx-up-part">
+                  <p className="mx-up-p">Sledeće kategorije nisu prepoznate:</p>
+                  <div className="sx-chips">
                     {invalidCategoriesError.invalidCategories.map((cat, index) => (
-                      <span key={index} className="px-3 py-1 bg-red-200 text-red-800 rounded-full text-sm font-medium">
-                        "{cat}"
-                      </span>
+                      <span key={index} className="sx-tag is-bad">"{cat}"</span>
                     ))}
                   </div>
                 </div>
 
                 {invalidCategoriesError.invalidRows.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-sm text-red-700 mb-2">Redovi sa nevalidnim kategorijama:</p>
-                    <div className="max-h-40 overflow-y-auto bg-white rounded border border-red-200 p-2">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-red-200">
-                            <th className="text-left p-1 text-red-800">Red</th>
-                            <th className="text-left p-1 text-red-800">Kategorija</th>
-                            <th className="text-left p-1 text-red-800">Serijski broj</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invalidCategoriesError.invalidRows.map((row, index) => (
-                            <tr key={index} className="border-b border-red-100 last:border-0">
-                              <td className="p-1 text-red-700">{row.row}</td>
-                              <td className="p-1 text-red-700 font-medium">{row.category}</td>
-                              <td className="p-1 text-red-700">{row.serialNumber}</td>
+                  <div className="mx-up-part">
+                    <p className="mx-up-p">Redovi sa nevalidnim kategorijama:</p>
+                    <div className="mx-up-scroll is-sm">
+                      <div className="sx-tablewrap">
+                        <table className="sx-table">
+                          <thead>
+                            <tr>
+                              <th>Red</th>
+                              <th>Kategorija</th>
+                              <th>Serijski broj</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {invalidCategoriesError.invalidRows.map((row, index) => (
+                              <tr key={index} style={{ '--i': index }}>
+                                <td className="is-head"><span className="sx-mono">{row.row}</span></td>
+                                <td data-label="Kategorija"><b className="mx-strong">{row.category}</b></td>
+                                <td data-label="Serijski broj"><span className="sx-mono">{row.serialNumber}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className="bg-white rounded border border-red-200 p-3">
-                  <p className="text-sm text-slate-700 mb-2 font-medium">✓ Validne kategorije koje možete koristiti:</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mx-up-part mx-up-valid">
+                  <p className="mx-up-p has-led"><Led tone="ok" />Validne kategorije koje možete koristiti:</p>
+                  <div className="sx-chips">
                     {invalidCategoriesError.validCategories.map((cat, index) => (
-                      <span key={index} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                        {cat}
-                      </span>
+                      <span key={index} className="sx-tag is-ok">{cat}</span>
                     ))}
                   </div>
                 </div>
               </div>
             )}
-            {successMessage && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                {successMessage}
-              </div>
-            )}
-            
-            {/* File Upload Section */}
-            <div>
-              <label htmlFor="equipment-file" className="block text-sm font-medium text-slate-700 mb-2">
-                Odaberi Excel fajl:
-              </label>
-              <div className="relative">
-                <input
-                  type="file"
-                  id="equipment-file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileChange}
-                  disabled={loading}
-                  className="sr-only"
-                />
-                <div 
-                  className={cn(
-                    "relative w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all overflow-hidden",
-                    file ? "border-green-300 bg-green-50" : "border-slate-300 bg-slate-50 hover:bg-slate-100",
-                    loading && "cursor-not-allowed opacity-50"
-                  )}
-                  onClick={() => !loading && document.getElementById('equipment-file').click()}
-                >
-                  <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 p-4">
-                    <UploadIcon size={24} className={file ? "text-green-600" : "text-slate-400"} />
-                    <div className="text-center">
-                      <p className={cn(
-                        "text-sm font-medium",
-                        file ? "text-green-700" : "text-slate-600"
-                      )}>
-                        {file ? file.name : 'Kliknite da odaberete Excel fajl'}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Podržani formati: .xlsx, .xls
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end">
-              <Button 
-                type={file && !loading ? "primary" : "secondary"}
-                size="medium"
+            {successMessage && <Note tone="ok">{successMessage}</Note>}
+
+            <Field label="Odaberi Excel fajl:" htmlFor="equipment-file">
+              <input
+                type="file"
+                id="equipment-file"
+                accept=".xlsx,.xls"
+                onChange={handleFileChange}
+                disabled={loading}
+                className="sx-sr mx-up-input"
+              />
+              <div
+                className={cx('mx-up-drop', file && 'is-picked', loading && 'is-disabled')}
+                onClick={() => !loading && document.getElementById('equipment-file').click()}
+              >
+                <Upload size={22} strokeWidth={1.8} aria-hidden="true" />
+                <b>{file ? file.name : 'Kliknite da odaberete Excel fajl'}</b>
+                <span>Podržani formati: .xlsx, .xls</span>
+              </div>
+            </Field>
+
+            <div className="mx-up-actions">
+              <Btn
+                type="submit"
+                variant="primary"
+                icon={Upload}
                 onClick={handleSubmit}
                 disabled={!file || loading}
-                loading={loading}
-                prefix={<UploadIcon size={16} />}
+                busy={loading}
               >
                 {loading ? 'Upload u toku...' : 'Upload opreme'}
-              </Button>
+              </Btn>
             </div>
           </form>
 
-          {/* Parse Results */}
           {parseResults && (
-            <div className="mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Rezultat obrade</h3>
-
-              {/* Summary cards */}
-              <div className={cn(
-                "grid gap-4 mb-4",
-                parseResults.errors.length > 0 ? "grid-cols-1 md:grid-cols-4" : "grid-cols-1 md:grid-cols-3"
-              )}>
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Ukupno redova u fajlu</span>
-                  </div>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{parseResults.totalProcessed}</p>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-green-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Uspešno dodato</span>
-                  </div>
-                  <p className="text-xl font-bold text-green-700 mt-1">{parseResults.equipmentAdded}</p>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-orange-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span className="text-sm text-slate-600">Preskočeni duplikati</span>
-                  </div>
-                  <p className="text-xl font-bold text-orange-700 mt-1">{parseResults.duplicates.length}</p>
-                </div>
-                {parseResults.errors.length > 0 && (
-                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <span className="text-sm text-red-600 font-medium">Greške</span>
-                    </div>
-                    <p className="text-xl font-bold text-red-700 mt-1">{parseResults.errors.length}</p>
-                  </div>
-                )}
+            <div className="mx-up-results">
+              <h3 className="mx-up-title">Rezultat obrade</h3>
+              <div className="sx-stats mx-up-stats">
+                <Stat label="Ukupno redova u fajlu" value={parseResults.totalProcessed} />
+                <Stat label="Uspešno dodato" value={parseResults.equipmentAdded} tone={parseResults.equipmentAdded > 0 ? 'ok' : null} />
+                <Stat label="Preskočeni duplikati" value={parseResults.duplicates.length} tone={parseResults.duplicates.length > 0 ? 'warn' : null} />
+                {parseResults.errors.length > 0 && <Stat label="Greške" value={parseResults.errors.length} tone="bad" />}
               </div>
 
-              {/* Error details */}
               {parseResults.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <h4 className="font-semibold text-red-800 mb-2">
-                    Greške prilikom obrade ({parseResults.errors.length}):
-                  </h4>
-                  <p className="text-sm text-red-700 mb-3">
+                <div className="mx-up-box is-bad">
+                  <h4 className="mx-up-h"><Led tone="bad" />Greške prilikom obrade ({parseResults.errors.length}):</h4>
+                  <p className="mx-up-p">
                     Sledeći redovi iz Excel fajla nisu mogli biti dodati. Proverite da li svaki red ima popunjene kolone <strong>Kategorija</strong>, <strong>MODEL</strong> i <strong>SN</strong>.
                   </p>
-                  <div className="max-h-64 overflow-y-auto bg-white rounded border border-red-200">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-red-100">
-                        <tr>
-                          <th className="text-left p-2 text-red-800 font-medium">Red u Excel-u</th>
-                          <th className="text-left p-2 text-red-800 font-medium">Kategorija</th>
-                          <th className="text-left p-2 text-red-800 font-medium">Model</th>
-                          <th className="text-left p-2 text-red-800 font-medium">Serijski broj</th>
-                          <th className="text-left p-2 text-red-800 font-medium">Problem</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parseResults.errors.map((err, index) => {
-                          const isStructured = typeof err === 'object' && err !== null;
-                          return (
-                            <tr key={index} className="border-t border-red-100">
-                              <td className="p-2 text-red-700 font-mono">{isStructured && err.row ? err.row : '-'}</td>
-                              <td className="p-2 text-red-700">{isStructured && err.rawData ? err.rawData.kategorija : '-'}</td>
-                              <td className="p-2 text-red-700">{isStructured && err.rawData ? err.rawData.model : '-'}</td>
-                              <td className="p-2 text-red-700 font-mono">{isStructured && err.rawData ? err.rawData.sn : '-'}</td>
-                              <td className="p-2 text-red-600">{isStructured ? err.message : String(err)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="mx-up-scroll">
+                    <div className="sx-tablewrap">
+                      <table className="sx-table">
+                        <thead>
+                          <tr>
+                            <th>Red u Excel-u</th>
+                            <th>Kategorija</th>
+                            <th>Model</th>
+                            <th>Serijski broj</th>
+                            <th>Problem</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parseResults.errors.map((err, index) => {
+                            const isStructured = typeof err === 'object' && err !== null;
+                            return (
+                              <tr key={index} style={{ '--i': index }}>
+                                <td className="is-head"><span className="sx-mono">{isStructured && err.row ? err.row : '-'}</span></td>
+                                <td data-label="Kategorija">{isStructured && err.rawData ? err.rawData.kategorija : '-'}</td>
+                                <td data-label="Model">{isStructured && err.rawData ? err.rawData.model : '-'}</td>
+                                <td data-label="Serijski broj"><span className="sx-mono">{isStructured && err.rawData ? err.rawData.sn : '-'}</span></td>
+                                <td data-label="Problem" className="is-wide mx-up-problem">{isStructured ? err.message : String(err)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <p className="text-xs text-red-600 mt-2">
+                  <p className="sx-field__hint">
                     Ispravite Excel fajl i ponovo ga upload-ujte da biste dodali ove stavke.
                   </p>
                 </div>
               )}
 
               {parseResults.duplicates.length > 0 && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-orange-800 mb-2">Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
-                  <p className="text-sm text-orange-700 mb-3">Sledeća oprema već postoji u sistemu i nije dodana:</p>
-                  <div className="space-y-3">
+                <div className="mx-up-box is-warn">
+                  <h4 className="mx-up-h"><Led tone="warn" />Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
+                  <p className="mx-up-p">Sledeća oprema već postoji u sistemu i nije dodana:</p>
+                  <div className="mx-up-dups">
                     {parseResults.duplicates.map((duplicate, index) => (
-                      <div key={index} className="bg-white border border-orange-200 rounded-lg p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <span className="font-medium text-slate-700">Kategorija:</span>
-                            <p className="text-slate-600">{duplicate.category || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Model:</span>
-                            <p className="text-slate-600">{duplicate.model || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Serijski broj:</span>
-                            <p className="text-slate-600">{duplicate.serialNumber || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Status:</span>
-                            <p className="text-slate-600">{duplicate.status || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">Lokacija:</span>
-                            <p className="text-slate-600">{duplicate.location || 'N/A'}</p>
-                          </div>
-                          {(duplicate.assignedTo || duplicate.assignedToUser) && (
-                            <div>
-                              <span className="font-medium text-slate-700">Dodeljena:</span>
-                              <p className="text-slate-600">{duplicate.assignedToUser || duplicate.assignedTo || 'N/A'}</p>
-                            </div>
-                          )}
-                        </div>
-                        {duplicate.reason && (
-                          <div className="mt-2 pt-2 border-t border-orange-100">
-                            <span className="text-xs text-orange-700">{duplicate.reason}</span>
-                          </div>
-                        )}
+                      <div key={index} className="sx-cred">
+                        <KV
+                          cols={2}
+                          items={[
+                            { k: 'Kategorija', v: duplicate.category || 'N/A' },
+                            { k: 'Model', v: duplicate.model || 'N/A' },
+                            { k: 'Serijski broj', v: duplicate.serialNumber || 'N/A', mono: true },
+                            { k: 'Status', v: duplicate.status || 'N/A' },
+                            { k: 'Lokacija', v: duplicate.location || 'N/A' },
+                            (duplicate.assignedTo || duplicate.assignedToUser) && { k: 'Dodeljena', v: duplicate.assignedToUser || duplicate.assignedTo || 'N/A' }
+                          ]}
+                        />
+                        {duplicate.reason && <p className="mx-up-reason">{duplicate.reason}</p>}
                       </div>
                     ))}
                   </div>
@@ -444,9 +320,9 @@ const EquipmentUpload = () => {
             </div>
           )}
         </div>
-      </div>
+      </Panel>
     </div>
-    );
+  );
 };
 
 export default EquipmentUpload;

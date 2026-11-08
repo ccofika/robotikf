@@ -1,0 +1,13 @@
+/* Neispravna oprema: vreme upita, ko je uklonio, razlog sa oznakom "Ne radi" */
+.mx-de-time { font-family: var(--sx-font-mono); font-size: 11.5px; color: var(--sx-faint); }
+.mx-de-who { display: inline-flex; align-items: center; gap: 6px; color: var(--sx-text-2); }
+.mx-de-who svg { color: var(--sx-faint); }
+.mx-de-reason { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+/* adresa naloga nema razmake posle zareza: sme da se prelomi bilo gde */
+.mx-de-wo .sx-cell > span, .mx-de-wo .sx-cell > b { overflow-wrap: anywhere; }
+/* 8 kolona u tabeli: uži razmaci, natpisi kolona u dva reda; kad ipak ne stane, pomera se unutar panela (mx-scroll) */
+@container tbl (min-width: 761px) {
+  .sx-table.mx-de-table th, .sx-table.mx-de-table td { padding-left: 10px; padding-right: 10px; }
+  .sx-table.mx-de-table thead th { white-space: normal; vertical-align: bottom; }
+  .sx-table.mx-de-table td.mx-de-wo { min-width: 180px; }
+}
