@@ -28,3 +28,12 @@
 }
 .mx-tinv .mx-tinv-ptr.is-on { opacity: 1; transform: translate(-50%, 0); }
 .mx-tinv .mx-tinv-ptr.is-on svg { animation: sx-spin 0.9s linear infinite; }
+
+/* tabela naziv + količina (materijali, osnovna oprema): na uskom prostoru jedan red, naziv levo i količina desno
+   (natpis "Količina" se ne prikazuje, jedinica "kom" je uz broj) */
+@container tbl (max-width: 760px) {
+  .mx-tinv .mx-tinv-qtable tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .mx-tinv .mx-tinv-qtable td.is-head { grid-column: auto; }
+  .mx-tinv .mx-tinv-qtable td.is-num { text-align: right; }
+  .mx-tinv .mx-tinv-qtable td[data-label]::before { display: none; }
+}
