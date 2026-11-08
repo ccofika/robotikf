@@ -1,16 +1,40 @@
-/* Dashboard Montaže u izgledu Security dela: samo dodaci koje sx nema. Boje samo iz tokena.
+/* Dashboard Montaže u izgledu Security dela, isti raspored kao ranije. Samo dodaci koje sx nema; boje samo iz tokena.
    Ovaj fajl se učitava pre sx CSS-a, zato izmene sx klasa idu kroz složenije selektore. */
 
 .mx-dashboard > * + * { margin-top: 20px; }
 .mx-dashboard .sx-cols { align-items: stretch; }
 
-/* zaglavlje: pretraga i osveži desno; iskačući rezultati moraju biti iznad sadržaja ispod */
-.mx-dashboard-head { position: relative; z-index: 30; }
-.mx-dashboard-head .sx-head__actions { flex-wrap: nowrap; }
-.mx-dashboard-head .sx-head__actions .sx-btn { flex: 0 0 auto; }
+/* učitavanje: znak i tekst na sredini (kao ranije) */
+.mx-dashboard-loading { display: grid; place-content: center; justify-items: center; gap: 14px; min-height: 50vh; font-size: 14px; font-weight: 550; color: var(--sx-text-2); }
+.mx-dashboard-spin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--sx-line-2); border-top-color: var(--sx-text); animation: sx-spin 0.8s linear infinite; }
 
-/* glavne brojke (linkovi): natpis levo, sitna oznaka desno */
-.mx-dashboard-stat__top { display: flex; flex-direction: row-reverse; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+/* zaglavlje u jednom redu: naslov levo (sakriva se dok je pretraga u fokusu), pretraga, osveži i avatar desno */
+.mx-dashboard-head { position: relative; z-index: 30; display: flex; align-items: center; gap: 16px; padding-bottom: 6px; }
+.mx-dashboard-head__title { min-width: 0; max-width: 640px; overflow: hidden; white-space: nowrap; transition: max-width 300ms var(--ease-move), opacity 300ms var(--ease-move); }
+.mx-dashboard-head.is-searching .mx-dashboard-head__title { max-width: 0; opacity: 0; }
+.mx-dashboard-head__h1 { margin-top: 10px; font-size: clamp(28px, 1vw + 18px, 38px); }
+.mx-dashboard-head__lead { margin-top: 8px; font-size: 14px; color: var(--sx-text-2); }
+.mx-dashboard-head__tools { display: flex; flex: 1 1 auto; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; margin-left: auto; }
+.mx-dashboard-head__tools .sx-btn { flex-shrink: 0; }
+.sx-avatar.mx-dashboard-head__ava { width: 38px; height: 38px; background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); font-size: 13.5px; }
+/* telefon: naslov iznad, ispod njega pretraga, osveži i avatar (bez prelivanja) */
+@container page (max-width: 560px) {
+  .mx-dashboard-head { flex-wrap: wrap; }
+  .mx-dashboard-head__title, .mx-dashboard-head.is-searching .mx-dashboard-head__title { flex: 1 1 100%; max-width: none; opacity: 1; white-space: normal; }
+  .mx-dashboard-head__tools { flex: 1 1 100%; }
+}
+
+/* upozorenja u jednom redu: naslov levo, dugmad desno */
+.sx-note.mx-dashboard-alerts { align-items: center; padding: 12px 16px; }
+.mx-dashboard-alerts > .sx-led { margin-top: 0; }
+.mx-dashboard-alerts .sx-note__body { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.mx-dashboard-alerts .sx-note__actions { margin-top: 0; }
+
+/* četiri kartice sa brojkama: 4 u redu, 2 na srednjoj širini, jedna ispod druge na telefonu */
+.sx-stats.mx-dashboard-main { grid-template-columns: minmax(0, 1fr); }
+@container page (min-width: 440px) { .sx-stats.mx-dashboard-main { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 900px) { .sx-stats.mx-dashboard-main { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.mx-dashboard-stat__top { display: flex; flex-direction: row-reverse; align-items: flex-start; justify-content: space-between; gap: 8px; min-width: 0; margin-bottom: 6px; }
 .mx-dashboard-stat__corner { font-size: 11.5px; color: var(--sx-faint); white-space: nowrap; }
 .mx-dashboard-up { font-weight: 600; color: var(--sx-ok-text); }
 
@@ -39,9 +63,13 @@
 .mx-dashboard-bar__label { font-size: 12.5px; font-weight: 550; color: var(--sx-muted); transition: color var(--hover-out) var(--ease-move); }
 @container page (max-width: 560px) { .mx-dashboard-bars { height: 210px; } }
 
-/* završeni / u toku (desno od stubića) */
-.sx-stats.mx-dashboard-side { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
-.mx-dashboard-side .sx-stat__sub { display: grid; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--sx-line); }
+/* dve kartice desno (završeni, u toku), uvek jedna ispod druge */
+.mx-dashboard-side { grid-auto-rows: 1fr; }
+.sx-card.mx-dashboard-quick { display: grid; align-content: space-between; gap: 14px; width: 100%; padding: 18px 20px; text-align: left; transition: background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) { .sx-card.mx-dashboard-quick:hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+.mx-dashboard-quick__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mx-dashboard-quick__main { display: grid; gap: 8px; }
+.mx-dashboard-quick__foot { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--sx-line); }
 
 /* red "naziv ... vrednost" i traka udela */
 .mx-dashboard-kv { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--sx-muted); }
@@ -51,16 +79,9 @@
 .mx-dashboard-meter[data-tone="ok"] { --c: var(--sx-ok); }
 .mx-dashboard-meter[data-tone="info"] { --c: var(--sx-accent); }
 
-/* tri panela: status, aktivnost, ocene */
+/* tri panela u jednom redu (5:4:3), na užem jedan ispod drugog */
 .mx-dashboard-trio { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
-@container page (min-width: 760px) {
-  .mx-dashboard-trio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mx-dashboard-trio > :last-child { grid-column: 1 / -1; }
-}
-@container page (min-width: 1180px) {
-  .mx-dashboard-trio { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); }
-  .mx-dashboard-trio > :last-child { grid-column: auto; }
-}
+@container page (min-width: 900px) { .mx-dashboard-trio { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); } }
 
 /* redovi statusa (dugmad) */
 .sx-list > .sx-item.mx-dashboard-row { grid-template-columns: auto minmax(0, 1fr) auto; width: calc(100% + 24px); padding: 11px 12px; text-align: left; }
@@ -81,6 +102,7 @@
 /* nedavna aktivnost */
 .mx-dashboard-act .sx-item__main b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; font-weight: 550; }
 .mx-dashboard-act__who { font-weight: 550; color: var(--sx-text-2); }
+.sx-empty.mx-dashboard-none { align-items: center; padding: 28px 0 22px; text-align: center; }
 
 /* ocene */
 .mx-dashboard-stars { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
@@ -88,7 +110,8 @@
 .mx-dashboard-star.is-on { color: var(--sx-warn); fill: currentColor; }
 .mx-dashboard-rev { display: grid; gap: 16px; }
 .mx-dashboard-rev__score { display: flex; align-items: center; gap: 12px; }
-.mx-dashboard-rev__num { font-size: 42px; color: var(--sx-text); }
+.mx-dashboard-rev__overall { display: grid; gap: 4px; }
+.mx-dashboard-rev__num { font-size: 30px; color: var(--sx-text); }
 .mx-dashboard-rev__max { margin-left: 4px; font-size: 12px; color: var(--sx-faint); }
 .mx-dashboard-rev__meters { display: grid; gap: 6px; }
 .mx-dashboard-rev__meters .mx-dashboard-meter + .mx-dashboard-kv { margin-top: 8px; }
@@ -100,20 +123,20 @@
 .mx-dashboard-rev__line { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .mx-dashboard-rev__line b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 650; color: var(--sx-text); }
 .mx-dashboard-rev__comment { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--sx-muted); }
-/* širok panel (ocene preko cele širine): poslednje ocene u desnoj koloni */
-.mx-dashboard-revpanel .sx-panel__body { container: rev / inline-size; }
-@container rev (min-width: 620px) {
-  .mx-dashboard-rev { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 40px; align-items: start; }
-  .mx-dashboard-rev__list { grid-column: 2; grid-row: 1 / span 3; }
-}
 
-/* finansije: brojke + dugme */
+/* finansije: jedna kartica, brojke i dugme u redu, neuspele transakcije na dnu kartice */
+.sx-card.mx-dashboard-fin { overflow: hidden; }
+.sx-stats.mx-dashboard-fin__stats { grid-template-columns: minmax(0, 1fr); border: 0; border-radius: 0; box-shadow: none; }
+@container page (min-width: 440px) { .sx-stats.mx-dashboard-fin__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 700px) { .sx-stats.mx-dashboard-fin__stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .sx-stat.mx-dashboard-fin__go { align-content: center; justify-items: center; }
+.mx-dashboard-fin__fail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px 10px 18px; border-top: 1px solid var(--sx-line); background: color-mix(in oklab, var(--sx-bad) 5%, var(--sx-surface)); }
+.mx-dashboard-fin__failtext { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--sx-bad-text); }
 
-/* vozni park: brojke u panelu (bez senke, manje) */
+/* vozni park: brojke 2 x 2 u panelu (bez senke, manje) */
 .sx-stats.mx-dashboard-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); box-shadow: none; }
 .mx-dashboard-mini .sx-stat__num { font-size: 26px; }
 
-/* brze akcije */
+/* brze akcije: dve kolone */
 .mx-dashboard-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .mx-dashboard-actions .sx-btn { justify-content: flex-start; width: 100%; min-width: 0; }

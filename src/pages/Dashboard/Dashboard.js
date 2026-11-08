@@ -4,6 +4,7 @@ import {
   Package,
   Cable,
   HardHat,
+  ClipboardList,
   CheckCircle2,
   Clock,
   RefreshCw,
@@ -16,13 +17,15 @@ import {
   ClipboardPlus,
   PackagePlus,
   UserPlus,
-  Upload
+  Upload,
+  TriangleAlert,
+  Plus
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import api, { reviewsAPI } from '../../services/api';
 import GlobalSearch from '../../components/GlobalSearch';
-import { Btn, Led, Skeleton } from '../../security/sx/ui';
-import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
+import { cx, Btn, Led } from '../../security/sx/ui';
+import { Panel, Note, Stat } from '../../security/sx/layout';
 import { LinkBtn } from '../../montaza/ui';
 import './Dashboard.mx.css';
 
@@ -209,16 +212,9 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="sx-page mx-dashboard" data-testid="page-dashboard" aria-busy="true">
-        <span className="sx-sr" role="status">Učitavanje...</span>
-        <Skeleton h={12} w={170} />
-        <Skeleton h={44} w="min(300px, 70%)" style={{ marginTop: 16 }} />
-        <Skeleton h={16} w="min(240px, 60%)" style={{ marginTop: 14 }} />
-        <Skeleton h={112} r={18} style={{ marginTop: 28 }} />
-        <div className="sx-cols sx-cols--main" style={{ marginTop: 20 }}>
-          <Skeleton h={300} r={18} />
-          <Skeleton h={300} r={18} />
-        </div>
+      <div className="sx-page mx-dashboard-loading" data-testid="page-dashboard" aria-busy="true">
+        <span className="mx-dashboard-spin" aria-hidden="true" />
+        <p role="status">Učitavanje...</p>
       </div>
     );
   }
@@ -236,10 +232,10 @@ const Dashboard = () => {
   const maxVal = Math.max(stats.workOrders.completed, stats.workOrders.pending, stats.workOrders.postponed, 1);
 
   const mainStats = [
-    { to: '/work-orders', corner: 'Ukupno', label: 'Radni nalozi', value: stats.workOrders.total, sub: <><span className="mx-dashboard-up">↑ {completionRate}%</span> završeno</> },
-    { to: '/equipment', corner: 'Aktivna', label: 'Oprema', value: stats.equipment, sub: 'ukupno uređaja' },
-    { to: '/technicians', corner: 'Tim', label: 'Tehničari', value: stats.technicians, sub: <>~{stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0} naloga/tehničar</> },
-    { to: '/materials', corner: 'Stanje', label: 'Materijali', value: stats.materials, sub: 'na lageru' }
+    { to: '/work-orders', icon: ClipboardList, corner: 'Ukupno', label: 'Radni nalozi', value: stats.workOrders.total, sub: <><span className="mx-dashboard-up">↑ {completionRate}%</span> završeno</> },
+    { to: '/equipment', icon: Package, corner: 'Aktivna', label: 'Oprema', value: stats.equipment, sub: 'ukupno uređaja' },
+    { to: '/technicians', icon: HardHat, corner: 'Tim', label: 'Tehničari', value: stats.technicians, sub: <>~{stats.technicians > 0 ? Math.round(stats.workOrders.total / stats.technicians) : 0} naloga/tehničar</> },
+    { to: '/materials', icon: Cable, corner: 'Stanje', label: 'Materijali', value: stats.materials, sub: 'na lageru' }
   ];
 
   const quickActions = [
@@ -251,25 +247,33 @@ const Dashboard = () => {
     { to: '/vehicles', label: 'Vozni park', icon: Car }
   ].filter(Boolean);
 
+  // Naslov panela sa ikonicom (kao ranije)
+  const iconTitle = (Icon, text) => (
+    <span className="sx-panel__title-row"><Icon size={16} strokeWidth={1.9} aria-hidden="true" />{text}</span>
+  );
+
   return (
     <div className="sx-page mx-dashboard" data-testid="page-dashboard">
-      <PageHead
-        className="mx-dashboard-head"
-        eyebrow="Montaža · Dashboard"
-        title="Dashboard"
-        lead={`Dobrodošli, ${user?.name}`}
-        actions={(
-          <>
-            <GlobalSearch onFocusChange={setSearchFocused} expanded={searchFocused} />
-            <Btn icon={RefreshCw} onClick={fetchDashboardData} title="Osveži podatke" aria-label="Osveži podatke" />
-          </>
-        )}
-      />
 
-      {/* Upozorenja */}
+      {/* Zaglavlje: naslov levo (sakriva se dok je pretraga u fokusu), pretraga, osveži i avatar desno */}
+      <header className={cx('mx-dashboard-head', searchFocused && 'is-searching')}>
+        <div className="mx-dashboard-head__title">
+          <span className="sx-eyebrow">Montaža · Dashboard</span>
+          <h1 className="sx-title mx-dashboard-head__h1" data-testid="page-heading">Dashboard</h1>
+          <p className="mx-dashboard-head__lead">Dobrodošli, {user?.name}</p>
+        </div>
+        <div className="mx-dashboard-head__tools">
+          <GlobalSearch onFocusChange={setSearchFocused} expanded={searchFocused} />
+          <Btn icon={RefreshCw} onClick={fetchDashboardData} title="Osveži podatke" aria-label="Osveži podatke" />
+          <span className="sx-avatar mx-dashboard-head__ava" aria-hidden="true">{user?.name?.charAt(0) || 'U'}</span>
+        </div>
+      </header>
+
+      {/* Upozorenja: naslov levo, dugmad desno */}
       {getTotalAlerts() > 0 && (
         <Note
           tone="warn"
+          className="mx-dashboard-alerts"
           testId="dashboard-alerts"
           actions={(
             <>
@@ -295,18 +299,22 @@ const Dashboard = () => {
         </Note>
       )}
 
-      {/* Glavne brojke (linkovi na stranice) */}
-      <div className="sx-stats">
-        {mainStats.map((s) => (
-          <Link key={s.to} to={s.to} className="sx-stat is-button mx-dashboard-stat">
-            <span className="mx-dashboard-stat__top">
-              <span className="mx-dashboard-stat__corner">{s.corner}</span>
+      {/* Četiri kartice sa brojkama (linkovi) */}
+      <div className="sx-stats mx-dashboard-main">
+        {mainStats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <Link key={s.to} to={s.to} className="sx-stat is-button mx-dashboard-stat">
+              <span className="mx-dashboard-stat__top">
+                <span className="mx-dashboard-stat__corner">{s.corner}</span>
+                <span className="sx-item__icon mx-dashboard-stat__icon"><Icon size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+              </span>
               <span className="sx-label">{s.label}</span>
-            </span>
-            <span className="sx-stat__num sx-num">{s.value.toLocaleString()}</span>
-            <span className="sx-stat__sub">{s.sub}</span>
-          </Link>
-        ))}
+              <span className="sx-stat__num sx-num">{s.value.toLocaleString()}</span>
+              <span className="sx-stat__sub">{s.sub}</span>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Raspodela po statusu + završeni / u toku */}
@@ -332,24 +340,32 @@ const Dashboard = () => {
           </div>
         </Panel>
 
-        <div className="sx-stats mx-dashboard-side">
-          <Stat
-            label="Završeni"
-            value={stats.workOrders.completed}
-            onClick={() => navigateToWorkOrders('zavrsen')}
-            sub={(
-              <>
-                <span className="mx-dashboard-kv"><span>Stopa uspešnosti</span><b>{completionRate}%</b></span>
-                <span className="mx-dashboard-meter" data-tone="ok"><span style={{ width: `${completionRate}%` }} /></span>
-              </>
-            )}
-          />
-          <Stat
-            label="U toku"
-            value={stats.workOrders.pending}
-            onClick={() => navigateToWorkOrders('nezavrsen')}
-            sub={<span className="mx-dashboard-kv"><span>Prosečno vreme</span><b>{stats.workOrders.avgCompletionTime || 2.5}d</b></span>}
-          />
+        <div className="sx-stack mx-dashboard-side">
+          <button type="button" className="sx-card mx-dashboard-quick" onClick={() => navigateToWorkOrders('zavrsen')}>
+            <span className="mx-dashboard-quick__top">
+              <span className="mx-dashboard-quick__main">
+                <span className="sx-label">Završeni</span>
+                <span className="sx-stat__num sx-num">{stats.workOrders.completed}</span>
+              </span>
+              <span className="sx-item__icon"><CheckCircle2 size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+            </span>
+            <span className="mx-dashboard-quick__foot">
+              <span className="mx-dashboard-kv"><span>Stopa uspešnosti</span><b>{completionRate}%</b></span>
+              <span className="mx-dashboard-meter" data-tone="ok"><span style={{ width: `${completionRate}%` }} /></span>
+            </span>
+          </button>
+          <button type="button" className="sx-card mx-dashboard-quick" onClick={() => navigateToWorkOrders('nezavrsen')}>
+            <span className="mx-dashboard-quick__top">
+              <span className="mx-dashboard-quick__main">
+                <span className="sx-label">U toku</span>
+                <span className="sx-stat__num sx-num">{stats.workOrders.pending}</span>
+              </span>
+              <span className="sx-item__icon"><Clock size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+            </span>
+            <span className="mx-dashboard-quick__foot">
+              <span className="mx-dashboard-kv"><span>Prosečno vreme</span><b>{stats.workOrders.avgCompletionTime || 2.5}d</b></span>
+            </span>
+          </button>
         </div>
       </div>
 
@@ -411,18 +427,21 @@ const Dashboard = () => {
               })}
             </div>
           ) : (
-            <div className="sx-empty"><b>Nema aktivnosti</b></div>
+            <div className="sx-empty mx-dashboard-none"><span>Nema aktivnosti</span></div>
           )}
         </Panel>
 
-        <Panel title="Ocene" className="mx-dashboard-revpanel" actions={<LinkBtn to="/technicians" size="sm" variant="ghost">Tehničari →</LinkBtn>}>
+        <Panel title="Ocene" actions={<LinkBtn to="/technicians" size="sm" variant="ghost">Tehničari →</LinkBtn>}>
           {reviewData && reviewData.totalReviews > 0 ? (
             <div className="mx-dashboard-rev">
               <div className="mx-dashboard-rev__score">
-                <span className="sx-num mx-dashboard-rev__num">{reviewData.overallRating}</span>
-                <span className="mx-dashboard-stars">
-                  {renderStars(reviewData.overallRating)}
-                  <span className="mx-dashboard-rev__max">/ 5</span>
+                <span className="sx-item__icon is-warn"><Star size={20} strokeWidth={1.8} aria-hidden="true" /></span>
+                <span className="mx-dashboard-rev__overall">
+                  <span className="sx-num mx-dashboard-rev__num">{reviewData.overallRating}</span>
+                  <span className="mx-dashboard-stars">
+                    {renderStars(reviewData.overallRating)}
+                    <span className="mx-dashboard-rev__max">/ 5</span>
+                  </span>
                 </span>
               </div>
 
@@ -453,7 +472,8 @@ const Dashboard = () => {
               )}
             </div>
           ) : (
-            <div className="sx-empty">
+            <div className="sx-empty mx-dashboard-none">
+              <span className="sx-item__icon"><Star size={20} strokeWidth={1.8} aria-hidden="true" /></span>
               <b>Nema ocena</b>
               <span>Ocene će se pojaviti nakon što korisnici ocene tehničare</span>
             </div>
@@ -463,8 +483,8 @@ const Dashboard = () => {
 
       {/* Finansije - za superadmin i supervisor */}
       {isSuperAdmin && financialStats && (
-        <section className="mx-dashboard-fin" data-testid="dashboard-finances">
-          <div className="sx-stats">
+        <section className="sx-card mx-dashboard-fin" data-testid="dashboard-finances">
+          <div className="sx-stats mx-dashboard-fin__stats">
             <Stat label="Mesečni prihod" value={`${((financialStats.totalRevenue || 0) / 1000).toFixed(1)}k`} sub="Ukupan prihod" />
             <Stat label="Troškovi" value={`${((financialStats.totalPayouts || 0) / 1000).toFixed(1)}k`} sub="Isplate tehničarima" />
             <Stat label="Neto profit" value={`${((financialStats.totalProfit || 0) / 1000).toFixed(1)}k`} sub="Ovaj mesec" />
@@ -473,9 +493,13 @@ const Dashboard = () => {
             </div>
           </div>
           {failedTransactions.length > 0 && (
-            <Note tone="bad" actions={<LinkBtn to="/finances" size="sm">Reši →</LinkBtn>}>
-              {failedTransactions.length} neuspešnih transakcija
-            </Note>
+            <div className="mx-dashboard-fin__fail">
+              <span className="mx-dashboard-fin__failtext">
+                <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />
+                {failedTransactions.length} neuspešnih transakcija
+              </span>
+              <LinkBtn to="/finances" size="sm" variant="ghost" className="mx-danger">Reši →</LinkBtn>
+            </div>
           )}
         </section>
       )}
@@ -483,7 +507,7 @@ const Dashboard = () => {
       {/* Vozni park + brze akcije */}
       <div className="sx-cols sx-cols--2">
         {vehicleStats && (
-          <Panel title="Vozni park" actions={<LinkBtn to="/vehicles" size="sm" variant="ghost">Detalji →</LinkBtn>}>
+          <Panel title={iconTitle(Car, 'Vozni park')} actions={<LinkBtn to="/vehicles" size="sm" variant="ghost">Detalji →</LinkBtn>}>
             <div className="sx-stats mx-dashboard-mini">
               <Stat label="Ukupno" value={vehicleStats.totalVehicles || 0} />
               <Stat label="Aktivna" value={vehicleStats.activeVehicles || 0} tone={vehicleStats.activeVehicles ? 'ok' : null} />
@@ -493,7 +517,7 @@ const Dashboard = () => {
           </Panel>
         )}
 
-        <Panel title="Brze akcije">
+        <Panel title={iconTitle(Plus, 'Brze akcije')}>
           <div className="mx-dashboard-actions">
             {quickActions.map((a) => (
               <LinkBtn key={a.to} to={a.to} icon={a.icon}>{a.label}</LinkBtn>
