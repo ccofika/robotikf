@@ -1,9 +1,6 @@
-/* Moji radni nalozi (tehničar): kartice na telefonu i red sa razlogom vraćanja u tabeli.
+/* Moji radni nalozi (tehničar): kartice na telefonu i red sa razlogom vraćanja u tabeli
+   (zaglavlje, brojke, pretraga u kartici, filteri i paginacija na telefonu su u TechniciansInventory/TechnicianInventory.mx.css).
    Pravila su pod .mx-mynalozi jer se ovaj fajl učitava pre sx osnove (ista težina bi izgubila). Boje samo iz tokena. */
-
-/* ---------- šest brojki: 3 u redu, na širokom svih 6 (bez prazne sive ćelije) ---------- */
-.mx-mynalozi .sx-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@container page (min-width: 980px) { .mx-mynalozi .sx-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
 /* ---------- telefon: kartica naloga (vodoravno prevlačenje radi skripta, uspravni skrol ostaje pregledaču) ---------- */
 .mx-mynalozi .mx-mynalozi-cards { display: grid; gap: 10px; padding: 12px; }
