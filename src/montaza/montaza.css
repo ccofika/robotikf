@@ -124,3 +124,7 @@
 .mx-daterange__sep { font-size: 13px; color: var(--sx-muted); }
 /* brojke: neparan broj na uskom prostoru, poslednja zauzima ceo red (bez sive rupe) */
 @container page (max-width: 560px) { .mx-app .sx-stats > .sx-stat:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+/* tabela kao kartice (telefon): dugi nizovi bez razmaka (adrese, serijski brojevi) se lome, ne prelivaju ekran */
+@container tbl (max-width: 760px) { .mx-app .sx-table td { overflow-wrap: anywhere; } }
+/* pilule izbora na dodir: najmanje 40 px (Security ima 32 px za male pilule) */
+@media (hover: none) { .mx-app .sx-choice--sm .sx-choice__opt { height: 40px; } }
