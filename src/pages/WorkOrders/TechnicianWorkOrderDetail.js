@@ -1,20 +1,18 @@
-// Radni nalog tehničara (teren, prvo telefon): podaci o korisniku, oprema, materijal, slike, komentar i status
+// Radni nalog tehničara: ista struktura kao ranije (kartice jedna ispod druge), izgled Security dela
 import React, { useState, useEffect, useContext, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ListChecks, Phone, MapPin, Search, Trash2, PackageMinus, Camera, X, Check, TriangleAlert, Upload, Save, RefreshCw, CircleCheck, Clock, CalendarClock, CircleX } from 'lucide-react';
+import { Package, ArrowLeft, Phone, MapPin, Search, Trash2, Image as ImageIcon, X, Check, TriangleAlert, Save, RefreshCw, Clock } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
 import { userEquipmentAPI, materialsAPI, workOrdersAPI, techniciansAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { useOverdueWorkOrders } from '../../context/OverdueWorkOrdersContext';
 import { cx, Btn, State, Empty } from '../../security/sx/ui';
-import { PageHead, Panel, Note, KV } from '../../security/sx/layout';
+import { Panel, Note, KV } from '../../security/sx/layout';
 import { Field, Input, Textarea, DateField, TimeField } from '../../security/sx/forms';
-import Dialog from '../../security/sx/Dialog';
 import { confirm } from '../../security/sx/confirm';
-import { useLayer } from '../../security/sx/layer';
-import { Loading } from '../../montaza/ui';
+import { Loading, LinkBtn } from '../../montaza/ui';
 import EquipmentSelectionModal from './components/EquipmentSelectionModal';
 import MaterialsModal from './components/MaterialsModal';
 import UsedMaterialsList from './components/UsedMaterialsList';
@@ -22,19 +20,18 @@ import InstalledEquipmentList from './components/InstalledEquipmentList';
 import './TechnicianWorkOrderDetail.mx.css';
 import { localYmd } from '../../utils/localDate';
 
-// Statusi naloga: isti natpisi i redosled kao ranije, ton po vodiču (završen ok, nezavršen warn, odložen info, otkazan bad)
+// Statusi naloga: isti natpisi, redosled i ikonice kao ranije; ton po vodiču (završen ok, nezavršen warn, odložen info, otkazan bad)
 const STATUSES = [
-  { key: 'zavrsen', label: 'Završen', tone: 'ok', icon: CircleCheck },
+  { key: 'zavrsen', label: 'Završen', tone: 'ok', icon: Check },
   { key: 'nezavrsen', label: 'Nezavršen', tone: 'warn', icon: Clock },
-  { key: 'odlozen', label: 'Odložen', tone: 'info', icon: CalendarClock },
-  { key: 'otkazan', label: 'Otkazan', tone: 'bad', icon: CircleX }
+  { key: 'odlozen', label: 'Odložen', tone: 'info', icon: TriangleAlert },
+  { key: 'otkazan', label: 'Otkazan', tone: 'bad', icon: X }
 ];
 
-// Slika preko celog ekrana: klik van slike, X ili Escape zatvaraju
+// Slika u punoj veličini (portal: koren strane je kontejner, pa fiksni sloj mora van njega)
 function ImageViewer({ src, onClose }) {
-  useLayer(true, onClose);
   return createPortal(
-    <div className="sx-portal mx-tnalog-viewer" onClick={onClose} role="dialog" aria-modal="true" aria-label="Slika u punoj veličini">
+    <div className="sx-portal mx-tnalog-viewer" onClick={onClose}>
       <img src={src} alt="Slika u punoj veličini" onClick={(e) => e.stopPropagation()} />
       <button type="button" className="mx-tnalog-viewer__x" onClick={onClose} aria-label="Zatvori"><X size={22} strokeWidth={1.8} /></button>
     </div>,
@@ -1460,21 +1457,14 @@ const TechnicianWorkOrderDetail = () => {
   // - UsedMaterialsList -> ./components/UsedMaterialsList.js  
   // - InstalledEquipmentList -> ./components/InstalledEquipmentList.js
   
-  // Kad tehničar izabere Odložen ili Otkazan (npr. iz liste odozdo na telefonu), forma za razlog mora da se vidi
-  useEffect(() => {
-    if (!workOrder || formData.status === workOrder.status) return;
-    const el = document.getElementById(showCancelForm ? 'mx-tnalog-cancel' : 'mx-tnalog-postpone');
-    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [showPostponeForm, showCancelForm]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const status = STATUSES.find((s) => s.key === formData.status) || STATUSES[1];
-  const req = <span className="mx-tnalog-req" aria-hidden="true">*</span>;
+  const req = <span className="mx-tnalog-req">*</span>;
 
-  // Ista četiri dugmeta u panelu Status i u listu odozdo (telefon)
+  // Ista četiri dugmeta kao ranije: u traci na telefonu, u kartici na desktopu i u kartici izbora statusa
   const statusButtons = (
     <div className="mx-tnalog-status">
       {STATUSES.map((s) => (
-        <Btn key={s.key} size="lg" variant={formData.status === s.key ? 'primary' : 'secondary'} icon={s.icon} aria-pressed={formData.status === s.key}
+        <Btn key={s.key} size="lg" variant={formData.status === s.key ? 'primary' : 'secondary'} icon={s.icon}
           onClick={() => handleStatusChange(s.key)} disabled={saving || isWorkOrderCompleted}>
           {s.label}
         </Btn>
@@ -1493,7 +1483,10 @@ const TechnicianWorkOrderDetail = () => {
   if (error) {
     return (
       <div className="sx-page mx-tnalog" data-testid="page-my-work-order-detail">
-        <PageHead back={{ label: 'Nazad', onClick: () => navigate('/my-work-orders') }} eyebrow="Montaža · Moji radni nalozi" title="Detalji radnog naloga" />
+        <div className="mx-tnalog-top">
+          <h1 className="sx-title mx-tnalog-top__title">Detalji radnog naloga</h1>
+          <LinkBtn to="/my-work-orders" size="sm" icon={ArrowLeft}>Nazad</LinkBtn>
+        </div>
         <Note tone="bad">{error}</Note>
       </div>
     );
@@ -1501,109 +1494,109 @@ const TechnicianWorkOrderDetail = () => {
 
   return (
     <div className="sx-page mx-tnalog" data-testid="page-my-work-order-detail" ref={mainRef}>
-      {isMobile && (
-        <div className={cx('mx-tnalog-pull', refreshing && 'is-on')} aria-hidden="true">
-          <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />
-          <span>Povucite za osvežavanje</span>
-        </div>
-      )}
+      {/* Povlačenje za osvežavanje */}
+      <div className={cx('mx-tnalog-pull', refreshing && 'is-on')}>
+        <span className="mx-tnalog-pull__ic"><RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" /></span>
+        <span>Povucite za osvežavanje</span>
+      </div>
 
-      <PageHead
-        back={{ label: 'Nazad', onClick: () => navigate('/my-work-orders') }}
-        eyebrow="Montaža · Moji radni nalozi"
-        title="Radni nalog"
-        actions={
-          <Btn variant={showStatusActions ? 'primary' : 'secondary'} icon={ListChecks} aria-pressed={showStatusActions}
-            onClick={() => setShowStatusActions(!showStatusActions)} data-testid="status-toggle">
+      {/* Zaglavlje: naslov i stanje levo, Status i Nazad desno (jedan red, kao ranije) */}
+      <div className="mx-tnalog-top">
+        <div className="mx-tnalog-top__main">
+          <span className="mx-tnalog-top__icon"><Package size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+          <div className="mx-tnalog-top__titles">
+            <h1 className="sx-title mx-tnalog-top__title">Radni nalog</h1>
+            <State tone={status.tone} testId="work-order-status">{status.label}</State>
+          </div>
+        </div>
+        <div className="mx-tnalog-top__acts">
+          <Btn size="sm" variant={showStatusActions ? 'primary' : 'secondary'} onClick={() => setShowStatusActions(!showStatusActions)} data-testid="status-toggle">
             Status
           </Btn>
-        }
-      >
-        <div className="mx-tnalog-state"><State tone={status.tone} testId="work-order-status">{status.label}</State></div>
-      </PageHead>
-
-      <div className="mx-tnalog-grid">
-        {/* Podaci o korisniku i nalogu: na širokom ekranu desno, na telefonu prvi */}
-        <div className="mx-tnalog-side sx-stack">
-          <Panel title="Informacije o korisniku">
-            <div className="mx-tnalog-contact">
-              {workOrder?.userPhone && <Btn variant="primary" size="lg" icon={Phone} onClick={callUser}>Pozovi</Btn>}
-              <Btn size="lg" icon={MapPin} onClick={openInMaps}>Mapa</Btn>
-            </div>
-            <KV items={[
-              { k: 'Korisnik', v: workOrder?.userName || 'Nije dostupno' },
-              { k: 'Telefon', v: workOrder?.userPhone || 'Nije dostupno', mono: !!workOrder?.userPhone },
-              workOrder?.customerEmail && { k: 'Email', v: workOrder.customerEmail },
-              { k: 'TIS ID', v: workOrder?.tisId || 'Nije dostupno', mono: !!workOrder?.tisId }
-            ]} />
-          </Panel>
-
-          <Panel title="Lokacija">
-            <KV items={[
-              { k: 'Opština', v: workOrder?.municipality },
-              { k: 'Adresa', v: workOrder?.address },
-              { k: 'Datum', v: new Date(workOrder?.date).toLocaleDateString('sr-RS'), mono: true },
-              { k: 'Vreme', v: workOrder?.time || '09:00', mono: true }
-            ]} />
-          </Panel>
-
-          <Panel title="Detalji instalacije">
-            <KV items={[
-              { k: 'Tip instalacije', v: workOrder?.type },
-              { k: 'Tehnologija', v: workOrder?.technology || 'Nije definisana' },
-              { k: 'Tim', v: <span className={cx('mx-tnalog-tim', getTimBadgeClasses(workOrder?.tim))}>{getTimLabel(workOrder?.tim)}</span> }
-            ]} />
-            {workOrder?.details && (
-              <div className="mx-tnalog-details">
-                <span className="sx-label">Detalji</span>
-                <p className="mx-tnalog-text">{workOrder?.details}</p>
-              </div>
-            )}
-          </Panel>
+          <LinkBtn to="/my-work-orders" size="sm" icon={ArrowLeft} aria-label="Nazad">
+            <span className="mx-tnalog-wide">Nazad</span>
+          </LinkBtn>
         </div>
+      </div>
 
-        {/* Rad na nalogu: oprema, materijal, slike, komentar, status i čuvanje */}
-        <div className="mx-tnalog-main sx-stack">
-          {workOrder?.adminComment && (
-            <Panel title="Razlog vraćanja radnog naloga" tone="bad">
-              <p className="mx-tnalog-text is-bad">{workOrder.adminComment}</p>
-              <Note tone="bad" className="mx-mt">
-                <b>Napomena:</b> Admin je vratio ovaj radni nalog na doradu. Molimo pročitajte razlog vraćanja i ispravite nedostajuće podatke pre ponovnog označavanja kao završen.
-              </Note>
-            </Panel>
+      <div className="sx-stack mx-tnalog-cards">
+        <Panel title="Informacije o korisniku">
+          <div className="mx-tnalog-contact">
+            {workOrder?.userPhone && <Btn variant="primary" icon={Phone} onClick={callUser}>Pozovi</Btn>}
+            <Btn icon={MapPin} onClick={openInMaps}>Mapa</Btn>
+          </div>
+          <KV items={[
+            { k: 'Korisnik', v: workOrder?.userName || 'Nije dostupno' },
+            { k: 'Telefon', v: workOrder?.userPhone || 'Nije dostupno', mono: !!workOrder?.userPhone },
+            workOrder?.customerEmail && { k: 'Email', v: workOrder.customerEmail },
+            { k: 'TIS ID', v: workOrder?.tisId || 'Nije dostupno', mono: !!workOrder?.tisId }
+          ]} />
+        </Panel>
+
+        <Panel title="Lokacija">
+          <KV items={[
+            { k: 'Opština', v: workOrder?.municipality },
+            { k: 'Adresa', v: workOrder?.address },
+            { k: 'Datum', v: new Date(workOrder?.date).toLocaleDateString('sr-RS'), mono: true },
+            { k: 'Vreme', v: workOrder?.time || '09:00', mono: true }
+          ]} />
+        </Panel>
+
+        <Panel title="Detalji instalacije">
+          <KV items={[
+            { k: 'Tip instalacije', v: workOrder?.type },
+            { k: 'Tehnologija', v: workOrder?.technology || 'Nije definisana' },
+            { k: 'Tim', v: <span className={cx('mx-tnalog-tim', getTimBadgeClasses(workOrder?.tim))}>{getTimLabel(workOrder?.tim)}</span> }
+          ]} />
+          {workOrder?.details && (
+            <div className="mx-tnalog-details">
+              <span className="sx-label">Detalji</span>
+              <p className="mx-tnalog-text">{workOrder?.details}</p>
+            </div>
           )}
+        </Panel>
 
-          <Panel title="Oprema korisnika">
-            <InstalledEquipmentList
-              userEquipment={userEquipment}
-              openRemoveEquipmentDialog={openRemoveEquipmentDialog}
-              isWorkOrderCompleted={isWorkOrderCompleted}
-            />
+        {/* Razlog vraćanja radnog naloga */}
+        {workOrder?.adminComment && (
+          <Panel title="Razlog vraćanja radnog naloga" tone="bad">
+            <p className="mx-tnalog-text is-bad">{workOrder.adminComment}</p>
+            <p className="mx-tnalog-note is-bad">
+              <strong>Napomena:</strong> Admin je vratio ovaj radni nalog na doradu. Molimo pročitajte razlog vraćanja i ispravite nedostajuće podatke pre ponovnog označavanja kao završen.
+            </p>
+          </Panel>
+        )}
 
-            <div className="mx-tnalog-sec">
-              <h3 className="mx-tnalog-sub">Dodaj novu opremu:</h3>
-              <div className="mx-tnalog-row">
-                <Btn icon={Search} onClick={openEquipmentModal} disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}>
-                  Izaberi opremu
-                </Btn>
-                <Btn variant="primary" onClick={() => handleAddEquipment(selectedEquipment)} disabled={!selectedEquipment || loadingEquipment || isWorkOrderCompleted} busy={loadingEquipment}>
-                  {loadingEquipment ? 'Dodavanje...' : 'Dodaj opremu'}
-                </Btn>
-              </div>
+        <Panel title="Oprema korisnika">
+          <InstalledEquipmentList
+            userEquipment={userEquipment}
+            openRemoveEquipmentDialog={openRemoveEquipmentDialog}
+            isWorkOrderCompleted={isWorkOrderCompleted}
+          />
+
+          <div className="mx-tnalog-add">
+            <h3 className="mx-tnalog-sub">Dodaj novu opremu:</h3>
+            <div className="mx-tnalog-btncol">
+              <Btn size="sm" icon={Search} onClick={openEquipmentModal} disabled={loadingEquipment || technicianEquipment.length === 0 || isWorkOrderCompleted}>
+                Izaberi opremu
+              </Btn>
               {selectedEquipment && (
-                <Note className="mx-mt">
+                <Note>
                   {technicianEquipment.find(eq => eq.id === selectedEquipment)?.description} -
                   S/N: {technicianEquipment.find(eq => eq.id === selectedEquipment)?.serialNumber}
                 </Note>
               )}
-              {technicianEquipment.length === 0 && <Note tone="warn" className="mx-mt">Nemate dostupnu opremu u vašem inventaru.</Note>}
-              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - uređivanje opreme nije moguće.</Note>}
+              <Btn variant="primary" onClick={() => handleAddEquipment(selectedEquipment)} disabled={!selectedEquipment || loadingEquipment || isWorkOrderCompleted} busy={loadingEquipment}>
+                {loadingEquipment ? 'Dodavanje...' : 'Dodaj opremu'}
+              </Btn>
             </div>
+            {technicianEquipment.length === 0 && <Note tone="warn" className="mx-mt">Nemate dostupnu opremu u vašem inventaru.</Note>}
+            {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - uređivanje opreme nije moguće.</Note>}
 
+            {/* Uklanjanje opreme */}
             <div className="mx-tnalog-sec">
               <h3 className="mx-tnalog-sub">Uklanjanje opreme:</h3>
               <p className="mx-tnalog-hint">Ovde možete ukloniti opremu koja je prethodno dodata kod korisnika.</p>
-              <div className="sx-form">
+              <div className="mx-tnalog-fields">
                 <Field label={<>Naziv opreme (kategorija): {req}</>} htmlFor="removalEquipmentName">
                   <Input id="removalEquipmentName" value={removalEquipmentName} onChange={(e) => setRemovalEquipmentName(e.target.value)}
                     placeholder="Unesite naziv opreme" disabled={loadingRemoval || isWorkOrderCompleted} />
@@ -1612,257 +1605,272 @@ const TechnicianWorkOrderDetail = () => {
                   <Input id="removalEquipmentDescription" value={removalEquipmentDescription} onChange={(e) => setRemovalEquipmentDescription(e.target.value)}
                     placeholder="Unesite opis opreme" disabled={loadingRemoval || isWorkOrderCompleted} />
                 </Field>
-                <Field label={<>Serijski broj opreme: {req}</>} htmlFor="removalSerialNumber" wide>
-                  <Input id="removalSerialNumber" mono value={removalSerialNumber} onChange={(e) => setRemovalSerialNumber(e.target.value)}
+                <Field label={<>Serijski broj opreme: {req}</>} htmlFor="removalSerialNumber">
+                  <Input id="removalSerialNumber" value={removalSerialNumber} onChange={(e) => setRemovalSerialNumber(e.target.value)}
                     placeholder="Unesite tačan serijski broj opreme" disabled={loadingRemoval || isWorkOrderCompleted} />
                 </Field>
-              </div>
-              <div className="mx-tnalog-row mx-mt">
-                <Btn variant="danger" icon={PackageMinus} onClick={handleEquipmentRemoval} busy={loadingRemoval}
-                  disabled={!removalEquipmentName.trim() || !removalEquipmentDescription.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}>
-                  {loadingRemoval ? 'Uklanjanje...' : 'Ukloni opremu'}
-                </Btn>
-              </div>
-              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - uklanjanje opreme nije moguće.</Note>}
-            </div>
-          </Panel>
-
-          {removedEquipment.length > 0 && (
-            <Panel title="Uklonjena oprema (u ovom radnom nalogu)">
-              <div className="sx-list">
-                {removedEquipment.map((equipment) => (
-                  <div key={equipment.id} className="sx-item">
-                    <span className="sx-item__icon is-bad"><PackageMinus size={17} strokeWidth={1.9} aria-hidden="true" /></span>
-                    <div className="sx-item__main">
-                      <b>{equipment.equipmentType}</b>
-                      <span>S/N: <span className="sx-mono">{equipment.serialNumber}</span></span>
-                      {equipment.removedAt && (
-                        <span>
-                          Uklonjeno: {new Date(equipment.removedAt).toLocaleDateString('sr-RS')} u {new Date(equipment.removedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                    <div className="sx-item__side">
-                      <State tone={equipment.condition === 'ispravna' ? 'ok' : 'bad'}>{equipment.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}</State>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-          )}
-
-          <UsedMaterialsList
-            usedMaterials={usedMaterials}
-            openMaterialsModal={openMaterialsModal}
-            removeMaterial={removeMaterial}
-            loadingMaterials={loadingMaterials}
-            isWorkOrderCompleted={isWorkOrderCompleted}
-          />
-
-          <Panel title="Slike">
-            <input
-              type="file"
-              id="image-upload"
-              onChange={handleImageChange}
-              accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
-              multiple
-              disabled={uploadingImages || isWorkOrderCompleted}
-              className="sx-sr"
-            />
-            <label htmlFor="image-upload" className={cx('mx-tnalog-drop', (uploadingImages || isWorkOrderCompleted) && 'is-off')}>
-              <Camera size={22} strokeWidth={1.8} aria-hidden="true" />
-              <b>{uploadingImages ? 'Upload u toku...' : 'Fotografiši ili izaberi slike'}</b>
-              <span>Možete odabrati do 10 slika odjednom (max 30MB po slici)</span>
-            </label>
-
-            {(imagePreviews.length > 0 || uploadingImages) && (
-              <div className="mx-tnalog-sec">
-                <div className="mx-tnalog-subrow">
-                  <h4 className="mx-tnalog-sub">
-                    {uploadingImages && imagePreviews.length === 0
-                      ? 'Kompresovanje slika u toku...'
-                      : `Odabrane slike (${imagePreviews.length})`}
-                  </h4>
-                  {!uploadingImages && (
-                    <Btn size="sm" variant="ghost" icon={X} onClick={resetImageUpload} disabled={uploadingImages}>Ukloni sve</Btn>
-                  )}
-                </div>
-
-                {uploadingImages && imagePreviews.length === 0 && (
-                  <div className="mx-tnalog-busy" role="status">
-                    <span className="mx-tnalog-spin" aria-hidden="true" />
-                    <b>Kompresovanje slika u toku...</b>
-                    <span>Molimo sačekajte dok se slike pripravljaju za upload</span>
-                  </div>
-                )}
-
-                <div className="mx-tnalog-gallery">
-                  {imagePreviews.map((preview, index) => (
-                    <figure key={index} className="mx-tnalog-prev">
-                      <div className="mx-tnalog-img">
-                        <img src={preview.preview} alt={`Preview ${index + 1}`} />
-                        {uploadingImages && uploadProgress[index] !== undefined && (
-                          <div className="mx-tnalog-prog">
-                            {uploadProgress[index] === -1 ? (
-                              <><TriangleAlert size={20} strokeWidth={1.9} aria-hidden="true" /><span>Greška</span></>
-                            ) : uploadProgress[index] === 100 ? (
-                              <><Check size={20} strokeWidth={2.2} aria-hidden="true" /><span>Uspešno</span></>
-                            ) : (
-                              <><span className="mx-tnalog-bar"><i style={{ width: `${uploadProgress[index]}%` }} /></span><span className="sx-mono">{uploadProgress[index]}%</span></>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <figcaption>
-                        <b title={preview.name}>{preview.name}</b>
-                        <span className="sx-mono">{(preview.size / 1024 / 1024).toFixed(2)} MB</span>
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-
-                <div className="mx-tnalog-row mx-mt">
-                  <Btn variant="primary" size="lg" icon={Upload} onClick={handleImageUpload} disabled={uploadingImages}>
-                    {uploadingImages
-                      ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})`
-                      : `Sačuvaj sve slike (${imagePreviews.length})`}
+                <div className="mx-tnalog-btncol">
+                  <Btn variant="danger" onClick={handleEquipmentRemoval} busy={loadingRemoval}
+                    disabled={!removalEquipmentName.trim() || !removalEquipmentDescription.trim() || !removalSerialNumber.trim() || loadingRemoval || isWorkOrderCompleted}>
+                    {loadingRemoval ? 'Uklanjanje...' : 'Ukloni opremu'}
                   </Btn>
                 </div>
               </div>
-            )}
+              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - uklanjanje opreme nije moguće.</Note>}
+            </div>
+          </div>
+        </Panel>
 
-            <div className="mx-tnalog-sec">
-              {images.length === 0 ? (
-                <Empty text="Nema dodatih slika" />
-              ) : (
-                <div className="mx-tnalog-gallery">
-                  {images.map((imageItem, index) => {
-                    // Podrška za stari i novi format
-                    const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
-                    const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
-                    return (
-                      <div key={index} className="mx-tnalog-img">
-                        <button type="button" className="mx-tnalog-img__open" onClick={() => setShowFullImage(imageUrl)}>
-                          <img src={imageUrl} alt={originalName || `Slika ${index + 1}`} />
-                        </button>
-                        {originalName && <span className="mx-tnalog-img__name">{originalName}</span>}
-                        <button
-                          type="button"
-                          className="mx-tnalog-img__del"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleImageDelete(imageUrl);
-                          }}
-                          title="Obriši sliku"
-                          disabled={isWorkOrderCompleted}
-                        >
-                          <Trash2 size={16} strokeWidth={1.9} aria-hidden="true" />
-                        </button>
-                      </div>
-                    );
-                  })}
+        {/* Uklonjena oprema */}
+        {removedEquipment.length > 0 && (
+          <Panel title="Uklonjena oprema (u ovom radnom nalogu)">
+            <div className="mx-tnalog-list">
+              {removedEquipment.map((equipment) => (
+                <div key={equipment.id} className="mx-tnalog-li is-bad">
+                  <div className="mx-tnalog-li__main">
+                    <div className="mx-tnalog-li__head">
+                      <b>{equipment.equipmentType}</b>
+                      <State tone={equipment.condition === 'ispravna' ? 'ok' : 'bad'}>{equipment.condition === 'ispravna' ? 'Ispravna' : 'Neispravna'}</State>
+                    </div>
+                    <span>S/N: <span className="sx-mono">{equipment.serialNumber}</span></span>
+                    {equipment.removedAt && (
+                      <span>
+                        Uklonjeno: {new Date(equipment.removedAt).toLocaleDateString('sr-RS')} u {new Date(equipment.removedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <span className="mx-tnalog-li__mark"><Trash2 size={14} strokeWidth={1.9} aria-hidden="true" /></span>
                 </div>
-              )}
-              {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - dodavanje/brisanje slika nije moguće.</Note>}
+              ))}
             </div>
           </Panel>
+        )}
 
-          <Panel title="Komentar tehničara">
-            <Textarea
-              id="comment"
-              name="comment"
-              value={formData.comment}
-              onChange={handleChange}
-              placeholder={isWorkOrderCompleted ? "Radni nalog je završen - komentar se ne može menjati" : "Unesite komentar o izvršenom poslu"}
-              disabled={saving || isWorkOrderCompleted}
-              rows={4}
-              aria-label="Komentar tehničara"
-            />
-          </Panel>
+        {/* Materijali */}
+        <UsedMaterialsList
+          usedMaterials={usedMaterials}
+          openMaterialsModal={openMaterialsModal}
+          removeMaterial={removeMaterial}
+          loadingMaterials={loadingMaterials}
+          isWorkOrderCompleted={isWorkOrderCompleted}
+        />
 
-          {isWorkOrderCompleted && (
-            <Panel title="Informacije o završetku">
-              <Note tone="ok">
-                <b>Radni nalog je završen</b> - sva polja su samo za čitanje.
-                Možete pregledati sve informacije, ali ne možete ih menjati.
-              </Note>
-            </Panel>
+        {/* Slike */}
+        <Panel title={<span className="mx-tnalog-ttl"><ImageIcon size={16} strokeWidth={1.9} aria-hidden="true" />Slike</span>}>
+          <input
+            type="file"
+            id="image-upload"
+            onChange={handleImageChange}
+            accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
+            multiple
+            disabled={uploadingImages || isWorkOrderCompleted}
+            className="sx-sr"
+          />
+          <label htmlFor="image-upload" className={cx('mx-tnalog-drop', (uploadingImages || isWorkOrderCompleted) && 'is-off')}>
+            <ImageIcon size={24} strokeWidth={1.8} aria-hidden="true" />
+            <b>{uploadingImages ? 'Upload u toku...' : 'Fotografiši ili izaberi slike'}</b>
+            <span>Možete odabrati do 10 slika odjednom (max 30MB po slici)</span>
+          </label>
+
+          {(imagePreviews.length > 0 || uploadingImages) && (
+            <div className="mx-tnalog-sec">
+              <div className="mx-tnalog-subrow">
+                <h4 className="mx-tnalog-sub">
+                  {uploadingImages && imagePreviews.length === 0
+                    ? 'Kompresovanje slika u toku...'
+                    : `Odabrane slike (${imagePreviews.length})`}
+                </h4>
+                {!uploadingImages && (
+                  <Btn size="sm" icon={X} onClick={resetImageUpload} disabled={uploadingImages}>Ukloni sve</Btn>
+                )}
+              </div>
+
+              {uploadingImages && imagePreviews.length === 0 && (
+                <div className="mx-tnalog-busy" role="status">
+                  <span className="mx-tnalog-spin" aria-hidden="true" />
+                  <b>Kompresovanje slika u toku...</b>
+                  <span>Molimo sačekajte dok se slike pripravljaju za upload</span>
+                </div>
+              )}
+
+              <div className="mx-tnalog-previews">
+                {imagePreviews.map((preview, index) => (
+                  <figure key={index} className="mx-tnalog-prev">
+                    <div className="mx-tnalog-prev__img">
+                      <img src={preview.preview} alt={`Preview ${index + 1}`} />
+                      {uploadingImages && uploadProgress[index] !== undefined && (
+                        <div className="mx-tnalog-prog">
+                          {uploadProgress[index] === -1 ? (
+                            <><TriangleAlert size={20} strokeWidth={1.9} aria-hidden="true" /><span>Greška</span></>
+                          ) : uploadProgress[index] === 100 ? (
+                            <><Check size={20} strokeWidth={2.2} aria-hidden="true" /><span>Uspešno</span></>
+                          ) : (
+                            <><span className="mx-tnalog-progress"><i style={{ width: `${uploadProgress[index]}%` }} /></span><span className="sx-mono">{uploadProgress[index]}%</span></>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <figcaption>
+                      <b title={preview.name}>{preview.name}</b>
+                      <span className="sx-mono">{(preview.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+
+              <div className="mx-tnalog-center">
+                <Btn variant="primary" icon={Save} onClick={handleImageUpload} disabled={uploadingImages}>
+                  {uploadingImages
+                    ? `Slanje... (${uploadProgress.filter(p => p === 100).length}/${imagePreviews.length})`
+                    : `Sačuvaj sve slike (${imagePreviews.length})`}
+                </Btn>
+              </div>
+            </div>
           )}
 
-          <Panel title="Status radnog naloga" sub="Izaberite status radnog naloga">
+          <div className="mx-tnalog-gallery">
+            {images.length === 0 ? (
+              <Empty text="Nema dodatih slika" />
+            ) : (
+              <div className="mx-tnalog-images">
+                {images.map((imageItem, index) => {
+                  // Podrška za stari i novi format
+                  const imageUrl = typeof imageItem === 'object' ? imageItem.url : imageItem;
+                  const originalName = typeof imageItem === 'object' ? imageItem.originalName : null;
+                  return (
+                    <div key={index} className="mx-tnalog-img">
+                      <button type="button" className="mx-tnalog-img__open" onClick={() => setShowFullImage(imageUrl)}>
+                        <img src={imageUrl} alt={originalName || `Slika ${index + 1}`} />
+                      </button>
+                      {originalName && <span className="mx-tnalog-img__name">{originalName}</span>}
+                      <button
+                        type="button"
+                        className="mx-tnalog-img__del"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleImageDelete(imageUrl);
+                        }}
+                        title="Obriši sliku"
+                        disabled={isWorkOrderCompleted}
+                      >
+                        <Trash2 size={16} strokeWidth={1.9} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {isWorkOrderCompleted && <Note tone="idle" className="mx-mt">Radni nalog je završen - dodavanje/brisanje slika nije moguće.</Note>}
+          </div>
+        </Panel>
+
+        {/* Komentar tehničara */}
+        <Panel title="Komentar tehničara">
+          <Textarea
+            id="comment"
+            name="comment"
+            value={formData.comment}
+            onChange={handleChange}
+            placeholder={isWorkOrderCompleted ? "Radni nalog je završen - komentar se ne može menjati" : "Unesite komentar o izvršenom poslu"}
+            disabled={saving || isWorkOrderCompleted}
+            rows={4}
+            aria-label="Komentar tehničara"
+          />
+        </Panel>
+
+        {isWorkOrderCompleted && (
+          <Panel title="Informacije o završetku">
+            <Note tone="ok">
+              <b>Radni nalog je završen</b> - sva polja su samo za čitanje.
+              Možete pregledati sve informacije, ali ne možete ih menjati.
+            </Note>
+          </Panel>
+        )}
+
+        {/* Desktop: kartica statusa */}
+        {!isMobile && (
+          <Panel title="Status radnog naloga">
             {statusButtons}
           </Panel>
+        )}
 
-          {showPostponeForm && (
-            <Panel title="Odlaganje termina" id="mx-tnalog-postpone">
-              <Note tone="info"><b>Napomena:</b> Radni nalog može biti odložen maksimalno 48 sati. Za duže odlaganje molimo otkažite radni nalog.</Note>
-              <div className="sx-form mx-mt">
-                <Field label="Novi datum:" htmlFor="postponeDate">
-                  <DateField
-                    id="postponeDate"
-                    value={formData.postponeDate ? localYmd(formData.postponeDate) : ''}
-                    onChange={(ymd) => handleDateChange(new Date(ymd))}
-                    min={localYmd()}
-                    max={localYmd(new Date(Date.now() + (48 * 60 * 60 * 1000)))}
-                    disabled={saving || isWorkOrderCompleted}
-                  />
-                </Field>
-                <Field label="Novo vreme:" htmlFor="postponeTime">
-                  <TimeField
-                    id="postponeTime"
-                    value={formData.postponeTime}
-                    onChange={(v) => handleChange({ target: { name: 'postponeTime', value: v } })}
-                    disabled={saving || isWorkOrderCompleted}
-                  />
-                </Field>
-                <Field label={<>Razlog odlaganja: {req}</>} htmlFor="postponeComment" wide>
-                  <Textarea
-                    id="postponeComment"
-                    name="postponeComment"
-                    value={formData.postponeComment}
-                    onChange={handleChange}
-                    placeholder="Obavezno objasnite razlog odlaganja radnog naloga..."
-                    required
-                    rows={3}
-                    disabled={saving || isWorkOrderCompleted}
-                  />
-                </Field>
-              </div>
-            </Panel>
-          )}
-
-          {showCancelForm && (
-            <Panel title="Otkazivanje radnog naloga" id="mx-tnalog-cancel">
-              <Note tone="bad"><b>Napomena:</b> Molimo objasnite razlog otkazivanja radnog naloga.</Note>
-              <Field label={<>Razlog otkazivanja: {req}</>} htmlFor="cancelComment" className="mx-mt">
-                <Textarea
-                  id="cancelComment"
-                  name="cancelComment"
-                  value={formData.cancelComment}
-                  onChange={handleChange}
-                  placeholder="Obavezno objasnite razlog otkazivanja radnog naloga..."
-                  required
-                  rows={4}
+        {showPostponeForm && (
+          <Panel title="Odlaganje termina">
+            <Note tone="info"><b>Napomena:</b> Radni nalog može biti odložen maksimalno 48 sati. Za duže odlaganje molimo otkažite radni nalog.</Note>
+            <div className="mx-tnalog-postpone">
+              <Field label="Novi datum:" htmlFor="postponeDate">
+                <DateField
+                  id="postponeDate"
+                  value={formData.postponeDate ? localYmd(formData.postponeDate) : ''}
+                  onChange={(ymd) => handleDateChange(new Date(ymd))}
+                  min={localYmd()}
+                  max={localYmd(new Date(Date.now() + (48 * 60 * 60 * 1000)))}
                   disabled={saving || isWorkOrderCompleted}
                 />
               </Field>
-            </Panel>
-          )}
+              <Field label="Novo vreme:" htmlFor="postponeTime">
+                <TimeField
+                  id="postponeTime"
+                  value={formData.postponeTime}
+                  onChange={(v) => handleChange({ target: { name: 'postponeTime', value: v } })}
+                  disabled={saving || isWorkOrderCompleted}
+                />
+              </Field>
+              <Field label={<>Razlog odlaganja: {req}</>} htmlFor="postponeComment" wide>
+                <Textarea
+                  id="postponeComment"
+                  name="postponeComment"
+                  value={formData.postponeComment}
+                  onChange={handleChange}
+                  placeholder="Obavezno objasnite razlog odlaganja radnog naloga..."
+                  required
+                  rows={3}
+                  disabled={saving || isWorkOrderCompleted}
+                />
+              </Field>
+            </div>
+          </Panel>
+        )}
 
-          <form onSubmit={handleSubmit} className="mx-tnalog-save">
-            <Btn type="submit" variant="primary" size="lg" icon={Save} disabled={saving || isWorkOrderCompleted} busy={saving} data-testid="save-work-order">
-              {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
-            </Btn>
-          </form>
-        </div>
+        {showCancelForm && (
+          <Panel title="Otkazivanje radnog naloga">
+            <Note tone="bad"><b>Napomena:</b> Molimo objasnite razlog otkazivanja radnog naloga.</Note>
+            <Field label={<>Razlog otkazivanja: {req}</>} htmlFor="cancelComment" className="mx-mt">
+              <Textarea
+                id="cancelComment"
+                name="cancelComment"
+                value={formData.cancelComment}
+                onChange={handleChange}
+                placeholder="Obavezno objasnite razlog otkazivanja radnog naloga..."
+                required
+                rows={4}
+                disabled={saving || isWorkOrderCompleted}
+              />
+            </Field>
+          </Panel>
+        )}
+
+        {/* Izbor statusa */}
+        <Panel title="Status radnog naloga" sub="Izaberite status radnog naloga" testId="status-selection">
+          {statusButtons}
+        </Panel>
+
+        <form onSubmit={handleSubmit} className="mx-tnalog-save">
+          <Btn type="submit" variant="primary" size="lg" icon={Save} disabled={saving || isWorkOrderCompleted} busy={saving} data-testid="save-work-order">
+            {saving ? 'Čuvanje...' : isWorkOrderCompleted ? 'Završen radni nalog' : 'Sačuvaj'}
+          </Btn>
+        </form>
       </div>
 
-      {/* Status sa telefona: list odozdo, isti uslov kao ranija traka (do 768 px) */}
-      <Dialog open={isMobile && showStatusActions} onClose={() => setShowStatusActions(false)} busy={saving}
-        title="Status radnog naloga" description="Izaberite status radnog naloga" size="sm" testId="status-sheet">
-        {statusButtons}
-      </Dialog>
+      {/* Telefon (do 768 px): traka sa statusima uz donju ivicu, otvara je dugme Status (portal: van kontejnera strane) */}
+      {isMobile && createPortal(
+        <div className={cx('sx-portal mx-tnalog-bar', showStatusActions && 'is-open')} data-testid="status-bar">
+          {statusButtons}
+        </div>,
+        document.body
+      )}
 
+      {/* Modal za pregled slike u punoj veličini */}
       {showFullImage && <ImageViewer src={showFullImage} onClose={() => setShowFullImage(null)} />}
 
       {/* Modal za izbor opreme */}

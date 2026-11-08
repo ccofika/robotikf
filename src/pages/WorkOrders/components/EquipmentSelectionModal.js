@@ -1,12 +1,12 @@
 import React from 'react';
-import { Router, Plus } from 'lucide-react';
+import { Check, Search, TriangleAlert } from 'lucide-react';
 import { Btn } from '../../../security/sx/ui';
 import { SearchField } from '../../../security/sx/forms';
 import Dialog from '../../../security/sx/Dialog';
 import '../TechnicianWorkOrderDetail.mx.css';
 
-// Izbor opreme iz zaduženja (radni nalog tehničara i Edit naloga): dijalog, na telefonu list odozdo.
-// Props su isti kao ranije; pretraga i dalje šalje događaj (handleSearchChange(e)).
+// Izbor opreme iz zaduženja (radni nalog tehničara i Edit naloga): Security dijalog (na telefonu odozdo), isti sadržaj
+// i redosled kao ranije. Props su isti; pretraga i dalje šalje događaj (handleSearchChange(e)).
 const EquipmentSelectionModal = React.memo(({
   showEquipmentModal,
   closeModal,
@@ -47,7 +47,7 @@ const EquipmentSelectionModal = React.memo(({
       footer={hasAvailableEquipment && (
         <>
           <span className="mx-tnalog-dlg__count">{filteredResults.length} od {stableEquipment.length} stavki</span>
-          <Btn variant="ghost" onClick={closeModal}>Zatvori</Btn>
+          <Btn onClick={closeModal}>Zatvori</Btn>
         </>
       )}
     >
@@ -63,7 +63,8 @@ const EquipmentSelectionModal = React.memo(({
       )}
 
       {!hasAvailableEquipment ? (
-        <div className="sx-empty">
+        <div className="mx-tnalog-dlg__empty">
+          <span className="mx-tnalog-dlg__emptyic is-warn"><TriangleAlert size={16} strokeWidth={1.9} aria-hidden="true" /></span>
           <b>Nema dostupne opreme</b>
           <span>
             Trenutno nemate dostupnu opremu za instalaciju.
@@ -72,11 +73,11 @@ const EquipmentSelectionModal = React.memo(({
           <Btn size="sm" onClick={closeModal}>Zatvori</Btn>
         </div>
       ) : filteredResults.length > 0 ? (
-        <div className="sx-list mx-tnalog-dlg__list">
+        <div className="mx-tnalog-dlg__grid">
           {filteredResults.map((equipment) => (
             <div
               key={`equipment-${equipment._id}-${equipment.serialNumber}`}
-              className="sx-item is-click"
+              className="mx-tnalog-dlg__item"
               onClick={() => selectEquipment(equipment._id)}
               role="button"
               tabIndex={0}
@@ -87,20 +88,18 @@ const EquipmentSelectionModal = React.memo(({
                 }
               }}
             >
-              <span className="sx-item__icon"><Router size={17} strokeWidth={1.9} aria-hidden="true" /></span>
-              <div className="sx-item__main">
-                <b>{equipment.description}</b>
-                <span>S/N: <span className="sx-mono">{equipment.serialNumber}</span></span>
-              </div>
-              <div className="sx-item__side">
+              <div className="mx-tnalog-dlg__itemtop">
                 <span className="sx-tag is-info">{equipment.category}</span>
-                <Plus size={16} strokeWidth={1.9} aria-hidden="true" className="sx-faint" />
+                <Check size={14} strokeWidth={2} aria-hidden="true" className="mx-tnalog-dlg__check" />
               </div>
+              <b>{equipment.description}</b>
+              <span>S/N: <span className="sx-mono">{equipment.serialNumber}</span></span>
             </div>
           ))}
         </div>
       ) : (
-        <div className="sx-empty">
+        <div className="mx-tnalog-dlg__empty">
+          <span className="mx-tnalog-dlg__emptyic"><Search size={16} strokeWidth={1.9} aria-hidden="true" /></span>
           <b>Nema rezultata</b>
           <span>
             {searchTerm
