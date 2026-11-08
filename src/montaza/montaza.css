@@ -77,3 +77,48 @@
 /* veoma široka tabela: vodoravni skrol unutar panela umesto kartica na telefonu */
 .mx-scroll { overflow-x: auto; overscroll-behavior-x: contain; min-width: 0; }
 .mx-scroll > .sx-table { min-width: max-content; }
+
+/* ---------- osnovne komponente Montaže (components/ui/*) u izgledu Security dela ---------- */
+/* dugme (button-1: type warning, tiny, circle, unstyled, fullWidth) */
+.sx-btn.mx-btn--warn { --fill: color-mix(in oklab, var(--sx-warn-strong) 82%, black); background: var(--sx-warn-strong); border-color: var(--sx-warn-strong); color: var(--sx-on-warn); }
+.sx-btn.mx-btn--xs { height: 28px; padding: 0 10px; font-size: 12px; }
+.sx-btn.mx-btn--circle { aspect-ratio: 1; padding: 0; }
+.sx-btn.mx-btn--full { width: 100%; }
+.sx-btn.mx-btn--link { --fill: transparent; height: auto; padding: 0; border: 0; background: none; color: var(--sx-accent-text); }
+.sx-btn.mx-btn--link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.mx-btn--plain { display: inline-flex; align-items: center; gap: 6px; }
+.mx-btn__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sx-btn > svg:not([width]) { width: 16px; height: 16px; }
+.sx-btn.sx-btn--sm > svg:not([width]) { width: 14px; height: 14px; }
+/* kartica (card.tsx) */
+.mx-card__head { display: grid; gap: 4px; padding: 18px 20px 12px; }
+.mx-card__body { padding: 0 20px 20px; }
+.mx-card__head + .mx-card__body { padding-top: 0; }
+.mx-card > .mx-card__body:first-child { padding-top: 20px; }
+.mx-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--sx-line); background: var(--sx-surface-2); border-radius: 0 0 var(--sx-radius-card) var(--sx-radius-card); }
+@media (max-width: 639px) { .mx-card__head { padding: 16px 16px 10px; } .mx-card__body { padding: 0 16px 16px; } .mx-card > .mx-card__body:first-child { padding-top: 16px; } }
+/* bedž (badge.tsx) */
+.sx-tag.mx-tag--outline { background: transparent; box-shadow: inset 0 0 0 1px var(--sx-line-2); }
+/* avatar (avatar.tsx) */
+.mx-avatar { position: relative; overflow: hidden; }
+.mx-avatar__img { width: 100%; height: 100%; object-fit: cover; }
+.mx-avatar__fallback { display: grid; place-items: center; width: 100%; height: 100%; }
+/* padajući meni (dropdown-menu.tsx) */
+.mx-menu { min-width: 200px; padding: 6px; }
+.mx-menu__item { cursor: pointer; user-select: none; outline: none; }
+.mx-menu__item[data-highlighted] { background: var(--sx-surface-2); }
+.mx-menu__item[data-disabled] { opacity: 0.5; pointer-events: none; }
+/* tabovi (tabs.tsx, Radix) */
+.mx-tabs { display: flex; }
+.mx-tabs__tab[data-state="active"] { color: var(--sx-text); font-weight: 650; }
+.mx-tabs__tab[data-state="active"]::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--sx-btn-primary-bg); }
+.mx-tabs__tab:disabled { opacity: 0.5; cursor: not-allowed; }
+.mx-tabs__content { margin-top: 20px; outline: none; }
+/* tabela (table.tsx) */
+.mx-scroll > .sx-table tbody tr.mx-tr { animation: none; }
+.mx-caption { margin-top: 12px; caption-side: bottom; font-size: 13px; color: var(--sx-muted); }
+/* datum (date-picker.tsx) */
+.mx-datepick { display: inline-flex; min-width: 0; }
+.mx-daterange { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mx-daterange .sx-dt { width: 170px; }
+.mx-daterange__sep { font-size: 13px; color: var(--sx-muted); }

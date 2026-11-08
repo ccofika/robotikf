@@ -1,53 +1,21 @@
 import React from "react";
-import { Spinner } from "src/components/ui/spinner-1";
 import clsx from "clsx";
 
-const sizes = [
-  {
-    tiny: "px-1.5 h-6 text-sm",
-    small: "px-1.5 h-8 text-sm",
-    medium: "px-2.5 h-10 text-sm",
-    large: "px-3.5 h-12 text-base"
-  },
-  {
-    tiny: "w-6 h-6 text-sm",
-    small: "w-8 h-8 text-sm",
-    medium: "w-10 h-10 text-sm",
-    large: "w-12 h-12 text-base"
-  }
-];
-
+// Dugme Montaže u izgledu Security dela (sx-btn: pilula sa "kupolom"). API je isti kao ranije:
+// type = izgled (primary, secondary, tertiary, error, warning), size, prefix/suffix, loading, svgOnly, fullWidth.
+// HTML type ostaje "submit" kao ranije (dugme u formi šalje formu).
 const types = {
-  primary: "bg-gray-1000 hover:bg-gray-1000-h text-background-100 fill-background-100",
-  secondary: "bg-background-100 hover:bg-gray-alpha-200 text-gray-1000 fill-gray-1000 border border-gray-alpha-400",
-  tertiary: "bg-none hover:bg-gray-alpha-200 text-gray-1000 fill-gray-1000",
-  error: "bg-red-800 hover:bg-red-900 text-white fill-white",
-  warning: "bg-amber-800 hover:bg-amber-850 text-black fill-black"
+  primary: "sx-btn--primary",
+  secondary: "",
+  tertiary: "sx-btn--ghost",
+  error: "sx-btn--danger",
+  warning: "mx-btn--warn"
 };
-
-const shapes = {
-  square: {
-    tiny: "rounded",
-    small: "rounded-md",
-    medium: "rounded-md",
-    large: "rounded-lg"
-  },
-  circle: {
-    tiny: "rounded-[100%]",
-    small: "rounded-[100%]",
-    medium: "rounded-[100%]",
-    large: "rounded-[100%]"
-  },
-  rounded: {
-    tiny: "rounded-[100px]",
-    small: "rounded-[100px]",
-    medium: "rounded-[100px]",
-    large: "rounded-[100px]"
-  }
-};
+const sizes = { tiny: "sx-btn--sm mx-btn--xs", small: "sx-btn--sm", medium: "", large: "sx-btn--lg" };
+const shapes = { square: "", circle: "mx-btn--circle", rounded: "" };
 
 export interface ButtonProps {
-  size?: keyof typeof sizes[0];
+  size?: keyof typeof sizes;
   type?: keyof typeof types;
   variant?: "styled" | "unstyled";
   shape?: keyof typeof shapes;
@@ -73,14 +41,14 @@ export const Button = ({
   children,
   prefix,
   suffix,
-  shadow = false,
+  shadow: _shadow = false,
   loading = false,
   disabled = false,
   fullWidth = false,
   onClick,
   ref,
   className,
-  asChild,
+  asChild: _asChild,
   ...rest
 }: ButtonProps & { asChild?: boolean }) => {
   return (
@@ -90,29 +58,18 @@ export const Button = ({
       disabled={disabled}
       onClick={onClick}
       tabIndex={0}
+      aria-busy={loading || undefined}
       className={clsx(
-        "flex justify-center items-center gap-0.5 duration-150",
-        sizes[+svgOnly][size],
-        (disabled || loading) ? "bg-gray-100 text-gray-700 border border-gray-400 cursor-not-allowed" : types[type],
-        shapes[shape][size],
-        shadow && "shadow-border-small border-none",
-        fullWidth && "w-full",
-        variant === "unstyled" ? "outline-none px-0 h-fit bg-transparent hover:bg-transparent text-gray-1000" : "focus:shadow-focus-ring focus:outline-0",
+        variant === "unstyled" ? "mx-btn--plain" : clsx("sx-btn sx-fill", types[type], sizes[size], shapes[shape], svgOnly && "sx-btn--icon"),
+        loading && "is-busy",
+        fullWidth && "mx-btn--full",
         className
       )}
       {...rest}
     >
-      {loading
-        ? <Spinner size={size === "large" ? 24 : 16} />
-        : prefix
-      }
-      <span className={clsx(
-        "relative overflow-hidden whitespace-nowrap overflow-ellipsis font-sans",
-        size !== "tiny" && variant !== "unstyled" && "px-1.5"
-      )}>
-        {children}
-      </span>
-      {!loading && suffix}
+      {prefix}
+      {children !== undefined && children !== null && children !== false && <span className="mx-btn__label">{children}</span>}
+      {suffix}
     </button>
   );
 };

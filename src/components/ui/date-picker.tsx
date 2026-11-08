@@ -1,17 +1,16 @@
-"use client"
-
+// Izbor datuma u izgledu Security dela: polje sa kucanjem (dd.mm.gggg.) i sopstvenim kalendarom (security/sx/forms).
+// API je isti kao ranije: vrednosti su Date objekti (lokalna ponoć), onSelect dobija Date ili undefined.
 import * as React from "react"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { CalendarDate, parseDate, getLocalTimeZone, today, DateValue } from "@internationalized/date"
-
+import { DateField } from "../../security/sx/forms"
 import { cn } from "../../lib/utils"
-import { Button } from "./button"
-import { Calendar, RangeCalendar } from "./calendar-rac"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./popover"
+
+const pad = (n: number) => String(n).padStart(2, "0")
+const toYmd = (d?: Date) => (d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : "")
+const fromYmd = (ymd: string) => {
+  if (!ymd) return undefined
+  const [y, m, d] = ymd.split("-").map(Number)
+  return new Date(y, m - 1, d)
+}
 
 interface DatePickerProps {
   date?: Date
@@ -21,63 +20,12 @@ interface DatePickerProps {
   disabled?: boolean
 }
 
-function dateToCalendarDate(date: Date | undefined): CalendarDate | undefined {
-  if (!date) return undefined
-
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1 // getMonth() returns 0-11, CalendarDate expects 1-12
-  const day = date.getDate()
-
-  return new CalendarDate(year, month, day)
-}
-
-function calendarDateToDate(calendarDate: CalendarDate | undefined): Date | undefined {
-  if (!calendarDate) return undefined
-
-  return new Date(calendarDate.year, calendarDate.month - 1, calendarDate.day)
-}
-
-export function DatePicker({
-  date,
-  onSelect,
-  placeholder = "Pick a date",
-  className,
-  disabled = false,
-}: DatePickerProps) {
-  const calendarDate = dateToCalendarDate(date)
-
-  const handleSelection = (selectedDate: DateValue | null) => {
-    if (selectedDate && 'year' in selectedDate) {
-      const newDate = calendarDateToDate(selectedDate as CalendarDate)
-      onSelect?.(newDate)
-    } else {
-      onSelect?.(undefined)
-    }
-  }
-
+export function DatePicker({ date, onSelect, placeholder = "Pick a date", className, disabled = false }: DatePickerProps) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-[280px] justify-start text-left font-normal",
-            !date && "text-muted-foreground",
-            className
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? date.toLocaleDateString('sr-RS') : <span>{placeholder}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-3 z-50" align="start" side="bottom" sideOffset={5}>
-        <Calendar
-          value={calendarDate}
-          onChange={handleSelection}
-        />
-      </PopoverContent>
-    </Popover>
+    <span className={cn("mx-datepick", className)}>
+      <DateField value={toYmd(date)} onChange={(v: string) => onSelect?.(fromYmd(v))} clearable disabled={disabled}
+        placeholder={placeholder} aria-label={placeholder} />
+    </span>
   )
 }
 
@@ -103,67 +51,12 @@ export function DateRangePicker({
   disabled = false,
 }: DateRangePickerProps) {
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant={"outline"}
-            className={cn(
-              "w-[200px] justify-start text-left font-normal",
-              !startDate && "text-muted-foreground"
-            )}
-            disabled={disabled}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {startDate ? startDate.toLocaleDateString('sr-RS') : <span>{startPlaceholder}</span>}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-3 z-50" align="start" side="bottom" sideOffset={5}>
-          <Calendar
-            value={dateToCalendarDate(startDate)}
-            onChange={(selectedDate) => {
-              if (selectedDate && 'year' in selectedDate) {
-                const newDate = calendarDateToDate(selectedDate as CalendarDate)
-                onStartDateSelect?.(newDate)
-              } else {
-                onStartDateSelect?.(undefined)
-              }
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <span className="text-muted-foreground">do</span>
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant={"outline"}
-            className={cn(
-              "w-[200px] justify-start text-left font-normal",
-              !endDate && "text-muted-foreground"
-            )}
-            disabled={disabled}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {endDate ? endDate.toLocaleDateString('sr-RS') : <span>{endPlaceholder}</span>}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-3 z-50" align="start" side="bottom" sideOffset={5}>
-          <Calendar
-            value={dateToCalendarDate(endDate)}
-            onChange={(selectedDate) => {
-              if (selectedDate && 'year' in selectedDate) {
-                const newDate = calendarDateToDate(selectedDate as CalendarDate)
-                onEndDateSelect?.(newDate)
-              } else {
-                onEndDateSelect?.(undefined)
-              }
-            }}
-            minValue={dateToCalendarDate(startDate)}
-          />
-        </PopoverContent>
-      </Popover>
+    <div className={cn("mx-daterange", className)}>
+      <DateField value={toYmd(startDate)} onChange={(v: string) => onStartDateSelect?.(fromYmd(v))} clearable disabled={disabled}
+        placeholder={startPlaceholder} aria-label={startPlaceholder} compact />
+      <span className="mx-daterange__sep">do</span>
+      <DateField value={toYmd(endDate)} onChange={(v: string) => onEndDateSelect?.(fromYmd(v))} clearable disabled={disabled}
+        min={toYmd(startDate) || undefined} placeholder={endPlaceholder} aria-label={endPlaceholder} compact />
     </div>
   )
 }
