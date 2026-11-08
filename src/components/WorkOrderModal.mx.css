@@ -17,7 +17,7 @@
   width: min(1180px, 100vw - 48px);
   background: var(--sx-bg);
   border-radius: 22px 0 0 22px;
-  box-shadow: -30px 0 80px -40px rgb(0 0 0 / 0.4), 0 0 0 1px var(--sx-line);
+  box-shadow: var(--sx-shadow-dialog);
   overflow: hidden;
   contain: layout;
   animation: mx-wom-in 450ms var(--ease-move) both;
@@ -43,7 +43,6 @@
     left: 0;
     width: 100%;
     border-radius: 22px 22px 0 0;
-    box-shadow: 0 -20px 60px -30px rgb(0 0 0 / 0.5);
     animation-name: sx-sheet;
     animation-duration: 350ms;
   }
