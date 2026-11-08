@@ -192,7 +192,8 @@ const EditEquipment = () => {
             <Btn type="submit" variant="primary" icon={Save} onClick={handleSubmit}>Sačuvaj izmene</Btn>
           </>}
         >
-          <div className="sx-form">
+          {/* raspored kao ranije: Kategorija | Opis, Serijski broj | Lokacija, pa Status (pola širine) i napomena */}
+          <div className="mx-ee-grid">
             <Field label="Kategorija" htmlFor="category">
               <Select id="category" name="category" value={equipment.category} onChange={handleInputChange} required>
                 <option value="" disabled>Izaberite kategoriju</option>
@@ -225,7 +226,7 @@ const EditEquipment = () => {
             </Field>
 
             {equipment.status === 'defective' && (
-              <Note tone="warn" className="is-wide">
+              <Note tone="warn" className="mx-ee-wide">
                 <b>Napomena o neispravnoj opremi</b>
                 <p className="mx-ee-p">Kada označite opremu kao neispravnu, ona će automatski biti:</p>
                 <ul className="mx-ee-list">

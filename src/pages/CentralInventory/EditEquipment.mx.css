@@ -1,4 +1,9 @@
-/* Izmena opreme: spisak u napomeni o neispravnoj opremi (element + klasa, da nadjača sx osnovu za p i ul) */
+/* Izmena opreme: polja u dve kolone kao ranije (na uskom prostoru jedno ispod drugog), napomena preko cele širine */
+.mx-ee-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 24px; }
+.mx-ee-grid > .sx-field + .sx-field { margin-top: 0; }
+.mx-ee-wide { grid-column: 1 / -1; }
+@container page (min-width: 640px) { .mx-ee-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* spisak u napomeni o neispravnoj opremi (element + klasa, da nadjača sx osnovu za p i ul) */
 p.mx-ee-p { margin-top: 4px; }
 ul.mx-ee-list { margin-top: 6px; padding-left: 18px; list-style: disc; }
 ul.mx-ee-list li + li { margin-top: 2px; }
