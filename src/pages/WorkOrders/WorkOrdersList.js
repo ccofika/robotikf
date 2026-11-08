@@ -6,7 +6,7 @@ import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { getTimRowStyle } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
 import { Btn, Sign } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
 import { Select, SearchField } from '../../security/sx/forms';
 import { confirm } from '../../security/sx/confirm';
 import { LinkBtn, Pager, Loading } from '../../montaza/ui';
@@ -179,6 +179,7 @@ const WorkOrdersList = () => {
         eyebrow="Montaža · Radni nalozi"
         title="Pregled radnih naloga"
         actions={<>
+          <Btn icon={loading ? Spin : RefreshCw} onClick={fetchData} disabled={loading} title="Osveži podatke">{loading ? 'Osvežava...' : 'Osveži'}</Btn>
           <LinkBtn to="/work-orders/add" variant="primary" icon={Plus}>Novi nalog</LinkBtn>
           <LinkBtn to="/work-orders/upload" icon={Upload}>Import</LinkBtn>
         </>}
@@ -186,36 +187,29 @@ const WorkOrdersList = () => {
 
       {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
-      <div className="sx-stats">
-        <Stat label="Ukupno" value={totalCount} />
-        <Stat label="Završeni" value={statusCounts.zavrsen} small={`${pct(statusCounts.zavrsen)}%`} />
-        <Stat label="Nezavršeni" value={statusCounts.nezavrsen} small={`${pct(statusCounts.nezavrsen)}%`} />
-        <Stat label="Odloženi" value={statusCounts.odlozen} small={`${pct(statusCounts.odlozen)}%`} />
-      </div>
-
-      <Toolbar>
-        <SearchField value={searchInput} onChange={setSearchInput} placeholder="Pretraga po opštini, adresi, tipu..." />
-        <Select size="sm" aria-label="Status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
-          <option value="">Svi statusi</option>
-          <option value="zavrsen">Završeni</option>
-          <option value="nezavrsen">Nezavršeni</option>
-          <option value="odlozen">Odloženi</option>
-        </Select>
-        <Select size="sm" aria-label="Tehničar" value={technicianFilter} onChange={(e) => { setTechnicianFilter(e.target.value); setCurrentPage(1); }}>
-          <option value="">Svi tehničari</option>
-          <option value="unassigned">Nedodeljeni</option>
-          {technicians.filter(tech => !tech.deletedAt).map(tech => (
-            <option key={tech._id} value={tech._id}>
-              {tech.name}
-            </option>
-          ))}
-        </Select>
-        <div className="sx-toolbar__end">
-          <Btn size="sm" icon={loading ? Spin : RefreshCw} onClick={fetchData} disabled={loading} title="Osveži podatke">Osveži</Btn>
-        </div>
-      </Toolbar>
-
       <Panel pad={false}>
+        <div className="mx-wol__controls">
+          <div className="mx-wol__filters">
+            <SearchField value={searchInput} onChange={setSearchInput} placeholder="Pretraga po opštini, adresi, tipu..." />
+            <Select size="sm" aria-label="Status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
+              <option value="">Svi statusi</option>
+              <option value="zavrsen">Završeni</option>
+              <option value="nezavrsen">Nezavršeni</option>
+              <option value="odlozen">Odloženi</option>
+            </Select>
+            <Select size="sm" aria-label="Tehničar" value={technicianFilter} onChange={(e) => { setTechnicianFilter(e.target.value); setCurrentPage(1); }}>
+              <option value="">Svi tehničari</option>
+              <option value="unassigned">Nedodeljeni</option>
+              {technicians.filter(tech => !tech.deletedAt).map(tech => (
+                <option key={tech._id} value={tech._id}>
+                  {tech.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Btn size="sm" icon={loading ? Spin : RefreshCw} onClick={fetchData} disabled={loading}>Osveži</Btn>
+        </div>
+
         {loading ? (
           <Loading text="Učitavanje radnih naloga..." />
         ) : (
@@ -235,7 +229,7 @@ const WorkOrdersList = () => {
                       <th>Tip</th>
                       <th>Tehničar</th>
                       <th>Status</th>
-                      <th className="is-end">Akcije</th>
+                      <th>Akcije</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -256,8 +250,8 @@ const WorkOrdersList = () => {
                         <td data-label="Status">
                           <Sign tone={getStatusTone(order.status)}>{getStatusLabel(order.status)}</Sign>
                         </td>
-                        <td className="is-actions is-end">
-                          <div className="sx-rowacts">
+                        <td className="is-actions">
+                          <div className="sx-rowacts mx-wol__acts">
                             <LinkBtn size="sm" variant="ghost" icon={Eye} to={`/work-orders/${order._id}`} state={{ backgroundLocation: location }}>Detalji</LinkBtn>
                             <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" aria-label="Obriši" onClick={() => handleDelete(order._id, order.address)} disabled={loading} />
                           </div>
@@ -271,6 +265,13 @@ const WorkOrdersList = () => {
             {totalPages > 1 && <Pager page={currentPage} total={totalCount} perPage={itemsPerPage} onPage={paginate} />}
           </>
         )}
+
+        <div className="sx-stats mx-wol__stats">
+          <Stat label="Ukupno" value={totalCount} />
+          <Stat label="Završeni" value={statusCounts.zavrsen} small={`${pct(statusCounts.zavrsen)}%`} />
+          <Stat label="Nezavršeni" value={statusCounts.nezavrsen} small={`${pct(statusCounts.nezavrsen)}%`} />
+          <Stat label="Odloženi" value={statusCounts.odlozen} small={`${pct(statusCounts.odlozen)}%`} />
+        </div>
       </Panel>
     </div>
   );
