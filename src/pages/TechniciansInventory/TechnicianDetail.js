@@ -1,51 +1,31 @@
+// Detalj tehničara: isti raspored kao ranije (zaglavlje, podaci sa dugmadima desno, pozivi podršci, oprema,
+// materijali, dokumentacija, ocene), u izgledu Security dela. Obaveštenje o oceni (state { tab: 'reviews' })
+// otvara ovu stranicu kao i ranije; ocene su na njoj.
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { BackIcon, BoxIcon, ToolsIcon, UserIcon, LockIcon, CheckIcon, EditIcon, PhoneIcon, DeleteIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { useParams } from 'react-router-dom';
+import {
+  ArrowLeft, UserRound, Package, Cable, FileText, FileSpreadsheet, FileImage, File as FileIcon, Star, Mic, CalendarDays, Pencil,
+  Phone, Lock, Check, MessageSquare, Upload, Eye, Download, Trash2, Play, Pause, ExternalLink, ChevronLeft, ChevronRight
+} from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { techniciansAPI, reviewsAPI, supportCallsAPI } from '../../services/api';
 import { describeAssignment } from '../../utils/equipmentAssignment';
-import { SUPPORT_TYPES, supportTypeLabel, supportTypeStyle } from '../../utils/supportCalls';
+import { SUPPORT_TYPES, supportTypeLabel } from '../../utils/supportCalls';
 import { localYmd } from '../../utils/localDate';
+import { cx, Btn, Sign, State, Skeleton } from '../../security/sx/ui';
+import { PageHead, Panel, Note, KV, Stat } from '../../security/sx/layout';
+import { Field, Input, Switch } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { confirm } from '../../security/sx/confirm';
+import { Pager, Loading, LinkBtn } from '../../montaza/ui';
+import './TechnicianDetail.mx.css';
 
-// SVG Icons
-const MicIcon = ({ size = 20, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-    <line x1="12" x2="12" y1="19" y2="22"></line>
-  </svg>
-);
-
-const CalendarIcon = ({ size = 20, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
-    <line x1="16" x2="16" y1="2" y2="6"></line>
-    <line x1="8" x2="8" y1="2" y2="6"></line>
-    <line x1="3" x2="21" y1="10" y2="10"></line>
-  </svg>
-);
-
-const PlayIcon = ({ size = 20, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-  </svg>
-);
-
-const PauseIcon = ({ size = 20, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <rect x="6" y="4" width="4" height="16"></rect>
-    <rect x="14" y="4" width="4" height="16"></rect>
-  </svg>
-);
-
-const ExternalLinkIcon = ({ size = 20, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-    <polyline points="15 3 21 3 21 9"></polyline>
-    <line x1="10" x2="21" y1="14" y2="3"></line>
-  </svg>
-);
+// Status opreme: tekst kao ranije, ton po značenju (magacin, kod tehničara, instalirana, neispravna, čeka potvrdu)
+const STATUS_TONE = { available: 'idle', assigned: 'info', installed: 'ok', defective: 'bad', pending_confirmation: 'warn' };
+const statusText = (status) => (status === 'available' ? 'Dostupno' :
+  status === 'assigned' ? 'Zaduženo' :
+  status === 'installed' ? 'Instalirano' :
+  status === 'defective' ? 'Oštećeno' : status);
 
 const TechnicianDetail = () => {
   const [technician, setTechnician] = useState(null);
@@ -73,11 +53,11 @@ const TechnicianDetail = () => {
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const audioRef = useRef(null);
-  
+
   // Pagination for equipment
   const [equipmentPage, setEquipmentPage] = useState(1);
   const equipmentPerPage = 10;
-  
+
   // Pagination for materials
   const [materialsPage, setMaterialsPage] = useState(1);
   const materialsPerPage = 10;
@@ -120,15 +100,15 @@ const TechnicianDetail = () => {
       const response = await supportCallsAPI.getTechnicianSummary(id);
       setSupportCallSummary(response.data);
     } catch (error) {
-      // Summary je informativan — neuspeh ne sme da obori stranicu
+      // Summary je informativan, neuspeh ne sme da obori stranicu
       console.error('Greška pri učitavanju pregleda poziva podrške:', error);
     }
   };
-  
+
   const fetchTechnicianData = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await techniciansAPI.getOne(id);
       setTechnician(response.data);
@@ -169,7 +149,7 @@ const TechnicianDetail = () => {
   };
 
   const handleDeleteReview = async (reviewId) => {
-    if (!window.confirm('Da li ste sigurni da želite da obrišete ovu ocenu?')) return;
+    if (!(await confirm({ title: 'Da li ste sigurni da želite da obrišete ovu ocenu?', tone: 'danger', confirmLabel: 'Obriši' }))) return;
     try {
       await reviewsAPI.deleteReview(reviewId);
       toast.success('Ocena je uspešno obrisana');
@@ -181,13 +161,14 @@ const TechnicianDetail = () => {
     }
   };
 
-  const renderStars = (rating) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill={i < rating ? '#f59e0b' : 'none'} stroke={i < rating ? '#f59e0b' : '#d1d5db'} strokeWidth="2">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-      </svg>
-    ));
-  };
+  // Zvezdice (ocena 1-5); broj je i u natpisu za čitače ekrana
+  const renderStars = (rating) => (
+    <span className="mx-tdet-stars" role="img" aria-label={`${rating}/5`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} size={14} strokeWidth={1.9} className={i < rating ? 'is-on' : undefined} fill={i < rating ? 'currentColor' : 'none'} />
+      ))}
+    </span>
+  );
 
   // ============================================================
   // DOCUMENT FUNCTIONS
@@ -233,7 +214,7 @@ const TechnicianDetail = () => {
   };
 
   const handleDeleteDocument = async (documentId, documentName) => {
-    if (!window.confirm(`Da li ste sigurni da želite da obrišete "${documentName}"?`)) return;
+    if (!(await confirm({ title: `Da li ste sigurni da želite da obrišete "${documentName}"?`, tone: 'danger', confirmLabel: 'Obriši' }))) return;
 
     const originalDocuments = [...documents];
     setDocuments(prev => prev.filter(d => d._id !== documentId));
@@ -266,11 +247,11 @@ const TechnicianDetail = () => {
   };
 
   const getFileIcon = (fileType) => {
-    if (fileType?.includes('pdf')) return '📄';
-    if (fileType?.includes('word') || fileType?.includes('document')) return '📝';
-    if (fileType?.includes('excel') || fileType?.includes('spreadsheet')) return '📊';
-    if (fileType?.includes('image')) return '🖼️';
-    return '📎';
+    if (fileType?.includes('pdf')) return FileText;
+    if (fileType?.includes('word') || fileType?.includes('document')) return FileText;
+    if (fileType?.includes('excel') || fileType?.includes('spreadsheet')) return FileSpreadsheet;
+    if (fileType?.includes('image')) return FileImage;
+    return FileIcon;
   };
 
   // Da li se fajl može prikazati u pregledaču
@@ -341,12 +322,12 @@ const TechnicianDetail = () => {
       toast.error('Lozinke se ne podudaraju!');
       return;
     }
-    
+
     if (newPassword.length < 6) {
       toast.error('Lozinka mora imati najmanje 6 karaktera!');
       return;
     }
-    
+
     try {
       // Poziv API-ja za promenu lozinke preko update endpointa
       await techniciansAPI.update(id, { password: newPassword });
@@ -413,6 +394,23 @@ const TechnicianDetail = () => {
     }
   };
 
+  // Zatvaranje dijaloga (X, Odustani, Escape, klik van): isto kao ranije X i Odustani
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setNewPassword('');
+    setConfirmedPassword('');
+  };
+
+  const closeGmailModal = () => {
+    setShowGmailModal(false);
+    setNewGmail('');
+  };
+
+  const closePhoneModal = () => {
+    setShowPhoneModal(false);
+    setNewPhoneNumber('');
+  };
+
   // ============================================================
   // CALL RECORDINGS FUNCTIONS
   // ============================================================
@@ -449,6 +447,12 @@ const TechnicianDetail = () => {
     setCurrentYear(today.getFullYear());
     fetchRecordings(localYmd(today));
     fetchRecordingDates(today.getMonth() + 1, today.getFullYear());
+  };
+
+  const closeRecordingsModal = () => {
+    setShowRecordingsModal(false);
+    setPlayingRecordingId(null);
+    audioRef.current?.pause();
   };
 
   const handleDateChange = (date) => {
@@ -575,1367 +579,557 @@ const TechnicianDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includeWorkOrders]);
 
+  const head = (
+    <PageHead
+      eyebrow="Montaža · Tehničari"
+      title="Detalji tehničara"
+      lead="Pregled podataka tehničara"
+      actions={<LinkBtn to="/technicians" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
+    />
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="flex items-center space-x-3 text-slate-600">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-sm font-medium">Učitavanje tehničara...</span>
-          </div>
-        </div>
+      <div className="sx-page" data-testid="page-technician-detail" aria-busy="true">
+        <span className="sx-sr" role="status">Učitavanje tehničara...</span>
+        <Skeleton h={14} w={160} />
+        <Skeleton h={48} w="min(460px, 80%)" style={{ marginTop: 16 }} />
+        <Skeleton h={150} r={18} style={{ marginTop: 26 }} />
+        <Skeleton h={320} r={18} style={{ marginTop: 20 }} />
       </div>
     );
   }
-  
+
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        {/* Modern Header */}
-        <div className="p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <UserIcon size={24} className="text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Detalji tehničara</h1>
-                <p className="text-slate-600 mt-1">Pregled podataka tehničara</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Link to="/technicians">
-                <Button 
-                  type="secondary"
-                  size="medium"
-                  prefix={<BackIcon size={16} />}
-                >
-                  Povratak na listu
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
+      <div className="sx-page mx-tdet" data-testid="page-technician-detail">
+        {head}
+        <Note tone="bad">{error}</Note>
       </div>
     );
   }
-  
+
+  const equipmentItems = technician.equipment || [];
+  const currentEquipmentItems = equipmentItems.slice((equipmentPage - 1) * equipmentPerPage, equipmentPage * equipmentPerPage);
+  const materialItems = technician.materials || [];
+  const currentMaterialItems = materialItems.slice((materialsPage - 1) * materialsPerPage, materialsPage * materialsPerPage);
+  const employedDays = technician.employedUntil ? Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+  const reviewPages = Math.ceil(reviewsTotal / 5);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Modern Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <UserIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Detalji tehničara</h1>
-              <p className="text-slate-600 mt-1">Pregled podataka tehničara</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Link to="/technicians">
-              <Button 
-                type="secondary"
-                size="medium"
-                prefix={<BackIcon size={16} />}
-              >
-                Povratak na listu
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      {/* Technician Profile Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center justify-center w-20 h-20 bg-blue-100 text-blue-600 rounded-xl">
-              <UserIcon size={32} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center space-x-3 mb-2">
-                <h2 className="text-xl font-bold text-slate-900">{technician.name}</h2>
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  technician.isActive === false
-                    ? 'bg-red-100 text-red-700 border border-red-200'
-                    : 'bg-green-100 text-green-700 border border-green-200'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                    technician.isActive === false ? 'bg-red-500' : 'bg-green-500'
-                  }`} />
+    <div className="sx-page mx-tdet" data-testid="page-technician-detail">
+      {head}
+
+      <div className="sx-stack">
+        {/* Podaci tehničara, dugmad desno */}
+        <Panel testId="technician-profile">
+          <div className="mx-tdet-profile">
+            <span className="mx-tdet-profile__icon"><UserRound size={28} strokeWidth={1.8} aria-hidden="true" /></span>
+            <div className="mx-tdet-profile__main">
+              <div className="mx-tdet-profile__name">
+                <h2 className="sx-card__title">{technician.name}</h2>
+                <State tone={technician.isActive === false ? 'bad' : 'ok'}>
                   {technician.deletedAt ? 'Obrisan' : technician.isActive === false ? 'Neaktivan' : 'Aktivan'}
-                </span>
+                </State>
               </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <p><span className="font-medium">ID:</span> {technician.id}</p>
-                <p><span className="font-medium">Gmail:</span> {technician.gmail || 'Nije uneto'}</p>
-                <p><span className="font-medium">Broj telefona:</span> {technician.phoneNumber || 'Nije uneto'}</p>
-                <p><span className="font-medium">Dodat:</span> {new Date(technician.createdAt).toLocaleDateString('sr-RS')}</p>
-                {technician.employedUntil && (
-                  <p>
-                    <span className="font-medium">Zaposlen do:</span>{' '}
-                    <span className={(() => {
-                      const days = Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24));
-                      if (days < 0) return 'text-red-600 font-semibold';
-                      if (days <= 30) return 'text-amber-600 font-semibold';
-                      return '';
-                    })()}>
-                      {new Date(technician.employedUntil).toLocaleDateString('sr-RS')}
-                      {(() => {
-                        const days = Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24));
-                        if (days < 0) return ' (ISTEKAO)';
-                        if (days <= 30) return ` (${days} dana)`;
-                        return '';
-                      })()}
-                    </span>
-                  </p>
+              <KV items={[
+                { k: 'ID', v: technician.id, mono: true },
+                { k: 'Gmail', v: technician.gmail || 'Nije uneto' },
+                { k: 'Broj telefona', v: technician.phoneNumber || 'Nije uneto' },
+                { k: 'Dodat', v: new Date(technician.createdAt).toLocaleDateString('sr-RS') },
+                technician.employedUntil && {
+                  k: 'Zaposlen do',
+                  v: `${new Date(technician.employedUntil).toLocaleDateString('sr-RS')}${employedDays < 0 ? ' (ISTEKAO)' : employedDays <= 30 ? ` (${employedDays} dana)` : ''}`,
+                  tone: employedDays < 0 ? 'bad' : employedDays <= 30 ? 'warn' : undefined
+                }
+              ]} />
+            </div>
+            <div className="mx-tdet-profile__acts">
+              <Btn variant="ghost" icon={Pencil} onClick={() => { setNewGmail(technician.gmail || ''); setShowGmailModal(true); }}>Uredi Gmail</Btn>
+              <Btn variant="ghost" icon={Phone} onClick={() => { setNewPhoneNumber(technician.phoneNumber || ''); setShowPhoneModal(true); }}>Uredi telefon</Btn>
+              <Btn variant="ghost" icon={Lock} onClick={() => setShowPasswordModal(true)}>Promeni lozinku</Btn>
+              <Btn variant="primary" icon={Mic} onClick={handleOpenRecordingsModal}>Snimci poziva</Btn>
+              {canViewStatement && <LinkBtn to={`/technicians/${id}/obracun`} icon={CalendarDays}>Mesečni obračun</LinkBtn>}
+            </div>
+          </div>
+        </Panel>
+
+        {/* Pozivi podršci: zbirni pregled */}
+        {supportCallSummary && supportCallSummary.total > 0 && (
+          <Panel title="Pozivi podršci" testId="technician-support-calls">
+            <div className="sx-stats mx-tdet-stats mx-tdet-stats--3">
+              <Stat label="Ukupno poziva" value={supportCallSummary.total} />
+              {SUPPORT_TYPES.map((type) => (
+                <Stat key={type} label={supportTypeLabel(type)} value={supportCallSummary[type] || 0} />
+              ))}
+              <Stat
+                label="Poslednji poziv"
+                value={(
+                  <span className="mx-tdet-statdate">
+                    {supportCallSummary.lastCalledAt
+                      ? new Date(supportCallSummary.lastCalledAt).toLocaleString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      : '-'}
+                  </span>
                 )}
-              </div>
-            </div>
-            <div className="flex flex-col space-y-2">
-              <Button
-                type="tertiary"
-                size="medium"
-                onClick={() => {
-                  setNewGmail(technician.gmail || '');
-                  setShowGmailModal(true);
-                }}
-                prefix={<EditIcon size={16} />}
-              >
-                Uredi Gmail
-              </Button>
-              <Button
-                type="tertiary"
-                size="medium"
-                onClick={() => {
-                  setNewPhoneNumber(technician.phoneNumber || '');
-                  setShowPhoneModal(true);
-                }}
-                prefix={<PhoneIcon size={16} />}
-              >
-                Uredi telefon
-              </Button>
-              <Button
-                type="tertiary"
-                size="medium"
-                onClick={() => setShowPasswordModal(true)}
-                prefix={<LockIcon size={16} />}
-              >
-                Promeni lozinku
-              </Button>
-              <Button
-                type="primary"
-                size="medium"
-                onClick={handleOpenRecordingsModal}
-                prefix={<MicIcon size={16} />}
-              >
-                Snimci poziva
-              </Button>
-              {canViewStatement && (
-                <Link to={`/technicians/${id}/obracun`}>
-                  <Button
-                    type="secondary"
-                    size="medium"
-                    prefix={<CalendarIcon size={16} />}
-                    className="w-full"
-                  >
-                    Mesečni obračun
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Pozivi podršci — zbirni pregled */}
-      {supportCallSummary && supportCallSummary.total > 0 && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <PhoneIcon size={20} className="text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Pozivi podršci</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-slate-700">{supportCallSummary.total}</div>
-                <div className="text-xs text-slate-500 mt-1">Ukupno poziva</div>
-              </div>
-              {SUPPORT_TYPES.map((type) => {
-                const style = supportTypeStyle(type);
-                return (
-                  <div key={type} className={`bg-gradient-to-br rounded-xl p-4 text-center ${style.tile}`}>
-                    <div className={`text-2xl font-bold ${style.tileText}`}>{supportCallSummary[type] || 0}</div>
-                    <div className="text-xs text-slate-500 mt-1">{supportTypeLabel(type)}</div>
-                  </div>
-                );
-              })}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 text-center">
-                <div className="text-sm font-bold text-blue-700 leading-8">
-                  {supportCallSummary.lastCalledAt
-                    ? new Date(supportCallSummary.lastCalledAt).toLocaleString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                    : '—'}
-                </div>
-                <div className="text-xs text-slate-500 mt-1">Poslednji poziv</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Equipment Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <BoxIcon size={20} className="text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Zadužena oprema</h2>
-            </div>
-            <Link to={`/technicians/${id}/assign-equipment`}>
-              <Button 
-                type="primary"
-                size="medium"
-                prefix={<BoxIcon size={16} />}
-              >
-                Zaduži/razduži opremu
-              </Button>
-            </Link>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Kategorija
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Opis
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Serijski broj
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Zaduženo
-                </th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {(() => {
-                const equipmentItems = technician.equipment || [];
-                const startIndex = (equipmentPage - 1) * equipmentPerPage;
-                const endIndex = startIndex + equipmentPerPage;
-                const currentEquipmentItems = equipmentItems.slice(startIndex, endIndex);
-                
-                if (equipmentItems.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
-                        <div className="flex flex-col items-center space-y-2">
-                          <BoxIcon size={48} className="text-slate-300" />
-                          <p className="text-sm font-medium">Nema zadužene opreme</p>
-                          <p className="text-xs">Dodajte opremu koristeći dugme iznad</p>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
-                
-                return currentEquipmentItems.map((item, index) => (
-                  <tr key={item.serialNumber} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                      {item.category}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-700">
-                      {item.description}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-700 font-mono">
-                      {item.serialNumber}
-                    </td>
-                    {(() => {
-                      const assignment = describeAssignment(item, { assumeAssigned: true });
-                      return (
-                        <td className="px-6 py-4 text-sm whitespace-nowrap">
-                          <span className={assignment.variant === 'stamped'
-                            ? 'text-slate-700 font-mono'
-                            : 'text-slate-400 italic text-xs'}>
-                            {assignment.text}
-                          </span>
-                        </td>
-                      );
-                    })()}
-                    <td className="px-6 py-4 text-center">
-                      <Button
-                        type={item.status === 'available' ? 'secondary' : item.status === 'assigned' ? 'primary' : 'tertiary'}
-                        size="small"
-                        className="text-xs capitalize"
-                      >
-                        {item.status === 'available' ? 'Dostupno' : 
-                         item.status === 'assigned' ? 'Zaduženo' :
-                         item.status === 'installed' ? 'Instalirano' :
-                         item.status === 'defective' ? 'Oštećeno' : item.status}
-                      </Button>
-                    </td>
-                  </tr>
-                ));
-              })()}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Equipment Pagination */}
-        {technician.equipment && technician.equipment.length > equipmentPerPage && (
-          <div className="px-6 py-4 border-t border-slate-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-600">
-                Prikazano {((equipmentPage - 1) * equipmentPerPage) + 1} - {Math.min(equipmentPage * equipmentPerPage, technician.equipment.length)} od {technician.equipment.length} stavki
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setEquipmentPage(1)}
-                  disabled={equipmentPage === 1}
-                >
-                  &laquo;
-                </Button>
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setEquipmentPage(equipmentPage - 1)}
-                  disabled={equipmentPage === 1}
-                >
-                  &lsaquo;
-                </Button>
-                
-                {Array.from({ length: Math.ceil(technician.equipment.length / equipmentPerPage) }, (_, i) => i + 1)
-                  .filter(number => {
-                    const totalPages = Math.ceil(technician.equipment.length / equipmentPerPage);
-                    return (
-                      number === 1 ||
-                      number === totalPages ||
-                      Math.abs(number - equipmentPage) <= 1
-                    );
-                  })
-                  .map(number => (
-                    <Button
-                      key={number}
-                      type={equipmentPage === number ? "primary" : "tertiary"}
-                      size="small"
-                      onClick={() => setEquipmentPage(number)}
-                    >
-                      {number}
-                    </Button>
-                  ))}
-                  
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setEquipmentPage(equipmentPage + 1)}
-                  disabled={equipmentPage === Math.ceil(technician.equipment.length / equipmentPerPage)}
-                >
-                  &rsaquo;
-                </Button>
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setEquipmentPage(Math.ceil(technician.equipment.length / equipmentPerPage))}
-                  disabled={equipmentPage === Math.ceil(technician.equipment.length / equipmentPerPage)}
-                >
-                  &raquo;
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Materials Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <ToolsIcon size={20} className="text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Zaduženi materijali</h2>
-            </div>
-            <Link to={`/technicians/${id}/assign-material`}>
-              <Button 
-                type="primary"
-                size="medium"
-                prefix={<ToolsIcon size={16} />}
-              >
-                Zaduži/razduži materijal
-              </Button>
-            </Link>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Vrsta
-                </th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Količina
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {(() => {
-                const materialItems = technician.materials || [];
-                const startIndex = (materialsPage - 1) * materialsPerPage;
-                const endIndex = startIndex + materialsPerPage;
-                const currentMaterialItems = materialItems.slice(startIndex, endIndex);
-                
-                if (materialItems.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan="2" className="px-6 py-12 text-center text-slate-500">
-                        <div className="flex flex-col items-center space-y-2">
-                          <ToolsIcon size={48} className="text-slate-300" />
-                          <p className="text-sm font-medium">Nema zaduženih materijala</p>
-                          <p className="text-xs">Dodajte materijale koristeći dugme iznad</p>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
-                
-                return currentMaterialItems.map((item, index) => (
-                  <tr key={index} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                      {item.type}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Button
-                        type="secondary"
-                        size="small"
-                        className="text-xs min-w-[60px] justify-center"
-                      >
-                        {item.quantity}
-                      </Button>
-                    </td>
-                  </tr>
-                ));
-              })()}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Materials Pagination */}
-        {technician.materials && technician.materials.length > materialsPerPage && (
-          <div className="px-6 py-4 border-t border-slate-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-600">
-                Prikazano {((materialsPage - 1) * materialsPerPage) + 1} - {Math.min(materialsPage * materialsPerPage, technician.materials.length)} od {technician.materials.length} stavki
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setMaterialsPage(1)}
-                  disabled={materialsPage === 1}
-                >
-                  &laquo;
-                </Button>
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setMaterialsPage(materialsPage - 1)}
-                  disabled={materialsPage === 1}
-                >
-                  &lsaquo;
-                </Button>
-                
-                {Array.from({ length: Math.ceil(technician.materials.length / materialsPerPage) }, (_, i) => i + 1)
-                  .filter(number => {
-                    const totalPages = Math.ceil(technician.materials.length / materialsPerPage);
-                    return (
-                      number === 1 ||
-                      number === totalPages ||
-                      Math.abs(number - materialsPage) <= 1
-                    );
-                  })
-                  .map(number => (
-                    <Button
-                      key={number}
-                      type={materialsPage === number ? "primary" : "tertiary"}
-                      size="small"
-                      onClick={() => setMaterialsPage(number)}
-                    >
-                      {number}
-                    </Button>
-                  ))}
-                  
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setMaterialsPage(materialsPage + 1)}
-                  disabled={materialsPage === Math.ceil(technician.materials.length / materialsPerPage)}
-                >
-                  &rsaquo;
-                </Button>
-                <Button
-                  type="tertiary"
-                  size="small"
-                  onClick={() => setMaterialsPage(Math.ceil(technician.materials.length / materialsPerPage))}
-                  disabled={materialsPage === Math.ceil(technician.materials.length / materialsPerPage)}
-                >
-                  &raquo;
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Documents Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" x2="8" y1="13" y2="13"></line>
-                <line x1="16" x2="8" y1="17" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              <h2 className="text-lg font-semibold text-slate-900">Dokumentacija</h2>
-              <span className="text-sm text-slate-500">({documents.length})</span>
-            </div>
-            <div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => handleDocumentUpload(Array.from(e.target.files))}
-                multiple
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
-                className="hidden"
               />
-              <Button
-                type="primary"
-                size="medium"
-                onClick={() => fileInputRef.current?.click()}
-                loading={uploadingDocument}
-                prefix={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" x2="12" y1="3" y2="15"></line>
-                  </svg>
-                }
-              >
-                Otpremi dokument
-              </Button>
             </div>
-          </div>
-        </div>
+          </Panel>
+        )}
 
-        {/* Drag and drop zone */}
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          className={`transition-all ${dragOver ? 'bg-blue-50 border-2 border-dashed border-blue-400' : ''}`}
+        {/* Zadužena oprema */}
+        <Panel
+          title="Zadužena oprema"
+          pad={false}
+          actions={<LinkBtn to={`/technicians/${id}/assign-equipment`} variant="primary" size="sm" icon={Package}>Zaduži/razduži opremu</LinkBtn>}
+          testId="technician-equipment"
         >
-          {documentsLoading ? (
-            <div className="flex items-center justify-center p-12">
-              <div className="flex items-center space-x-3 text-slate-600">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-sm font-medium">Učitavanje dokumenata...</span>
-              </div>
-            </div>
-          ) : documents.length === 0 ? (
-            <div
-              className="px-6 py-12 text-center text-slate-500 cursor-pointer hover:bg-slate-50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="flex flex-col items-center space-y-3">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                <p className="text-sm font-medium">Nema dokumenata</p>
-                <p className="text-xs">Kliknite ili prevucite fajlove za otpremanje<br/>(PDF, Word, Excel, slike)</p>
-              </div>
+          {equipmentItems.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema zadužene opreme</b>
+              <span>Dodajte opremu koristeći dugme iznad</span>
             </div>
           ) : (
-            <div className="divide-y divide-slate-200">
-              {documents.map((doc) => (
-                <div
-                  key={doc._id}
-                  className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors group"
-                >
-                  <div
-                    className="flex items-center space-x-4 flex-1 min-w-0 cursor-pointer"
-                    onClick={() => isPreviewable(doc) ? openPreview(doc) : handleDownloadDocument(doc)}
-                  >
-                    <span className="text-2xl flex-shrink-0">{getFileIcon(doc.fileType)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{doc.name}</p>
-                      <div className="flex items-center space-x-3 mt-1">
-                        <span className="text-xs text-slate-500">
-                          {formatFileSize(doc.fileSize)}
-                        </span>
-                        <span className="text-xs text-slate-400">|</span>
-                        <span className="text-xs text-slate-500">
-                          {new Date(doc.uploadedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isPreviewable(doc) && (
-                      <button
-                        onClick={() => openPreview(doc)}
-                        className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-                        title="Pregledaj"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDownloadDocument(doc)}
-                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                      title="Preuzmi"
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" x2="12" y1="15" y2="3"></line>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDocument(doc._id, doc.name)}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      title="Obriši dokument"
-                    >
-                      <DeleteIcon size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="sx-tablewrap">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Kategorija</th>
+                      <th>Opis</th>
+                      <th>Serijski broj</th>
+                      <th>Zaduženo</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentEquipmentItems.map((item, index) => {
+                      const assignment = describeAssignment(item, { assumeAssigned: true });
+                      return (
+                        <tr key={item.serialNumber} style={{ '--i': index }}>
+                          <td className="is-head"><b className="mx-strong">{item.category}</b></td>
+                          <td data-label="Opis" className="is-wide">{item.description}</td>
+                          <td data-label="Serijski broj"><span className="sx-mono">{item.serialNumber}</span></td>
+                          <td data-label="Zaduženo">
+                            {assignment.variant === 'stamped'
+                              ? <span className="sx-mono sx-nowrap">{assignment.text}</span>
+                              : <span className="mx-tdet-legacy">{assignment.text}</span>}
+                          </td>
+                          <td data-label="Status"><Sign tone={STATUS_TONE[item.status] || 'idle'}>{statusText(item.status)}</Sign></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <Pager page={equipmentPage} total={equipmentItems.length} perPage={equipmentPerPage} onPage={setEquipmentPage} label="stavki" />
+            </>
           )}
-        </div>
-      </div>
+        </Panel>
 
-      {/* Document Preview Modal */}
-      {previewDoc && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={closePreview}
+        {/* Zaduženi materijali */}
+        <Panel
+          title="Zaduženi materijali"
+          pad={false}
+          actions={<LinkBtn to={`/technicians/${id}/assign-material`} variant="primary" size="sm" icon={Cable}>Zaduži/razduži materijal</LinkBtn>}
+          testId="technician-materials"
+        >
+          {materialItems.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema zaduženih materijala</b>
+              <span>Dodajte materijale koristeći dugme iznad</span>
+            </div>
+          ) : (
+            <>
+              <div className="sx-tablewrap">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Vrsta</th>
+                      <th className="is-num">Količina</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentMaterialItems.map((item, index) => (
+                      <tr key={index} style={{ '--i': index }}>
+                        <td className="is-head"><b className="mx-strong">{item.type}</b></td>
+                        <td data-label="Količina" className="is-num">
+                          {item.quantity === 0 ? <Sign tone="bad">{item.quantity}</Sign> : item.quantity}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pager page={materialsPage} total={materialItems.length} perPage={materialsPerPage} onPage={setMaterialsPage} label="stavki" />
+            </>
+          )}
+        </Panel>
+
+        {/* Dokumentacija: dugme ili prevlačenje fajlova na panel */}
+        <Panel
+          title={<span className="sx-panel__title-row">Dokumentacija <span className="sx-count">{documents.length}</span></span>}
+          pad={false}
+          actions={<>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => handleDocumentUpload(Array.from(e.target.files))}
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+              hidden
+            />
+            <Btn variant="primary" size="sm" icon={Upload} busy={uploadingDocument} onClick={() => fileInputRef.current?.click()}>Otpremi dokument</Btn>
+          </>}
+          testId="technician-documents"
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={cx('mx-tdet-drop', dragOver && 'is-over')}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
-              <div className="flex items-center space-x-3 min-w-0">
-                <span className="text-xl">{getFileIcon(previewDoc.fileType)}</span>
-                <div className="min-w-0">
-                  <h2 className="text-lg font-bold text-slate-900 truncate">{previewDoc.name}</h2>
-                  <p className="text-xs text-slate-500">
-                    {formatFileSize(previewDoc.fileSize)} &middot; {new Date(previewDoc.uploadedAt).toLocaleDateString('sr-RS')}
-                  </p>
-                </div>
+            {documentsLoading ? (
+              <Loading rows={3} text="Učitavanje dokumenata..." />
+            ) : documents.length === 0 ? (
+              <div className="sx-empty-block mx-tdet-pick" onClick={() => fileInputRef.current?.click()}>
+                <b>Nema dokumenata</b>
+                <span>Kliknite ili prevucite fajlove za otpremanje<br />(PDF, Word, Excel, slike)</span>
               </div>
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                <button
-                  onClick={() => handleDownloadDocument(previewDoc)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" x2="12" y1="15" y2="3"></line>
-                  </svg>
-                  Preuzmi
-                </button>
-                <button
-                  onClick={closePreview}
-                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" x2="6" y1="6" y2="18"></line>
-                    <line x1="6" x2="18" y1="6" y2="18"></line>
-                  </svg>
-                </button>
+            ) : (
+              <div className="sx-list mx-tdet-docs">
+                {documents.map((doc) => {
+                  const DocIcon = getFileIcon(doc.fileType);
+                  const open = () => (isPreviewable(doc) ? openPreview(doc) : handleDownloadDocument(doc));
+                  return (
+                    <div
+                      key={doc._id}
+                      className="sx-item is-click"
+                      tabIndex={0}
+                      onClick={open}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
+                    >
+                      <span className="sx-item__icon"><DocIcon size={17} strokeWidth={1.9} aria-hidden="true" /></span>
+                      <div className="sx-item__main">
+                        <b>{doc.name}</b>
+                        <span>
+                          {formatFileSize(doc.fileSize)} | {new Date(doc.uploadedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="sx-item__side" onClick={(e) => e.stopPropagation()}>
+                        {isPreviewable(doc) && (
+                          <Btn size="sm" variant="ghost" icon={Eye} onClick={() => openPreview(doc)} title="Pregledaj" aria-label="Pregledaj" />
+                        )}
+                        <Btn size="sm" variant="ghost" icon={Download} onClick={() => handleDownloadDocument(doc)} title="Preuzmi" aria-label="Preuzmi" />
+                        <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteDocument(doc._id, doc.name)} title="Obriši dokument" aria-label="Obriši dokument" />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            {/* Preview Content */}
-            <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center">
-              {previewLoading ? (
-                <p className="text-slate-500 p-12">Učitavanje dokumenta...</p>
-              ) : previewUrl && getPreviewType(previewDoc) === 'image' ? (
-                <img
-                  src={previewUrl}
-                  alt={previewDoc.name}
-                  className="max-w-full max-h-[80vh] object-contain p-4"
-                />
-              ) : previewUrl && getPreviewType(previewDoc) === 'pdf' ? (
-                <iframe
-                  src={previewUrl}
-                  title={previewDoc.name}
-                  className="w-full h-full min-h-[80vh] border-0"
-                />
-              ) : (
-                <div className="text-center p-12 text-slate-500">
-                  <p className="text-lg font-medium mb-2">Pregled nije dostupan</p>
-                  <button
-                    onClick={() => handleDownloadDocument(previewDoc)}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Preuzmi dokument
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reviews Section */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center space-x-3">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>
-            <h2 className="text-lg font-bold text-slate-900">Ocene korisnika</h2>
-            {reviewStats && reviewStats.totalReviews > 0 && (
-              <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                {reviewStats.totalReviews}
-              </span>
             )}
           </div>
-        </div>
+        </Panel>
 
-        <div className="p-6">
-          {/* Stats Overview */}
+        {/* Ocene korisnika: brojke, dodatne brojke, pojedinačne ocene, strane */}
+        <Panel
+          title={(
+            <span className="sx-panel__title-row">
+              Ocene korisnika
+              {reviewStats && reviewStats.totalReviews > 0 && <span className="sx-count">{reviewStats.totalReviews}</span>}
+            </span>
+          )}
+          testId="technician-reviews"
+        >
           {reviewStats && reviewStats.totalReviews > 0 ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-4 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    {renderStars(Math.round(reviewStats.avgProfessionalism))}
-                  </div>
-                  <div className="text-2xl font-bold text-amber-700">{reviewStats.avgProfessionalism}</div>
-                  <div className="text-xs text-slate-500 mt-1">Profesionalnost</div>
+              <div className="sx-stats mx-tdet-stats mx-tdet-stats--4">
+                <Stat label="Profesionalnost" value={reviewStats.avgProfessionalism} sub={renderStars(Math.round(reviewStats.avgProfessionalism))} />
+                <Stat label="Kvalitet servisa" value={reviewStats.avgServiceQuality} sub={renderStars(Math.round(reviewStats.avgServiceQuality))} />
+                <Stat label="NPS Score (0-10)" value={reviewStats.avgNps} />
+                <Stat label="Tačnost dolaska" value={reviewStats.onTimePercent} small="%" />
+              </div>
+
+              <div className="mx-tdet-extra">
+                <div className="mx-tdet-extra__item">
+                  <span className="sx-item__icon"><Check size={16} strokeWidth={2} aria-hidden="true" /></span>
+                  <div><b>{reviewStats.cleanInstallationPercent}%</b><span>Uredna instalacija</span></div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 text-center">
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    {renderStars(Math.round(reviewStats.avgServiceQuality))}
-                  </div>
-                  <div className="text-2xl font-bold text-blue-700">{reviewStats.avgServiceQuality}</div>
-                  <div className="text-xs text-slate-500 mt-1">Kvalitet servisa</div>
-                </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-green-700">{reviewStats.avgNps}</div>
-                  <div className="text-xs text-slate-500 mt-1">NPS Score (0-10)</div>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-700">{reviewStats.onTimePercent}%</div>
-                  <div className="text-xs text-slate-500 mt-1">Tačnost dolaska</div>
+                <div className="mx-tdet-extra__item">
+                  <span className="sx-item__icon"><MessageSquare size={16} strokeWidth={1.9} aria-hidden="true" /></span>
+                  <div><b>{reviewStats.fullExplanationPercent}%</b><span>Jasno objašnjenje</span></div>
                 </div>
               </div>
 
-              {/* Additional Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-700">{reviewStats.cleanInstallationPercent}%</div>
-                    <div className="text-xs text-slate-500">Uredna instalacija</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-700">{reviewStats.fullExplanationPercent}%</div>
-                    <div className="text-xs text-slate-500">Jasno objašnjenje</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Individual Reviews */}
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Pojedinačne ocene</h3>
+              <h3 className="mx-tdet-subhead">Pojedinačne ocene</h3>
               {reviewsLoading ? (
-                <div className="text-center py-4 text-slate-400">Učitavanje...</div>
+                <Loading rows={3} h={96} text="Učitavanje..." />
               ) : (
-                <div className="space-y-3">
+                <div className="mx-tdet-reviews">
                   {reviews.map((review) => (
-                    <div key={review._id} className="border border-slate-200 rounded-xl p-4 hover:bg-slate-50/50 transition-colors">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-slate-800">{review.customerName || 'Anonimni korisnik'}</span>
-                            <span className="text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString('sr-RS')}</span>
+                    <div key={review._id} className="mx-tdet-review">
+                      <div className="mx-tdet-review__head">
+                        <div className="mx-tdet-review__who">
+                          <div className="mx-tdet-review__name">
+                            <b>{review.customerName || 'Anonimni korisnik'}</b>
+                            <span>{new Date(review.createdAt).toLocaleDateString('sr-RS')}</span>
                           </div>
-                          <div className="flex items-center gap-1 mt-1">
-                            {renderStars(review.professionalism)}
-                            <span className="text-xs text-slate-500 ml-1">Profesionalnost</span>
-                          </div>
+                          <span className="mx-tdet-review__stars">{renderStars(review.professionalism)} Profesionalnost</span>
                         </div>
-                        <button
-                          onClick={() => handleDeleteReview(review._id)}
-                          className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                          title="Obriši ocenu"
-                        >
-                          <DeleteIcon size={16} />
-                        </button>
+                        <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteReview(review._id)} title="Obriši ocenu" aria-label="Obriši ocenu" />
                       </div>
-                      <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
-                        <div className="bg-slate-100 rounded px-2 py-1">
-                          <span className="text-slate-500">Termin:</span>{' '}
-                          <span className="font-medium text-slate-700">{review.onTime}</span>
-                        </div>
-                        <div className="bg-slate-100 rounded px-2 py-1">
-                          <span className="text-slate-500">Urednost:</span>{' '}
-                          <span className="font-medium text-slate-700">{review.cleanInstallation}</span>
-                        </div>
-                        <div className="bg-slate-100 rounded px-2 py-1">
-                          <span className="text-slate-500">Servis:</span>{' '}
-                          <span className="font-medium text-slate-700">{review.serviceQuality}/5</span>
-                        </div>
+                      <div className="mx-tdet-review__grid">
+                        <span><span className="sx-muted">Termin:</span> <b>{review.onTime}</b></span>
+                        <span><span className="sx-muted">Urednost:</span> <b>{review.cleanInstallation}</b></span>
+                        <span><span className="sx-muted">Servis:</span> <b>{review.serviceQuality}/5</b></span>
                       </div>
-                      {review.comment && (
-                        <p className="text-sm text-slate-600 mt-2 italic bg-slate-50 rounded-lg p-2">"{review.comment}"</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-slate-500">NPS:</span>
-                        <span className={`text-xs font-bold ${review.npsScore >= 9 ? 'text-green-600' : review.npsScore >= 7 ? 'text-amber-600' : 'text-red-600'}`}>
-                          {review.npsScore}/10
-                        </span>
+                      {review.comment && <p className="mx-tdet-quote">"{review.comment}"</p>}
+                      <div className="mx-tdet-review__nps">
+                        <span className="sx-muted">NPS:</span>
+                        <Sign tone={review.npsScore >= 9 ? 'ok' : review.npsScore >= 7 ? 'warn' : 'bad'}>{review.npsScore}/10</Sign>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Pagination */}
               {reviewsTotal > 5 && (
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <button
-                    onClick={() => fetchReviews(reviewsPage - 1)}
-                    disabled={reviewsPage <= 1}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50"
-                  >
-                    Prethodna
-                  </button>
-                  <span className="text-sm text-slate-500">
-                    {reviewsPage} / {Math.ceil(reviewsTotal / 5)}
-                  </span>
-                  <button
-                    onClick={() => fetchReviews(reviewsPage + 1)}
-                    disabled={reviewsPage >= Math.ceil(reviewsTotal / 5)}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50"
-                  >
-                    Sledeća
-                  </button>
-                </div>
+                <nav className="mx-tdet-revpager" aria-label="Stranice ocena">
+                  <Btn size="sm" variant="ghost" icon={ChevronLeft} onClick={() => fetchReviews(reviewsPage - 1)} disabled={reviewsPage <= 1}>Prethodna</Btn>
+                  <span className="mx-pager__text">{reviewsPage} / {reviewPages}</span>
+                  <Btn size="sm" variant="ghost" iconRight={ChevronRight} onClick={() => fetchReviews(reviewsPage + 1)} disabled={reviewsPage >= reviewPages}>Sledeća</Btn>
+                </nav>
               )}
             </>
           ) : (
-            <div className="text-center py-8">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" className="mx-auto mb-3">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-              </svg>
-              <p className="text-slate-400 text-sm">Nema ocena za ovog tehničara</p>
+            <div className="sx-empty-block mx-tdet-noreviews">
+              <b>Nema ocena za ovog tehničara</b>
             </div>
           )}
-        </div>
+        </Panel>
       </div>
 
-      {/* Password Change Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Promeni lozinku za {technician.name}</h2>
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setNewPassword('');
-                  setConfirmedPassword('');
-                }}
-                className="!p-2"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </Button>
+      {/* Pregled dokumenta */}
+      <Dialog
+        open={!!previewDoc}
+        onClose={closePreview}
+        size="xl"
+        title={previewDoc?.name}
+        description={previewDoc && `${formatFileSize(previewDoc.fileSize)} · ${new Date(previewDoc.uploadedAt).toLocaleDateString('sr-RS')}`}
+        className="mx-tdet-preview"
+        bodyClassName="mx-tdet-preview__body"
+        footer={previewDoc && <Btn icon={Download} onClick={() => handleDownloadDocument(previewDoc)}>Preuzmi</Btn>}
+        testId="document-preview"
+      >
+        {previewDoc && (previewLoading ? (
+          <p className="mx-tdet-preview__msg">Učitavanje dokumenta...</p>
+        ) : previewUrl && getPreviewType(previewDoc) === 'image' ? (
+          <img src={previewUrl} alt={previewDoc.name} className="mx-tdet-preview__img" />
+        ) : previewUrl && getPreviewType(previewDoc) === 'pdf' ? (
+          <iframe src={previewUrl} title={previewDoc.name} className="mx-tdet-preview__frame" />
+        ) : (
+          <div className="sx-empty-block">
+            <b>Pregled nije dostupan</b>
+            <Btn size="sm" icon={Download} onClick={() => handleDownloadDocument(previewDoc)}>Preuzmi dokument</Btn>
+          </div>
+        ))}
+      </Dialog>
+
+      {/* Promena lozinke */}
+      <Dialog
+        open={showPasswordModal}
+        onClose={closePasswordModal}
+        title={`Promeni lozinku za ${technician.name}`}
+        footer={<>
+          <Btn variant="ghost" onClick={closePasswordModal}>Odustani</Btn>
+          <Btn type="submit" form="tdet-password" variant="primary" icon={Check} disabled={!newPassword || !confirmedPassword}>Sačuvaj</Btn>
+        </>}
+        testId="password-dialog"
+      >
+        <form id="tdet-password" className="sx-form" noValidate onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
+          <Field label="Nova lozinka:" htmlFor="newPassword" wide>
+            <Input type="password" id="newPassword" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Unesite novu lozinku" />
+          </Field>
+          <Field label="Potvrdite lozinku:" htmlFor="confirmedPassword" wide>
+            <Input type="password" id="confirmedPassword" value={confirmedPassword} onChange={(e) => setConfirmedPassword(e.target.value)} placeholder="Potvrdite novu lozinku" />
+          </Field>
+        </form>
+      </Dialog>
+
+      {/* Gmail adresa */}
+      <Dialog
+        open={showGmailModal}
+        onClose={closeGmailModal}
+        title={`Uredi Gmail za ${technician.name}`}
+        footer={<>
+          <Btn variant="ghost" onClick={closeGmailModal}>Odustani</Btn>
+          <Btn type="submit" form="tdet-gmail" variant="primary" icon={Check}>Sačuvaj</Btn>
+        </>}
+        testId="gmail-dialog"
+      >
+        <form id="tdet-gmail" className="sx-form" noValidate onSubmit={(e) => { e.preventDefault(); handleUpdateGmail(); }}>
+          <Field label="Gmail adresa:" htmlFor="newGmail" wide>
+            <Input type="email" id="newGmail" value={newGmail} onChange={(e) => setNewGmail(e.target.value)} placeholder="Unesite Gmail adresu (npr. ime@gmail.com)" />
+          </Field>
+        </form>
+      </Dialog>
+
+      {/* Broj telefona */}
+      <Dialog
+        open={showPhoneModal}
+        onClose={closePhoneModal}
+        title={`Uredi broj telefona za ${technician.name}`}
+        footer={<>
+          <Btn variant="ghost" onClick={closePhoneModal}>Odustani</Btn>
+          <Btn type="submit" form="tdet-phone" variant="primary" icon={Check}>Sačuvaj</Btn>
+        </>}
+        testId="phone-dialog"
+      >
+        <form id="tdet-phone" className="sx-form" noValidate onSubmit={(e) => { e.preventDefault(); handleUpdatePhoneNumber(); }}>
+          <Field label="Broj telefona:" htmlFor="newPhoneNumber" hint="Broj telefona se koristi za automatsko povezivanje snimljenih poziva sa radnim nalozima." wide>
+            <Input type="tel" id="newPhoneNumber" value={newPhoneNumber} onChange={(e) => setNewPhoneNumber(e.target.value)} placeholder="Unesite broj telefona (npr. +381641234567 ili 0641234567)" />
+          </Field>
+        </form>
+      </Dialog>
+
+      {/* Snimci poziva: kalendar levo (na telefonu gore), snimci izabranog dana desno */}
+      <Dialog
+        open={showRecordingsModal}
+        onClose={closeRecordingsModal}
+        size="xl"
+        title="Snimci poziva"
+        description={technician?.name}
+        className="mx-tdet-rec"
+        bodyClassName="mx-tdet-rec__body"
+        testId="recordings-dialog"
+      >
+        <div className="mx-tdet-rec__side">
+          <div className="sx-cal mx-tdet-cal">
+            <div className="sx-cal__head">
+              <button type="button" className="sx-cal__nav" onClick={() => handleMonthChange(-1)} aria-label="Prethodni mesec">
+                <ChevronLeft size={16} strokeWidth={1.9} />
+              </button>
+              <p className="sx-cal__title">
+                {new Date(currentYear, currentMonth - 1).toLocaleDateString('sr-RS', { month: 'long', year: 'numeric' })}
+              </p>
+              <button type="button" className="sx-cal__nav" onClick={() => handleMonthChange(1)} aria-label="Sledeći mesec">
+                <ChevronRight size={16} strokeWidth={1.9} />
+              </button>
             </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-slate-700 mb-2">
-                    Nova lozinka:
-                  </label>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Unesite novu lozinku"
-                    className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="confirmedPassword" className="block text-sm font-medium text-slate-700 mb-2">
-                    Potvrdite lozinku:
-                  </label>
-                  <input
-                    type="password"
-                    id="confirmedPassword"
-                    value={confirmedPassword}
-                    onChange={(e) => setConfirmedPassword(e.target.value)}
-                    placeholder="Potvrdite novu lozinku"
-                    className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
-                <Button 
-                  type="secondary"
-                  size="medium"
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setNewPassword('');
-                    setConfirmedPassword('');
-                  }}
+            <div className="sx-cal__grid sx-cal__dows">
+              {['N', 'P', 'U', 'S', 'Č', 'P', 'S'].map((day, i) => <span key={i}>{day}</span>)}
+            </div>
+            <div className="sx-cal__grid">
+              {generateCalendarDays().map((dayInfo, i) => (dayInfo ? (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleDateChange(dayInfo.date)}
+                  aria-pressed={dayInfo.date === selectedDate}
+                  className={cx('sx-cal__day', dayInfo.date === selectedDate && 'is-selected', dayInfo.hasRecordings && 'mx-tdet-cal__rec')}
                 >
-                  Odustani
-                </Button>
-                <Button 
-                  type="primary"
-                  size="medium"
-                  onClick={handleChangePassword}
-                  disabled={!newPassword || !confirmedPassword}
-                  prefix={<CheckIcon size={16} />}
-                >
-                  Sačuvaj
-                </Button>
-              </div>
+                  {dayInfo.day}
+                </button>
+              ) : <span key={i} />))}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Gmail Change Modal */}
-      {showGmailModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Uredi Gmail za {technician.name}</h2>
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => {
-                  setShowGmailModal(false);
-                  setNewGmail('');
-                }}
-                className="!p-2"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </Button>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="newGmail" className="block text-sm font-medium text-slate-700 mb-2">
-                    Gmail adresa:
-                  </label>
-                  <input
-                    type="email"
-                    id="newGmail"
-                    value={newGmail}
-                    onChange={(e) => setNewGmail(e.target.value)}
-                    placeholder="Unesite Gmail adresu (npr. ime@gmail.com)"
-                    className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
-                <Button 
-                  type="secondary"
-                  size="medium"
-                  onClick={() => {
-                    setShowGmailModal(false);
-                    setNewGmail('');
-                  }}
-                >
-                  Odustani
-                </Button>
-                <Button
-                  type="primary"
-                  size="medium"
-                  onClick={handleUpdateGmail}
-                  prefix={<CheckIcon size={16} />}
-                >
-                  Sačuvaj
-                </Button>
-              </div>
-            </div>
+          <Switch checked={includeWorkOrders} onChange={setIncludeWorkOrders} className="mx-tdet-rec__filter">Prikaži vezane za nalog</Switch>
+
+          <div className="mx-tdet-rec__date">
+            <span className="sx-label">Izabrani datum</span>
+            <b>{new Date(selectedDate).toLocaleDateString('sr-RS', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</b>
           </div>
         </div>
-      )}
 
-      {/* Phone Number Change Modal */}
-      {showPhoneModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Uredi broj telefona za {technician.name}</h2>
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => {
-                  setShowPhoneModal(false);
-                  setNewPhoneNumber('');
-                }}
-                className="!p-2"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </Button>
+        <div className="mx-tdet-rec__main">
+          {/* Hidden audio element */}
+          <audio
+            ref={audioRef}
+            onEnded={handleAudioEnded}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+          />
+
+          {recordingsLoading ? (
+            <Loading rows={3} h={64} text="Učitavanje snimaka..." />
+          ) : recordings.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema snimaka za izabrani datum</b>
+              <span>Izaberite drugi datum ili promenite filter</span>
             </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="newPhoneNumber" className="block text-sm font-medium text-slate-700 mb-2">
-                    Broj telefona:
-                  </label>
-                  <input
-                    type="tel"
-                    id="newPhoneNumber"
-                    value={newPhoneNumber}
-                    onChange={(e) => setNewPhoneNumber(e.target.value)}
-                    placeholder="Unesite broj telefona (npr. +381641234567 ili 0641234567)"
-                    className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                  />
-                  <p className="text-xs text-slate-500 mt-2">
-                    Broj telefona se koristi za automatsko povezivanje snimljenih poziva sa radnim nalozima.
-                  </p>
-                </div>
+          ) : (
+            <>
+              <div className="sx-stats mx-tdet-recstats">
+                <Stat label="Ukupno" value={recordings.length} />
+                <Stat label="Vezano" value={recordings.filter(r => r.linkedToWorkOrder).length} tone="ok" />
+                <Stat label="Nevezano" value={recordings.filter(r => !r.linkedToWorkOrder).length} tone={recordings.some(r => !r.linkedToWorkOrder) ? 'warn' : null} />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
-                <Button
-                  type="secondary"
-                  size="medium"
-                  onClick={() => {
-                    setShowPhoneModal(false);
-                    setNewPhoneNumber('');
-                  }}
-                >
-                  Odustani
-                </Button>
-                <Button
-                  type="primary"
-                  size="medium"
-                  onClick={handleUpdatePhoneNumber}
-                  prefix={<CheckIcon size={16} />}
-                >
-                  Sačuvaj
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Call Recordings Modal */}
-      {showRecordingsModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-5xl max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <MicIcon size={24} className="text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">Snimci poziva</h2>
-                  <p className="text-sm text-slate-500">{technician?.name}</p>
-                </div>
-              </div>
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => {
-                  setShowRecordingsModal(false);
-                  setPlayingRecordingId(null);
-                  audioRef.current?.pause();
-                }}
-                className="!p-2"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </Button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex h-[calc(90vh-80px)]">
-              {/* Left Side - Calendar */}
-              <div className="w-80 border-r border-slate-200 p-4 overflow-y-auto">
-                {/* Month Navigation */}
-                <div className="flex items-center justify-between mb-4">
-                  <button
-                    onClick={() => handleMonthChange(-1)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                  </button>
-                  <span className="font-semibold text-slate-900">
-                    {new Date(currentYear, currentMonth - 1).toLocaleDateString('sr-RS', { month: 'long', year: 'numeric' })}
-                  </span>
-                  <button
-                    onClick={() => handleMonthChange(1)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1 mb-4">
-                  {['N', 'P', 'U', 'S', 'Č', 'P', 'S'].map((day, i) => (
-                    <div key={i} className="text-center text-xs font-medium text-slate-500 py-2">
-                      {day}
-                    </div>
-                  ))}
-                  {generateCalendarDays().map((dayInfo, i) => (
-                    <button
-                      key={i}
-                      onClick={() => dayInfo && handleDateChange(dayInfo.date)}
-                      disabled={!dayInfo}
-                      className={`
-                        relative p-2 text-sm rounded-lg transition-all
-                        ${!dayInfo ? 'invisible' : ''}
-                        ${dayInfo?.date === selectedDate
-                          ? 'bg-blue-600 text-white font-bold'
-                          : dayInfo?.hasRecordings
-                            ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium'
-                            : 'hover:bg-slate-100 text-slate-700'
-                        }
-                      `}
-                    >
-                      {dayInfo?.day}
-                      {dayInfo?.hasRecordings && dayInfo?.date !== selectedDate && (
-                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Filter Toggle */}
-                <div className="border-t border-slate-200 pt-4">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm font-medium text-slate-700">Prikaži vezane za nalog</span>
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        checked={includeWorkOrders}
-                        onChange={(e) => setIncludeWorkOrders(e.target.checked)}
-                        className="sr-only peer"
+              <div className="mx-tdet-reclist">
+                {recordings.map((recording) => {
+                  const playing = playingRecordingId === recording._id;
+                  return (
+                    <div key={recording._id} className={cx('mx-tdet-recitem', recording.linkedToWorkOrder && 'is-linked', playing && 'is-playing')}>
+                      <Btn
+                        variant={playing ? 'primary' : 'secondary'}
+                        icon={playing ? Pause : Play}
+                        onClick={() => handlePlayRecording(recording)}
+                        aria-label={playing ? 'Pauziraj snimak' : 'Pusti snimak'}
+                        className="mx-tdet-play"
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Date info */}
-                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs text-slate-500 mb-1">Izabrani datum</p>
-                  <p className="font-semibold text-slate-900">
-                    {new Date(selectedDate).toLocaleDateString('sr-RS', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Side - Recordings List */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {/* Hidden audio element */}
-                <audio
-                  ref={audioRef}
-                  onEnded={handleAudioEnded}
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedMetadata={handleLoadedMetadata}
-                />
-
-                {recordingsLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="flex items-center space-x-3 text-slate-600">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                      <span className="text-sm font-medium">Učitavanje snimaka...</span>
-                    </div>
-                  </div>
-                ) : recordings.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                    <MicIcon size={48} className="mb-4 text-slate-300" />
-                    <p className="font-medium">Nema snimaka za izabrani datum</p>
-                    <p className="text-sm mt-1">Izaberite drugi datum ili promenite filter</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Stats */}
-                    <div className="flex items-center space-x-4 mb-4 p-3 bg-slate-50 rounded-lg">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-slate-900">{recordings.length}</p>
-                        <p className="text-xs text-slate-500">Ukupno</p>
-                      </div>
-                      <div className="h-8 w-px bg-slate-200"></div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">{recordings.filter(r => r.linkedToWorkOrder).length}</p>
-                        <p className="text-xs text-slate-500">Vezano</p>
-                      </div>
-                      <div className="h-8 w-px bg-slate-200"></div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-orange-500">{recordings.filter(r => !r.linkedToWorkOrder).length}</p>
-                        <p className="text-xs text-slate-500">Nevezano</p>
-                      </div>
-                    </div>
-
-                    {/* Recordings List */}
-                    {recordings.map((recording) => (
-                      <div
-                        key={recording._id}
-                        className={`
-                          p-4 rounded-xl border transition-all
-                          ${recording.linkedToWorkOrder
-                            ? 'bg-green-50 border-green-200'
-                            : 'bg-white border-slate-200'
-                          }
-                          ${playingRecordingId === recording._id ? 'ring-2 ring-blue-500' : ''}
-                        `}
-                      >
-                        <div className="flex items-center space-x-4">
-                          {/* Play Button */}
-                          <button
-                            onClick={() => handlePlayRecording(recording)}
-                            className={`
-                              w-12 h-12 rounded-full flex items-center justify-center transition-all
-                              ${playingRecordingId === recording._id
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                              }
-                            `}
-                          >
-                            {playingRecordingId === recording._id ? (
-                              <PauseIcon size={20} />
-                            ) : (
-                              <PlayIcon size={20} />
-                            )}
-                          </button>
-
-                          {/* Recording Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <p className="font-semibold text-slate-900">{recording.customerPhone}</p>
-                              {recording.linkedToWorkOrder && (
-                                <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                                  Radni nalog
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-3 mt-1 text-sm text-slate-500">
-                              <span>
-                                {new Date(recording.recordedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              <span>•</span>
-                              <span>
-                                {playingRecordingId === recording._id
-                                  ? `${formatCurrentTime(audioCurrentTime)} / ${formatDuration(recording.duration)}`
-                                  : formatDuration(recording.duration)
-                                }
-                              </span>
-                              <span>•</span>
-                              <span>{formatFileSize(recording.fileSize)}</span>
-                            </div>
-                            {/* Progress Bar */}
-                            {playingRecordingId === recording._id && (
-                              <div
-                                className="mt-2 h-2 bg-slate-200 rounded-full cursor-pointer overflow-hidden"
-                                onClick={(e) => handleSeek(e, recording)}
-                              >
-                                <div
-                                  className="h-full bg-blue-600 rounded-full transition-all duration-100"
-                                  style={{
-                                    width: `${audioDuration > 0 ? (audioCurrentTime / audioDuration) * 100 : 0}%`
-                                  }}
-                                />
-                              </div>
-                            )}
-                            {recording.linkedToWorkOrder && recording.workOrderInfo && (
-                              <p className="text-xs text-slate-500 mt-1 truncate">
-                                {recording.workOrderInfo.municipality} - {recording.workOrderInfo.address}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center space-x-2">
-                            {recording.linkedToWorkOrder && recording.workOrderId && (
-                              <button
-                                onClick={() => window.open(`/workorders/${recording.workOrderId}`, '_blank')}
-                                className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                                title="Otvori radni nalog"
-                              >
-                                <ExternalLinkIcon size={20} />
-                              </button>
-                            )}
-                            <a
-                              href={recording.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                              title="Preuzmi snimak"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" x2="12" y1="15" y2="3"></line>
-                              </svg>
-                            </a>
-                          </div>
+                      <div className="mx-tdet-recitem__main">
+                        <div className="mx-tdet-recitem__top">
+                          <b className="sx-mono">{recording.customerPhone}</b>
+                          {recording.linkedToWorkOrder && <span className="sx-tag is-ok">Radni nalog</span>}
                         </div>
+                        <span className="mx-tdet-recitem__meta">
+                          {new Date(recording.recordedAt).toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })}
+                          {' • '}
+                          {playing ? `${formatCurrentTime(audioCurrentTime)} / ${formatDuration(recording.duration)}` : formatDuration(recording.duration)}
+                          {' • '}
+                          {formatFileSize(recording.fileSize)}
+                        </span>
+                        {playing && (
+                          <div className="mx-tdet-progress" onClick={(e) => handleSeek(e, recording)}>
+                            <div style={{ width: `${audioDuration > 0 ? (audioCurrentTime / audioDuration) * 100 : 0}%` }} />
+                          </div>
+                        )}
+                        {recording.linkedToWorkOrder && recording.workOrderInfo && (
+                          <span className="mx-tdet-recitem__wo">
+                            {recording.workOrderInfo.municipality} - {recording.workOrderInfo.address}
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="mx-tdet-recitem__acts">
+                        {recording.linkedToWorkOrder && recording.workOrderId && (
+                          <Btn
+                            size="sm"
+                            variant="ghost"
+                            icon={ExternalLink}
+                            onClick={() => window.open(`/workorders/${recording.workOrderId}`, '_blank')}
+                            title="Otvori radni nalog"
+                            aria-label="Otvori radni nalog"
+                          />
+                        )}
+                        <Btn
+                          size="sm"
+                          variant="ghost"
+                          icon={Download}
+                          href={recording.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Preuzmi snimak"
+                          aria-label="Preuzmi snimak"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
-      )}
+      </Dialog>
     </div>
   );
 };
