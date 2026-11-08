@@ -5,9 +5,32 @@
 @media (hover: hover) and (pointer: fine) { .mx-users-sort:hover { color: var(--sx-text); transition-duration: var(--hover-in); } }
 .mx-users-sort__dir { color: var(--sx-accent-text); }
 
-/* ime kupca se ne seče; bez drugog reda avatar je u ravni sa imenom */
+/* brojke: tri u redu (kao ranije), na telefonu jedna ispod druge */
+.sx-stats.mx-users-stats { grid-template-columns: minmax(0, 1fr); }
+@container page (min-width: 440px) {
+  .sx-stats.mx-users-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mx-app .sx-stats.mx-users-stats > .sx-stat:last-child:nth-child(odd) { grid-column: auto; }
+}
+
+/* pretraga, filteri i kolone su u kartici sa tabelom, iznad nje (kao ranije) */
+.mx-users-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 16px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-users-bar .sx-search { flex: 0 1 448px; }
+.mx-users-bar .sx-select { width: auto; min-width: 170px; }
+.mx-users-bar__end { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.mx-users-err { padding: 16px 20px 0; }
+@container page (max-width: 560px) {
+  .mx-users-bar { padding: 14px 16px; }
+  .mx-users-bar .sx-search { flex: 1 1 100%; }
+  .mx-users-bar .sx-select { flex: 1 1 160px; }
+  .mx-users-bar__end { margin-left: 0; }
+}
+.mx-users-ms { margin-left: 8px; color: var(--sx-faint); }
+@container page (max-width: 560px) { .mx-users-card .mx-pager__btns { justify-content: center; } }
+
+/* korisnik: ikonica u kvadratu (kao ranije) i ime koje se ne seče */
+.mx-users-ico { display: grid; place-items: center; grid-row: span 2; width: 32px; height: 32px; border-radius: 9px; background: var(--sx-accent-soft); color: var(--sx-accent-text); }
+.mx-users-who:not(:has(.mx-users-sub)) .mx-users-ico { grid-row: auto; }
 .sx-cell--who.mx-users-who b { white-space: normal; overflow-wrap: anywhere; }
-.mx-users-who:not(:has(.mx-users-sub)) .sx-avatar { grid-row: auto; }
 .mx-users-sub { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .sx-skeleton.mx-users-sk { display: inline-block; width: 52px; height: 0.8em; vertical-align: middle; }
 

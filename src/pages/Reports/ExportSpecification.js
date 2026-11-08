@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from '../../utils/toast';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { Download, Loader2, RefreshCw } from 'lucide-react';
+import { Download, Loader2, RefreshCw, CalendarDays, Table2 } from 'lucide-react';
 import { DateRangePicker } from '../../components/ui/date-picker';
 import { Btn } from '../../security/sx/ui';
 import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
@@ -137,17 +137,22 @@ const ExportSpecification = () => {
         )}
       />
 
-      <Panel title="Vremenski period" sub="Odaberite period za koji želite da eksportujete evidenciju">
+      <Panel
+        title={<span className="sx-panel__title-row"><CalendarDays size={18} strokeWidth={1.8} aria-hidden="true" />Vremenski period</span>}
+        sub="Odaberite period za koji želite da eksportujete evidenciju"
+      >
         <div className="mx-export-period">
           <h3 className="sx-field__label">Izaberite vremenski period:</h3>
-          <DateRangePicker
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateSelect={(date) => setStartDate(date)}
-            onEndDateSelect={(date) => setEndDate(date)}
-            startPlaceholder="Početni datum"
-            endPlaceholder="Krajnji datum"
-          />
+          <div className="mx-export-period__range">
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateSelect={(date) => setStartDate(date)}
+              onEndDateSelect={(date) => setEndDate(date)}
+              startPlaceholder="Početni datum"
+              endPlaceholder="Krajnji datum"
+            />
+          </div>
           {formatPeriod() && (
             <Note tone="info">Izabrani period: <b>{formatPeriod()}</b></Note>
           )}
@@ -165,17 +170,20 @@ const ExportSpecification = () => {
 
       <Panel title="Evidencija radnih naloga" sub="Detaljan tabelarni prikaz svih radnih naloga sa kategorizovanom opremom iz WorkOrderEvidence baze">
         <div className="mx-export-sheet">
-          <h4 className="mx-export-sheet__title">Tabelarni pregled</h4>
-          <p className="mx-export-sheet__text">Kompletna evidencija sa svim detaljima: datum, status, korisnik, adresa, tehničari, instalirana i uklonjena oprema sa serijskim brojevima (ONT/HFC, Hybrid, STB/CAM, Kartice, Mini node)</p>
-          <div className="mx-export-tags">
-            <span className="sx-tag">ONT/HFC</span>
-            <span className="sx-tag">Hybrid</span>
-            <span className="sx-tag">STB/CAM</span>
-            <span className="sx-tag">Kartice</span>
-            <span className="sx-tag">Mini node</span>
-            <span className="sx-tag">Demontaža</span>
-            <span className="sx-tag">Serijski brojevi</span>
-            <span className="sx-tag">N/R Status</span>
+          <span className="sx-item__icon mx-export-sheet__icon"><Table2 size={22} strokeWidth={1.8} aria-hidden="true" /></span>
+          <div className="mx-export-sheet__body">
+            <h4 className="mx-export-sheet__title">Tabelarni pregled</h4>
+            <p className="mx-export-sheet__text">Kompletna evidencija sa svim detaljima: datum, status, korisnik, adresa, tehničari, instalirana i uklonjena oprema sa serijskim brojevima (ONT/HFC, Hybrid, STB/CAM, Kartice, Mini node)</p>
+            <div className="mx-export-tags">
+              <span className="sx-tag">ONT/HFC</span>
+              <span className="sx-tag">Hybrid</span>
+              <span className="sx-tag">STB/CAM</span>
+              <span className="sx-tag">Kartice</span>
+              <span className="sx-tag">Mini node</span>
+              <span className="sx-tag">Demontaža</span>
+              <span className="sx-tag">Serijski brojevi</span>
+              <span className="sx-tag">N/R Status</span>
+            </div>
           </div>
         </div>
 

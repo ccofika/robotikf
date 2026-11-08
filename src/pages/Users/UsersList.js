@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { RefreshCw, Search, X, Eye, Package, ArrowUpRight } from 'lucide-react';
+import { RefreshCw, Search, X, Eye, Package, ArrowUpRight, UserRound } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import api from '../../services/api';
 import { getTimRowStyle } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
-import { cx, Btn, Sign, Avatar } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { cx, Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
 import { Select } from '../../security/sx/forms';
 import { SheetSection } from '../../security/sx/Sheet';
-import { Pager, ColumnMenu, Loading, LinkBtn } from '../../montaza/ui';
+import { ColumnMenu, Loading, LinkBtn } from '../../montaza/ui';
 import './UsersList.mx.css';
 
 // Tonovi statusa naloga (isti kao u ostatku Montaže)
@@ -326,6 +326,78 @@ const UsersList = () => {
   const ariaSort = (field) => (sortBy === field ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined);
   const statValue = (n) => (dashboardLoading ? <span className="sx-skeleton mx-users-sk" aria-hidden="true" /> : n);
 
+  // Pagination component (ista logika kao ranije: ±2 strane oko trenutne, prva i poslednja, '...')
+  const PaginationComponent = () => {
+    if (pagination.totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const current = pagination.currentPage;
+      const total = pagination.totalPages;
+      const delta = 2;
+
+      let pages = [];
+
+      // Always show first page
+      if (current > delta + 1) {
+        pages.push(1);
+        if (current > delta + 2) pages.push('...');
+      }
+
+      // Show pages around current
+      for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
+        pages.push(i);
+      }
+
+      // Always show last page
+      if (current < total - delta) {
+        if (current < total - delta - 1) pages.push('...');
+        pages.push(total);
+      }
+
+      return pages;
+    };
+
+    return (
+      <nav className="mx-pager" aria-label="Stranice">
+        <span className="mx-pager__text">
+          Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount} rezultata
+          {performance.queryTime && (
+            <span className="mx-users-ms">({performance.queryTime}ms)</span>
+          )}
+        </span>
+        <span className="mx-pager__btns">
+          <Btn size="sm" variant="ghost" className="mx-pager__num" onClick={() => handlePageChange(1)} disabled={!pagination.hasPreviousPage}>
+            &laquo;
+          </Btn>
+          <Btn size="sm" variant="ghost" className="mx-pager__num" onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={!pagination.hasPreviousPage}>
+            &lsaquo;
+          </Btn>
+
+          {getVisiblePages().map((page, index) => (
+            <Btn
+              key={index}
+              size="sm"
+              variant={page === pagination.currentPage ? 'primary' : 'ghost'}
+              className="mx-pager__num"
+              onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+              disabled={page === '...'}
+              aria-current={page === pagination.currentPage ? 'page' : undefined}
+            >
+              {page}
+            </Btn>
+          ))}
+
+          <Btn size="sm" variant="ghost" className="mx-pager__num" onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={!pagination.hasNextPage}>
+            &rsaquo;
+          </Btn>
+          <Btn size="sm" variant="ghost" className="mx-pager__num" onClick={() => handlePageChange(pagination.totalPages)} disabled={!pagination.hasNextPage}>
+            &raquo;
+          </Btn>
+        </span>
+      </nav>
+    );
+  };
+
   return (
     <div className="sx-page" data-testid="page-users">
       <PageHead
@@ -339,91 +411,91 @@ const UsersList = () => {
         )}
       />
 
-      <div className="sx-stats">
+      <div className="sx-stats mx-users-stats">
         <Stat label="Ukupno korisnika" value={statValue(stats.total)} />
         <Stat label="Sa radnim nalozima" value={statValue(stats.withWorkOrders)} />
         <Stat label="Sa opremom" value={statValue(stats.withEquipment)} />
       </div>
 
-      <Toolbar>
-        <div className={cx('sx-search', searchTerm && 'has-value')}>
-          <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
-          <input
-            type="text"
-            placeholder="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
-            aria-label="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
-            value={searchTerm}
-            onChange={handleSearch}
-            data-testid="users-search"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              className="sx-search__clear"
-              aria-label="Obriši pretragu"
-              onClick={() => {
-                setSearchTerm('');
-                setDebouncedSearchTerm('');
-              }}
-            >
-              <X size={14} strokeWidth={2} />
-            </button>
-          )}
-        </div>
+      <Panel pad={false} className="mx-users-card">
+        <div className="mx-users-bar">
+          <div className={cx('sx-search', searchTerm && 'has-value')}>
+            <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+            <input
+              type="text"
+              placeholder="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
+              aria-label="Pretraga po imenu, adresi, telefonu, TIS ID-u..."
+              value={searchTerm}
+              onChange={handleSearch}
+              data-testid="users-search"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                className="sx-search__clear"
+                aria-label="Obriši pretragu"
+                onClick={() => {
+                  setSearchTerm('');
+                  setDebouncedSearchTerm('');
+                }}
+              >
+                <X size={14} strokeWidth={2} />
+              </button>
+            )}
+          </div>
 
-        <Select
-          size="sm"
-          aria-label="Radni nalozi"
-          value={hasWorkOrdersFilter}
-          onChange={(e) => {
-            setHasWorkOrdersFilter(e.target.value);
-            setPagination(prev => ({ ...prev, currentPage: 1 }));
-          }}
-          data-testid="users-filter-workorders"
-        >
-          <option value="">Svi korisnici</option>
-          <option value="has">Sa radnim nalozima</option>
-          <option value="no">Bez radnih naloga</option>
-        </Select>
-
-        <Select
-          size="sm"
-          aria-label="Oprema"
-          value={hasEquipmentFilter}
-          onChange={(e) => {
-            setHasEquipmentFilter(e.target.value);
-            setPagination(prev => ({ ...prev, currentPage: 1 }));
-          }}
-          data-testid="users-filter-equipment"
-        >
-          <option value="">Sva oprema</option>
-          <option value="has">Sa opremom</option>
-          <option value="no">Bez opreme</option>
-        </Select>
-
-        <div className="sx-toolbar__end">
-          {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter || sortBy !== 'name') && (
-            <Btn size="sm" variant="ghost" onClick={clearAllFilters}>Obriši filtere</Btn>
-          )}
-          <ColumnMenu
-            columns={{
-              user: 'Korisnik',
-              contact: 'Kontakt',
-              location: 'Lokacija',
-              tisId: 'TIS ID',
-              workOrders: 'Radni nalozi',
-              equipment: 'Oprema',
-              actions: 'Akcije'
+          <Select
+            size="sm"
+            aria-label="Radni nalozi"
+            value={hasWorkOrdersFilter}
+            onChange={(e) => {
+              setHasWorkOrdersFilter(e.target.value);
+              setPagination(prev => ({ ...prev, currentPage: 1 }));
             }}
-            visible={visibleColumns}
-            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
-          />
+            data-testid="users-filter-workorders"
+          >
+            <option value="">Svi korisnici</option>
+            <option value="has">Sa radnim nalozima</option>
+            <option value="no">Bez radnih naloga</option>
+          </Select>
+
+          <Select
+            size="sm"
+            aria-label="Oprema"
+            value={hasEquipmentFilter}
+            onChange={(e) => {
+              setHasEquipmentFilter(e.target.value);
+              setPagination(prev => ({ ...prev, currentPage: 1 }));
+            }}
+            data-testid="users-filter-equipment"
+          >
+            <option value="">Sva oprema</option>
+            <option value="has">Sa opremom</option>
+            <option value="no">Bez opreme</option>
+          </Select>
+
+          <div className="mx-users-bar__end">
+            {(searchTerm || hasWorkOrdersFilter || hasEquipmentFilter || sortBy !== 'name') && (
+              <Btn size="sm" variant="ghost" onClick={clearAllFilters}>Obriši filtere</Btn>
+            )}
+            <ColumnMenu
+              columns={{
+                user: 'Korisnik',
+                contact: 'Kontakt',
+                location: 'Lokacija',
+                tisId: 'TIS ID',
+                workOrders: 'Radni nalozi',
+                equipment: 'Oprema',
+                actions: 'Akcije'
+              }}
+              visible={visibleColumns}
+              onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
+            />
+          </div>
         </div>
-      </Toolbar>
 
-      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+        {error && <div className="mx-users-err"><Note tone="bad">{error}</Note></div>}
 
-      <Panel pad={false}>
         {loading ? (
           <Loading text="Učitavanje korisnika..." />
         ) : users.length === 0 ? (
@@ -461,7 +533,7 @@ const UsersList = () => {
                     {visibleColumns.user && (
                       <td className="is-head">
                         <div className="sx-cell sx-cell--who mx-users-who">
-                          <Avatar name={user.name} />
+                          <span className="mx-users-ico" aria-hidden="true"><UserRound size={16} strokeWidth={1.8} /></span>
                           <b>{user.name}</b>
                           {(user.role || isFoundByEquipment(user)) && (
                             <span className="mx-users-sub">
@@ -508,13 +580,7 @@ const UsersList = () => {
         )}
 
         {/* Server-side Pagination */}
-        <Pager
-          page={pagination.currentPage}
-          total={pagination.totalCount}
-          perPage={pagination.limit}
-          onPage={handlePageChange}
-          label={performance.queryTime ? `rezultata (${performance.queryTime}ms)` : 'rezultata'}
-        />
+        <PaginationComponent />
       </Panel>
 
       {/* Detalji korisnika: sx dijalog u portalu, ispod sloja detalja naloga (WorkOrderModal, z 9999) koji se otvara iz njega */}

@@ -1,12 +1,37 @@
-/* Izveštaj o opremi korisnika: dodaci uz sx (traka pretrage u panelu, filteri). Boje samo iz tokena. */
+/* Izveštaj o opremi korisnika, isti raspored kao ranije: zaglavlje u jednom redu, uže kartice na sredini,
+   opis desno od naslova kartice, pretraga i Filteri na sredini, dugme za izvoz iznad tabele. Boje samo iz tokena. */
 .mx-ueq > * + * { margin-top: 20px; }
-.mx-ueq-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
-.mx-ueq-bar .sx-search { flex: 1 1 280px; max-width: 420px; }
-.mx-ueq-count { margin-left: auto; font-size: 13px; color: var(--sx-muted); }
-.mx-ueq-filters { display: grid; gap: 14px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--sx-line); }
-.mx-ueq-filters__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
+
+/* zaglavlje: naslov, opis, dugmad u jednom redu; na uskom jedno ispod drugog */
+.mx-ueq-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; }
+.mx-ueq-head__title { min-width: 0; }
+.mx-ueq-head__h1 { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: clamp(26px, 1vw + 16px, 36px); }
+.mx-ueq-head__h1 svg { color: var(--sx-ok-text); }
+.mx-ueq-head__lead { flex: 1 1 260px; font-size: 15px; line-height: 1.5; color: var(--sx-text-2); }
+.mx-ueq-head__actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+/* kartice u užoj koloni na sredini */
+.mx-ueq-col { display: grid; gap: 20px; width: 100%; max-width: 900px; margin-inline: auto; }
+
+/* zaglavlje kartice: naslov levo, opis desno, linija ispod */
+.sx-card.mx-ueq-card > .sx-panel__head { margin: 0 20px; padding: 18px 0 14px; border-bottom: 1px solid var(--sx-line); }
+.mx-ueq-card .sx-panel__titles { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.mx-ueq-card .sx-card__sub { margin-top: 0; }
+.mx-ueq .sx-card.mx-ueq-card > .sx-panel__head + .sx-panel__body { padding-top: 18px; }
+@container page (max-width: 560px) {
+  .sx-card.mx-ueq-card > .sx-panel__head { margin: 0 16px; padding: 16px 0 12px; }
+}
+
+/* pretraga na sredini, ispod nje Filteri i broj rezultata */
+.mx-ueq-bar { display: grid; justify-items: center; gap: 12px; }
+.mx-ueq-bar .sx-search { width: min(100%, 360px); }
+.mx-ueq-ctrl { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; }
+.mx-ueq-count { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); font-size: 13px; font-weight: 550; color: var(--sx-muted); }
+.mx-ueq-filters { display: grid; gap: 14px; margin-top: 16px; padding: 16px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-ueq-filters__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px; }
 .mx-ueq-filters__grid .sx-field + .sx-field { margin-top: 0; }
-.mx-ueq-filters__actions { display: flex; justify-content: flex-end; }
-.mx-ueq .sx-head__actions .sx-btn { flex: 0 0 auto; }
-/* uzak prostor: dugme za izvoz ide ispod naslova panela */
-@container page (max-width: 560px) { .mx-ueq-list > .sx-panel__head { flex-wrap: wrap; } }
+.mx-ueq-filters__actions { display: flex; justify-content: center; }
+
+/* izvoz: veliko dugme na sredini, iznad tabele */
+.mx-ueq-export { display: flex; justify-content: center; padding: 18px 20px; }
+@media (max-width: 639px) { .mx-ueq-export .sx-btn { width: 100%; } }

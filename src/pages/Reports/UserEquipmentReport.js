@@ -1,13 +1,13 @@
 // Fajl za: frontend/src/pages/Reports/UserEquipmentReport.js
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Download, Filter, RefreshCw, Search, X } from 'lucide-react';
+import { ChevronLeft, Download, Filter, RefreshCw, Search, X, Table2 } from 'lucide-react';
 import axios from 'axios';
 import api from '../../services/api';
 import { saveAs } from 'file-saver';
 import { toast } from '../../utils/toast';
 import { localYmd } from '../../utils/localDate';
 import { cx, Btn, Sign } from '../../security/sx/ui';
-import { PageHead, Panel, Note } from '../../security/sx/layout';
+import { Panel, Note } from '../../security/sx/layout';
 import { Field, Select } from '../../security/sx/forms';
 import { LinkBtn, Loading } from '../../montaza/ui';
 import './UserEquipmentReport.mx.css';
@@ -133,139 +133,153 @@ const UserEquipmentReport = () => {
 
   return (
     <div className="sx-page mx-ueq" data-testid="page-user-equipment-report">
-      <PageHead
-        eyebrow="Montaža · Izveštaji"
-        title="Izveštaj o opremi korisnika"
-        lead="Pregled i export podataka o opremi dodeljene korisnicima"
-        actions={(
-          <>
-            <LinkBtn to="/reports" variant="ghost" icon={ChevronLeft}>Nazad</LinkBtn>
-            <Btn icon={RefreshCw} onClick={handleRefresh} busy={isRefreshing} title="Osvežiti podatke" aria-label="Osvežiti podatke" />
-          </>
-        )}
-      />
+      {/* Zaglavlje u jednom redu (kao ranije): naslov, opis, Nazad i osvežavanje */}
+      <header className="mx-ueq-head">
+        <div className="mx-ueq-head__title">
+          <span className="sx-eyebrow">Montaža · Izveštaji</span>
+          <h1 className="sx-title mx-ueq-head__h1" data-testid="page-heading">
+            <Table2 size={26} strokeWidth={1.8} aria-hidden="true" />
+            Izveštaj o opremi korisnika
+          </h1>
+        </div>
+        <p className="mx-ueq-head__lead">Pregled i export podataka o opremi dodeljene korisnicima</p>
+        <div className="mx-ueq-head__actions">
+          <LinkBtn to="/reports" variant="ghost" icon={ChevronLeft}>Nazad</LinkBtn>
+          <Btn icon={RefreshCw} onClick={handleRefresh} busy={isRefreshing} title="Osvežiti podatke" aria-label="Osvežiti podatke" />
+        </div>
+      </header>
 
       {error && <Note tone="bad">{error}</Note>}
 
-      <Panel title="Pretraga i filteri" sub="Koristite pretragu i filtere za pronalaženje specifične opreme">
-        <div className="mx-ueq-bar">
-          <div className={cx('sx-search', searchTerm && 'has-value')}>
-            <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
-            <input
-              type="text"
-              placeholder="Pretraži po ID-u, tipu, opisu ili serijskom broju..."
-              aria-label="Pretraži po ID-u, tipu, opisu ili serijskom broju..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <button type="button" className="sx-search__clear" onClick={() => setSearchTerm('')} aria-label="Obriši pretragu">
-                <X size={14} strokeWidth={2} />
-              </button>
-            )}
-          </div>
-
-          <Btn
-            size="sm"
-            icon={Filter}
-            variant={showFilters ? 'primary' : 'secondary'}
-            aria-pressed={showFilters}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            Filteri
-          </Btn>
-
-          <span className="mx-ueq-count">{filteredEquipment.length} rezultata</span>
-        </div>
-
-        {showFilters && (
-          <div className="mx-ueq-filters">
-            <div className="mx-ueq-filters__grid">
-              <Field label="Status opreme:" htmlFor="ueq-status">
-                <Select id="ueq-status" name="status" value={filters.status} onChange={handleFilterChange}>
-                  <option value="all">Svi statusi</option>
-                  <option value="active">Aktivna</option>
-                  <option value="removed">Uklonjena</option>
-                </Select>
-              </Field>
-
-              <Field label="Tip opreme:" htmlFor="ueq-type">
-                <Select id="ueq-type" name="equipmentType" value={filters.equipmentType} onChange={handleFilterChange}>
-                  <option value="all">Svi tipovi</option>
-                  {equipmentTypes.filter(type => type !== 'all').map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </Select>
-              </Field>
-
-              <Field label="Stanje:" htmlFor="ueq-condition">
-                <Select id="ueq-condition" name="condition" value={filters.condition} onChange={handleFilterChange}>
-                  <option value="all">Sva stanja</option>
-                  <option value="working">Ispravno</option>
-                  <option value="defective">Neispravno</option>
-                </Select>
-              </Field>
+      {/* Kartice u užoj koloni na sredini (kao ranije) */}
+      <div className="mx-ueq-col">
+        <Panel
+          className="mx-ueq-card"
+          title={<span className="sx-panel__title-row"><Search size={18} strokeWidth={1.9} aria-hidden="true" />Pretraga i filteri</span>}
+          sub="Koristite pretragu i filtere za pronalaženje specifične opreme"
+        >
+          <div className="mx-ueq-bar">
+            <div className={cx('sx-search', searchTerm && 'has-value')}>
+              <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
+              <input
+                type="text"
+                placeholder="Pretraži po ID-u, tipu, opisu ili serijskom broju..."
+                aria-label="Pretraži po ID-u, tipu, opisu ili serijskom broju..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button type="button" className="sx-search__clear" onClick={() => setSearchTerm('')} aria-label="Obriši pretragu">
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
             </div>
 
-            <div className="mx-ueq-filters__actions">
-              <Btn size="sm" icon={X} onClick={resetFilters}>Resetuj filtere</Btn>
+            <div className="mx-ueq-ctrl">
+              <Btn
+                size="sm"
+                icon={Filter}
+                variant={showFilters ? 'primary' : 'secondary'}
+                aria-pressed={showFilters}
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                Filteri
+              </Btn>
+
+              <span className="mx-ueq-count">{filteredEquipment.length} rezultata</span>
             </div>
           </div>
-        )}
-      </Panel>
 
-      <Panel
-        pad={false}
-        className="mx-ueq-list"
-        title="Pregled opreme"
-        sub="Tabela sa svom opremom dodeljenom korisnicima"
-        actions={(
-          <Btn variant="primary" icon={Download} onClick={downloadReport} disabled={loading || filteredEquipment.length === 0}>
-            Preuzmi Excel izveštaj
-          </Btn>
-        )}
-      >
-        {loading ? (
-          <Loading text="Učitavanje podataka o opremi..." />
-        ) : filteredEquipment.length === 0 ? (
-          <div className="sx-empty-block">
-            <b>Nema opreme koja odgovara kriterijumima pretrage</b>
+          {showFilters && (
+            <div className="mx-ueq-filters">
+              <div className="mx-ueq-filters__grid">
+                <Field label="Status opreme:" htmlFor="ueq-status">
+                  <Select id="ueq-status" name="status" value={filters.status} onChange={handleFilterChange}>
+                    <option value="all">Svi statusi</option>
+                    <option value="active">Aktivna</option>
+                    <option value="removed">Uklonjena</option>
+                  </Select>
+                </Field>
+
+                <Field label="Tip opreme:" htmlFor="ueq-type">
+                  <Select id="ueq-type" name="equipmentType" value={filters.equipmentType} onChange={handleFilterChange}>
+                    <option value="all">Svi tipovi</option>
+                    {equipmentTypes.filter(type => type !== 'all').map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <Field label="Stanje:" htmlFor="ueq-condition">
+                  <Select id="ueq-condition" name="condition" value={filters.condition} onChange={handleFilterChange}>
+                    <option value="all">Sva stanja</option>
+                    <option value="working">Ispravno</option>
+                    <option value="defective">Neispravno</option>
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="mx-ueq-filters__actions">
+                <Btn size="sm" icon={X} onClick={resetFilters}>Resetuj filtere</Btn>
+              </div>
+            </div>
+          )}
+        </Panel>
+
+        <Panel
+          pad={false}
+          className="mx-ueq-card mx-ueq-list"
+          title="Pregled opreme"
+          sub="Tabela sa svom opremom dodeljenom korisnicima"
+        >
+          <div className="mx-ueq-export">
+            <Btn variant="primary" size="lg" icon={Download} onClick={downloadReport} disabled={loading || filteredEquipment.length === 0}>
+              Preuzmi Excel izveštaj
+            </Btn>
           </div>
-        ) : (
-          <div className="sx-tablewrap">
-            <table className="sx-table" data-testid="user-equipment-table">
-              <thead>
-                <tr>
-                  <th>Korisnik ID</th>
-                  <th>Tip opreme</th>
-                  <th>Opis</th>
-                  <th>Serijski broj</th>
-                  <th>Status</th>
-                  <th>Stanje</th>
-                  <th>Datum dodele</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEquipment.map((eq, index) => (
-                  <tr key={index} style={{ '--i': index }}>
-                    <td className="is-head"><span className="sx-uid">{eq.userId}</span></td>
-                    <td data-label="Tip opreme"><b className="mx-strong">{eq.equipmentType}</b></td>
-                    <td data-label="Opis" className="is-wide">{eq.equipmentDescription}</td>
-                    <td data-label="Serijski broj"><span className="sx-mono">{eq.serialNumber}</span></td>
-                    <td data-label="Status">
-                      <Sign tone={eq.status === 'active' ? 'ok' : 'idle'}>{eq.status === 'active' ? 'Aktivna' : 'Uklonjena'}</Sign>
-                    </td>
-                    <td data-label="Stanje">
-                      <Sign tone={eq.condition === 'working' ? 'ok' : 'bad'}>{eq.condition === 'working' ? 'Ispravno' : 'Neispravno'}</Sign>
-                    </td>
-                    <td data-label="Datum dodele"><span className="sx-mono">{new Date(eq.assignmentDate).toLocaleDateString('sr-RS')}</span></td>
+
+          {loading ? (
+            <Loading text="Učitavanje podataka o opremi..." />
+          ) : filteredEquipment.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema opreme koja odgovara kriterijumima pretrage</b>
+            </div>
+          ) : (
+            <div className="sx-tablewrap">
+              <table className="sx-table" data-testid="user-equipment-table">
+                <thead>
+                  <tr>
+                    <th>Korisnik ID</th>
+                    <th>Tip opreme</th>
+                    <th>Opis</th>
+                    <th>Serijski broj</th>
+                    <th>Status</th>
+                    <th>Stanje</th>
+                    <th>Datum dodele</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+                </thead>
+                <tbody>
+                  {filteredEquipment.map((eq, index) => (
+                    <tr key={index} style={{ '--i': index }}>
+                      <td className="is-head"><span className="sx-uid">{eq.userId}</span></td>
+                      <td data-label="Tip opreme"><b className="mx-strong">{eq.equipmentType}</b></td>
+                      <td data-label="Opis" className="is-wide">{eq.equipmentDescription}</td>
+                      <td data-label="Serijski broj"><span className="sx-mono">{eq.serialNumber}</span></td>
+                      <td data-label="Status">
+                        <Sign tone={eq.status === 'active' ? 'ok' : 'idle'}>{eq.status === 'active' ? 'Aktivna' : 'Uklonjena'}</Sign>
+                      </td>
+                      <td data-label="Stanje">
+                        <Sign tone={eq.condition === 'working' ? 'ok' : 'bad'}>{eq.condition === 'working' ? 'Ispravno' : 'Neispravno'}</Sign>
+                      </td>
+                      <td data-label="Datum dodele"><span className="sx-mono">{new Date(eq.assignmentDate).toLocaleDateString('sr-RS')}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 };
