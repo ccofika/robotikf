@@ -128,3 +128,10 @@
 @container tbl (max-width: 760px) { .mx-app .sx-table td { overflow-wrap: anywhere; } }
 /* pilule izbora na dodir: najmanje 40 px (Security ima 32 px za male pilule) */
 @media (hover: none) { .mx-app .sx-choice--sm .sx-choice__opt { height: 40px; } }
+
+/* ---------- kalendar i lista vremena (DateField, TimeField): važi i za Security ----------
+   dugmad nasleđuju text-align: left iz osnove, pa su brojevi bili uz levu ivicu, a izabrani dan elipsa */
+.sx-cal__day { display: grid; place-items: center; width: 36px; max-width: 100%; height: 36px; margin: 0 auto; padding: 0; text-align: center; }
+.sx-time { text-align: center; }
+/* period (DateRangePicker): malo šire polje da datum, X i kalendar ne budu zbijeni */
+.mx-daterange .sx-dt { width: 182px; }
