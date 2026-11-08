@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { RefreshCw, Play, Pause, Send, Phone, MapPin, Crosshair, Clock, ChevronLeft } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { gpsAPI, techniciansAPI } from '../../services/api';
-import { Btn, Led, Sign, Count } from '../../security/sx/ui';
+import { cx, Btn, Led, Sign, Count } from '../../security/sx/ui';
 import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
 import { LinkBtn } from '../../montaza/ui';
 import 'leaflet/dist/leaflet.css';
@@ -314,59 +314,58 @@ const TechniciansGPS = () => {
       )}
 
       <div className="sx-cols sx-cols--main">
-        {/* Mapa */}
-        <Panel pad={false} className="mx-gps-mappanel"
-          footer={
-            <div className="mx-gps-legend">
-              <span className="sx-label">Legenda:</span>
-              <span><Led tone="ok" />&lt; 5 min</span>
-              <span><Led tone="info" />&lt; 30 min</span>
-              <span><Led tone="warn" />&lt; 1h</span>
-              <span><Led tone="bad" />&gt; 1h</span>
+        {/* Mapa, ispod nje legenda (posebna kartica, kao ranije) */}
+        <div className="mx-gps-left">
+          <Panel pad={false} className="mx-gps-mappanel">
+            <div className="mx-gps-map">
+              <MapContainer
+                center={defaultCenter}
+                zoom={defaultZoom}
+                style={{ height: '100%', width: '100%', zIndex: 0 }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                {locations.length > 0 && <FitBounds locations={locations} />}
+
+                {locations.map((location) => (
+                  <Marker
+                    key={location._id}
+                    position={[location.latitude, location.longitude]}
+                    icon={createTechnicianIcon(getMarkerColor(location.createdAt))}
+                  >
+                    <Popup>
+                      <div className="mx-gps-pop">
+                        <b>{location.technician?.name || 'Nepoznat tehničar'}</b>
+                        {location.technician?.phoneNumber && (
+                          <span><Phone size={14} strokeWidth={1.9} aria-hidden="true" />{location.technician.phoneNumber}</span>
+                        )}
+                        <span className="sx-mono"><MapPin size={14} strokeWidth={1.9} aria-hidden="true" />{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</span>
+                        {location.accuracy && (
+                          <span><Crosshair size={14} strokeWidth={1.9} aria-hidden="true" />Preciznost: ±{Math.round(location.accuracy)}m</span>
+                        )}
+                        <span><Clock size={14} strokeWidth={1.9} aria-hidden="true" />{getLocationAge(location.createdAt)}</span>
+                        <small className="sx-mono">{formatTime(location.createdAt)}</small>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
             </div>
-          }
-        >
-          <div className="mx-gps-map">
-            <MapContainer
-              center={defaultCenter}
-              zoom={defaultZoom}
-              style={{ height: '100%', width: '100%', zIndex: 0 }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              {locations.length > 0 && <FitBounds locations={locations} />}
-
-              {locations.map((location) => (
-                <Marker
-                  key={location._id}
-                  position={[location.latitude, location.longitude]}
-                  icon={createTechnicianIcon(getMarkerColor(location.createdAt))}
-                >
-                  <Popup>
-                    <div className="mx-gps-pop">
-                      <b>{location.technician?.name || 'Nepoznat tehničar'}</b>
-                      {location.technician?.phoneNumber && (
-                        <span><Phone size={14} strokeWidth={1.9} aria-hidden="true" />{location.technician.phoneNumber}</span>
-                      )}
-                      <span className="sx-mono"><MapPin size={14} strokeWidth={1.9} aria-hidden="true" />{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</span>
-                      {location.accuracy && (
-                        <span><Crosshair size={14} strokeWidth={1.9} aria-hidden="true" />Preciznost: ±{Math.round(location.accuracy)}m</span>
-                      )}
-                      <span><Clock size={14} strokeWidth={1.9} aria-hidden="true" />{getLocationAge(location.createdAt)}</span>
-                      <small className="sx-mono">{formatTime(location.createdAt)}</small>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+          </Panel>
+          <div className="sx-card mx-gps-legend">
+            <span className="sx-label">Legenda:</span>
+            <span><Led tone="ok" />&lt; 5 min</span>
+            <span><Led tone="info" />&lt; 30 min</span>
+            <span><Led tone="warn" />&lt; 1h</span>
+            <span><Led tone="bad" />&gt; 1h</span>
           </div>
-        </Panel>
+        </div>
 
         {/* Lista tehničara */}
-        <Panel title="Lista tehničara" actions={<Count>{technicians.length}</Count>} className="mx-gps-listpanel">
+        <Panel pad={false} title="Lista tehničara" actions={<Count>{technicians.length}</Count>} className="mx-gps-listpanel">
           {technicians.length === 0 ? (
             <div className="sx-empty-block"><b>Nema tehničara</b></div>
           ) : (
@@ -377,7 +376,7 @@ const TechniciansGPS = () => {
                 );
 
                 return (
-                  <div key={tech._id} className="sx-item">
+                  <div key={tech._id} className={cx('sx-item mx-gps-item', techLocation && 'is-on')}>
                     <Led tone={techLocation ? 'ok' : 'idle'} />
                     <div className="sx-item__main">
                       <b>{tech.name}</b>

@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import * as Popover from '@radix-ui/react-popover';
 import { Plus, MapPin, Eye, Trash2, Package, Wrench, RefreshCw, CalendarDays, Star, UserCog, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { techniciansAPI, reviewsAPI } from '../../services/api';
 import { cx, Btn, Sign, Avatar } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
-import { SearchField, Select, MonthCalendar } from '../../security/sx/forms';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
+import { SearchField, Select, DateField } from '../../security/sx/forms';
 import { confirm } from '../../security/sx/confirm';
 import { Pager, ColumnMenu, Loading, LinkBtn } from '../../montaza/ui';
 import './TechniciansList.mx.css';
 
-// Datum za kalendar ('GGGG-MM-DD', lokalni dan) i nazad u Date
+// Datum za polje ('GGGG-MM-DD', lokalni dan) i nazad u Date
 const pad2 = (n) => String(n).padStart(2, '0');
 const toYmd = (iso) => {
   if (!iso) return '';
@@ -24,6 +23,30 @@ const fromYmd = (ymd, prev) => {
   const p = prev ? new Date(prev) : null;
   return p ? new Date(y, m - 1, d, p.getHours(), p.getMinutes(), p.getSeconds()) : new Date(y, m - 1, d);
 };
+
+// "Zaposlen do" u izmeni, kao ranije: polje dobija fokus i kalendar je odmah otvoren, datum može i da se kuca,
+// izbor ili ukucan datum odmah čuva, klik van polja zatvara izmenu bez čuvanja
+function DateEdit({ value, onPick, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const input = ref.current && ref.current.querySelector('input');
+    if (input) {
+      input.focus();
+      const open = ref.current.querySelector('.sx-dt__btn');
+      if (open) open.click();
+    }
+  }, []);
+  useEffect(() => {
+    const outside = (e) => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest('.sx-popover')) onClose(); };
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
+  }, [onClose]);
+  return (
+    <span ref={ref} className="mx-techs-dateedit">
+      <DateField value={value} onChange={onPick} clearable={!!value} compact placeholder="Izaberi datum" aria-label="Zaposlen do" />
+    </span>
+  );
+}
 
 const TechniciansList = () => {
   const [technicians, setTechnicians] = useState([]);
@@ -229,6 +252,9 @@ const TechniciansList = () => {
     }
   };
 
+  // klik van polja za datum zatvara izmenu bez čuvanja (ranije onClickOutside)
+  const closeDateEdit = () => setEditingDateId(null);
+
   // Helper za proveru da li ugovor ističe uskoro (30 dana)
   const getContractStatus = (employedUntil) => {
     if (!employedUntil) return null;
@@ -331,31 +357,27 @@ const TechniciansList = () => {
         <Stat label="Administratori" value={visibleAdminUsers.length} />
       </div>
 
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po imenu tehničara..." />
-        <div className="sx-toolbar__end">
-          <ColumnMenu columns={columnLabels} visible={visibleColumns}
-            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))} />
-          <Btn size="sm" icon={RefreshCw} onClick={fetchTechnicians} busy={loading}>Osveži</Btn>
-        </div>
-      </Toolbar>
-
       <div className="sx-stack">
         {/* Administratorski nalozi: vidljivi samo za superadmin i supervisor */}
         {visibleAdminUsers.length > 0 && (
           <Panel title="Administratorski nalozi">
-            <div className="sx-list">
+            <div className="mx-techs-admins">
               {visibleAdminUsers.map((admin) => (
-                <div key={admin._id} className="sx-item">
-                  <span className="sx-item__icon"><UserCog size={18} strokeWidth={1.8} aria-hidden="true" /></span>
-                  <div className="sx-item__main">
-                    <b>{admin.name}</b>
-                    <span>ID: <span className="sx-mono">{admin._id}</span> · Kreiran: {new Date(admin.createdAt).toLocaleDateString('sr-RS')}</span>
+                <div key={admin._id} className="mx-techs-admin">
+                  <div className="mx-techs-admin__head">
+                    <span className="sx-item__icon"><UserCog size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+                    <div className="mx-techs-admin__who">
+                      <h3 className="mx-techs-admin__name">{admin.name}</h3>
+                      <span className={cx('sx-tag', admin.role === 'superadmin' ? 'is-bad' : admin.role === 'supervisor' ? 'is-warn' : 'is-info')}>
+                        {admin.role === 'superadmin' ? 'Super Admin' : admin.role === 'supervisor' ? 'Supervisor' : 'Admin'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="sx-item__side">
-                    <span className={cx('sx-tag', admin.role === 'superadmin' && 'is-ink')}>
-                      {admin.role === 'superadmin' ? 'Super Admin' : admin.role === 'supervisor' ? 'Supervisor' : 'Admin'}
-                    </span>
+                  <div className="mx-techs-admin__meta">
+                    <span>ID: <span className="sx-mono">{admin._id}</span></span>
+                    <span>Kreiran: {new Date(admin.createdAt).toLocaleDateString('sr-RS')}</span>
+                  </div>
+                  <div className="mx-techs-admin__foot">
                     <LinkBtn to={`/technicians/${admin._id}`} size="sm" variant="ghost" icon={Eye} title="Detalji korisnika">Detalji</LinkBtn>
                   </div>
                 </div>
@@ -365,6 +387,15 @@ const TechniciansList = () => {
         )}
 
         <Panel pad={false}>
+          {/* kao ranije: pretraga, kolone i osvežavanje su u vrhu kartice sa tabelom */}
+          <div className="mx-panelbar">
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po imenu tehničara..." />
+            <div className="mx-panelbar__end">
+              <ColumnMenu columns={columnLabels} visible={visibleColumns}
+                onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))} />
+              <Btn size="sm" icon={RefreshCw} onClick={fetchTechnicians} busy={loading}>Osveži</Btn>
+            </div>
+          </div>
           {loading ? (
             <Loading text="Učitavanje tehničara..." />
           ) : (
@@ -394,7 +425,8 @@ const TechniciansList = () => {
                         const stats = reviewStatsMap[technician._id];
 
                         return (
-                          <tr key={technician._id} style={{ '--i': index }}>
+                          <tr key={technician._id} style={{ '--i': index }}
+                            className={isInactive ? 'mx-techs-row-off' : contractStatus === 'expired' ? 'mx-techs-row-expired' : contractStatus === 'warning' ? 'mx-techs-row-warn' : undefined}>
                             {visibleColumns.name && (
                               <td className="is-head">
                                 <div className="sx-cell">
@@ -417,33 +449,30 @@ const TechniciansList = () => {
                             )}
                             {visibleColumns.employedUntil && (
                               <td data-label="Zaposlen do">
-                                <Popover.Root open={editingDateId === technician._id} onOpenChange={(open) => setEditingDateId(open ? technician._id : null)}>
-                                  <Popover.Trigger asChild>
-                                    <Btn size="sm" variant="ghost" className="mx-techs-pill" icon={technician.employedUntil ? undefined : CalendarDays} title="Kliknite za izmenu datuma">
-                                      {technician.employedUntil ? (
-                                        <>
-                                          <span className="sx-mono">{new Date(technician.employedUntil).toLocaleDateString('sr-RS')}</span>
-                                          {contractStatus === 'expired' && <span className="sx-tag is-bad">ISTEKAO</span>}
-                                          {contractStatus === 'warning' && (
-                                            <span className="sx-tag is-warn">{Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24))}d</span>
-                                          )}
-                                        </>
-                                      ) : <span className="sx-faint">Postavi datum</span>}
-                                    </Btn>
-                                  </Popover.Trigger>
-                                  <Popover.Portal>
-                                    <Popover.Content className="sx-portal sx-popover" align="start" sideOffset={6} collisionPadding={12}>
-                                      <MonthCalendar
-                                        value={toYmd(technician.employedUntil)}
-                                        onPick={(ymd) => (ymd === toYmd(technician.employedUntil)
-                                          ? setEditingDateId(null)
-                                          : handleEmployedUntilChange(technician._id, fromYmd(ymd, technician.employedUntil)))}
-                                        clearable={!!technician.employedUntil}
-                                        onClear={() => handleEmployedUntilChange(technician._id, null)}
-                                      />
-                                    </Popover.Content>
-                                  </Popover.Portal>
-                                </Popover.Root>
+                                {editingDateId === technician._id ? (
+                                  <DateEdit
+                                    value={toYmd(technician.employedUntil)}
+                                    onClose={closeDateEdit}
+                                    onPick={(ymd) => (!ymd
+                                      ? handleEmployedUntilChange(technician._id, null)
+                                      : ymd === toYmd(technician.employedUntil)
+                                        ? setEditingDateId(null)
+                                        : handleEmployedUntilChange(technician._id, fromYmd(ymd, technician.employedUntil)))}
+                                  />
+                                ) : (
+                                  <Btn size="sm" variant="ghost" className="mx-techs-pill" icon={technician.employedUntil ? undefined : CalendarDays}
+                                    onClick={() => setEditingDateId(technician._id)} title="Kliknite za izmenu datuma">
+                                    {technician.employedUntil ? (
+                                      <>
+                                        <span className="sx-mono">{new Date(technician.employedUntil).toLocaleDateString('sr-RS')}</span>
+                                        {contractStatus === 'expired' && <span className="sx-tag is-bad">ISTEKAO</span>}
+                                        {contractStatus === 'warning' && (
+                                          <span className="sx-tag is-warn">{Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24))}d</span>
+                                        )}
+                                      </>
+                                    ) : <span className="sx-faint">Postavi datum</span>}
+                                  </Btn>
+                                )}
                               </td>
                             )}
                             <td data-label="Ocena">

@@ -4,9 +4,33 @@
    (:is(.sx) :where(button)) ima istu specifičnost i učitava se posle */
 .sx-btn.mx-techs-pill { margin-left: -13px; }
 .mx-techs-pill .sx-tag { margin-left: 2px; }
-.mx-techs-off { color: var(--sx-muted); text-decoration: line-through; }
+.mx-techs-off { color: var(--sx-bad-text); text-decoration: line-through; }
+/* boja reda kao ranije: neaktivan, ugovor istekao, ugovor ističe za 30 dana (i kartica na telefonu) */
+.sx-table tbody tr.mx-techs-row-off { background: color-mix(in oklab, var(--sx-bad) 8%, var(--sx-surface)); }
+.sx-table tbody tr.mx-techs-row-expired { background: color-mix(in oklab, var(--sx-bad) 4%, var(--sx-surface)); }
+.sx-table tbody tr.mx-techs-row-warn { background: color-mix(in oklab, var(--sx-warn) 8%, var(--sx-surface)); }
+/* "Zaposlen do" u izmeni */
+.mx-techs-dateedit { display: inline-flex; width: 172px; max-width: 100%; }
 /* akcije u redu prelaze u drugi red umesto da šire tabelu */
 .mx-techs-table .sx-rowacts { flex-wrap: wrap; }
+
+/* administratorski nalozi: mreža kartica kao ranije (3 / 2 / 1 u redu) */
+.mx-techs-admins { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+@container page (min-width: 640px) { .mx-techs-admins { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 980px) { .mx-techs-admins { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.mx-techs-admin { display: grid; gap: 10px; padding: 14px 16px 10px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-surface-2); min-width: 0; }
+.mx-techs-admin__head { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.mx-techs-admin__who { display: grid; justify-items: start; gap: 4px; min-width: 0; }
+.mx-techs-admin__name { font-size: 14.5px; font-weight: 650; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-techs-admin__meta { display: grid; gap: 2px; font-size: 12.5px; color: var(--sx-muted); overflow-wrap: anywhere; }
+.mx-techs-admin__foot { display: flex; justify-content: flex-end; }
+
+/* ponytail: kopija .mx-panelbar iz montaza.css osnovne grane (a2fa019), jer rd/tehnicari nema tu izmenu;
+   posle spajanja sa feature/redizajn-montaze ovaj blok treba obrisati (pravila su ista, montaza.css se učitava posle) */
+.mx-panelbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-panelbar .sx-search { flex: 0 1 380px; }
+.mx-panelbar__end { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+@media (max-width: 639px) { .mx-panelbar { padding: 12px 16px; } .mx-panelbar .sx-search { flex: 1 1 100%; } .mx-panelbar__end { margin-left: 0; } }
 
 /* ocene: zvezdice i brojke */
 .mx-techs-rating { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }

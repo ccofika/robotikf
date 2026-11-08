@@ -108,10 +108,13 @@ const AddTechnician = () => {
       />
 
       <Panel
+        className="mx-addtech"
         footer={<>
+          <Btn type="submit" form="add-technician-form" variant="primary" icon={Save} disabled={loading}>
+            {loading ? 'Čuvanje...' : 'Sačuvaj tehničara'}
+          </Btn>
           <LinkBtn
             to="/technicians"
-            variant="ghost"
             onClick={(e) => {
               if (loading) {
                 e.preventDefault();
@@ -120,14 +123,11 @@ const AddTechnician = () => {
           >
             Odustani
           </LinkBtn>
-          <Btn type="submit" form="add-technician-form" variant="primary" icon={Save} disabled={loading}>
-            {loading ? 'Čuvanje...' : 'Sačuvaj tehničara'}
-          </Btn>
         </>}
       >
         {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
-        <form id="add-technician-form" onSubmit={handleSubmit} className="sx-form mx-addtech">
+        <form id="add-technician-form" onSubmit={handleSubmit} className="sx-form">
           <Field label={<>Ime tehničara <Req /></>} htmlFor="name" error={validationErrors.name} wide>
             <Input
               type="text"
@@ -143,7 +143,7 @@ const AddTechnician = () => {
             />
           </Field>
 
-          <Field label={<>Lozinka <Req /></>} htmlFor="password" error={validationErrors.password}>
+          <Field label={<>Lozinka <Req /></>} htmlFor="password" error={validationErrors.password} wide>
             <Input
               type="password"
               id="password"
@@ -157,7 +157,7 @@ const AddTechnician = () => {
             />
           </Field>
 
-          <Field label={<>Potvrda lozinke <Req /></>} htmlFor="confirmPassword" error={validationErrors.confirmPassword}>
+          <Field label={<>Potvrda lozinke <Req /></>} htmlFor="confirmPassword" error={validationErrors.confirmPassword} wide>
             <Input
               type="password"
               id="confirmPassword"
