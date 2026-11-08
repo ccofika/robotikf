@@ -1,0 +1,94 @@
+/* =============================================================================
+   Dijalozi radnog naloga u izgledu Security dela: vraćanje (ReturnWorkOrderModal), reklamacija
+   (ComplaintModal), promena minusa (PenaltyAdjustModal) i AI verifikacija (AIVerificationModal).
+   Okvir je sx Dialog; ovde su samo delovi kojih nema u sx-u. Boje samo iz tokena.
+   ============================================================================= */
+
+.mx-wodlg-stack { display: grid; gap: 16px; min-width: 0; }
+.mx-wodlg-stack > .sx-field + .sx-field { margin-top: 0; }
+.mx-wodlg-list { display: grid; gap: 8px; }
+.mx-wodlg-block { display: block; }
+.mx-wodlg-muted { color: var(--sx-muted); }
+.mx-wodlg-faint { color: var(--sx-faint); }
+.mx-wodlg-hint { display: block; margin-top: 4px; font-size: 12.5px; line-height: 1.45; color: var(--sx-muted); }
+.mx-wodlg-lines { display: grid; gap: 3px; color: var(--sx-text-2); }
+.mx-wodlg-bad { color: var(--sx-bad-text); font-weight: 650; }
+.mx-wodlg-ok { color: var(--sx-ok-text); font-weight: 650; }
+.mx-wodlg-warn { color: var(--sx-warn-text); }
+.mx-wodlg-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* kartica sa štikliranjem (umanjenje zarade, tehničar koji se sklanja) */
+.mx-wodlg-choice {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  transition-property: border-color, background-color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+.mx-wodlg-choice.is-on { border-color: color-mix(in oklab, var(--sx-bad) 40%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 6%, var(--sx-surface)); }
+.mx-wodlg-choice .sx-check { display: flex; width: 100%; }
+.mx-wodlg-choice .sx-check__text { min-width: 0; flex: 1; }
+.mx-wodlg-choice__title { font-weight: 650; color: var(--sx-text); }
+.mx-wodlg-choice.is-on .mx-wodlg-choice__title { color: var(--sx-bad-text); }
+
+/* termin: datum i vreme u jednom redu */
+.mx-wodlg-when { display: flex; flex-wrap: wrap; gap: 8px; }
+.mx-wodlg-when > .sx-dt { flex: 1 1 180px; width: auto; }
+.mx-wodlg-when > .sx-dt--time { flex: 0 0 132px; }
+
+/* AI: učitavanje, odeljci, okviri teksta, traka pouzdanosti, spisak provera */
+.mx-wodlg-busy { display: grid; justify-items: center; gap: 8px; padding: 36px 8px 28px; text-align: center; }
+.mx-wodlg-busy__title { font-size: 16px; font-weight: 600; color: var(--sx-text); }
+.mx-wodlg-spinner { width: 36px; height: 36px; margin-bottom: 8px; border-radius: 50%; border: 3px solid var(--sx-line-2); border-top-color: var(--sx-text); animation: sx-spin 0.8s linear infinite; }
+.mx-wodlg-sec { display: grid; gap: 8px; min-width: 0; }
+.mx-wodlg-sec__title { font-size: 13px; font-weight: 650; color: var(--sx-text); }
+.mx-wodlg-box { display: grid; gap: 6px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); font-size: 13.5px; line-height: 1.5; color: var(--sx-text-2); }
+.mx-wodlg-box.is-info { border-color: color-mix(in oklab, var(--sx-info) 26%, var(--sx-surface)); background: var(--sx-accent-soft); color: var(--sx-text); font-weight: 550; }
+.mx-wodlg-box.is-warn { border-color: color-mix(in oklab, var(--sx-warn) 34%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-warn) 8%, var(--sx-surface)); }
+.mx-wodlg-box__title { font-size: 12.5px; font-weight: 650; color: var(--sx-text); }
+.mx-wodlg-box .mx-wodlg-hint { margin-top: 0; }
+.mx-wodlg-meter { display: flex; align-items: center; gap: 12px; }
+.mx-wodlg-meter__track { flex: 1; height: 6px; border-radius: 6px; background: var(--sx-surface-3); overflow: hidden; }
+.mx-wodlg-meter__bar { display: block; height: 100%; border-radius: 6px; background: var(--sx-idle); }
+.mx-wodlg-meter__bar.is-ok { background: var(--sx-ok); }
+.mx-wodlg-meter__bar.is-warn { background: var(--sx-warn); }
+.mx-wodlg-meter__bar.is-bad { background: var(--sx-bad); }
+.mx-wodlg-checks { display: grid; gap: 8px; }
+.mx-wodlg-checks li { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; line-height: 1.45; color: var(--sx-text-2); }
+.mx-wodlg-checks li > svg { margin-top: 2px; }
+.mx-wodlg-checks li.is-ok > svg { color: var(--sx-ok-text); }
+.mx-wodlg-checks li.is-bad > svg { color: var(--sx-bad-text); }
+/* AI: dugmad kao ranije (glavno pa Odustani, jednake širine), napomena ispod njih */
+.mx-wodlg-foothint { flex: 1 1 100%; font-size: 12px; line-height: 1.45; text-align: center; color: var(--sx-muted); }
+[data-testid="ai-verification-dialog"] .sx-dialog__foot .sx-btn { flex: 1 1 0; }
+
+/* promena minusa: procenti kao kartice (radio) */
+.mx-wodlg-pcts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.mx-wodlg-pct {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 4px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  cursor: pointer;
+  transition-property: border-color, background-color, box-shadow;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) { .mx-wodlg-pct:hover { border-color: var(--sx-line-3); background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+.mx-wodlg-pct:focus-within { outline: 2px solid var(--sx-accent); outline-offset: 2px; }
+.mx-wodlg-pct.is-ok { border-color: var(--sx-ok); background: color-mix(in oklab, var(--sx-ok) 8%, var(--sx-surface)); box-shadow: 0 0 0 3px color-mix(in oklab, var(--sx-ok) 16%, transparent); }
+.mx-wodlg-pct.is-bad { border-color: var(--sx-bad); background: color-mix(in oklab, var(--sx-bad) 7%, var(--sx-surface)); box-shadow: 0 0 0 3px color-mix(in oklab, var(--sx-bad) 14%, transparent); }
+.mx-wodlg-pct__num { font-family: var(--sx-font-mono); font-size: 15px; font-weight: 650; color: var(--sx-text); }
+.mx-wodlg-pct.is-ok .mx-wodlg-pct__num { color: var(--sx-ok-text); }
+.mx-wodlg-pct.is-bad .mx-wodlg-pct__num { color: var(--sx-bad-text); }
+.mx-wodlg-pct__cap { font-size: 10.5px; color: var(--sx-muted); }
+.mx-wodlg-pct__now { position: absolute; top: -8px; right: 4px; padding: 0 6px; border-radius: 6px; background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); font-size: 9.5px; font-weight: 600; letter-spacing: 0.05em; line-height: 16px; text-transform: uppercase; }
+.mx-wodlg-pay { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.mx-wodlg-pay__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--sx-text); }
+.mx-wodlg-pay__sum { flex-shrink: 0; white-space: nowrap; color: var(--sx-text-2); }

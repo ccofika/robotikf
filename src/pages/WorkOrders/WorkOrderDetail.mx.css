@@ -1,0 +1,283 @@
+/* =============================================================================
+   Detalj radnog naloga (WorkOrderDetail.js) u izgledu Security dela: polja sa olovkom, osnovni podaci,
+   tabele opreme, slike, istorije i traka sa radnjama koja se lepi uz dno.
+   Ovaj fajl se učitava pre sx CSS-a, pa izmene sx pravila imaju jaču specifičnost. Boje samo iz tokena.
+   ============================================================================= */
+
+/* ---------- okvir ---------- */
+.mx-wod-block { margin-top: 20px; }
+.mx-wod > .mx-wod-block:first-child { margin-top: 0; }
+.mx-wod-backs { display: flex; flex-wrap: wrap; gap: 4px; margin-left: -10px; }
+.mx-wod-strong { font-weight: 650; color: var(--sx-text); }
+.mx-wod-faint { color: var(--sx-faint); font-weight: 400; }
+.mx-wod-none { font-style: italic; font-weight: 400; font-size: 12.5px; color: var(--sx-faint); }
+.mx-wod-text { font-size: 14px; line-height: 1.55; color: var(--sx-text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mx-wod-empty { padding: 4px 0; font-size: 13.5px; color: var(--sx-faint); }
+.mx-wod-bad { color: var(--sx-bad-text); font-weight: 600; }
+.mx-wod-warn { color: var(--sx-warn-text); }
+
+/* ---------- polje sa olovkom i prozor za izmenu ---------- */
+/* dugmad su pisana kao button.klasa: osnovno sx pravilo :is(.sx, .sx-portal) :where(button) ima istu težinu
+   kao jedna klasa i učitava se posle, pa bi poništilo padding, okvir i pozadinu */
+.mx-wod-edit { display: inline-flex; align-items: flex-start; gap: 4px; max-width: 100%; min-width: 0; }
+.mx-wod-edit__val { min-width: 0; overflow-wrap: anywhere; }
+button.mx-wod-edit__btn {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: -1px;
+  border-radius: 8px;
+  color: var(--sx-faint);
+  opacity: 0;
+  transition-property: opacity, background-color, color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+.mx-wod-edit:hover button.mx-wod-edit__btn, button.mx-wod-edit__btn:focus-visible { opacity: 1; transition-duration: var(--hover-in); }
+@media (hover: hover) and (pointer: fine) { button.mx-wod-edit__btn:hover { background: var(--sx-surface-3); color: var(--sx-text); } }
+/* na dodir nema prelaska mišem: olovka se uvek vidi i veća je */
+@media (hover: none) { button.mx-wod-edit__btn { opacity: 1; width: 32px; height: 32px; margin: -6px -4px -6px 0; } }
+.mx-wod-pop { display: grid; gap: 10px; width: min(320px, calc(100vw - 24px)); }
+.mx-wod-pop .sx-textarea { min-height: 120px; }
+.mx-wod-pop__acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* ---------- osnovni podaci (4 polja) i oznake ---------- */
+.mx-wod-facts__grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mx-wod-fact { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 16px 20px; border-top: 1px solid var(--sx-line); }
+.mx-wod-fact:first-child { border-top: 0; }
+.mx-wod-fact__label { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.mx-wod-fact__label svg { width: 14px; height: 14px; color: var(--sx-faint); }
+.mx-wod-fact__main { font-size: 15px; font-weight: 650; line-height: 1.35; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-wod-fact__sub { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; font-size: 13px; color: var(--sx-muted); overflow-wrap: anywhere; }
+@container page (min-width: 440px) {
+  .mx-wod-facts__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mx-wod-fact:nth-child(2) { border-top: 0; }
+  .mx-wod-fact:nth-child(even) { border-left: 1px solid var(--sx-line); }
+}
+@container page (min-width: 1000px) {
+  .mx-wod-facts__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mx-wod-fact { border-top: 0; border-left: 1px solid var(--sx-line); }
+  .mx-wod-fact:first-child { border-left: 0; }
+}
+.mx-wod-facts .sx-panel__foot { justify-content: flex-start; }
+.mx-wod-ids { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; min-width: 0; }
+.mx-wod-id { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--sx-text-2); }
+.mx-wod-id > .sx-label { font-size: 10.5px; }
+.mx-wod-code { padding: 2px 8px; border-radius: 7px; border: 1px solid var(--sx-line-2); background: var(--sx-surface); font-family: var(--sx-font-mono); font-size: 12px; font-weight: 600; color: var(--sx-text); }
+/* boja tima (utils/tim.js) nosi značenje: robotik plavo, mtel crveno */
+.mx-wod-tim { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 7px; font-size: 11.5px; font-weight: 600; }
+
+/* ---------- blok sa dve polovine (detalji i komentar, materijal i slike), kao u staroj strani ---------- */
+.mx-wod-split { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mx-wod-split__half { display: grid; align-content: start; gap: 12px; min-width: 0; padding: 18px 20px 20px; }
+.mx-wod-split__half + .mx-wod-split__half { border-top: 1px solid var(--sx-line); }
+@container page (min-width: 700px) {
+  .mx-wod-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mx-wod-split__half + .mx-wod-split__half { border-top: 0; border-left: 1px solid var(--sx-line); }
+}
+
+/* ---------- tabele opreme: kartice tek na uskom prostoru (tabela ima 4 kolone) ---------- */
+.mx-wod-tbl { container: mx-wod-tbl / inline-size; margin: 0 -20px; min-width: 0; }
+.mx-wod-tbl:last-child { margin-bottom: -20px; }
+.mx-wod-histbtn { margin: 12px 0 0 -12px; }
+@container mx-wod-tbl (max-width: 520px) {
+  .mx-wod-tbl .sx-table, .mx-wod-tbl .sx-table tbody, .mx-wod-tbl .sx-table tr, .mx-wod-tbl .sx-table td { display: block; }
+  .mx-wod-tbl .sx-table thead { display: none; }
+  .mx-wod-tbl .sx-table tbody { display: grid; gap: 10px; padding: 0 12px 12px; }
+  .mx-wod-tbl .sx-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; padding: 14px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface); }
+  .mx-wod-tbl .sx-table td, .mx-wod-tbl .sx-table td:first-child, .mx-wod-tbl .sx-table td:last-child { padding: 0; border: 0; min-width: 0; }
+  .mx-wod-tbl .sx-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 3px; font-family: var(--sx-font-ui); font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sx-faint); }
+  .mx-wod-tbl .sx-table td.is-head { grid-column: 1 / -1; }
+  .mx-wod-tbl .sx-table td.is-end { text-align: left; }
+}
+.mx-wod-histtbl { margin: 0 -22px -18px; }
+
+/* ---------- materijal, slike, pregled ---------- */
+.mx-wod-rows { display: grid; }
+.mx-wod-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--sx-line); font-size: 13.5px; color: var(--sx-text-2); }
+.mx-wod-row:first-child { border-top: 0; padding-top: 0; }
+.mx-wod-qty { flex-shrink: 0; font-family: var(--sx-font-mono); font-size: 12.5px; font-weight: 600; color: var(--sx-text); }
+.mx-wod-note { margin-bottom: 0; }
+.mx-wod-note b { display: block; margin-bottom: 2px; }
+.mx-wod-note__text { display: block; font-size: 13.5px; }
+.mx-wod-thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.mx-wod-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--sx-surface-3); }
+.mx-wod-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: transform 420ms var(--ease-enter); }
+@media (hover: hover) and (pointer: fine) { .mx-wod-thumb:hover img { transform: scale(1.05); } }
+button.mx-wod-thumb__del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--sx-bad-strong);
+  color: var(--sx-on-bad);
+  opacity: 0;
+  transition: opacity var(--hover-out) var(--ease-move);
+}
+.mx-wod-thumb:hover button.mx-wod-thumb__del, button.mx-wod-thumb__del:focus-visible { opacity: 1; transition-duration: var(--hover-in); }
+button.mx-wod-thumb__del:disabled { cursor: not-allowed; }
+@media (hover: none) { button.mx-wod-thumb__del { opacity: 1; width: 30px; height: 30px; } }
+.mx-wod-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.mx-wod-counts__item { display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 12px 4px 10px; border-radius: 12px; background: var(--sx-surface-2); }
+.mx-wod-counts__item b { font-size: 26px; color: var(--sx-text); }
+.mx-wod-counts__item .sx-label { font-size: 10px; letter-spacing: 0.04em; }
+
+/* ---------- istorije i spiskovi (vraćanja, reklamacije, odlaganja, pozivi) ---------- */
+.mx-wod-log { display: grid; }
+.mx-wod-entry { display: grid; gap: 4px; min-width: 0; padding: 12px 0; border-top: 1px solid var(--sx-line); }
+.mx-wod-entry:first-child { border-top: 0; padding-top: 0; }
+.mx-wod-entry:last-child { padding-bottom: 0; }
+.mx-wod-entry.is-dim { opacity: 0.6; }
+.mx-wod-entry__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; min-width: 0; }
+.mx-wod-entry__at { font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-muted); }
+.mx-wod-entry__title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--sx-text); overflow-wrap: anywhere; }
+.mx-wod-entry__title > .sx-led { flex-shrink: 0; }
+.mx-wod-entry__text { font-size: 13.5px; line-height: 1.5; color: var(--sx-text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mx-wod-entry__meta { font-size: 12px; line-height: 1.45; color: var(--sx-muted); overflow-wrap: anywhere; }
+.mx-wod-entry__split { display: flex; justify-content: space-between; gap: 10px; }
+.mx-wod-entry__more { display: grid; gap: 4px; font-size: 12.5px; line-height: 1.45; color: var(--sx-text-2); }
+.mx-wod-entry__more b { font-weight: 650; color: var(--sx-text); }
+.mx-wod-entry__sub { padding-left: 10px; font-size: 12px; color: var(--sx-text-2); }
+.mx-wod-entry .sx-tag { height: auto; min-height: 22px; padding-top: 2px; padding-bottom: 2px; white-space: normal; }
+.mx-wod-clip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-wod-audio { width: 100%; height: 36px; margin-top: 4px; }
+/* boja tipa poziva (utils/supportCalls.js) je ista kao dugme u aplikaciji tehničara */
+.mx-wod-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 7px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+/* stavka bez ikonice: dve kolone (podaci, stanje); dugme se samo ne širi, pa širina pokriva i -12px margine */
+.mx-wod-sameaddr.sx-item { grid-template-columns: minmax(0, 1fr) auto; width: calc(100% + 24px); text-align: left; }
+.mx-wod-sameaddr .sx-item__main b { font-size: 13.5px; }
+button.mx-wod-pick {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px dashed var(--sx-line-3);
+  background: var(--sx-surface-2);
+  font-size: 13.5px;
+  color: var(--sx-muted);
+  text-align: center;
+  transition-property: border-color, color, background-color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) {
+  button.mx-wod-pick:hover { border-style: solid; border-color: var(--sx-accent); background: var(--sx-accent-soft); color: var(--sx-accent-text); transition-duration: var(--hover-in); }
+}
+/* dugi spiskovi na širokom ekranu imaju svoj skrol (kao ranije), na telefonu ne */
+@container page (min-width: 980px) { .mx-wod-scroll { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; } }
+
+/* ---------- traka sa radnjama ---------- */
+.mx-wod-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 25;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 24px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid var(--sx-line);
+  background: color-mix(in srgb, var(--sx-surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--sx-shadow-pop);
+}
+.mx-wod-bar__group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.mx-wod-bar__end { margin-left: auto; justify-content: flex-end; }
+.mx-wod-bar__sep { width: 1px; height: 22px; margin: 0 2px; background: var(--sx-line-2); }
+/* uže: dugmad samo sa ikonicom (naziv ostaje u title), kvadratna */
+@container page (max-width: 899px) {
+  .mx-wod-lbl-lg { display: none; }
+  .mx-wod-bar .sx-btn:has(> .mx-wod-lbl-lg) { padding: 0; aspect-ratio: 1; }
+}
+/* telefon: traka je usidrena uz dno preko cele širine (dva reda: stanje, pa radnje) */
+@container page (max-width: 559px) {
+  .mx-wod-lbl-sm { display: none; }
+  .mx-wod-bar .sx-btn:has(> .mx-wod-lbl-sm) { padding: 0; aspect-ratio: 1; }
+  .mx-wod-bar {
+    bottom: 0;
+    gap: 6px;
+    margin: 24px calc(-1 * clamp(16px, 2.6vw, 44px)) -64px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 0;
+    box-shadow: var(--sx-shadow-pop);
+  }
+  .mx-wod-bar__group { gap: 4px; }
+  .mx-wod-bar__end { margin-left: 0; }
+  .mx-wod-bar__end .mx-wod-bar__sep { display: none; }
+}
+.mx-wod-menuwrap { position: relative; }
+.mx-wod-menubtn.is-open > svg:last-child { transform: rotate(180deg); }
+.mx-wod-menubtn > svg:last-child { transition: transform 200ms var(--ease-move); }
+.mx-wod-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  display: grid;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 16px;
+  border: 1px solid var(--sx-line);
+  background: var(--sx-surface);
+  box-shadow: var(--sx-shadow-pop);
+  animation: sx-fade 120ms linear both, sx-pop-rise 180ms var(--ease-enter) both;
+}
+button.mx-wod-menu__item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 10px; font-size: 13.5px; font-weight: 550; color: var(--sx-text-2); text-align: left; }
+@media (hover: hover) and (pointer: fine) { button.mx-wod-menu__item:hover:not(:disabled) { background: var(--sx-surface-2); color: var(--sx-text); } }
+button.mx-wod-menu__item:disabled { cursor: not-allowed; opacity: 0.5; }
+button.mx-wod-menu__item.is-current { font-weight: 650; color: var(--sx-text); }
+.mx-wod-menu__cur { margin-left: auto; font-size: 11.5px; font-weight: 500; color: var(--sx-faint); }
+.mx-wod-nav { display: inline-flex; align-items: center; gap: 2px; }
+.mx-wod-nav__pos { min-width: 2.5rem; font-size: 12px; text-align: center; color: var(--sx-muted); }
+
+/* ---------- status korisnika (izbor) ---------- */
+.mx-wod-opts { display: grid; gap: 8px; }
+button.mx-wod-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--sx-line-2);
+  background: var(--sx-surface);
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.45;
+  color: var(--sx-text);
+  text-align: left;
+  transition-property: border-color, background-color;
+  transition-duration: var(--hover-out);
+  transition-timing-function: var(--ease-move);
+}
+@media (hover: hover) and (pointer: fine) { button.mx-wod-opt:hover { border-color: var(--sx-line-3); background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+button.mx-wod-opt.is-on { border-color: var(--sx-accent); background: var(--sx-accent-soft); }
+button.mx-wod-opt > svg { flex-shrink: 0; color: var(--sx-accent-text); }
+
+/* ---------- slika preko celog ekrana (tamno, kao tabla obilazaka) ---------- */
+.mx-wod-lb { position: fixed; inset: 0; z-index: 10050; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--sx-board-bg) 94%, transparent); color: var(--sx-board-text); animation: sx-fade 160ms linear both; }
+.mx-wod-lb__top, .mx-wod-lb__bottom { position: absolute; left: 0; right: 0; z-index: 1; display: flex; align-items: center; padding: 12px 16px; }
+.mx-wod-lb__top { top: 0; justify-content: space-between; }
+.mx-wod-lb__bottom { bottom: 0; justify-content: center; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+.mx-wod-lb__count { display: inline-flex; align-items: center; gap: 8px; font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-board-muted); }
+button.mx-wod-lb__btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 40px; height: 40px; padding: 0 10px; border-radius: 12px; background: var(--sx-board-btn); color: var(--sx-board-text); transition: background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) { button.mx-wod-lb__btn:hover:not(:disabled) { background: var(--sx-board-edge); transition-duration: var(--hover-in); } }
+button.mx-wod-lb__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+button.mx-wod-lb__del { padding: 0 16px; font-size: 12.5px; font-weight: 600; color: var(--sx-board-bad); }
+.mx-wod-lb__stage { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 64px 12px; }
+.mx-wod-lb__img { max-width: calc(100vw - 6rem); max-height: calc(100dvh - 8rem); width: auto; height: auto; object-fit: contain; border-radius: 12px; user-select: none; }
+button.mx-wod-lb__nav { position: absolute; top: 50%; z-index: 1; width: 44px; height: 44px; border-radius: 50%; transform: translateY(-50%); }
+button.mx-wod-lb__nav.is-prev { left: 12px; }
+button.mx-wod-lb__nav.is-next { right: 12px; }
+@media (max-width: 639px) { .mx-wod-lb__img { max-width: calc(100vw - 24px); } }
