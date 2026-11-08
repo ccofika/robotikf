@@ -1,12 +1,6 @@
-/* Datum i vreme (DateTimePicker): datum, vreme i brisanje u jednom redu, brzi izbor ispod */
-.mx-dtp__in { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.mx-dtp__in > .sx-dt { flex: 1 1 0; min-width: 0; }
-.mx-dtp__in > .sx-dt.sx-dt--time { flex: 0 0 112px; }
+/* Datum i vreme (DateTimePicker): datum, vreme i brisanje u jednom redu, brzi izbor ispod (kao ranije, u više redova) */
+.mx-dtp__in { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.mx-dtp__in > .sx-dt { flex: 1 1 0; min-width: 0; max-width: none; }
+.mx-dtp__in > .sx-dt.sx-dt--time { flex: 0 0 96px; }
 .mx-dtp__in > .sx-btn { flex-shrink: 0; }
 .mx-dtp__quick { display: flex; flex-wrap: wrap; gap: 6px; }
-@media (max-width: 767px) {
-  /* na telefonu brzi izbor je jedan red koji se pomera (kao pilule perioda u Security delu) */
-  .mx-dtp__quick { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 28px), transparent); }
-  .mx-dtp__quick::-webkit-scrollbar { display: none; }
-  .mx-dtp__quick > .sx-btn { flex-shrink: 0; }
-}

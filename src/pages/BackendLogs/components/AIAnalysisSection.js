@@ -148,16 +148,8 @@ const AIAnalysisSection = () => {
     return (
       <div className="sx-stack">
         {/* Manual Analysis Trigger */}
-        <Panel
-          title="Manuelna AI Analiza"
-          sub="Pokrenite analizu za specifičan period"
-          footer={
-            <Btn variant="primary" icon={Brain} onClick={triggerManualAnalysis} disabled={loading || !customPeriodStart || !customPeriodEnd}>
-              {loading ? 'Analiza u toku...' : 'Pokreni AI Analizu'}
-            </Btn>
-          }
-        >
-          <div className="sx-form">
+        <Panel title="Manuelna AI Analiza" sub="Pokrenite analizu za specifičan period">
+          <div className="sx-form mx-bl-aiform">
             <Field label="Početni datum i vreme" htmlFor="mx-bl-ai-start">
               <DateTimeInput id="mx-bl-ai-start" value={customPeriodStart} onChange={setCustomPeriodStart} disabled={loading} />
             </Field>
@@ -165,6 +157,9 @@ const AIAnalysisSection = () => {
               <DateTimeInput id="mx-bl-ai-end" value={customPeriodEnd} onChange={setCustomPeriodEnd} disabled={loading} />
             </Field>
           </div>
+          <Btn variant="primary" icon={Brain} onClick={triggerManualAnalysis} disabled={loading || !customPeriodStart || !customPeriodEnd} className="mx-bl-runbtn">
+            {loading ? 'Analiza u toku...' : 'Pokreni AI Analizu'}
+          </Btn>
         </Panel>
 
         {/* Empty State */}
@@ -180,23 +175,27 @@ const AIAnalysisSection = () => {
 
   return (
     <div className="sx-stack">
-      {/* Manual Analysis Trigger + History Button */}
-      <Panel
-        title="Manuelna Analiza"
-        actions={
-          <Btn size="sm" icon={Clock} onClick={handleShowHistory}>
-            {showHistory ? 'Sakrij Istoriju' : 'Prikaži Istoriju'}
-          </Btn>
-        }
-      >
-        <div className="mx-bl-runrow">
-          <DateTimeInput compact value={customPeriodStart} onChange={setCustomPeriodStart} disabled={loading} aria-label="Početni datum i vreme" />
-          <DateTimeInput compact value={customPeriodEnd} onChange={setCustomPeriodEnd} disabled={loading} aria-label="Krajnji datum i vreme" />
-          <Btn variant="primary" size="sm" icon={Brain} onClick={triggerManualAnalysis} disabled={loading || !customPeriodStart || !customPeriodEnd}>
+      {/* Controls */}
+      <div className="mx-bl-controls">
+        {/* Manual Analysis Trigger */}
+        <Panel title="Manuelna Analiza" className="mx-bl-controls__main">
+          <div className="mx-bl-runrow">
+            <DateTimeInput compact value={customPeriodStart} onChange={setCustomPeriodStart} disabled={loading} aria-label="Početni datum i vreme" />
+            <DateTimeInput compact value={customPeriodEnd} onChange={setCustomPeriodEnd} disabled={loading} aria-label="Krajnji datum i vreme" />
+          </div>
+          <Btn variant="primary" icon={Brain} onClick={triggerManualAnalysis} disabled={loading || !customPeriodStart || !customPeriodEnd} className="mx-bl-runbtn">
             {loading ? 'Analiza u toku...' : 'Pokreni Analizu'}
           </Btn>
+        </Panel>
+
+        {/* History Button */}
+        <div className="sx-card mx-bl-controls__side">
+          <button type="button" onClick={handleShowHistory} className="mx-bl-histbtn">
+            <Clock size={20} strokeWidth={1.9} aria-hidden="true" />
+            <span>{showHistory ? 'Sakrij Istoriju' : 'Prikaži Istoriju'}</span>
+          </button>
         </div>
-      </Panel>
+      </div>
 
       {/* History List */}
       {showHistory && (
@@ -212,7 +211,6 @@ const AIAnalysisSection = () => {
                   onClick={() => handleSelectAnalysis(analysis._id)}
                   className={cx('sx-item is-click mx-bl-hist', selectedAnalysis?._id === analysis._id && 'is-on')}
                 >
-                  <span className="sx-item__icon"><Brain size={17} strokeWidth={1.9} aria-hidden="true" /></span>
                   <span className="sx-item__main">
                     <b>{formatDate(analysis.analysisDate)}</b>
                     <span>Period: {formatDate(analysis.periodStart)} - {formatDate(analysis.periodEnd)}</span>
