@@ -8,3 +8,10 @@
   .mx-woed__list > .sx-item { grid-template-columns: auto minmax(0, 1fr) auto; }
   .mx-woed__list > .sx-item > .sx-item__side { grid-column: auto; }
 }
+/* podaci naloga: mreža ikonica + natpis + vrednost (3 kolone na širokom ekranu), kao ranije */
+.mx-woed__facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 16px 20px; }
+.mx-woed__fact { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.mx-woed__fact > svg { width: 18px; height: 18px; margin-top: 2px; color: var(--sx-faint); flex-shrink: 0; }
+.mx-woed__fact > div { display: grid; gap: 2px; min-width: 0; }
+.mx-woed__fact span:first-child { font-size: 12.5px; color: var(--sx-muted); }
+.mx-woed__fact b { font-size: 14px; font-weight: 600; color: var(--sx-text); overflow-wrap: anywhere; }
