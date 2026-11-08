@@ -1,12 +1,140 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Car, Wrench, Calendar, AlertTriangle, Search, Filter, Edit2, Trash2, Eye, RefreshCw, X, Upload, Image } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Input } from '../../components/ui/input';
+import { Plus, Wrench, Calendar, AlertTriangle, Pencil, Trash2, Eye, RefreshCw, X, Upload, Image, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { vehiclesAPI } from '../../services/api';
-import { cn } from '../../utils/cn';
 import { localYmd } from '../../utils/localDate';
+import { cx, Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { Field, Input, Textarea, Select, SearchField, FileButton } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { confirm } from '../../security/sx/confirm';
+import { Loading } from '../../montaza/ui';
+import './VehicleFleet.mx.css';
+
+const SERVICE_TYPES = [
+  ['regular', 'Redovan servis'],
+  ['repair', 'Popravka'],
+  ['inspection', 'Pregled'],
+  ['oil_change', 'Menjanje ulja'],
+  ['brake_check', 'Pregled kočnica'],
+  ['other', 'Ostalo']
+];
+
+// Polja vozila (dodavanje i izmena imaju ista polja)
+function VehicleFields({ idp, v, set }) {
+  const on = (key, upper) => (e) => {
+    const value = upper ? e.target.value.toUpperCase() : e.target.value;
+    set(prev => ({ ...prev, [key]: value }));
+  };
+  return (
+    <div className="sx-form">
+      <Field label="Naziv vozila *" htmlFor={`${idp}-name`}>
+        <Input id={`${idp}-name`} type="text" value={v.name} onChange={on('name')} placeholder="Npr. Službeni automobil 1" required />
+      </Field>
+      <Field label="Registarske tablice" htmlFor={`${idp}-plate`}>
+        <Input id={`${idp}-plate`} type="text" value={v.licensePlate} onChange={on('licensePlate', true)} placeholder="BG-123-XY" />
+      </Field>
+      <Field label="Brend" htmlFor={`${idp}-brand`}>
+        <Input id={`${idp}-brand`} type="text" value={v.brand} onChange={on('brand')} placeholder="Volkswagen" />
+      </Field>
+      <Field label="Model" htmlFor={`${idp}-model`}>
+        <Input id={`${idp}-model`} type="text" value={v.model} onChange={on('model')} placeholder="Golf" />
+      </Field>
+      <Field label="Godina proizvodnje" htmlFor={`${idp}-year`}>
+        <Input id={`${idp}-year`} type="number" value={v.year} onChange={on('year')} placeholder="2020" min="1900" max={new Date().getFullYear() + 1} />
+      </Field>
+      <Field label="Kilometraža" htmlFor={`${idp}-mileage`}>
+        <Input id={`${idp}-mileage`} type="number" value={v.mileage} onChange={on('mileage')} placeholder="50000" min="0" />
+      </Field>
+      <Field label="Datum isteka registracije *" htmlFor={`${idp}-registration`}>
+        <Input id={`${idp}-registration`} type="date" value={v.registrationExpiry} onChange={on('registrationExpiry')} required />
+      </Field>
+      <Field label="Zaduženo korisniku" htmlFor={`${idp}-assigned`}>
+        <Input id={`${idp}-assigned`} type="text" value={v.assignedTo} onChange={on('assignedTo')} placeholder="Ime korisnika" />
+      </Field>
+      <Field label="Napomene" htmlFor={`${idp}-notes`} wide>
+        <Textarea id={`${idp}-notes`} value={v.notes} onChange={on('notes')} placeholder="Dodatne informacije o vozilu..." rows={3} />
+      </Field>
+    </div>
+  );
+}
+
+// Polja servisa (dodavanje i izmena): ukupna cena se računa iz delova i rada, a može i ručno
+function ServiceFields({ idp, v, set, total }) {
+  const on = (key) => (e) => {
+    const value = e.target.value;
+    set(prev => ({ ...prev, [key]: value }));
+  };
+  return (
+    <>
+      <div className="sx-fieldset mx-vehicles-first">
+        <div className="sx-form">
+          <Field label="Datum servisa *" htmlFor={`${idp}-date`}>
+            <Input id={`${idp}-date`} type="date" value={v.date} onChange={on('date')} required />
+          </Field>
+          <Field label="Tip servisa" htmlFor={`${idp}-type`}>
+            <Select id={`${idp}-type`} value={v.serviceType} onChange={on('serviceType')}>
+              {SERVICE_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </Select>
+          </Field>
+          <Field label="Kilometraža prilikom servisa" htmlFor={`${idp}-mileage`} wide>
+            <Input id={`${idp}-mileage`} type="number" value={v.mileage} onChange={on('mileage')} placeholder="Trenutna kilometraža" min="0" />
+          </Field>
+        </div>
+      </div>
+
+      <div className="sx-fieldset">
+        <h3 className="sx-fieldset__title">Cene</h3>
+        <div className="mx-vehicles-pair">
+          <Field label="Cena delova (RSD)" htmlFor={`${idp}-parts`}>
+            <Input
+              id={`${idp}-parts`}
+              type="number"
+              value={v.partsPrice}
+              onChange={(e) => {
+                const newPartsPrice = e.target.value;
+                set(prev => ({
+                  ...prev,
+                  partsPrice: newPartsPrice,
+                  price: total(newPartsPrice, prev.laborPrice)
+                }));
+              }}
+              placeholder="0"
+              min="0"
+              step="0.01"
+            />
+          </Field>
+          <Field label="Cena ruku (RSD)" htmlFor={`${idp}-labor`}>
+            <Input
+              id={`${idp}-labor`}
+              type="number"
+              value={v.laborPrice}
+              onChange={(e) => {
+                const newLaborPrice = e.target.value;
+                set(prev => ({
+                  ...prev,
+                  laborPrice: newLaborPrice,
+                  price: total(prev.partsPrice, newLaborPrice)
+                }));
+              }}
+              placeholder="0"
+              min="0"
+              step="0.01"
+            />
+          </Field>
+        </div>
+        <Field label="Ukupna cena (RSD) *" htmlFor={`${idp}-price`} hint="Automatski se računa ali možete ručno izmeniti">
+          <Input id={`${idp}-price`} type="number" value={v.price} onChange={on('price')} placeholder="15000" min="0" step="0.01" required className="mx-strong" />
+        </Field>
+      </div>
+
+      <div className="sx-fieldset">
+        <Field label="Komentar" htmlFor={`${idp}-comment`}>
+          <Textarea id={`${idp}-comment`} value={v.comment} onChange={on('comment')} placeholder="Opis servisa, zamenjena dela, napomene..." rows={3} />
+        </Field>
+      </div>
+    </>
+  );
+}
 
 const VehicleFleet = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -336,7 +464,7 @@ const VehicleFleet = () => {
 
   // Delete invoice image
   const handleDeleteInvoice = async (serviceId) => {
-    if (!window.confirm('Da li ste sigurni da želite da obrišete sliku fakture?')) {
+    if (!(await confirm({ title: 'Da li ste sigurni da želite da obrišete sliku fakture?', tone: 'danger', confirmLabel: 'Obriši' }))) {
       return;
     }
 
@@ -364,7 +492,7 @@ const VehicleFleet = () => {
   };
 
   const handleDeleteVehicle = async (vehicleId) => {
-    if (!window.confirm('Da li ste sigurni da želite da obrišete ovo vozilo?')) {
+    if (!(await confirm({ title: 'Da li ste sigurni da želite da obrišete ovo vozilo?', tone: 'danger', confirmLabel: 'Obriši' }))) {
       return;
     }
 
@@ -380,30 +508,13 @@ const VehicleFleet = () => {
   };
 
   const getRegistrationStatusBadge = (status, daysUntilExpiry) => {
-    const baseClasses = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
-    
     switch (status) {
       case 'expired':
-        return (
-          <span className={cn(baseClasses, "bg-red-50 text-red-700 ring-1 ring-red-600/20")}>
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Istekla ({Math.abs(daysUntilExpiry)} dana)
-          </span>
-        );
+        return <Sign tone="bad">Istekla ({Math.abs(daysUntilExpiry)} dana)</Sign>;
       case 'expiring_soon':
-        return (
-          <span className={cn(baseClasses, "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-600/20")}>
-            <Calendar className="w-3 h-3 mr-1" />
-            Ističe za {daysUntilExpiry} dana
-          </span>
-        );
+        return <Sign tone="warn">Ističe za {daysUntilExpiry} dana</Sign>;
       case 'valid':
-        return (
-          <span className={cn(baseClasses, "bg-green-50 text-green-700 ring-1 ring-green-600/20")}>
-            <Car className="w-3 h-3 mr-1" />
-            Važeća ({daysUntilExpiry} dana)
-          </span>
-        );
+        return <Sign tone="ok">Važeća ({daysUntilExpiry} dana)</Sign>;
       default:
         return null;
     }
@@ -517,7 +628,7 @@ const VehicleFleet = () => {
   };
 
   const handleDeleteService = async (serviceId) => {
-    if (!window.confirm('Da li ste sigurni da želite da obrišete ovaj servis?')) {
+    if (!(await confirm({ title: 'Da li ste sigurni da želite da obrišete ovaj servis?', tone: 'danger', confirmLabel: 'Obriši' }))) {
       return;
     }
 
@@ -704,1366 +815,485 @@ const VehicleFleet = () => {
     }).format(amount);
   };
 
-  if (loading && vehicles.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-3 text-slate-600">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-sm font-medium">Učitavanje vozila...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Zatvaranje prozora (isto kao X i Otkaži ranije)
+  const closeAddService = () => {
+    setShowAddServiceModal(false);
+    setSelectedVehicle(null);
+    resetInvoiceUpload();
+  };
+  const closeServiceHistory = () => {
+    setShowServiceHistoryModal(false);
+    setSelectedVehicle(null);
+    setVehicleServices([]);
+  };
+  const closeEditRegistration = () => {
+    setShowEditRegistrationModal(false);
+    setSelectedVehicle(null);
+    setNewRegistrationDate('');
+  };
+  const closeEditService = () => {
+    setShowEditServiceModal(false);
+    setSelectedService(null);
+    setEditService({
+      date: '',
+      partsPrice: '',
+      laborPrice: '',
+      price: '',
+      comment: '',
+      serviceType: 'regular',
+      mileage: ''
+    });
+  };
+  const closeEditVehicle = () => {
+    setShowEditVehicleModal(false);
+    setSelectedVehicle(null);
+    setEditVehicle({
+      name: '',
+      licensePlate: '',
+      brand: '',
+      model: '',
+      year: '',
+      registrationExpiry: '',
+      insuranceExpiry: '',
+      inspectionExpiry: '',
+      mileage: '',
+      assignedTo: '',
+      notes: ''
+    });
+  };
+  const closeImageModal = () => {
+    setShowImageModal(false);
+    setSelectedImage(null);
+  };
+
+  const visibleWarnings = getVisibleWarnings();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <Car className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Vozni park</h1>
-              <p className="text-slate-600 mt-1">Upravljanje vozilima, registracijama i servisima</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                fetchVehicles(pagination.currentPage);
-                fetchStats();
-              }}
-              disabled={loading}
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              Osveži
-            </Button>
-            <Button onClick={() => setShowAddVehicleModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Dodaj vozilo
-            </Button>
-          </div>
-        </div>
+    <div className="sx-page mx-vehicles" data-testid="page-vehicles">
+      <PageHead
+        eyebrow="Montaža · Vozni park"
+        title="Vozni park"
+        lead="Upravljanje vozilima, registracijama i servisima"
+        actions={<>
+          <Btn
+            icon={RefreshCw}
+            onClick={() => {
+              fetchVehicles(pagination.currentPage);
+              fetchStats();
+            }}
+            busy={loading}
+          >
+            Osveži
+          </Btn>
+          <Btn variant="primary" icon={Plus} onClick={() => setShowAddVehicleModal(true)}>Dodaj vozilo</Btn>
+        </>}
+      />
+
+      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+
+      <div className="sx-stats">
+        <Stat label="Ukupno vozila" value={stats.totalVehicles} />
+        <Stat label="Aktivna vozila" value={stats.activeVehicles} />
+        <Stat label="Registracije ističu" value={stats.expiringRegistrations} tone={stats.expiringRegistrations > 0 ? 'warn' : null} />
+        <Stat label="Troškovi servisa" value={formatCurrency(stats.totalServiceCosts)} />
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ukupno vozila</CardTitle>
-            <Car className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalVehicles}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aktivna vozila</CardTitle>
-            <Car className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.activeVehicles}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Registracije ističu</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.expiringRegistrations}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Troškovi servisa</CardTitle>
-            <Wrench className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.totalServiceCosts)}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Service Warnings */}
-      {getVisibleWarnings().length > 0 && (
-        <div className="mb-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-                <CardTitle className="text-lg">Upozorenja - Servisi vozila</CardTitle>
-              </div>
-              <CardDescription>
-                Automatski detektovana upozorenja za vozila koja zahtevaju pažnju
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {getVisibleWarnings().map(warning => (
-                  <div 
-                    key={warning.id}
-                    className={cn(
-                      "flex items-start justify-between p-4 rounded-lg border-l-4 transition-all",
-                      warning.severity === 'high' ? "bg-red-50 border-l-red-500 border border-red-200" : 
-                      warning.severity === 'medium' ? "bg-amber-50 border-l-amber-500 border border-amber-200" :
-                      "bg-blue-50 border-l-blue-500 border border-blue-200"
-                    )}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h4 className={cn(
-                          "font-semibold text-sm",
-                          warning.severity === 'high' ? "text-red-800" :
-                          warning.severity === 'medium' ? "text-amber-800" :
-                          "text-blue-800"
-                        )}>
-                          {warning.title}
-                        </h4>
-                        <span className={cn(
-                          "px-2 py-1 rounded-full text-xs font-medium",
-                          warning.severity === 'high' ? "bg-red-200 text-red-800" :
-                          warning.severity === 'medium' ? "bg-amber-200 text-amber-800" :
-                          "bg-blue-200 text-blue-800"
-                        )}>
-                          {warning.severity === 'high' ? 'Visoko' :
-                           warning.severity === 'medium' ? 'Srednje' : 'Nisko'}
-                        </span>
-                      </div>
-                      <p className={cn(
-                        "text-sm mb-1",
-                        warning.severity === 'high' ? "text-red-700" :
-                        warning.severity === 'medium' ? "text-amber-700" :
-                        "text-blue-700"
-                      )}>
-                        {warning.message}
-                      </p>
-                      <p className={cn(
-                        "text-xs",
-                        warning.severity === 'high' ? "text-red-600" :
-                        warning.severity === 'medium' ? "text-amber-600" :
-                        "text-blue-600"
-                      )}>
-                        {warning.details}
-                      </p>
+      {visibleWarnings.length > 0 && (
+        <Panel
+          tone="warn"
+          title="Upozorenja - Servisi vozila"
+          sub="Automatski detektovana upozorenja za vozila koja zahtevaju pažnju"
+        >
+          <div className="sx-list">
+            {visibleWarnings.map(warning => {
+              const [tone, level] = warning.severity === 'high' ? ['bad', 'Visoko']
+                : warning.severity === 'medium' ? ['warn', 'Srednje'] : ['info', 'Nisko'];
+              return (
+                <div key={warning.id} className="sx-item">
+                  <span className={cx('sx-item__icon', tone !== 'info' && `is-${tone}`)}>
+                    <AlertTriangle size={17} strokeWidth={1.9} aria-hidden="true" />
+                  </span>
+                  <div className="sx-item__main">
+                    <div className="mx-inline">
+                      <b>{warning.title}</b>
+                      <span className={`sx-tag is-${tone}`}>{level}</span>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleShowServiceHistory(vehicles.find(v => v._id === warning.vehicleId))}
-                        className="text-xs"
-                        title="Prikaži servise vozila"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => dismissWarning(warning.id)}
-                        className={cn(
-                          "text-xs",
-                          warning.severity === 'high' ? "text-red-600 hover:text-red-800" :
-                          warning.severity === 'medium' ? "text-amber-600 hover:text-amber-800" :
-                          "text-blue-600 hover:text-blue-800"
-                        )}
-                        title="Sakrij upozorenje"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <span>{warning.message}</span>
+                    <span>{warning.details}</span>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <div className="sx-item__side">
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      icon={Eye}
+                      onClick={() => handleShowServiceHistory(vehicles.find(v => v._id === warning.vehicleId))}
+                      title="Prikaži servise vozila"
+                      aria-label="Prikaži servise vozila"
+                    />
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      icon={X}
+                      onClick={() => dismissWarning(warning.id)}
+                      title="Sakrij upozorenje"
+                      aria-label="Sakrij upozorenje"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
       )}
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between space-x-4">
-            <div className="flex items-center space-x-4 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Pretraži po nazivu, registraciji, brendu..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setPagination(prev => ({ ...prev, currentPage: 1 }));
-                  }}
-                  className="pl-10"
-                />
-              </div>
-              
-              <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPagination(prev => ({ ...prev, currentPage: 1 }));
-                  }}
-                  className="h-9 px-3 pr-8 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
-                >
-                  <option value="all">Svi statusi</option>
-                  <option value="active">Aktivna</option>
-                  <option value="inactive">Neaktivna</option>
-                  <option value="maintenance">U servisu</option>
-                  <option value="sold">Prodana</option>
-                </select>
-                <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      <Toolbar>
+        <SearchField
+          value={searchTerm}
+          onChange={(value) => {
+            setSearchTerm(value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+          }}
+          placeholder="Pretraži po nazivu, registraciji, brendu..."
+        />
+        <Select
+          size="sm"
+          aria-label="Status vozila"
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+          }}
+        >
+          <option value="all">Svi statusi</option>
+          <option value="active">Aktivna</option>
+          <option value="inactive">Neaktivna</option>
+          <option value="maintenance">U servisu</option>
+          <option value="sold">Prodana</option>
+        </Select>
+      </Toolbar>
 
-      {/* Vehicles Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista vozila</CardTitle>
-          <CardDescription>
-            Prikazano {vehicles.length} od {pagination.totalCount} vozila
-            {pagination.totalPages > 1 && ` (strana ${pagination.currentPage} od ${pagination.totalPages})`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vozilo</TableHead>
-                <TableHead>Registracija</TableHead>
-                <TableHead>Status registracije</TableHead>
-                <TableHead>Poslednji servis</TableHead>
-                <TableHead>Ukupni troškovi</TableHead>
-                <TableHead>Zaduženo</TableHead>
-                <TableHead className="text-right">Akcije</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredVehicles.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan="7" className="text-center py-12">
-                    <div className="flex flex-col items-center space-y-2">
-                      <Car className="h-12 w-12 text-slate-300" />
-                      <p className="text-sm font-medium text-slate-500">Nema vozila za prikaz</p>
-                      <p className="text-xs text-slate-400">Dodajte novo vozilo ili promenite filtere</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredVehicles.map((vehicle) => (
-                  <TableRow key={vehicle._id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{vehicle.name}</span>
+      <Panel
+        pad={false}
+        title="Lista vozila"
+        sub={`Prikazano ${vehicles.length} od ${pagination.totalCount} vozila${pagination.totalPages > 1 ? ` (strana ${pagination.currentPage} od ${pagination.totalPages})` : ''}`}
+      >
+        {loading && vehicles.length === 0 ? (
+          <Loading text="Učitavanje vozila..." />
+        ) : filteredVehicles.length === 0 ? (
+          <div className="sx-empty-block">
+            <b>Nema vozila za prikaz</b>
+            <span>Dodajte novo vozilo ili promenite filtere</span>
+          </div>
+        ) : (
+          <div className="sx-tablewrap">
+            <table className="sx-table" data-testid="vehicles-table">
+              <thead>
+                <tr>
+                  <th>Vozilo</th>
+                  <th>Registracija</th>
+                  <th>Status registracije</th>
+                  <th>Poslednji servis</th>
+                  <th className="is-num">Ukupni troškovi</th>
+                  <th>Zaduženo</th>
+                  <th className="is-end">Akcije</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredVehicles.map((vehicle, index) => (
+                  <tr key={vehicle._id} style={{ '--i': index }}>
+                    <td className="is-head">
+                      <div className="sx-cell">
+                        <b>{vehicle.name}</b>
                         {vehicle.brand && vehicle.model && (
-                          <span className="text-sm text-muted-foreground">
+                          <span>
                             {vehicle.brand} {vehicle.model}
                             {vehicle.year && ` (${vehicle.year})`}
                           </span>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-mono font-medium">{vehicle.licensePlate || 'N/A'}</span>
-                        <span className="text-sm text-muted-foreground">
-                          Ističe: {formatDate(vehicle.registrationExpiry)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td data-label="Registracija">
+                      <span className="sx-datecell">
+                        <span className="sx-mono mx-strong">{vehicle.licensePlate || 'N/A'}</span>
+                        <small>Ističe: {formatDate(vehicle.registrationExpiry)}</small>
+                      </span>
+                    </td>
+                    <td data-label="Status registracije">
                       {getRegistrationStatusBadge(vehicle.registrationStatus, vehicle.daysUntilRegistrationExpiry)}
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td data-label="Poslednji servis">
                       {vehicle.latestService ? (
-                        <div className="flex flex-col">
-                          <span className="text-sm">{formatDate(vehicle.latestService.date)}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatCurrency(vehicle.latestService.price)}
-                          </span>
-                        </div>
+                        <span className="sx-datecell">
+                          <span>{formatDate(vehicle.latestService.date)}</span>
+                          <small>{formatCurrency(vehicle.latestService.price)}</small>
+                        </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Nema servisa</span>
+                        <span className="sx-faint">Nema servisa</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">{formatCurrency(vehicle.totalServiceCost)}</span>
-                    </TableCell>
-                    <TableCell>
-                      {vehicle.assignedTo ? (
-                        <span className="text-sm">{vehicle.assignedTo}</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Nezaduženo</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        <Button
-                          variant="ghost"
+                    </td>
+                    <td data-label="Ukupni troškovi" className="is-num">{formatCurrency(vehicle.totalServiceCost)}</td>
+                    <td data-label="Zaduženo">
+                      {vehicle.assignedTo ? vehicle.assignedTo : <span className="sx-faint">Nezaduženo</span>}
+                    </td>
+                    <td className="is-actions is-end">
+                      <div className="sx-rowacts">
+                        <Btn size="sm" variant="ghost" icon={Eye} onClick={() => handleShowServiceHistory(vehicle)} title="Prikaži istoriju servisa" aria-label="Prikaži istoriju servisa" />
+                        <Btn size="sm" variant="ghost" icon={Pencil} onClick={() => handleEditVehicle(vehicle)} title="Izmeni informacije o vozilu" aria-label="Izmeni informacije o vozilu" />
+                        <Btn size="sm" variant="ghost" icon={Calendar} onClick={() => handleEditRegistration(vehicle)} title="Izmeni datum registracije" aria-label="Izmeni datum registracije" />
+                        <Btn
                           size="sm"
-                          onClick={() => handleShowServiceHistory(vehicle)}
-                          title="Prikaži istoriju servisa"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditVehicle(vehicle)}
-                          title="Izmeni informacije o vozilu"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditRegistration(vehicle)}
-                          title="Izmeni datum registracije"
-                        >
-                          <Calendar className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                          icon={Wrench}
                           onClick={() => {
                             setSelectedVehicle(vehicle);
                             setShowAddServiceModal(true);
                           }}
                           title="Dodaj servis"
-                        >
-                          <Wrench className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteVehicle(vehicle._id)}
-                          title="Obriši vozilo"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          aria-label="Dodaj servis"
+                        />
+                        <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteVehicle(vehicle._id)} title="Obriši vozilo" aria-label="Obriši vozilo" />
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-2 py-4">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">
-                  Strana {pagination.currentPage} od {pagination.totalPages}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchVehicles(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPrevPage || loading}
-                >
-                  Prethodna
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchVehicles(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNextPage || loading}
-                >
-                  Sledeća
-                </Button>
+        {pagination.totalPages > 1 && (
+          <nav className="mx-pager" aria-label="Stranice">
+            <span className="mx-pager__text">Strana {pagination.currentPage} od {pagination.totalPages}</span>
+            <span className="mx-pager__btns">
+              <Btn size="sm" icon={ChevronLeft} onClick={() => fetchVehicles(pagination.currentPage - 1)} disabled={!pagination.hasPrevPage || loading}>Prethodna</Btn>
+              <Btn size="sm" iconRight={ChevronRight} onClick={() => fetchVehicles(pagination.currentPage + 1)} disabled={!pagination.hasNextPage || loading}>Sledeća</Btn>
+            </span>
+          </nav>
+        )}
+      </Panel>
+
+      {/* Dodavanje vozila */}
+      {showAddVehicleModal && (
+        <Dialog
+          onClose={() => setShowAddVehicleModal(false)}
+          title="Dodaj novo vozilo"
+          size="lg"
+          testId="vehicle-add-dialog"
+          footer={<>
+            <Btn variant="ghost" onClick={() => setShowAddVehicleModal(false)}>Otkaži</Btn>
+            <Btn type="submit" form="vehicle-add-form" variant="primary">Dodaj vozilo</Btn>
+          </>}
+        >
+          <form id="vehicle-add-form" onSubmit={handleAddVehicle}>
+            <VehicleFields idp="vehicle-add" v={newVehicle} set={setNewVehicle} />
+          </form>
+        </Dialog>
+      )}
+
+      {/* Dodavanje servisa */}
+      {showAddServiceModal && selectedVehicle && (
+        <Dialog
+          onClose={closeAddService}
+          title={`Dodaj servis - ${selectedVehicle.name}`}
+          size="md"
+          testId="service-add-dialog"
+          footer={<>
+            <Btn variant="ghost" onClick={closeAddService}>Otkaži</Btn>
+            <Btn type="submit" form="service-add-form" variant="primary" disabled={uploadingInvoice}>
+              {uploadingInvoice ? 'Upload u toku...' : 'Dodaj servis'}
+            </Btn>
+          </>}
+        >
+          <form id="service-add-form" onSubmit={handleAddService}>
+            <ServiceFields idp="service-add" v={newService} set={setNewService} total={calculateTotalPrice} />
+            <div className="sx-fieldset">
+              <Field label="Slika fakture">
+                <div className="mx-inline">
+                  <FileButton accept="image/*" icon={Upload} onFile={(file) => handleInvoiceFileChange({ target: { files: [file] } })}>
+                    Izaberi sliku
+                  </FileButton>
+                  {invoicePreview && (
+                    <Btn size="sm" icon={X} onClick={resetInvoiceUpload} title="Ukloni sliku" aria-label="Ukloni sliku" />
+                  )}
+                </div>
+                {invoicePreview && (
+                  <img src={invoicePreview} alt="Pregled fakture" className="mx-vehicles-preview" />
+                )}
+              </Field>
+            </div>
+          </form>
+        </Dialog>
+      )}
+
+      {/* Istorija servisa */}
+      {showServiceHistoryModal && selectedVehicle && (
+        <Dialog
+          onClose={closeServiceHistory}
+          size="xl"
+          title={`Istorija servisa - ${selectedVehicle.name}`}
+          testId="service-history"
+        >
+          {loadingServices ? (
+            <Loading text="Učitavanje servisa..." />
+          ) : vehicleServices.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema servisa za prikaz</b>
+              <span>Dodajte prvi servis za ovo vozilo</span>
+            </div>
+          ) : (
+            <div className="sx-tablewrap mx-vehicles-history">
+              <div className="mx-vehicles-history__box">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Datum</th>
+                      <th>Tip servisa</th>
+                      <th>Cene</th>
+                      <th>Kilometraža</th>
+                      <th>Komentar</th>
+                      <th>Faktura</th>
+                      <th className="is-end">Akcije</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vehicleServices.map((service, index) => (
+                      <tr key={service._id} style={{ '--i': index }}>
+                        <td className="is-head"><b className="mx-strong sx-nowrap">{formatDate(service.date)}</b></td>
+                        <td data-label="Tip servisa">
+                          <span className="capitalize">{service.serviceType === 'regular' ? 'Redovan servis' :
+                            service.serviceType === 'repair' ? 'Popravka' :
+                            service.serviceType === 'inspection' ? 'Pregled' :
+                            service.serviceType === 'oil_change' ? 'Menjanje ulja' :
+                            service.serviceType === 'brake_check' ? 'Pregled kočnica' :
+                            service.serviceType}</span>
+                        </td>
+                        <td data-label="Cene">
+                          <div className="sx-cell">
+                            <b>{formatCurrency(service.price)}</b>
+                            {(service.partsPrice > 0 || service.laborPrice > 0) && (
+                              <span>
+                                {service.partsPrice > 0 && <span className="mx-vehicles-line">Delovi: {formatCurrency(service.partsPrice)}</span>}
+                                {service.laborPrice > 0 && <span className="mx-vehicles-line">Ruke: {formatCurrency(service.laborPrice)}</span>}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td data-label="Kilometraža">
+                          {service.mileage ? (
+                            <span className="sx-nowrap">{service.mileage.toLocaleString()} km</span>
+                          ) : (
+                            <span className="sx-faint">N/A</span>
+                          )}
+                        </td>
+                        <td data-label="Komentar" className="is-wide">
+                          <span className="mx-vehicles-clip" title={service.comment}>
+                            {service.comment || 'Nema komentara'}
+                          </span>
+                        </td>
+                        <td data-label="Faktura">
+                          {service.invoiceImage ? (
+                            <div className="sx-rowacts">
+                              <Btn size="sm" variant="ghost" icon={Image} onClick={() => openImageModal(service.invoiceImage)} title="Prikaži fakturu" aria-label="Prikaži fakturu" />
+                              <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteInvoice(service._id)} title="Obriši fakturu" aria-label="Obriši fakturu" />
+                            </div>
+                          ) : (
+                            <span className="sx-faint">-</span>
+                          )}
+                        </td>
+                        <td className="is-actions is-end">
+                          <div className="sx-rowacts">
+                            <Btn size="sm" variant="ghost" icon={Pencil} onClick={() => handleEditService(service)} title="Izmeni servis" aria-label="Izmeni servis" />
+                            <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteService(service._id)} title="Obriši servis" aria-label="Obriši servis" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Add Vehicle Modal */}
-      {showAddVehicleModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">Dodaj novo vozilo</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddVehicleModal(false)}
-              >
-                ✕
-              </Button>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleAddVehicle} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Naziv vozila *
-                    </label>
-                    <Input
-                      type="text"
-                      value={newVehicle.name}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Npr. Službeni automobil 1"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Registarske tablice
-                    </label>
-                    <Input
-                      type="text"
-                      value={newVehicle.licensePlate}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, licensePlate: e.target.value.toUpperCase() }))}
-                      placeholder="BG-123-XY"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Brend
-                    </label>
-                    <Input
-                      type="text"
-                      value={newVehicle.brand}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Volkswagen"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Model
-                    </label>
-                    <Input
-                      type="text"
-                      value={newVehicle.model}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, model: e.target.value }))}
-                      placeholder="Golf"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Godina proizvodnje
-                    </label>
-                    <Input
-                      type="number"
-                      value={newVehicle.year}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, year: e.target.value }))}
-                      placeholder="2020"
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Kilometraža
-                    </label>
-                    <Input
-                      type="number"
-                      value={newVehicle.mileage}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, mileage: e.target.value }))}
-                      placeholder="50000"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Datum isteka registracije *
-                    </label>
-                    <Input
-                      type="date"
-                      value={newVehicle.registrationExpiry}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, registrationExpiry: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Zaduženo korisniku
-                    </label>
-                    <Input
-                      type="text"
-                      value={newVehicle.assignedTo}
-                      onChange={(e) => setNewVehicle(prev => ({ ...prev, assignedTo: e.target.value }))}
-                      placeholder="Ime korisnika"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Napomene
-                  </label>
-                  <textarea
-                    value={newVehicle.notes}
-                    onChange={(e) => setNewVehicle(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Dodatne informacije o vozilu..."
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    rows="3"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button 
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowAddVehicleModal(false)}
-                  >
-                    Otkaži
-                  </Button>
-                  <Button type="submit">
-                    Dodaj vozilo
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        </Dialog>
       )}
 
-      {/* Add Service Modal */}
-      {showAddServiceModal && selectedVehicle && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">
-                Dodaj servis - {selectedVehicle.name}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowAddServiceModal(false);
-                  setSelectedVehicle(null);
-                  resetInvoiceUpload();
-                }}
-              >
-                ✕
-              </Button>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleAddService} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Datum servisa *
-                  </label>
-                  <Input
-                    type="date"
-                    value={newService.date}
-                    onChange={(e) => setNewService(prev => ({ ...prev, date: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Tip servisa
-                  </label>
-                  <select
-                    value={newService.serviceType}
-                    onChange={(e) => setNewService(prev => ({ ...prev, serviceType: e.target.value }))}
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                  >
-                    <option value="regular">Redovan servis</option>
-                    <option value="repair">Popravka</option>
-                    <option value="inspection">Pregled</option>
-                    <option value="oil_change">Menjanje ulja</option>
-                    <option value="brake_check">Pregled kočnica</option>
-                    <option value="other">Ostalo</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Kilometraža prilikom servisa
-                  </label>
-                  <Input
-                    type="number"
-                    value={newService.mileage}
-                    onChange={(e) => setNewService(prev => ({ ...prev, mileage: e.target.value }))}
-                    placeholder="Trenutna kilometraža"
-                    min="0"
-                  />
-                </div>
-
-                {/* Price Section */}
-                <div className="border-t border-slate-200 pt-4 mt-4">
-                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Cene</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Cena delova (RSD)
-                      </label>
-                      <Input
-                        type="number"
-                        value={newService.partsPrice}
-                        onChange={(e) => {
-                          const newPartsPrice = e.target.value;
-                          setNewService(prev => ({
-                            ...prev,
-                            partsPrice: newPartsPrice,
-                            price: calculateTotalPrice(newPartsPrice, prev.laborPrice)
-                          }));
-                        }}
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Cena ruku (RSD)
-                      </label>
-                      <Input
-                        type="number"
-                        value={newService.laborPrice}
-                        onChange={(e) => {
-                          const newLaborPrice = e.target.value;
-                          setNewService(prev => ({
-                            ...prev,
-                            laborPrice: newLaborPrice,
-                            price: calculateTotalPrice(prev.partsPrice, newLaborPrice)
-                          }));
-                        }}
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Ukupna cena (RSD) *
-                    </label>
-                    <Input
-                      type="number"
-                      value={newService.price}
-                      onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder="15000"
-                      min="0"
-                      step="0.01"
-                      required
-                      className="font-semibold"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      Automatski se računa ali možete ručno izmeniti
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Komentar
-                  </label>
-                  <textarea
-                    value={newService.comment}
-                    onChange={(e) => setNewService(prev => ({ ...prev, comment: e.target.value }))}
-                    placeholder="Opis servisa, zamenjena dela, napomene..."
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    rows="3"
-                  />
-                </div>
-
-                {/* Invoice Image Upload */}
-                <div className="border-t border-slate-200 pt-4 mt-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Slika fakture
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="file"
-                      ref={invoiceInputRef}
-                      accept="image/*"
-                      onChange={handleInvoiceFileChange}
-                      className="hidden"
-                      id="invoice-upload"
-                    />
-                    <label
-                      htmlFor="invoice-upload"
-                      className="flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer transition-colors"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Izaberi sliku
-                    </label>
-                    {invoicePreview && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={resetInvoiceUpload}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {invoicePreview && (
-                    <div className="mt-3">
-                      <img
-                        src={invoicePreview}
-                        alt="Pregled fakture"
-                        className="max-h-40 rounded-lg border border-slate-200"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddServiceModal(false);
-                      setSelectedVehicle(null);
-                      resetInvoiceUpload();
-                    }}
-                  >
-                    Otkaži
-                  </Button>
-                  <Button type="submit" disabled={uploadingInvoice}>
-                    {uploadingInvoice ? 'Upload u toku...' : 'Dodaj servis'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Service History Modal */}
-      {showServiceHistoryModal && selectedVehicle && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">
-                Istorija servisa - {selectedVehicle.name}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowServiceHistoryModal(false);
-                  setSelectedVehicle(null);
-                  setVehicleServices([]);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-6">
-              {loadingServices ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="flex items-center space-x-3 text-slate-600">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="text-sm font-medium">Učitavanje servisa...</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Tip servisa</TableHead>
-                        <TableHead>Cene</TableHead>
-                        <TableHead>Kilometraža</TableHead>
-                        <TableHead>Komentar</TableHead>
-                        <TableHead>Faktura</TableHead>
-                        <TableHead className="text-right">Akcije</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {vehicleServices.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan="7" className="text-center py-12">
-                            <div className="flex flex-col items-center space-y-2">
-                              <Wrench className="h-12 w-12 text-slate-300" />
-                              <p className="text-sm font-medium text-slate-500">Nema servisa za prikaz</p>
-                              <p className="text-xs text-slate-400">Dodajte prvi servis za ovo vozilo</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        vehicleServices.map((service) => (
-                          <TableRow key={service._id}>
-                            <TableCell>
-                              <span className="font-medium">{formatDate(service.date)}</span>
-                            </TableCell>
-                            <TableCell>
-                              <span className="capitalize">{service.serviceType === 'regular' ? 'Redovan servis' :
-                                service.serviceType === 'repair' ? 'Popravka' :
-                                service.serviceType === 'inspection' ? 'Pregled' :
-                                service.serviceType === 'oil_change' ? 'Menjanje ulja' :
-                                service.serviceType === 'brake_check' ? 'Pregled kočnica' :
-                                service.serviceType}</span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-slate-900">{formatCurrency(service.price)}</span>
-                                {(service.partsPrice > 0 || service.laborPrice > 0) && (
-                                  <div className="text-xs text-slate-500 mt-1">
-                                    {service.partsPrice > 0 && <div>Delovi: {formatCurrency(service.partsPrice)}</div>}
-                                    {service.laborPrice > 0 && <div>Ruke: {formatCurrency(service.laborPrice)}</div>}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {service.mileage ? (
-                                <span className="text-sm">{service.mileage.toLocaleString()} km</span>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">N/A</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="max-w-xs">
-                              <span className="text-sm text-slate-600 truncate block" title={service.comment}>
-                                {service.comment || 'Nema komentara'}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {service.invoiceImage ? (
-                                <div className="flex items-center space-x-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openImageModal(service.invoiceImage)}
-                                    title="Prikaži fakturu"
-                                    className="text-blue-600 hover:text-blue-700"
-                                  >
-                                    <Image className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteInvoice(service._id)}
-                                    title="Obriši fakturu"
-                                    className="text-red-500 hover:text-red-600"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditService(service)}
-                                  title="Izmeni servis"
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteService(service._id)}
-                                  title="Obriši servis"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Registration Modal */}
+      {/* Izmena registracije */}
       {showEditRegistrationModal && selectedVehicle && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">
-                Izmeni registraciju - {selectedVehicle.name}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowEditRegistrationModal(false);
-                  setSelectedVehicle(null);
-                  setNewRegistrationDate('');
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleUpdateRegistration} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Trenutni datum isteka registracije
-                  </label>
-                  <div className="p-3 bg-slate-50 rounded-md text-sm text-slate-700">
-                    {formatDate(selectedVehicle.registrationExpiry)}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Novi datum isteka registracije *
-                  </label>
-                  <Input
-                    type="date"
-                    value={newRegistrationDate}
-                    onChange={(e) => setNewRegistrationDate(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button 
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowEditRegistrationModal(false);
-                      setSelectedVehicle(null);
-                      setNewRegistrationDate('');
-                    }}
-                  >
-                    Otkaži
-                  </Button>
-                  <Button type="submit">
-                    Ažuriraj registraciju
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <Dialog
+          onClose={closeEditRegistration}
+          title={`Izmeni registraciju - ${selectedVehicle.name}`}
+          size="sm"
+          testId="registration-dialog"
+          footer={<>
+            <Btn variant="ghost" onClick={closeEditRegistration}>Otkaži</Btn>
+            <Btn type="submit" form="registration-form" variant="primary">Ažuriraj registraciju</Btn>
+          </>}
+        >
+          <form id="registration-form" onSubmit={handleUpdateRegistration}>
+            <Field label="Trenutni datum isteka registracije">
+              <div className="sx-cred sx-mono">{formatDate(selectedVehicle.registrationExpiry)}</div>
+            </Field>
+            <Field label="Novi datum isteka registracije *" htmlFor="registration-date">
+              <Input
+                id="registration-date"
+                type="date"
+                value={newRegistrationDate}
+                onChange={(e) => setNewRegistrationDate(e.target.value)}
+                required
+              />
+            </Field>
+          </form>
+        </Dialog>
       )}
 
-      {/* Edit Service Modal */}
+      {/* Izmena servisa */}
       {showEditServiceModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">
-                Izmeni servis
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowEditServiceModal(false);
-                  setSelectedService(null);
-                  setEditService({
-                    date: '',
-                    partsPrice: '',
-                    laborPrice: '',
-                    price: '',
-                    comment: '',
-                    serviceType: 'regular',
-                    mileage: ''
-                  });
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleUpdateService} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Datum servisa *
-                  </label>
-                  <Input
-                    type="date"
-                    value={editService.date}
-                    onChange={(e) => setEditService(prev => ({ ...prev, date: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Tip servisa
-                  </label>
-                  <select
-                    value={editService.serviceType}
-                    onChange={(e) => setEditService(prev => ({ ...prev, serviceType: e.target.value }))}
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                  >
-                    <option value="regular">Redovan servis</option>
-                    <option value="repair">Popravka</option>
-                    <option value="inspection">Pregled</option>
-                    <option value="oil_change">Menjanje ulja</option>
-                    <option value="brake_check">Pregled kočnica</option>
-                    <option value="other">Ostalo</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Kilometraža prilikom servisa
-                  </label>
-                  <Input
-                    type="number"
-                    value={editService.mileage}
-                    onChange={(e) => setEditService(prev => ({ ...prev, mileage: e.target.value }))}
-                    placeholder="Trenutna kilometraža"
-                    min="0"
-                  />
-                </div>
-
-                {/* Price Section */}
-                <div className="border-t border-slate-200 pt-4 mt-4">
-                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Cene</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Cena delova (RSD)
-                      </label>
-                      <Input
-                        type="number"
-                        value={editService.partsPrice}
-                        onChange={(e) => {
-                          const newPartsPrice = e.target.value;
-                          setEditService(prev => ({
-                            ...prev,
-                            partsPrice: newPartsPrice,
-                            price: calculateTotalPrice(newPartsPrice, prev.laborPrice)
-                          }));
-                        }}
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Cena ruku (RSD)
-                      </label>
-                      <Input
-                        type="number"
-                        value={editService.laborPrice}
-                        onChange={(e) => {
-                          const newLaborPrice = e.target.value;
-                          setEditService(prev => ({
-                            ...prev,
-                            laborPrice: newLaborPrice,
-                            price: calculateTotalPrice(prev.partsPrice, newLaborPrice)
-                          }));
-                        }}
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Ukupna cena (RSD) *
-                    </label>
-                    <Input
-                      type="number"
-                      value={editService.price}
-                      onChange={(e) => setEditService(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder="15000"
-                      min="0"
-                      step="0.01"
-                      required
-                      className="font-semibold"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      Automatski se računa ali možete ručno izmeniti
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Komentar
-                  </label>
-                  <textarea
-                    value={editService.comment}
-                    onChange={(e) => setEditService(prev => ({ ...prev, comment: e.target.value }))}
-                    placeholder="Opis servisa, zamenjena dela, napomene..."
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    rows="3"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowEditServiceModal(false);
-                      setSelectedService(null);
-                      setEditService({
-                        date: '',
-                        partsPrice: '',
-                        laborPrice: '',
-                        price: '',
-                        comment: '',
-                        serviceType: 'regular',
-                        mileage: ''
-                      });
-                    }}
-                  >
-                    Otkaži
-                  </Button>
-                  <Button type="submit">
-                    Ažuriraj servis
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <Dialog
+          onClose={closeEditService}
+          title="Izmeni servis"
+          size="md"
+          testId="service-edit-dialog"
+          footer={<>
+            <Btn variant="ghost" onClick={closeEditService}>Otkaži</Btn>
+            <Btn type="submit" form="service-edit-form" variant="primary">Ažuriraj servis</Btn>
+          </>}
+        >
+          <form id="service-edit-form" onSubmit={handleUpdateService}>
+            <ServiceFields idp="service-edit" v={editService} set={setEditService} total={calculateTotalPrice} />
+          </form>
+        </Dialog>
       )}
 
-      {/* Edit Vehicle Modal */}
+      {/* Izmena vozila */}
       {showEditVehicleModal && selectedVehicle && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900">
-                Izmeni vozilo - {selectedVehicle.name}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowEditVehicleModal(false);
-                  setSelectedVehicle(null);
-                  setEditVehicle({
-                    name: '',
-                    licensePlate: '',
-                    brand: '',
-                    model: '',
-                    year: '',
-                    registrationExpiry: '',
-                    insuranceExpiry: '',
-                    inspectionExpiry: '',
-                    mileage: '',
-                    assignedTo: '',
-                    notes: ''
-                  });
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handleUpdateVehicle} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Naziv vozila *
-                    </label>
-                    <Input
-                      type="text"
-                      value={editVehicle.name}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Npr. Službeni automobil 1"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Registarske tablice
-                    </label>
-                    <Input
-                      type="text"
-                      value={editVehicle.licensePlate}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, licensePlate: e.target.value.toUpperCase() }))}
-                      placeholder="BG-123-XY"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Brend
-                    </label>
-                    <Input
-                      type="text"
-                      value={editVehicle.brand}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Volkswagen"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Model
-                    </label>
-                    <Input
-                      type="text"
-                      value={editVehicle.model}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, model: e.target.value }))}
-                      placeholder="Golf"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Godina proizvodnje
-                    </label>
-                    <Input
-                      type="number"
-                      value={editVehicle.year}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, year: e.target.value }))}
-                      placeholder="2020"
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Kilometraža
-                    </label>
-                    <Input
-                      type="number"
-                      value={editVehicle.mileage}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, mileage: e.target.value }))}
-                      placeholder="50000"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Datum isteka registracije *
-                    </label>
-                    <Input
-                      type="date"
-                      value={editVehicle.registrationExpiry}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, registrationExpiry: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Zaduženo korisniku
-                    </label>
-                    <Input
-                      type="text"
-                      value={editVehicle.assignedTo}
-                      onChange={(e) => setEditVehicle(prev => ({ ...prev, assignedTo: e.target.value }))}
-                      placeholder="Ime korisnika"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Napomene
-                  </label>
-                  <textarea
-                    value={editVehicle.notes}
-                    onChange={(e) => setEditVehicle(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Dodatne informacije o vozilu..."
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    rows="3"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <Button 
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowEditVehicleModal(false);
-                      setSelectedVehicle(null);
-                      setEditVehicle({
-                        name: '',
-                        licensePlate: '',
-                        brand: '',
-                        model: '',
-                        year: '',
-                        registrationExpiry: '',
-                        insuranceExpiry: '',
-                        inspectionExpiry: '',
-                        mileage: '',
-                        assignedTo: '',
-                        notes: ''
-                      });
-                    }}
-                  >
-                    Otkaži
-                  </Button>
-                  <Button type="submit">
-                    Ažuriraj vozilo
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <Dialog
+          onClose={closeEditVehicle}
+          title={`Izmeni vozilo - ${selectedVehicle.name}`}
+          size="lg"
+          testId="vehicle-edit-dialog"
+          footer={<>
+            <Btn variant="ghost" onClick={closeEditVehicle}>Otkaži</Btn>
+            <Btn type="submit" form="vehicle-edit-form" variant="primary">Ažuriraj vozilo</Btn>
+          </>}
+        >
+          <form id="vehicle-edit-form" onSubmit={handleUpdateVehicle}>
+            <VehicleFields idp="vehicle-edit" v={editVehicle} set={setEditVehicle} />
+          </form>
+        </Dialog>
       )}
 
-      {/* Image Modal */}
+      {/* Slika fakture */}
       {showImageModal && selectedImage && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-          <div className="relative max-w-4xl max-h-[90vh]">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute -top-10 right-0 text-white hover:bg-white/20"
-              onClick={() => {
-                setShowImageModal(false);
-                setSelectedImage(null);
-              }}
-            >
-              <X className="h-6 w-6" />
-            </Button>
-            <img
-              src={selectedImage}
-              alt="Faktura servisa"
-              className="max-w-full max-h-[85vh] object-contain rounded-lg"
-            />
-            <a
-              href={selectedImage}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Otvori u novom tabu
-            </a>
-          </div>
-        </div>
+        <Dialog
+          onClose={closeImageModal}
+          title="Faktura servisa"
+          size="xl"
+          testId="invoice-dialog"
+          footer={
+            <Btn href={selectedImage} target="_blank" rel="noopener noreferrer" icon={ExternalLink}>Otvori u novom tabu</Btn>
+          }
+        >
+          <img src={selectedImage} alt="Faktura servisa" className="mx-vehicles-invoice" />
+        </Dialog>
       )}
     </div>
   );

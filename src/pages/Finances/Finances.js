@@ -1,17 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSignIcon, SaveIcon, RefreshIcon, CalendarIcon, ChevronDownIcon, CheckIcon, ChevronUpIcon, AlertTriangleIcon, XIcon, SearchIcon, FilterIcon, EyeIcon, TrendingUpIcon, TrendingDownIcon, BarChartIcon, SettingsIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import { Input } from '../../components/ui/input';
+import { BarChart3, Settings, RefreshCw, Save, Check, X, ChevronDown, ChevronUp, AlertTriangle, Pencil, CalendarDays } from 'lucide-react';
 import { DateRangePicker } from '../../components/ui/date-picker';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '../../components/ui/dropdown-menu';
 import { financesAPI } from '../../services/api';
 import { toast } from '../../components/ui/toast';
-import { cn } from '../../lib/utils';
+import { cx, Btn } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Tabs, Stat } from '../../security/sx/layout';
+import { Field, Select, Choice, SearchField } from '../../security/sx/forms';
+import { confirm } from '../../security/sx/confirm';
+import { Pager, ColumnMenu, Loading } from '../../montaza/ui';
+import './Finances.mx.css';
+
+// Kolone tabele transakcija (meni Kolone)
+const COLUMNS = {
+  tisJobId: 'TIS Job ID',
+  municipality: 'Opština',
+  customerStatus: 'Tip usluge',
+  technicians: 'Tehničari',
+  basePrice: 'Osnovna cena',
+  discount: 'Popust',
+  finalPrice: 'Finalna cena',
+  technicianCosts: 'Troškovi tehničara',
+  profit: 'Profit',
+  verifiedAt: 'Datum'
+};
+
+const QUICK_RANGES = [['today', 'Danas'], ['thisWeek', 'Ova nedelja'], ['thisMonth', 'Ovaj mesec'], ['lastMonth', 'Prošli mesec']];
+
+// Iznos sa jedinicom: izgled kao NumberField, ali ostaje type="number" (decimale, isti onChange sa događajem)
+const Money = ({ suffix = 'RSD', className, ...rest }) => (
+  <span className={cx('sx-numfield mx-finances-money', className)}>
+    <input type="number" className="sx-numfield__in" {...rest} />
+    <span className="sx-numfield__suffix">{suffix}</span>
+  </span>
+);
 
 const Finances = () => {
   const [loading, setLoading] = useState(true);
@@ -73,7 +94,6 @@ const Finances = () => {
     profit: true,
     verifiedAt: true
   });
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -207,7 +227,7 @@ const Finances = () => {
       });
 
       // Čuvanje cena na "Po Statusu Naloga" tabu znači da tehničar radi po statusu.
-      // Ako je ranije bio na "plata", moramo i da prebacimo paymentType — inače ostaje
+      // Ako je ranije bio na "plata", moramo i da prebacimo paymentType - inače ostaje
       // na plati i unete cene se ne koriste u obračunu (bug koji je ostavljao tehničare na plati).
       if (selectedTechnician.paymentType !== 'po_statusu') {
         await financesAPI.saveTechnicianPaymentSettings({
@@ -427,7 +447,7 @@ const Finances = () => {
   // Bezbedno za višestruko pokretanje.
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const migrateCustomerStatusKeys = async () => {
-    if (!window.confirm('Ovo će preimenovati stare ključeve cena (HFC/GPON/Radovi bez sufiksa) u nove (sa "sa isporukom materijala"). Nastavi?')) {
+    if (!(await confirm({ title: 'Ovo će preimenovati stare ključeve cena (HFC/GPON/Radovi bez sufiksa) u nove (sa "sa isporukom materijala"). Nastavi?', tone: 'danger', confirmLabel: 'Migriraj' }))) {
       return;
     }
     setBulkActionLoading(true);
@@ -449,7 +469,7 @@ const Finances = () => {
 
   // Pokuša ponovo obračun za sve nerazrešene failed transakcije
   const retryAllFailedTransactions = async () => {
-    if (!window.confirm(`Ovo će pokušati ponovo obračun za sve neuspesne radne naloge (${failedTransactions.length}). Nastavi?`)) {
+    if (!(await confirm({ title: `Ovo će pokušati ponovo obračun za sve neuspesne radne naloge (${failedTransactions.length}). Nastavi?`, tone: 'danger', confirmLabel: 'Obračunaj' }))) {
       return;
     }
     setBulkActionLoading(true);
@@ -594,1208 +614,552 @@ const Finances = () => {
 
   const currentTransactions = transactions;
 
-  // Pagination component
-  const PaginationComponent = () => {
-    if (pagination.totalPages <= 1) return null;
-
-    const getVisiblePages = () => {
-      const current = pagination.currentPage;
-      const total = pagination.totalPages;
-      const delta = 2;
-
-      let pages = [];
-
-      if (current > delta + 1) {
-        pages.push(1);
-        if (current > delta + 2) pages.push('...');
-      }
-
-      for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
-        pages.push(i);
-      }
-
-      if (current < total - delta) {
-        if (current < total - delta - 1) pages.push('...');
-        pages.push(total);
-      }
-
-      return pages;
-    };
-
-    return (
-      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
-        <div className="text-sm text-slate-600">
-          Prikazano {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} od {pagination.totalCount} rezultata
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(1)}
-            disabled={pagination.currentPage === 1}
-          >
-            &laquo;
-          </Button>
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(pagination.currentPage - 1)}
-            disabled={pagination.currentPage === 1}
-          >
-            &lsaquo;
-          </Button>
-
-          {getVisiblePages().map((page, index) => (
-            <Button
-              key={index}
-              type={page === pagination.currentPage ? "primary" : "tertiary"}
-              size="small"
-              onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
-              disabled={page === '...'}
-              className={page === pagination.currentPage ?
-                "!bg-blue-600 !text-white !hover:bg-blue-700" :
-                "hover:bg-gray-100"
-              }
-            >
-              {page}
-            </Button>
-          ))}
-
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(pagination.currentPage + 1)}
-            disabled={!pagination.hasNextPage}
-          >
-            &rsaquo;
-          </Button>
-          <Button
-            type="tertiary"
-            size="small"
-            onClick={() => handlePageChange(pagination.totalPages)}
-            disabled={pagination.currentPage === pagination.totalPages}
-          >
-            &raquo;
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-600 font-medium">Učitavanje finansijskih podataka...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const validFailedTransactions = (failedTransactions || []).filter(
+    failed => failed.workOrderId && failed.workOrderId._id
+  );
+  const hasTechStats = !!(financialReports.technicianStats && financialReports.technicianStats.length > 0);
+  const refreshButton = <Btn size="sm" icon={RefreshCw} onClick={fetchReportsWithFilter} busy={transactionsLoading}>Osveži</Btn>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/50">
-            <DollarSignIcon size={28} className="text-emerald-600" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Finansije</h1>
-            <p className="text-slate-600 mt-1">Upravljanje cenama, popustima i finansijskim izveštajima</p>
-          </div>
-        </div>
-      </div>
+    <div className="sx-page mx-finances" data-testid="page-finances">
+      <PageHead
+        eyebrow="Montaža · Finansije"
+        title="Finansije"
+        lead="Upravljanje cenama, popustima i finansijskim izveštajima"
+      />
 
-      {/* Tab Navigation */}
-      <div className="mb-6">
-        <div className="border-b border-slate-200">
-          <nav className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={cn(
-                'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center space-x-2',
-                activeTab === 'overview'
-                  ? 'border-emerald-500 text-emerald-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              )}
-            >
-              <BarChartIcon size={18} />
-              <span>Pregled</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={cn(
-                'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center space-x-2',
-                activeTab === 'settings'
-                  ? 'border-emerald-500 text-emerald-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              )}
-            >
-              <SettingsIcon size={18} />
-              <span>Postavke</span>
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'overview' ? (
+      {loading ? (
+        <Loading rows={6} text="Učitavanje finansijskih podataka..." />
+      ) : (
         <>
-          {/* Dashboard - KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-            {/* Total Revenue Card */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <TrendingUpIcon size={20} className="text-green-600" />
-                </div>
-              </div>
-              <div className="text-sm font-medium text-green-800 mb-1">Ukupan Prihod</div>
-              <div className="text-2xl font-bold text-green-900">
-                {financialReports.summary.totalRevenue.toLocaleString()} RSD
-              </div>
-            </div>
+          <Tabs
+            ariaLabel="Finansije"
+            layoutId="mx-finances-tabs"
+            value={activeTab}
+            onChange={setActiveTab}
+            items={[{ key: 'overview', label: 'Pregled', icon: BarChart3 }, { key: 'settings', label: 'Postavke', icon: Settings }]}
+          />
 
-            {/* Total Payouts Card */}
-            <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border border-red-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <TrendingDownIcon size={20} className="text-red-600" />
-                </div>
-              </div>
-              <div className="text-sm font-medium text-red-800 mb-1">Ukupne Isplate</div>
-              <div className="text-2xl font-bold text-red-900">
-                {financialReports.summary.totalPayouts.toLocaleString()} RSD
-              </div>
-            </div>
-
-            {/* Total Profit Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border border-blue-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <DollarSignIcon size={20} className="text-blue-600" />
-                </div>
-              </div>
-              <div className="text-sm font-medium text-blue-800 mb-1">Ukupan Profit</div>
-              <div className="text-2xl font-bold text-blue-900">
-                {financialReports.summary.totalProfit.toLocaleString()} RSD
-              </div>
-            </div>
-
-            {/* Date Range Picker Card */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center space-x-2 mb-3">
-                <CalendarIcon size={18} className="text-slate-600" />
-                <div className="text-sm font-medium text-slate-700">Period</div>
-              </div>
-              <DateRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateSelect={(date) => setStartDate(date)}
-                onEndDateSelect={(date) => setEndDate(date)}
-                startPlaceholder="Od"
-                endPlaceholder="Do"
-                className="w-full mb-3"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setQuickDateRange('today')}
-                  className="text-xs py-1 px-2 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-                >
-                  Danas
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('thisWeek')}
-                  className="text-xs py-1 px-2 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-                >
-                  Ova nedelja
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('thisMonth')}
-                  className="text-xs py-1 px-2 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-                >
-                  Ovaj mesec
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('lastMonth')}
-                  className="text-xs py-1 px-2 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-                >
-                  Prošli mesec
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Failed Transactions Compact Alert */}
-          {failedTransactions && failedTransactions.length > 0 && (() => {
-            // Filtriranje samo validnih failed transakcija koje imaju workOrderId
-            const validFailedTransactions = failedTransactions.filter(
-              failed => failed.workOrderId && failed.workOrderId._id
-            );
-
-            if (validFailedTransactions.length === 0) return null;
-
-            return (
-              <div className="mb-6">
-                <div className="rounded-lg bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 shadow-sm">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                          <AlertTriangleIcon size={20} className="text-red-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-base font-semibold text-red-900">
-                            Neuspešni finansijski obračuni ({validFailedTransactions.length})
-                          </h3>
-                          <p className="text-sm text-red-700">
-                            Neki radni nalozi nisu mogli biti obračunati zbog nedostajućih podataka
-                          </p>
-                        </div>
-                      </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button
-                        type="secondary"
-                        size="small"
-                        onClick={migrateCustomerStatusKeys}
-                        disabled={bulkActionLoading}
-                      >
-                        {bulkActionLoading ? 'Radi...' : 'Migriraj cene'}
-                      </Button>
-                      <Button
-                        type="primary"
-                        size="small"
-                        onClick={retryAllFailedTransactions}
-                        disabled={bulkActionLoading || validFailedTransactions.length === 0}
-                      >
-                        {bulkActionLoading ? 'Radi...' : `Obračunaj sve ponovo (${validFailedTransactions.length})`}
-                      </Button>
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        onClick={() => setFailedTransactionsExpanded(!failedTransactionsExpanded)}
-                        suffix={failedTransactionsExpanded ? <ChevronUpIcon size={16} /> : <ChevronDownIcon size={16} />}
-                      >
-                        {failedTransactionsExpanded ? 'Sakrij' : 'Prikaži'}
-                      </Button>
-                    </div>
+          {activeTab === 'overview' ? (
+            <>
+              <div className="sx-stats mx-finances-kpis">
+                <Stat label="Ukupan Prihod" value={financialReports.summary.totalRevenue.toLocaleString()} small=" RSD" />
+                <Stat label="Ukupne Isplate" value={financialReports.summary.totalPayouts.toLocaleString()} small=" RSD" />
+                <Stat label="Ukupan Profit" value={financialReports.summary.totalProfit.toLocaleString()} small=" RSD" tone={financialReports.summary.totalProfit < 0 ? 'bad' : null} />
+                <div className="sx-stat mx-finances-period">
+                  <span className="sx-label"><CalendarDays size={14} strokeWidth={1.9} aria-hidden="true" /> Period</span>
+                  <DateRangePicker
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateSelect={(date) => setStartDate(date)}
+                    onEndDateSelect={(date) => setEndDate(date)}
+                    startPlaceholder="Od"
+                    endPlaceholder="Do"
+                  />
+                  <div className="mx-finances-quick">
+                    {QUICK_RANGES.map(([key, label]) => (
+                      <Btn key={key} size="sm" variant="ghost" onClick={() => setQuickDateRange(key)}>{label}</Btn>
+                    ))}
                   </div>
+                </div>
+              </div>
 
-                  {failedTransactionsExpanded && (
-                    <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
-                      {failedTransactions.map((failed) => {
-                        // Provera da li postoji workOrderId
-                        if (!failed.workOrderId || !failed.workOrderId._id) {
-                          return null;
-                        }
+              <div className="sx-stack">
+                {validFailedTransactions.length > 0 && (
+                  <Panel
+                    tone="bad"
+                    pad={false}
+                    title={`Neuspešni finansijski obračuni (${validFailedTransactions.length})`}
+                    sub="Neki radni nalozi nisu mogli biti obračunati zbog nedostajućih podataka"
+                    actions={<>
+                      <Btn size="sm" onClick={migrateCustomerStatusKeys} disabled={bulkActionLoading}>
+                        {bulkActionLoading ? 'Radi...' : 'Migriraj cene'}
+                      </Btn>
+                      <Btn size="sm" variant="primary" onClick={retryAllFailedTransactions} disabled={bulkActionLoading || validFailedTransactions.length === 0}>
+                        {bulkActionLoading ? 'Radi...' : `Obračunaj sve ponovo (${validFailedTransactions.length})`}
+                      </Btn>
+                      <Btn size="sm" variant="ghost" iconRight={failedTransactionsExpanded ? ChevronUp : ChevronDown} onClick={() => setFailedTransactionsExpanded(!failedTransactionsExpanded)}>
+                        {failedTransactionsExpanded ? 'Sakrij' : 'Prikaži'}
+                      </Btn>
+                    </>}
+                  >
+                    {failedTransactionsExpanded && (
+                      <div className="sx-list mx-finances-failed">
+                        {failedTransactions.map((failed) => {
+                          // Provera da li postoji workOrderId
+                          if (!failed.workOrderId || !failed.workOrderId._id) {
+                            return null;
+                          }
+                          const workOrderId = failed.workOrderId._id;
+                          const busy = !!retryLoading[workOrderId];
 
-                        return (
-                          <div
-                            key={failed._id}
-                            className="bg-white/70 p-4 rounded-lg border border-red-100 shadow-sm"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-3 mb-2">
-                                  <span className="font-semibold text-slate-800">
-                                    {failed.workOrderDetails?.tisJobId || 'N/A'}
-                                  </span>
-                                  <span className="text-sm text-slate-600">
-                                    {failed.workOrderDetails?.address || 'N/A'}
-                                  </span>
-                                  <span className="text-xs bg-slate-100 px-2 py-1 rounded">
-                                    {failed.workOrderDetails?.technicianNames?.join(', ') || 'Bez tehničara'}
-                                  </span>
+                          return (
+                            <div key={failed._id} className="sx-item">
+                              <span className="sx-item__icon is-bad"><AlertTriangle size={17} strokeWidth={1.9} aria-hidden="true" /></span>
+                              <div className="sx-item__main">
+                                <div className="mx-inline">
+                                  <b>{failed.workOrderDetails?.tisJobId || 'N/A'}</b>
+                                  <span className="sx-tag">{failed.workOrderDetails?.technicianNames?.join(', ') || 'Bez tehničara'}</span>
                                 </div>
-                                <div className="text-sm text-red-700 mb-2">
-                                  <strong>Problem:</strong> {failed.failureMessage}
-                                </div>
+                                <span>{failed.workOrderDetails?.address || 'N/A'}</span>
+                                <div className="mx-finances-failed__problem"><strong>Problem:</strong> {failed.failureMessage}</div>
                                 {failed.missingFields && failed.missingFields.length > 0 && (
-                                  <div className="text-xs text-slate-600">
+                                  <div className="mx-finances-failed__need">
                                     <strong>Potrebno je:</strong>
-                                    <ul className="list-disc list-inside mt-1 space-y-1">
+                                    <ul>
                                       {failed.missingFields.map((field, index) => (
                                         <li key={index}>{field.description}</li>
                                       ))}
                                     </ul>
                                   </div>
                                 )}
-                                <div className="text-xs text-slate-500 mt-2">
-                                  Pokušaj #{failed.attemptCount} •
-                                  Poslednji pokušaj: {new Date(failed.lastAttemptAt).toLocaleString('sr-RS')}
-                                </div>
+                                <span className="mx-finances-failed__meta">
+                                  Pokušaj #{failed.attemptCount} • Poslednji pokušaj: {new Date(failed.lastAttemptAt).toLocaleString('sr-RS')}
+                                </span>
                               </div>
-                              <div className="flex items-center space-x-2 ml-4">
+                              <div className="sx-item__side">
                                 {failed.failureReason === 'PENDING_DISCOUNT_CONFIRMATION' && failed.pendingDiscountConfirmation ? (
                                   <>
-                                    <Button
-                                      type="primary"
-                                      size="small"
+                                    <Btn
+                                      size="sm"
+                                      variant="primary"
+                                      icon={Check}
+                                      busy={busy}
                                       onClick={() => confirmDiscount(
                                         failed.pendingDiscountConfirmation.municipality,
                                         failed.pendingDiscountConfirmation.suggestedDiscount,
-                                        [failed.workOrderId._id]
+                                        [workOrderId]
                                       )}
-                                      disabled={retryLoading[failed.workOrderId._id]}
-                                      prefix={retryLoading[failed.workOrderId._id] ? (
-                                        <RefreshIcon className="animate-spin" size={14} />
-                                      ) : (
-                                        <CheckIcon size={14} />
-                                      )}
-                                      className="text-xs"
                                     >
                                       Potvrdi {failed.pendingDiscountConfirmation.suggestedDiscount}% popust
-                                    </Button>
-                                    <Button
-                                      type="secondary"
-                                      size="small"
-                                      onClick={() => retryFailedTransaction(failed.workOrderId._id)}
-                                      disabled={retryLoading[failed.workOrderId._id]}
-                                      prefix={retryLoading[failed.workOrderId._id] ? (
-                                        <RefreshIcon className="animate-spin" size={14} />
-                                      ) : (
-                                        <RefreshIcon size={14} />
-                                      )}
-                                      className="text-xs"
-                                    >
-                                      Pokušaj ponovo
-                                    </Button>
-                                    <Button
-                                      type="danger"
-                                      size="small"
-                                      onClick={() => excludeFromFinances(failed.workOrderId._id)}
-                                      prefix={<XIcon size={14} />}
-                                      className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
-                                    >
-                                      Ne računaj
-                                    </Button>
+                                    </Btn>
+                                    <Btn size="sm" icon={RefreshCw} busy={busy} onClick={() => retryFailedTransaction(workOrderId)}>Pokušaj ponovo</Btn>
+                                    <Btn size="sm" variant="danger" icon={X} onClick={() => excludeFromFinances(workOrderId)}>Ne računaj</Btn>
                                   </>
                                 ) : (
                                   <>
-                                    <Button
-                                      type="secondary"
-                                      size="small"
-                                      onClick={() => retryFailedTransaction(failed.workOrderId._id)}
-                                      disabled={retryLoading[failed.workOrderId._id]}
-                                      prefix={retryLoading[failed.workOrderId._id] ? (
-                                        <RefreshIcon className="animate-spin" size={14} />
-                                      ) : (
-                                        <RefreshIcon size={14} />
-                                      )}
-                                      className="text-xs"
-                                    >
-                                      Obračunaj ponovo
-                                    </Button>
-                                    <Button
-                                      type="tertiary"
-                                      size="small"
-                                      onClick={() => dismissFailedTransaction(failed.workOrderId._id)}
-                                      prefix={<XIcon size={14} />}
-                                      className="text-xs"
-                                    >
-                                      Zanemari
-                                    </Button>
-                                    <Button
-                                      type="danger"
-                                      size="small"
-                                      onClick={() => excludeFromFinances(failed.workOrderId._id)}
-                                      prefix={<XIcon size={14} />}
-                                      className="text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
-                                    >
-                                      Ne računaj
-                                    </Button>
+                                    <Btn size="sm" icon={RefreshCw} busy={busy} onClick={() => retryFailedTransaction(workOrderId)}>Obračunaj ponovo</Btn>
+                                    <Btn size="sm" variant="ghost" icon={X} onClick={() => dismissFailedTransaction(workOrderId)}>Zanemari</Btn>
+                                    <Btn size="sm" variant="danger" icon={X} onClick={() => excludeFromFinances(workOrderId)}>Ne računaj</Btn>
                                   </>
                                 )}
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Panel>
+                )}
+
+                <Panel title="Isplate po tehničarima" actions={refreshButton} pad={hasTechStats}>
+                  {hasTechStats ? (
+                    <div className="mx-finances-techs">
+                      {financialReports.technicianStats.map((tech) => {
+                        const isOnSalary = tech.paymentType === 'plata';
+                        const monthlySalary = tech.monthlySalary || 0;
+                        const earnedTowardsSalary = tech.totalEarnings;
+                        const percentageEarned = monthlySalary > 0 ? Math.min((earnedTowardsSalary / monthlySalary) * 100, 100) : 0;
+                        const hasExceededSalary = earnedTowardsSalary >= monthlySalary;
+
+                        return (
+                          <div key={tech.technicianId} className="mx-finances-tech">
+                            <div className="mx-finances-tech__top">
+                              <b title={tech.name}>{tech.name}</b>
+                              {isOnSalary && <span className="sx-tag is-ok">Plata</span>}
+                              <span className="sx-tag mx-right">{tech.workOrdersCount} {tech.workOrdersCount === 1 ? 'nalog' : 'naloga'}</span>
+                            </div>
+                            {isOnSalary ? (
+                              <>
+                                <div className="mx-finances-tech__sum sx-num">
+                                  {earnedTowardsSalary.toLocaleString()} RSD
+                                  <small> / {monthlySalary.toLocaleString()} RSD</small>
+                                </div>
+                                <span className="mx-finances-tech__sub">
+                                  {hasExceededSalary
+                                    ? 'Plata dostignuta - višak ide u profit'
+                                    : `Trenutno dostignuto: ${percentageEarned.toFixed(0)}%`}
+                                </span>
+                                <span className={cx('mx-finances-bar', hasExceededSalary && 'is-full')} aria-hidden="true">
+                                  <i style={{ transform: `scaleX(${percentageEarned / 100})` }} />
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="mx-finances-tech__sum sx-num">{tech.totalEarnings.toLocaleString()} RSD</div>
+                                <span className="mx-finances-tech__sub">
+                                  {/* Tehničar može u periodu imati samo odbitak za reklamaciju (0 naloga) */}
+                                  Prosek: {tech.workOrdersCount > 0
+                                    ? `${Math.round(tech.totalEarnings / tech.workOrdersCount).toLocaleString()} RSD`
+                                    : '-'}
+                                </span>
+                              </>
+                            )}
                           </div>
                         );
                       })}
                     </div>
+                  ) : (
+                    <div className="sx-empty-block">
+                      <b>Nema podataka za izabrani period</b>
+                    </div>
                   )}
-                </div>
-              </div>
-            </div>
-          );
-          })()}
+                </Panel>
 
-          {/* Technician Stats Grid */}
-          <div className="mb-6">
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">Isplate po tehničarima</h3>
-                <Button
-                  type="secondary"
-                  size="small"
-                  onClick={fetchReportsWithFilter}
-                  loading={transactionsLoading}
-                  prefix={<RefreshIcon size={16} />}
-                >
-                  Osveži
-                </Button>
-              </div>
-
-              {financialReports.technicianStats && financialReports.technicianStats.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {financialReports.technicianStats.map((tech) => {
-                    const isOnSalary = tech.paymentType === 'plata';
-                    const monthlySalary = tech.monthlySalary || 0;
-                    const earnedTowardsSalary = tech.totalEarnings;
-                    const percentageEarned = monthlySalary > 0 ? Math.min((earnedTowardsSalary / monthlySalary) * 100, 100) : 0;
-                    const hasExceededSalary = earnedTowardsSalary >= monthlySalary;
-
-                    return (
-                      <div key={tech.technicianId} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium text-slate-900 truncate">{tech.name}</h4>
-                            {isOnSalary && (
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                                Plata
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            {tech.workOrdersCount} {tech.workOrdersCount === 1 ? 'nalog' : 'naloga'}
-                          </span>
-                        </div>
-
-                        {isOnSalary ? (
-                          <>
-                            <div className="text-lg font-bold text-green-700 mb-1">
-                              {earnedTowardsSalary.toLocaleString()} RSD
-                              <span className="text-sm font-normal text-slate-500 ml-1">
-                                / {monthlySalary.toLocaleString()} RSD
-                              </span>
-                            </div>
-                            <div className="text-xs text-slate-600 mb-2">
-                              {hasExceededSalary
-                                ? 'Plata dostignuta - višak ide u profit'
-                                : `Trenutno dostignuto: ${percentageEarned.toFixed(0)}%`
-                              }
-                            </div>
-                            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full transition-all duration-300",
-                                  hasExceededSalary ? "bg-blue-500" : "bg-green-500"
-                                )}
-                                style={{ width: `${percentageEarned}%` }}
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-lg font-bold text-green-700">
-                              {tech.totalEarnings.toLocaleString()} RSD
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {/* Tehničar može u periodu imati samo odbitak za reklamaciju (0 naloga) */}
-                              Prosek: {tech.workOrdersCount > 0
-                                ? `${Math.round(tech.totalEarnings / tech.workOrdersCount).toLocaleString()} RSD`
-                                : '—'}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-slate-500">
-                  <DollarSignIcon size={48} className="mx-auto mb-4 text-slate-300" />
-                  <p>Nema podataka za izabrani period</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Transactions Table */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-            <div className="p-6 border-b border-slate-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">Finansijske transakcije</h3>
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center space-x-4 flex-1">
-                  {/* Search */}
-                  <div className="relative flex-1 max-w-md">
-                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Pretraži po TIS Job ID, opštini, tipu usluge ili tehničaru..."
+                <Panel pad={false} title="Finansijske transakcije">
+                  <div className="mx-finances-filters">
+                    <SearchField
                       value={searchTerm}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
+                      onChange={handleSearchChange}
+                      placeholder="Pretraži po TIS Job ID, opštini, tipu usluge ili tehničaru..."
                     />
-                    {searchTerm && (
-                      <button
-                        onClick={() => handleSearchChange('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        <XIcon size={16} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Technician Filter */}
-                  <div className="relative">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="secondary"
-                          size="medium"
-                          prefix={<FilterIcon size={16} />}
-                          suffix={<ChevronDownIcon size={16} />}
-                        >
-                          {selectedTechnicianFilter ? selectedTechnicianFilter.name : 'Svi tehničari'}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-56 max-h-60 overflow-auto">
-                        <DropdownMenuItem
-                          onClick={() => handleTechnicianFilterChange(null)}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center space-x-2">
-                            {!selectedTechnicianFilter && (
-                              <CheckIcon className="h-4 w-4 text-blue-600" />
-                            )}
-                            <span>Svi tehničari</span>
-                          </div>
-                        </DropdownMenuItem>
-                        {technicians && technicians.length > 0 && technicians.map((technician) => (
-                          <DropdownMenuItem
-                            key={technician._id}
-                            onClick={() => handleTechnicianFilterChange(technician)}
-                            className="cursor-pointer"
-                          >
-                            <div className="flex items-center space-x-2">
-                              {selectedTechnicianFilter?._id === technician._id && (
-                                <CheckIcon className="h-4 w-4 text-blue-600" />
-                              )}
-                              <span>{technician.name}</span>
-                            </div>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  {/* Column Visibility Toggle */}
-                  <div className="relative">
-                    <Button
-                      type="tertiary"
-                      size="medium"
-                      prefix={<EyeIcon size={16} />}
-                      onClick={() => setShowColumnMenu(!showColumnMenu)}
+                    <Select
+                      size="sm"
+                      aria-label="Tehničar"
+                      value={selectedTechnicianFilter ? selectedTechnicianFilter._id : ''}
+                      onChange={(e) => handleTechnicianFilterChange(technicians.find(t => t._id === e.target.value) || null)}
                     >
-                      Kolone
-                    </Button>
-
-                    {showColumnMenu && (
-                      <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-md shadow-md z-50">
-                        <div className="p-1">
-                          <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Prikaži kolone</div>
-                          {Object.entries({
-                            tisJobId: 'TIS Job ID',
-                            municipality: 'Opština',
-                            customerStatus: 'Tip usluge',
-                            technicians: 'Tehničari',
-                            basePrice: 'Osnovna cena',
-                            discount: 'Popust',
-                            finalPrice: 'Finalna cena',
-                            technicianCosts: 'Troškovi tehničara',
-                            profit: 'Profit',
-                            verifiedAt: 'Datum'
-                          }).map(([key, label]) => (
-                            <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={visibleColumns[key]}
-                                onChange={(e) => setVisibleColumns(prev => ({
-                                  ...prev,
-                                  [key]: e.target.checked
-                                }))}
-                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                              />
-                              <span className="text-sm">{label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      <option value="">Svi tehničari</option>
+                      {technicians && technicians.length > 0 && technicians.map((technician) => (
+                        <option key={technician._id} value={technician._id}>{technician.name}</option>
+                      ))}
+                    </Select>
+                    <div className="mx-inline mx-right">
+                      <ColumnMenu
+                        columns={COLUMNS}
+                        visible={visibleColumns}
+                        onChange={(key, checked) => setVisibleColumns(prev => ({ ...prev, [key]: checked }))}
+                      />
+                      {refreshButton}
+                    </div>
                   </div>
 
-                  {/* Refresh Button */}
-                  <Button
-                    type="secondary"
-                    size="medium"
-                    onClick={fetchReportsWithFilter}
-                    loading={transactionsLoading}
-                    prefix={<RefreshIcon size={16} />}
-                  >
-                    Osveži
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {transactionsLoading ? (
-              <div className="flex items-center justify-center p-12">
-                <div className="flex items-center space-x-3 text-slate-600">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  <span className="text-sm font-medium">Učitavanje transakcija...</span>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {visibleColumns.tisJobId && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            TIS Job ID
-                          </th>
-                        )}
-                        {visibleColumns.municipality && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Opština
-                          </th>
-                        )}
-                        {visibleColumns.customerStatus && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Tip usluge
-                          </th>
-                        )}
-                        {visibleColumns.technicians && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Tehničari
-                          </th>
-                        )}
-                        {visibleColumns.basePrice && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Osnovna cena
-                          </th>
-                        )}
-                        {visibleColumns.discount && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Popust
-                          </th>
-                        )}
-                        {visibleColumns.finalPrice && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Finalna cena
-                          </th>
-                        )}
-                        {visibleColumns.technicianCosts && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Troškovi tehničara
-                          </th>
-                        )}
-                        {visibleColumns.profit && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Profit
-                          </th>
-                        )}
-                        {visibleColumns.verifiedAt && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Datum
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
+                  {transactionsLoading ? (
+                    <Loading text="Učitavanje transakcija..." />
+                  ) : (
+                    <>
                       {currentTransactions.length === 0 ? (
-                        <tr>
-                          <td colSpan="10" className="px-6 py-12 text-center text-slate-500">
-                            <div className="flex flex-col items-center space-y-2">
-                              <DollarSignIcon size={48} className="text-slate-300" />
-                              <p className="text-sm font-medium">Nema transakcija za prikazivanje</p>
-                              <p className="text-xs">Promenite filter datuma ili pretragu</p>
-                            </div>
-                          </td>
-                        </tr>
+                        <div className="sx-empty-block">
+                          <b>Nema transakcija za prikazivanje</b>
+                          <span>Promenite filter datuma ili pretragu</span>
+                        </div>
                       ) : (
-                        currentTransactions.map((transaction, index) => (
-                          <tr key={transaction._id} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                            {visibleColumns.tisJobId && (
-                              <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                                {transaction.workOrderId?.tisJobId || transaction.tisJobId || '-'}
-                                {transaction.entryType === 'complaint_deduction' && (
-                                  <span className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-red-700 bg-red-100 px-1.5 py-0.5 rounded w-fit">
-                                    {transaction.deductionKind === 'complaint_order'
-                                      ? 'Reklamacija — ne plaća se'
-                                      : transaction.deductionKind === 'complaint_extra'
-                                        ? `Skinut zbog reklamacije ${transaction.relatedTisJobId || transaction.relatedTisId || ''}`
-                                        : transaction.deductionKind === 'complaint_extra_fallback'
-                                          ? 'Reklamacija — dodatni odbitak'
-                                          : 'Reklamacija — odbitak'}
-                                  </span>
-                                )}
-                                {transaction.entryType === 'complaint_fix' && (
-                                  <span className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded w-fit">
-                                    Ispravka po reklamaciji
-                                  </span>
-                                )}
-                                {transaction.rejectionPenaltyPercent > 0 && (
-                                  <span className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded w-fit">
-                                    Vraćan · minus {transaction.rejectionPenaltyPercent}%
-                                  </span>
-                                )}
-                                {transaction.penaltyAdjustedAt && (
-                                  <span
-                                    className="block mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded w-fit"
-                                    title={`Minus promenio ${transaction.penaltyAdjustedByName || 'superadmin'} ${new Date(transaction.penaltyAdjustedAt).toLocaleString('sr-RS')}`}
-                                  >
-                                    Minus promenjen · {transaction.penaltyPercentOriginal ?? 0}% → {transaction.rejectionPenaltyPercent || 0}%
-                                  </span>
-                                )}
-                              </td>
-                            )}
-                            {visibleColumns.municipality && (
-                              <td className="px-6 py-4 text-sm text-slate-700">
-                                {transaction.municipality}
-                              </td>
-                            )}
-                            {visibleColumns.customerStatus && (
-                              <td className="px-6 py-4 text-sm text-slate-700">
-                                <div className="max-w-xs">
-                                  <div className="font-medium text-slate-900" title={transaction.customerStatus}>
-                                    {getCustomerStatusShortName(transaction.customerStatus)}
-                                  </div>
-                                </div>
-                              </td>
-                            )}
-                            {visibleColumns.technicians && (
-                              <td className="px-6 py-4 text-sm text-slate-700">
-                                <div className="max-w-xs">
-                                  {transaction.technicians && transaction.technicians.length > 0 ? (
-                                    <div className="space-y-1">
-                                      {transaction.technicians.map((tech, techIndex) => (
-                                        <div key={techIndex} className="flex items-center justify-between">
-                                          <span className="font-medium text-slate-900 truncate" title={tech.name || tech.technicianId?.name}>
-                                            {tech.name || tech.technicianId?.name || 'Unknown'}
-                                          </span>
-                                          <span className={`text-xs font-mono ml-2 ${tech.earnings < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                                            {formatCurrency(tech.earnings)}
-                                            {tech.penaltyPercent > 0 && (
-                                              <span
-                                                className="ml-1 text-rose-700 font-semibold"
-                                                title={`Umanjeno ${tech.penaltyPercent}% (${formatCurrency(tech.penaltyAmount || 0)}) zbog vraćanja naloga`}
-                                              >
-                                                (-{tech.penaltyPercent}%)
+                        <div className="sx-tablewrap mx-finances-tx">
+                          <table className="sx-table">
+                            <thead>
+                              <tr>
+                                {visibleColumns.tisJobId && <th>TIS Job ID</th>}
+                                {visibleColumns.municipality && <th>Opština</th>}
+                                {visibleColumns.customerStatus && <th>Tip usluge</th>}
+                                {visibleColumns.technicians && <th>Tehničari</th>}
+                                {visibleColumns.basePrice && <th className="is-num">Osnovna cena</th>}
+                                {visibleColumns.discount && <th className="is-num">Popust</th>}
+                                {visibleColumns.finalPrice && <th className="is-num">Finalna cena</th>}
+                                {visibleColumns.technicianCosts && <th className="is-num">Troškovi tehničara</th>}
+                                {visibleColumns.profit && <th className="is-num">Profit</th>}
+                                {visibleColumns.verifiedAt && <th>Datum</th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentTransactions.map((transaction, index) => (
+                                <tr key={transaction._id} style={{ '--i': index }}>
+                                  {visibleColumns.tisJobId && (
+                                    <td className="is-head">
+                                      <div className="sx-cell">
+                                        <b>{transaction.workOrderId?.tisJobId || transaction.tisJobId || '-'}</b>
+                                        {(transaction.entryType === 'complaint_deduction' || transaction.entryType === 'complaint_fix' || transaction.rejectionPenaltyPercent > 0 || transaction.penaltyAdjustedAt) && (
+                                          <div className="mx-finances-tags">
+                                            {transaction.entryType === 'complaint_deduction' && (
+                                              <span className="sx-tag is-bad">
+                                                {transaction.deductionKind === 'complaint_order'
+                                                  ? 'Reklamacija - ne plaća se'
+                                                  : transaction.deductionKind === 'complaint_extra'
+                                                    ? `Skinut zbog reklamacije ${transaction.relatedTisJobId || transaction.relatedTisId || ''}`
+                                                    : transaction.deductionKind === 'complaint_extra_fallback'
+                                                      ? 'Reklamacija - dodatni odbitak'
+                                                      : 'Reklamacija - odbitak'}
                                               </span>
                                             )}
-                                          </span>
+                                            {transaction.entryType === 'complaint_fix' && (
+                                              <span className="sx-tag is-info">Ispravka po reklamaciji</span>
+                                            )}
+                                            {transaction.rejectionPenaltyPercent > 0 && (
+                                              <span className="sx-tag is-bad">Vraćan · minus {transaction.rejectionPenaltyPercent}%</span>
+                                            )}
+                                            {transaction.penaltyAdjustedAt && (
+                                              <span
+                                                className="sx-tag is-warn"
+                                                title={`Minus promenio ${transaction.penaltyAdjustedByName || 'superadmin'} ${new Date(transaction.penaltyAdjustedAt).toLocaleString('sr-RS')}`}
+                                              >
+                                                Minus promenjen · {transaction.penaltyPercentOriginal ?? 0}% → {transaction.rejectionPenaltyPercent || 0}%
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  )}
+                                  {visibleColumns.municipality && <td data-label="Opština">{transaction.municipality}</td>}
+                                  {visibleColumns.customerStatus && (
+                                    <td data-label="Tip usluge">
+                                      <span className="mx-strong" title={transaction.customerStatus}>
+                                        {getCustomerStatusShortName(transaction.customerStatus)}
+                                      </span>
+                                    </td>
+                                  )}
+                                  {visibleColumns.technicians && (
+                                    <td data-label="Tehničari" className="is-wide">
+                                      {transaction.technicians && transaction.technicians.length > 0 ? (
+                                        <div className="mx-finances-techcell">
+                                          {transaction.technicians.map((tech, techIndex) => (
+                                            <div key={techIndex} className="mx-finances-techcell__row">
+                                              <span title={tech.name || tech.technicianId?.name}>
+                                                {tech.name || tech.technicianId?.name || 'Unknown'}
+                                              </span>
+                                              <span className={tech.earnings < 0 ? 'mx-finances-neg' : undefined}>
+                                                {formatCurrency(tech.earnings)}
+                                                {tech.penaltyPercent > 0 && (
+                                                  <span
+                                                    className="mx-finances-neg"
+                                                    title={`Umanjeno ${tech.penaltyPercent}% (${formatCurrency(tech.penaltyAmount || 0)}) zbog vraćanja naloga`}
+                                                  >
+                                                    {' '}(-{tech.penaltyPercent}%)
+                                                  </span>
+                                                )}
+                                              </span>
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className="text-slate-500 italic">-</span>
+                                      ) : (
+                                        <span className="sx-faint">-</span>
+                                      )}
+                                    </td>
                                   )}
-                                </div>
-                              </td>
-                            )}
-                            {visibleColumns.basePrice && (
-                              <td className="px-6 py-4 text-sm text-right font-mono text-slate-700">
-                                {formatCurrency(transaction.basePrice)}
-                              </td>
-                            )}
-                            {visibleColumns.discount && (
-                              <td className="px-6 py-4 text-sm text-right text-slate-700">
-                                {transaction.discountPercent || 0}% ({formatCurrency(transaction.discountAmount || (transaction.basePrice * ((transaction.discountPercent || 0) / 100)))})
-                              </td>
-                            )}
-                            {visibleColumns.finalPrice && (
-                              <td className="px-6 py-4 text-sm text-right font-mono text-green-700 font-semibold">
-                                {formatCurrency(transaction.finalPrice)}
-                              </td>
-                            )}
-                            {visibleColumns.technicianCosts && (
-                              <td className="px-6 py-4 text-sm text-right font-mono text-red-700">
-                                {formatCurrency(transaction.totalTechnicianEarnings)}
-                              </td>
-                            )}
-                            {visibleColumns.profit && (
-                              <td className="px-6 py-4 text-sm text-right font-mono font-semibold">
-                                <span className={transaction.companyProfit >= 0 ? 'text-green-700' : 'text-red-700'}>
-                                  {formatCurrency(transaction.companyProfit)}
-                                </span>
-                              </td>
-                            )}
-                            {visibleColumns.verifiedAt && (
-                              <td className="px-6 py-4 text-sm text-slate-700">
-                                {formatDate(transaction.verifiedAt)}
-                              </td>
-                            )}
-                          </tr>
-                        ))
+                                  {visibleColumns.basePrice && (
+                                    <td data-label="Osnovna cena" className="is-num">{formatCurrency(transaction.basePrice)}</td>
+                                  )}
+                                  {visibleColumns.discount && (
+                                    <td data-label="Popust" className="is-num">
+                                      {transaction.discountPercent || 0}% ({formatCurrency(transaction.discountAmount || (transaction.basePrice * ((transaction.discountPercent || 0) / 100)))})
+                                    </td>
+                                  )}
+                                  {visibleColumns.finalPrice && (
+                                    <td data-label="Finalna cena" className="is-num mx-strong">{formatCurrency(transaction.finalPrice)}</td>
+                                  )}
+                                  {visibleColumns.technicianCosts && (
+                                    <td data-label="Troškovi tehničara" className="is-num">{formatCurrency(transaction.totalTechnicianEarnings)}</td>
+                                  )}
+                                  {visibleColumns.profit && (
+                                    <td data-label="Profit" className={cx('is-num mx-strong', transaction.companyProfit < 0 && 'mx-finances-neg')}>
+                                      {formatCurrency(transaction.companyProfit)}
+                                    </td>
+                                  )}
+                                  {visibleColumns.verifiedAt && (
+                                    <td data-label="Datum" className="sx-nowrap">{formatDate(transaction.verifiedAt)}</td>
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <PaginationComponent />
-              </>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Settings Tab Content */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-            {/* Cene po Tipu Usluge */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                  <DollarSignIcon className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Cene po Tipu Usluge</h2>
-                  <p className="text-sm text-gray-500">Postavite cene za različite tipove usluga</p>
-                </div>
+                      <Pager page={pagination.currentPage} total={pagination.totalCount} perPage={pagination.limit} onPage={handlePageChange} />
+                    </>
+                  )}
+                </Panel>
               </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white">
-                <div className="max-h-96 overflow-y-auto p-6">
-                  <div className="space-y-6">
-                    {customerStatusOptions.map((option) => (
-                      <div key={option.value} className="space-y-2">
-                        <label className="text-sm font-medium text-gray-900">
-                          {option.label}
-                        </label>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            placeholder="Unesite cenu"
-                            value={pricesByCustomerStatus[option.value] || ''}
-                            onChange={(e) => setPricesByCustomerStatus({
-                              ...pricesByCustomerStatus,
-                              [option.value]: parseFloat(e.target.value) || 0
-                            })}
-                            className="pr-12"
-                          />
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                            <span className="text-sm text-gray-500">RSD</span>
-                          </div>
-                        </div>
-                      </div>
+            </>
+          ) : (
+            <div className="sx-stack">
+              <div className="sx-cols sx-cols--2">
+                {/* Cene po Tipu Usluge */}
+                <Panel
+                  title="Cene po Tipu Usluge"
+                  sub="Postavite cene za različite tipove usluga"
+                  footer={<Btn variant="primary" icon={Save} onClick={savePricesByCustomerStatus} busy={saveLoading}>Sačuvaj Cene</Btn>}
+                >
+                  <div className="mx-finances-scrollbox">
+                    {customerStatusOptions.map((option, i) => (
+                      <Field key={option.value} label={option.label} htmlFor={`fin-price-${i}`}>
+                        <Money
+                          id={`fin-price-${i}`}
+                          className="is-wide"
+                          placeholder="Unesite cenu"
+                          value={pricesByCustomerStatus[option.value] || ''}
+                          onChange={(e) => setPricesByCustomerStatus({
+                            ...pricesByCustomerStatus,
+                            [option.value]: parseFloat(e.target.value) || 0
+                          })}
+                        />
+                      </Field>
                     ))}
                   </div>
-                </div>
-                <div className="border-t border-gray-200 px-6 py-4">
-                  <Button
-                    onClick={savePricesByCustomerStatus}
-                    disabled={saveLoading}
-                    loading={saveLoading}
-                    prefix={<SaveIcon size={16} />}
-                    className="w-full"
-                  >
-                    Sačuvaj Cene
-                  </Button>
-                </div>
-              </div>
-            </div>
+                </Panel>
 
-            {/* Popusti po Opštinama */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                  <DollarSignIcon className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Popusti po Opštinama</h2>
-                  <p className="text-sm text-gray-500">Upravlja popustima za različite opštine</p>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white">
-                <div className="max-h-96 overflow-y-auto">
-                  <div className="divide-y divide-gray-200">
+                {/* Popusti po Opštinama */}
+                <Panel
+                  title="Popusti po Opštinama"
+                  sub="Upravlja popustima za različite opštine"
+                  footer={<Btn variant="primary" icon={Save} onClick={saveDiscountsByMunicipality} busy={saveLoading}>Sačuvaj Popuste</Btn>}
+                >
+                  <div className="mx-finances-scrollbox">
                     {discountsByMunicipality.map((discount, index) => (
-                      <div key={discount.municipality} className="flex items-center justify-between p-4">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {discount.municipality}
-                          </p>
-                        </div>
-                        <div className="ml-4 flex items-center space-x-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={discount.discountPercent}
-                            onChange={(e) => {
-                              const updatedDiscounts = [...discountsByMunicipality];
-                              updatedDiscounts[index].discountPercent = parseFloat(e.target.value) || 0;
-                              setDiscountsByMunicipality(updatedDiscounts);
-                            }}
-                            className="w-20 text-center"
-                          />
-                          <span className="text-sm text-gray-500">%</span>
-                        </div>
+                      <div key={discount.municipality} className="mx-finances-row">
+                        <label htmlFor={`fin-discount-${index}`}>{discount.municipality}</label>
+                        <Money
+                          id={`fin-discount-${index}`}
+                          suffix="%"
+                          className="is-pct"
+                          min="0"
+                          max="100"
+                          value={discount.discountPercent}
+                          onChange={(e) => {
+                            const updatedDiscounts = [...discountsByMunicipality];
+                            updatedDiscounts[index].discountPercent = parseFloat(e.target.value) || 0;
+                            setDiscountsByMunicipality(updatedDiscounts);
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
-                </div>
-                <div className="border-t border-gray-200 px-6 py-4">
-                  <Button
-                    onClick={saveDiscountsByMunicipality}
-                    disabled={saveLoading}
-                    loading={saveLoading}
-                    prefix={<SaveIcon size={16} />}
-                    className="w-full"
-                  >
-                    Sačuvaj Popuste
-                  </Button>
-                </div>
+                </Panel>
               </div>
-            </div>
-          </div>
 
-          {/* Cene za Tehničare - Full Width */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-                <DollarSignIcon className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Cene za Tehničare</h2>
-                <p className="text-sm text-gray-500">Postavite cene po tipu usluge za svakog tehničara</p>
-              </div>
-            </div>
+              {/* Cene za Tehničare */}
+              <Panel title="Cene za Tehničare" sub="Postavite cene po tipu usluge za svakog tehničara">
+                <div className="sx-cols sx-cols--2">
+                  <div className="mx-gap">
+                    <Field label="Izaberite tehničara" htmlFor="fin-technician">
+                      <Select
+                        id="fin-technician"
+                        value={selectedTechnician ? selectedTechnician._id : ''}
+                        onChange={(e) => {
+                          const technician = technicians.find(t => t._id === e.target.value);
+                          if (technician) handleTechnicianSelect(technician);
+                        }}
+                      >
+                        {technicians && technicians.length > 0 ? (
+                          <>
+                            <option value="" disabled>Izaberite tehničara</option>
+                            {technicians.map((technician) => (
+                              <option key={technician._id} value={technician._id}>{technician.name}</option>
+                            ))}
+                          </>
+                        ) : (
+                          <option value="" disabled>Nema dostupnih tehničara</option>
+                        )}
+                      </Select>
+                    </Field>
 
-            <div className="rounded-lg border border-gray-200 bg-white">
-              <div className="p-6">
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* Dropdown za izbor tehničara */}
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        Izaberite tehničara
-                      </label>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="secondary"
-                            size="medium"
-                            suffix={<ChevronDownIcon size={16} />}
-                            className="w-full justify-between"
-                          >
-                            <span className="truncate">
-                              {selectedTechnician ? selectedTechnician.name : 'Izaberite tehničara'}
-                            </span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)] max-h-60 overflow-auto">
-                          {technicians && technicians.length > 0 ? (
-                            technicians.map((technician) => (
-                              <DropdownMenuItem
-                                key={technician._id}
-                                onClick={() => handleTechnicianSelect(technician)}
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {selectedTechnician?._id === technician._id && (
-                                    <CheckIcon className="h-4 w-4 text-purple-600" />
-                                  )}
-                                  <span>{technician.name}</span>
-                                </div>
-                              </DropdownMenuItem>
-                            ))
-                          ) : (
-                            <DropdownMenuItem disabled className="text-slate-500 italic">
-                              Nema dostupnih tehničara
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    {/* Input polja za izabranog tehničara */}
                     {selectedTechnician && (
-                      <div className="space-y-4 p-4 bg-purple-50/30 rounded-lg border border-purple-100">
-                        <div className="text-sm text-purple-800 font-medium mb-3">
-                          Podešavanja za: {selectedTechnician.name}
-                        </div>
+                      <div className="mx-finances-techform">
+                        <div className="sx-fieldset__title">Podešavanja za: {selectedTechnician.name}</div>
+                        <Choice
+                          label="Tip plaćanja"
+                          layoutId="mx-finances-paytype"
+                          value={technicianPaymentType}
+                          onChange={setTechnicianPaymentType}
+                          options={[{ value: 'po_statusu', label: 'Po Statusu Naloga' }, { value: 'plata', label: 'Plata' }]}
+                        />
 
-                        {/* Navbar menu za izbor tipa plaćanja */}
-                        <div className="flex space-x-2 mb-4 bg-slate-100 p-1 rounded-lg">
-                          <button
-                            onClick={() => setTechnicianPaymentType('po_statusu')}
-                            className={cn(
-                              'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
-                              technicianPaymentType === 'po_statusu'
-                                ? 'bg-white text-purple-700 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-900'
-                            )}
-                          >
-                            Po Statusu Naloga
-                          </button>
-                          <button
-                            onClick={() => setTechnicianPaymentType('plata')}
-                            className={cn(
-                              'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
-                              technicianPaymentType === 'plata'
-                                ? 'bg-white text-purple-700 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-900'
-                            )}
-                          >
-                            Plata
-                          </button>
-                        </div>
-
-                        {/* Prikaz različitih input-a u zavisnosti od tipa plaćanja */}
                         {technicianPaymentType === 'po_statusu' ? (
-                          <div className="space-y-3">
-                            {customerStatusOptions.map((option) => {
-                              const currentPrices = getCurrentTechnicianPrices();
-                              return (
-                                <div key={option.value} className="space-y-1">
-                                  <label className="text-xs font-medium text-slate-600 block">
-                                    {option.label}
-                                  </label>
-                                  <div className="relative">
-                                    <Input
-                                      type="number"
+                          <>
+                            <div>
+                              {customerStatusOptions.map((option, i) => {
+                                const currentPrices = getCurrentTechnicianPrices();
+                                return (
+                                  <Field key={option.value} label={option.label} htmlFor={`fin-tech-price-${i}`}>
+                                    <Money
+                                      id={`fin-tech-price-${i}`}
+                                      className="is-wide"
                                       placeholder="0"
                                       value={currentPrices[option.value] || ''}
                                       onChange={(e) => updateTechnicianPrice(option.value, e.target.value)}
-                                      className="pr-12 bg-white border-slate-200 focus:border-purple-400 focus:ring-purple-400/20"
                                     />
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
-                                      RSD
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            <Button
-                              type="primary"
-                              size="medium"
-                              onClick={saveTechnicianPrices}
-                              disabled={saveLoading}
-                              loading={saveLoading}
-                              prefix={<SaveIcon size={16} />}
-                              className="w-full"
-                            >
+                                  </Field>
+                                );
+                              })}
+                            </div>
+                            <Btn variant="primary" icon={Save} onClick={saveTechnicianPrices} busy={saveLoading} className="mx-finances-full">
                               Sačuvaj Cene za {selectedTechnician.name}
-                            </Button>
-                          </div>
+                            </Btn>
+                          </>
                         ) : (
-                          <div className="space-y-3">
-                            <div className="space-y-1">
-                              <label className="text-xs font-medium text-slate-600 block">
-                                Mesečna plata (od 1og do poslednjeg dana u mesecu)
-                              </label>
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  placeholder="Unesite mesečnu platu"
-                                  value={technicianMonthlySalary}
-                                  onChange={(e) => setTechnicianMonthlySalary(parseFloat(e.target.value) || 0)}
-                                  className="pr-12 bg-white border-slate-200 focus:border-purple-400 focus:ring-purple-400/20"
-                                />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
-                                  RSD
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-xs text-slate-600 bg-blue-50 p-3 rounded-md border border-blue-200">
-                              <strong>Napomena:</strong> Tehničar sa platom zarađuje iz radnih naloga dok ne dostigne svoju mesečnu platu. Nakon toga, sav višak ide direktno u profit.
-                            </div>
-                            <Button
-                              type="primary"
-                              size="medium"
-                              onClick={saveTechnicianPaymentSettings}
-                              disabled={saveLoading}
-                              loading={saveLoading}
-                              prefix={<SaveIcon size={16} />}
-                              className="w-full"
-                            >
+                          <>
+                            <Field label="Mesečna plata (od 1og do poslednjeg dana u mesecu)" htmlFor="fin-salary">
+                              <Money
+                                id="fin-salary"
+                                className="is-wide"
+                                placeholder="Unesite mesečnu platu"
+                                value={technicianMonthlySalary}
+                                onChange={(e) => setTechnicianMonthlySalary(parseFloat(e.target.value) || 0)}
+                              />
+                            </Field>
+                            <Note tone="info">
+                              <b>Napomena:</b> Tehničar sa platom zarađuje iz radnih naloga dok ne dostigne svoju mesečnu platu. Nakon toga, sav višak ide direktno u profit.
+                            </Note>
+                            <Btn variant="primary" icon={Save} onClick={saveTechnicianPaymentSettings} busy={saveLoading} className="mx-finances-full">
                               Sačuvaj Platu za {selectedTechnician.name}
-                            </Button>
-                          </div>
+                            </Btn>
+                          </>
                         )}
                       </div>
                     )}
                   </div>
 
                   {/* Lista svih tehničara sa cenama */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-slate-800">Pregled cena za sve tehničare</h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="mx-gap">
+                    <h3 className="sx-fieldset__title">Pregled cena za sve tehničare</h3>
+                    <div className="mx-finances-scrollbox">
                       {technicians && technicians.length > 0 ? technicians.map((technician) => {
                         const techPrices = technicianPrices.find(tp => tp.technicianId === technician._id);
                         const paymentType = technician.paymentType || 'po_statusu';
                         return (
-                          <div key={technician._id} className="p-4 bg-white/60 rounded-lg border border-slate-100">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center space-x-2">
-                                <h4 className="font-medium text-slate-800">{technician.name}</h4>
-                                <span className={cn(
-                                  "text-xs px-2 py-0.5 rounded-full",
-                                  paymentType === 'plata'
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-blue-100 text-blue-700"
-                                )}>
-                                  {paymentType === 'plata' ? 'Plata' : 'Po Statusu'}
-                                </span>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleTechnicianSelect(technician)}
-                                className="text-xs"
-                              >
-                                Uredi
-                              </Button>
+                          <div key={technician._id} className="mx-finances-techlist">
+                            <div className="mx-finances-techlist__head">
+                              <b>{technician.name}</b>
+                              <span className={cx('sx-tag', paymentType === 'plata' ? 'is-ok' : 'is-info')}>
+                                {paymentType === 'plata' ? 'Plata' : 'Po Statusu'}
+                              </span>
+                              <Btn size="sm" variant="ghost" icon={Pencil} className="mx-right" onClick={() => handleTechnicianSelect(technician)}>Uredi</Btn>
                             </div>
                             {paymentType === 'po_statusu' ? (
                               techPrices ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                <dl className="mx-finances-prices">
                                   {customerStatusOptions.map((option) => {
                                     const price = techPrices.pricesByCustomerStatus[option.value];
                                     return price ? (
-                                      <div key={option.value} className="flex justify-between">
-                                        <span className="text-slate-600 truncate">{option.label}:</span>
-                                        <span className="font-medium text-slate-800">{price.toLocaleString()} RSD</span>
+                                      <div key={option.value}>
+                                        <dt title={option.label}>{option.label}</dt>
+                                        <dd>{price.toLocaleString()} RSD</dd>
                                       </div>
                                     ) : null;
                                   })}
-                                </div>
+                                </dl>
                               ) : (
-                                <p className="text-xs text-slate-500 italic">Nisu postavljene cene</p>
+                                <span className="sx-faint">Nisu postavljene cene</span>
                               )
                             ) : (
-                              <div className="text-xs">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-600">Mesečna plata:</span>
-                                  <span className="font-medium text-green-700">{technician.monthlySalary?.toLocaleString() || 0} RSD</span>
+                              <dl className="mx-finances-prices">
+                                <div>
+                                  <dt>Mesečna plata</dt>
+                                  <dd>{technician.monthlySalary?.toLocaleString() || 0} RSD</dd>
                                 </div>
-                              </div>
+                              </dl>
                             )}
                           </div>
                         );
                       }) : (
-                        <div className="text-center py-8 text-slate-500">
-                          <p>Nema dostupnih tehničara u sistemu</p>
+                        <div className="sx-empty-block">
+                          <span>Nema dostupnih tehničara u sistemu</span>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
+              </Panel>
             </div>
-          </div>
+          )}
         </>
       )}
     </div>
