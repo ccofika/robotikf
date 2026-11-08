@@ -1,0 +1,20 @@
+/* Mesečni obračun (TechnicianMonthlyStatement.js): samo dodaci koje sx nema. Boje iz tokena (tokens.css).
+   Globalni sx stilovi se učitavaju posle stranica, pa pravila koja ih menjaju imaju više klasa. */
+
+/* prilagođeni period: od, do i dugme u jednom redu (na telefonu se prelama) */
+.mx-tobr-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 16px; }
+.mx-tobr-custom > .sx-field { flex: 0 1 200px; }
+.mx-tobr-custom > .sx-field + .sx-field { margin-top: 0; }
+
+/* brojke: 2 ili 4 u redu (bez jedne same u redu) */
+.sx-stats.mx-tobr-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container page (min-width: 900px) { .sx-stats.mx-tobr-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* tabela: odbitak po reklamaciji, ispravka, negativan iznos, iznos pre umanjenja */
+.sx-table tbody tr.mx-tobr-ded { background: color-mix(in oklab, var(--sx-bad) 5%, var(--sx-surface)); }
+.mx-tobr-tag { display: block; margin-top: 2px; font-size: 11.5px; font-weight: 600; }
+.mx-tobr-tag.is-bad { color: var(--sx-bad-text); }
+.mx-tobr-tag.is-info { color: var(--sx-info-text); }
+.sx-table td.mx-tobr-neg { color: var(--sx-bad-text); }
+.mx-tobr-gross { display: block; font-size: 11.5px; color: var(--sx-faint); text-decoration: line-through; }
+.mx-tobr-hint { font-size: 12.5px; line-height: 1.5; color: var(--sx-muted); }

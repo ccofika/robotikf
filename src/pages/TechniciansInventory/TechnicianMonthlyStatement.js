@@ -1,15 +1,20 @@
+// Mesečni obračun tehničara: period (poslednjih 12 meseci ili prilagođeni), brojke, tabela naloga
+// i slanje obračuna na email (samo superadmin).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { BackIcon, CalendarIcon, DollarSignIcon, XIcon, RefreshIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Send, RefreshCw } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { financesAPI } from '../../services/api';
 import { formatRsd } from '../../utils/rejectionPenalty';
+import { cx, Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Panel, Note, Stat } from '../../security/sx/layout';
+import { Field, Input, Choice, DateField } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { Loading } from '../../montaza/ui';
+import './TechnicianMonthlyStatement.mx.css';
 
 const MONTH_NAMES = ['Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun', 'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Klasa .text-center je globalno pregažena u nekoliko CSS fajlova (padding, kurziv), pa se centrira inline
-const CENTER = { textAlign: 'center' };
 
 // Kratka oznaka u koloni "Minus" za odbitke po reklamaciji
 const deductionMinusLabel = (row) => {
@@ -37,14 +42,15 @@ const buildMonthOptions = () => {
 };
 
 const formatDate = (value) => {
-  if (!value) return '—';
+  if (!value) return '-';
   const date = new Date(value);
-  if (isNaN(date.getTime())) return '—';
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const TechnicianMonthlyStatement = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const monthOptions = useMemo(buildMonthOptions, []);
 
   const storedUser = localStorage.getItem('user');
@@ -161,291 +167,196 @@ const TechnicianMonthlyStatement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-emerald-50 rounded-xl">
-              <DollarSignIcon size={24} className="text-emerald-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Mesečni obračun</h1>
-              <p className="text-slate-600 mt-1">{technician?.name || 'Tehničar'}{periodLabel ? ` · ${periodLabel}` : ''}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link to={`/technicians/${id}`}>
-              <Button type="secondary" size="medium" prefix={<BackIcon size={16} />}>
-                Nazad na tehničara
-              </Button>
-            </Link>
-            {canSend && (
-              <button
-                onClick={openSend}
-                disabled={loading || !statement}
-                className="h-10 px-5 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors disabled:opacity-50"
-              >
-                Pošalji
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="sx-page mx-tobr" data-testid="page-technician-obracun">
+      <PageHead
+        back={{ label: 'Nazad na tehničara', onClick: () => navigate(`/technicians/${id}`) }}
+        eyebrow="Montaža · Tehničari"
+        title="Mesečni obračun"
+        lead={`${technician?.name || 'Tehničar'}${periodLabel ? ` · ${periodLabel}` : ''}`}
+        actions={canSend && (
+          <Btn variant="primary" icon={Send} onClick={openSend} disabled={loading || !statement}>Pošalji</Btn>
+        )}
+      />
 
-      {/* Period */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon size={18} className="text-slate-500" />
-          <h2 className="text-base font-semibold text-slate-900">Period</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {monthOptions.map(option => (
-            <button
-              key={option.key}
-              onClick={() => selectMonth(option)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                mode === 'month' && selectedMonthKey === option.key
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-          <button
-            onClick={() => setMode('custom')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-              mode === 'custom' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50'
-            }`}
-          >
-            Prilagođeni period
-          </button>
-        </div>
+      <div className="sx-stack">
+        {/* Period: meseci kao pilule, prilagođeni period sa datumima od i do */}
+        <Panel title="Period" testId="statement-period">
+          <Choice
+            value={mode === 'custom' ? 'custom' : selectedMonthKey}
+            onChange={(value) => (value === 'custom' ? setMode('custom') : selectMonth(monthOptions.find((o) => o.key === value)))}
+            options={[...monthOptions.map((o) => ({ value: o.key, label: o.label })), { value: 'custom', label: 'Prilagođeni period' }]}
+            label="Period"
+            size="sm"
+            scroll
+          />
+          {mode === 'custom' && (
+            <div className="mx-tobr-custom">
+              <Field label="Od" htmlFor="obracun-od">
+                <DateField id="obracun-od" value={customFrom} onChange={setCustomFrom} clearable />
+              </Field>
+              <Field label="Do" htmlFor="obracun-do">
+                <DateField id="obracun-do" value={customTo} onChange={setCustomTo} clearable />
+              </Field>
+              <Btn icon={RefreshCw} onClick={applyCustomPeriod}>Prikaži</Btn>
+            </div>
+          )}
+        </Panel>
 
-        {mode === 'custom' && (
-          <div className="flex flex-wrap items-end gap-3 mt-4">
-            <label className="text-sm text-slate-600">
-              <span className="block mb-1">Od</span>
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              <span className="block mb-1">Do</span>
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-            <Button type="secondary" size="medium" onClick={applyCustomPeriod} prefix={<RefreshIcon size={16} />}>
-              Prikaži
-            </Button>
+        {error && <Note tone="bad">{error}</Note>}
+
+        {/* Rezime */}
+        {statement && (
+          <div className="sx-stats mx-tobr-stats">
+            <Stat label="Naloga" value={summary.ordersCount || 0} />
+            <Stat label="Ukupno za isplatu" value={formatRsd(summary.totalEarnings)} tone={summary.totalEarnings < 0 ? 'bad' : null} />
+            <Stat
+              label="Umanjenja (vraćanja)"
+              value={summary.totalPenalties > 0 ? `-${formatRsd(summary.totalPenalties)}` : formatRsd(0)}
+              sub={`${summary.penalizedCount || 0} naloga sa minusom`}
+              tone={summary.totalPenalties > 0 ? 'bad' : null}
+            />
+            <Stat
+              label="Odbici (reklamacije)"
+              value={formatRsd(summary.complaintDeductions || 0)}
+              sub={`${summary.complaintDeductionsCount || 0} odbitaka`}
+              tone={summary.complaintDeductions ? 'bad' : null}
+            />
           </div>
         )}
-      </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">{error}</div>
-      )}
-
-      {/* Rezime */}
-      {statement && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <div className="text-xs text-slate-500 uppercase tracking-wide">Naloga</div>
-            <div className="text-2xl font-bold text-slate-900 mt-1">{summary.ordersCount || 0}</div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <div className="text-xs text-slate-500 uppercase tracking-wide">Ukupno za isplatu</div>
-            <div className={`text-2xl font-bold mt-1 ${summary.totalEarnings < 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-              {formatRsd(summary.totalEarnings)}
+        {/* Tabela */}
+        <Panel pad={false} testId="statement-table">
+          {loading ? (
+            <Loading text="Učitavanje obračuna..." />
+          ) : rows.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema obračunatih naloga za izabrani period</b>
             </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <div className="text-xs text-slate-500 uppercase tracking-wide">Umanjenja (vraćanja)</div>
-            <div className="text-2xl font-bold text-rose-700 mt-1">
-              {summary.totalPenalties > 0 ? `-${formatRsd(summary.totalPenalties)}` : formatRsd(0)}
-            </div>
-            <div className="text-xs text-slate-500 mt-0.5">{summary.penalizedCount || 0} naloga sa minusom</div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <div className="text-xs text-slate-500 uppercase tracking-wide">Odbici (reklamacije)</div>
-            <div className="text-2xl font-bold text-red-700 mt-1">{formatRsd(summary.complaintDeductions || 0)}</div>
-            <div className="text-xs text-slate-500 mt-0.5">{summary.complaintDeductionsCount || 0} odbitaka</div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabela */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center p-12 text-slate-600">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
-            <span className="text-sm font-medium">Učitavanje obračuna...</span>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">TIS ID</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Job ID</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Datum</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adresa</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Zarada</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider" style={CENTER}>Minus</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {rows.length === 0 ? (
+          ) : (
+            <div className="sx-tablewrap">
+              <table className="sx-table">
+                <thead>
                   <tr>
-                    <td colSpan="6" className="px-6 py-12 text-slate-500 text-sm" style={CENTER}>
-                      Nema obračunatih naloga za izabrani period
-                    </td>
+                    <th>TIS ID</th>
+                    <th>Job ID</th>
+                    <th>Datum</th>
+                    <th>Adresa</th>
+                    <th className="is-num">Zarada</th>
+                    <th>Minus</th>
                   </tr>
-                ) : rows.map(row => {
-                  const isDeduction = row.entryType === 'complaint_deduction';
-                  const isFix = row.entryType === 'complaint_fix';
-                  return (
-                    <tr key={row.transactionId} className={isDeduction ? 'bg-red-50/60' : 'hover:bg-slate-50'}>
-                      <td className="px-5 py-3 text-sm font-mono text-slate-800">{row.tisId || '—'}</td>
-                      <td className="px-5 py-3 text-sm font-mono text-slate-800">{row.tisJobId || '—'}</td>
-                      <td className="px-5 py-3 text-sm text-slate-700 whitespace-nowrap">{formatDate(row.workOrderDate)}</td>
-                      <td className="px-5 py-3 text-sm text-slate-700">
-                        {row.address || '—'}
-                        {isDeduction && (
-                          <span className="block text-[11px] font-semibold text-red-700 mt-0.5">{row.label || 'Reklamacija — odbitak'}</span>
-                        )}
-                        {isFix && (
-                          <span className="block text-[11px] font-semibold text-blue-700 mt-0.5">Ispravka po reklamaciji</span>
-                        )}
-                      </td>
-                      <td className={`px-5 py-3 text-sm text-right font-mono font-semibold whitespace-nowrap ${row.earnings < 0 ? 'text-red-700' : 'text-slate-900'}`}>
-                        {formatRsd(row.earnings)}
-                        {row.penaltyPercent > 0 && (
-                          <span className="block text-[11px] font-normal text-slate-400 line-through">{formatRsd(row.grossEarnings)}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-sm whitespace-nowrap" style={CENTER}>
-                        {isDeduction
-                          ? <span className="text-xs font-semibold text-red-700">{deductionMinusLabel(row)}</span>
-                          : row.penaltyPercent > 0
-                            ? <span className="text-xs font-semibold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">-{row.penaltyPercent}%</span>
-                            : <span className="text-slate-300">—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {rows.length > 0 && (
-                <tfoot className="bg-slate-50 border-t border-slate-200">
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => {
+                    const isDeduction = row.entryType === 'complaint_deduction';
+                    const isFix = row.entryType === 'complaint_fix';
+                    return (
+                      <tr key={row.transactionId} style={{ '--i': index }} className={isDeduction ? 'mx-tobr-ded' : undefined}>
+                        <td className="is-head"><b className="sx-mono mx-strong">{row.tisId || '-'}</b></td>
+                        <td data-label="Job ID"><span className="sx-mono">{row.tisJobId || '-'}</span></td>
+                        <td data-label="Datum" className="sx-nowrap">{formatDate(row.workOrderDate)}</td>
+                        <td data-label="Adresa" className="is-wide">
+                          {row.address || '-'}
+                          {isDeduction && <span className="mx-tobr-tag is-bad">{row.label || 'Reklamacija - odbitak'}</span>}
+                          {isFix && <span className="mx-tobr-tag is-info">Ispravka po reklamaciji</span>}
+                        </td>
+                        <td data-label="Zarada" className={cx('is-num', row.earnings < 0 && 'mx-tobr-neg')}>
+                          {formatRsd(row.earnings)}
+                          {row.penaltyPercent > 0 && <span className="mx-tobr-gross">{formatRsd(row.grossEarnings)}</span>}
+                        </td>
+                        <td data-label="Minus">
+                          {isDeduction
+                            ? <Sign tone="bad">{deductionMinusLabel(row)}</Sign>
+                            : row.penaltyPercent > 0
+                              ? <span className="sx-tag is-bad">-{row.penaltyPercent}%</span>
+                              : <span className="sx-faint">-</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
                   <tr>
-                    <td colSpan="4" className="px-5 py-3 text-sm font-semibold text-right text-slate-700">Ukupno</td>
-                    <td className={`px-5 py-3 text-sm text-right font-mono font-bold whitespace-nowrap ${summary.totalEarnings < 0 ? 'text-red-700' : 'text-slate-900'}`}>
-                      {formatRsd(summary.totalEarnings)}
-                    </td>
+                    <td colSpan="4" className="is-end">Ukupno</td>
+                    <td className={cx('is-num', summary.totalEarnings < 0 && 'mx-tobr-neg')}>{formatRsd(summary.totalEarnings)}</td>
                     <td></td>
                   </tr>
                 </tfoot>
-              )}
-            </table>
-          </div>
+              </table>
+            </div>
+          )}
+        </Panel>
+
+        {technician?.paymentType === 'plata' && (
+          <p className="mx-tobr-hint">
+            Tehničar je na platu ({formatRsd(technician.monthlySalary)} mesečno) - iznosi u tabeli su deo prihoda koji se računa ka plati.
+          </p>
         )}
       </div>
 
-      {technician?.paymentType === 'plata' && (
-        <p className="text-xs text-slate-500 mt-3">
-          Tehničar je na platu ({formatRsd(technician.monthlySalary)} mesečno) — iznosi u tabeli su deo prihoda koji se računa ka plati.
-        </p>
-      )}
-
       {/* Slanje obračuna */}
-      {sendStep && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) closeSend(); }}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="statement-send-title">
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h3 id="statement-send-title" className="text-lg font-semibold text-slate-900">
-                {sendStep === 'askDefault' ? 'Podrazumevani email' : 'Slanje obračuna'}
-              </h3>
-              <button onClick={closeSend} disabled={sending} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <XIcon size={20} className="text-slate-400" />
-              </button>
-            </div>
+      <Dialog
+        open={!!sendStep}
+        onClose={closeSend}
+        busy={sending}
+        title={sendStep === 'askDefault' ? 'Podrazumevani email' : 'Slanje obračuna'}
+        testId="statement-send"
+        footer={<>
+          {sendStep === 'confirm' && (
+            <>
+              <Btn variant="ghost" onClick={closeSend} disabled={sending}>Odustani</Btn>
+              <Btn variant="primary" icon={Send} onClick={() => sendStatement({})} disabled={sending}>
+                {sending ? 'Slanje...' : 'Pošalji'}
+              </Btn>
+            </>
+          )}
+          {sendStep === 'enterEmail' && (
+            <>
+              <Btn variant="ghost" onClick={closeSend}>Odustani</Btn>
+              <Btn variant="primary" onClick={confirmEnteredEmail} disabled={!emailInput.trim()}>Dalje</Btn>
+            </>
+          )}
+          {sendStep === 'askDefault' && (
+            <>
+              <Btn onClick={() => sendStatement({ email: emailInput, saveAsDefault: false })} disabled={sending}>Ne, samo pošalji</Btn>
+              <Btn variant="primary" onClick={() => sendStatement({ email: emailInput, saveAsDefault: true })} disabled={sending}>
+                {sending ? 'Slanje...' : 'Da, podesi i pošalji'}
+              </Btn>
+            </>
+          )}
+        </>}
+      >
+        {sendStep === 'confirm' && (
+          <p>
+            Poslati obračun za period <strong>{periodLabel}</strong> tehničaru <strong>{technician?.name}</strong> na{' '}
+            <strong>{technician?.gmail}</strong>?
+          </p>
+        )}
 
-            <div className="p-6">
-              {sendStep === 'confirm' && (
-                <p className="text-sm text-slate-700">
-                  Poslati obračun za period <strong>{periodLabel}</strong> tehničaru <strong>{technician?.name}</strong> na{' '}
-                  <strong>{technician?.gmail}</strong>?
-                </p>
-              )}
+        {sendStep === 'enterEmail' && (
+          <>
+            <p>
+              Tehničar nema unet email. Unesite na koji email želite da pošaljete obračun za period <strong>{periodLabel}</strong>.
+            </p>
+            <Input
+              type="email"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') confirmEnteredEmail(); }}
+              placeholder="ime@domen.com"
+              autoFocus
+              aria-label="Email"
+              className="mx-mt"
+            />
+          </>
+        )}
 
-              {sendStep === 'enterEmail' && (
-                <>
-                  <p className="text-sm text-slate-700 mb-3">
-                    Tehničar nema unet email. Unesite na koji email želite da pošaljete obračun za period <strong>{periodLabel}</strong>.
-                  </p>
-                  <input
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') confirmEnteredEmail(); }}
-                    placeholder="ime@domen.com"
-                    autoFocus
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </>
-              )}
-
-              {sendStep === 'askDefault' && (
-                <p className="text-sm text-slate-700">
-                  Da li želite da podesite <strong>{emailInput}</strong> kao podrazumevani email tehničara{' '}
-                  <strong>{technician?.name}</strong>? Sledeći obračun će se tada automatski slati na ovaj email.
-                </p>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex gap-3">
-              {sendStep === 'confirm' && (
-                <>
-                  <button onClick={closeSend} disabled={sending} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg disabled:opacity-50">
-                    Odustani
-                  </button>
-                  <button onClick={() => sendStatement({})} disabled={sending} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50">
-                    {sending ? 'Slanje...' : 'Pošalji'}
-                  </button>
-                </>
-              )}
-              {sendStep === 'enterEmail' && (
-                <>
-                  <button onClick={closeSend} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">
-                    Odustani
-                  </button>
-                  <button onClick={confirmEnteredEmail} disabled={!emailInput.trim()} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50">
-                    Dalje
-                  </button>
-                </>
-              )}
-              {sendStep === 'askDefault' && (
-                <>
-                  <button onClick={() => sendStatement({ email: emailInput, saveAsDefault: false })} disabled={sending} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg disabled:opacity-50">
-                    Ne, samo pošalji
-                  </button>
-                  <button onClick={() => sendStatement({ email: emailInput, saveAsDefault: true })} disabled={sending} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50">
-                    {sending ? 'Slanje...' : 'Da, podesi i pošalji'}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        {sendStep === 'askDefault' && (
+          <p>
+            Da li želite da podesite <strong>{emailInput}</strong> kao podrazumevani email tehničara{' '}
+            <strong>{technician?.name}</strong>? Sledeći obračun će se tada automatski slati na ovaj email.
+          </p>
+        )}
+      </Dialog>
     </div>
   );
 };
