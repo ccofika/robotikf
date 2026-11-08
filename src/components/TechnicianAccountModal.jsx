@@ -1,8 +1,7 @@
 import React, { useState, useContext, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { X, Camera, Save } from 'lucide-react'
-import { Button } from "./ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
+import { Camera } from 'lucide-react'
+import Dialog from '../security/sx/Dialog'
+import { Btn } from '../security/sx/ui'
 import { AuthContext } from '../context/AuthContext'
 import { techniciansAPI } from '../services/api'
 import { toast } from '../utils/toast'
@@ -72,119 +71,23 @@ const TechnicianAccountModal = ({ onClose }) => {
     }
   }
 
-  const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 }
-  }
-
-  const modalVariants = {
-    hidden: {
-      opacity: 0,
-      scale: 0.8,
-      y: 20
-    },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30
-      }
-    }
-  }
-
+  // Izgled Security dela: dijalog sa slikom profila i dugmetom za promenu
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      variants={backdropVariants}
-      onClick={onClose}
-    >
-      <motion.div
-        className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-white/20 overflow-hidden"
-        variants={modalVariants}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <h2 className="text-xl font-bold text-slate-900">Moj nalog</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-full"
-          >
-            <X size={20} />
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {/* Profile Image Section */}
-          <div className="flex flex-col items-center">
-            <div className="relative mb-6">
-              <Avatar className="w-24 h-24 mb-4">
-                {user?.profileImage ? (
-                  <AvatarImage src={user.profileImage} alt={user.name} />
-                ) : (
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                    {getUserInitials(user?.name)}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="absolute -bottom-2 -right-2 p-3 rounded-full bg-white border-2 border-white shadow-lg hover:bg-slate-50"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-600"></div>
-                ) : (
-                  <Camera size={18} />
-                )}
-              </Button>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </div>
-            
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-slate-900 mb-1">{user?.name}</h3>
-              <p className="text-sm text-slate-600 mb-4">Tehničar</p>
-              <p className="text-sm text-slate-600 text-center">
-                Kliknite na kameru da promenite profilnu sliku
-              </p>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-center pt-6 border-t border-slate-200 mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={uploading}
-            >
-              Zatvori
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
+    <Dialog onClose={onClose} busy={uploading} eyebrow="Nalog" title="Moj nalog" size="sm" testId="account-modal"
+      footer={<Btn variant="ghost" onClick={onClose} disabled={uploading}>Zatvori</Btn>}>
+      <div className="mx-account__photo">
+        <span className="mx-account__avatar is-lg">
+          {user?.profileImage ? <img src={user.profileImage} alt={user.name} /> : <span>{getUserInitials(user?.name)}</span>}
+        </span>
+        <b className="mx-account__name">{user?.name}</b>
+        <span className="sx-muted">Tehničar</span>
+        <Btn size="sm" icon={Camera} onClick={() => fileInputRef.current?.click()} busy={uploading} disabled={uploading}>Promeni sliku</Btn>
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} hidden />
+        <p className="sx-field__hint">Kliknite na kameru da promenite profilnu sliku</p>
+      </div>
+    </Dialog>
   )
 }
+
 
 export default TechnicianAccountModal

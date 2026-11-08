@@ -1,11 +1,14 @@
 // Kompletna zamena za fajl: src/App.js
 import React, { useState, useEffect, useContext, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { toast, ToastProvider } from './components/ui/toast';
-import './styles/main.css'; // <-- DODAJ OVU LINIJU
+import { toast } from './components/ui/toast';
+import './styles/main.css';
 import './App.css';
-// Layouts
-import { ShadcnSidebar } from './components/layout/ShadcnSidebar';
+// Ljuska Montaže u izgledu Security dela (šina, gornja traka, meni na telefonu)
+import Shell from './montaza/Shell';
+import { ToastProvider as SxToastProvider } from './security/sx/toast';
+import { ConfirmHost } from './security/sx/confirm';
+import { Btn } from './security/sx/ui';
 // Context
 import { AuthContext } from './context/AuthContext';
 import { OverdueWorkOrdersProvider, useOverdueWorkOrders } from './context/OverdueWorkOrdersContext';
@@ -69,6 +72,8 @@ import VehicleFleet from './pages/VehicleFleet/VehicleFleet';
 import NewDesign from './pages/NewDesign/NewDesign';
 // API Services
 import { techniciansAPI } from './services/api';
+// Izgled Security dela za ceo sajt: uvozi se poslednji (CSS posle stilova stranica, kao kod Security dela)
+import './montaza/sx';
 
 // Robotik Security (poseban izgled, učitava se tek kad se otvori /security)
 const SecurityApp = lazy(() => import('./security/SecurityApp'));
@@ -108,10 +113,13 @@ const AppRouteDefinitions = ({ user, isAdminLike, isSupervisorLike, logout }) =>
 
     {/* Ruta za pristup odbijen */}
     <Route path="/access-denied" element={
-      <div className="access-denied">
-        <h2>Pristup odbijen</h2>
-        <p>Nemate potrebne dozvole za pristup ovoj stranici.</p>
-        <button onClick={logout} className="btn">Odjavite se</button>
+      <div className="sx-page mx-denied" data-testid="page-access-denied">
+        <div className="sx-empty-block">
+          <span className="sx-eyebrow">Robotik</span>
+          <h2 className="sx-title mx-denied__title">Pristup odbijen</h2>
+          <span>Nemate potrebne dozvole za pristup ovoj stranici.</span>
+          <Btn variant="primary" onClick={logout}>Odjavite se</Btn>
+        </div>
       </div>
     } />
 
@@ -156,7 +164,7 @@ const AppRouteDefinitions = ({ user, isAdminLike, isSupervisorLike, logout }) =>
     <Route path="/technicians/:id" element={
       isAdminLike(user?.role) ? <TechnicianDetail /> : <Navigate to="/access-denied" />
     } />
-    {/* Mesečni obračun tehničara — isti pristup kao stranica Finansije */}
+    {/* Mesečni obračun tehničara - isti pristup kao stranica Finansije */}
     <Route path="/technicians/:id/obracun" element={
       isSupervisorLike(user?.role) ? <TechnicianMonthlyStatement /> : <Navigate to="/access-denied" />
     } />
@@ -260,21 +268,19 @@ const AppRoutes = ({ user, isAdminLike, isSupervisorLike, logout }) => {
   const backgroundLocation = location.state?.backgroundLocation;
 
   return (
-    <main className={`${user ? 'md:ml-16' : ''} transition-all duration-300 ease-in-out`}>
-      <div className={`${user ? 'pt-16 md:pt-6' : ''} p-6 min-h-screen`}>
-        <OverdueRouteGuard>
-          {/* When backgroundLocation exists, render the background page routes using that location */}
-          <Routes location={backgroundLocation || location}>
-            {AppRouteDefinitions({ user, isAdminLike, isSupervisorLike, logout })}
-          </Routes>
-        </OverdueRouteGuard>
-      </div>
+    <>
+      <OverdueRouteGuard>
+        {/* When backgroundLocation exists, render the background page routes using that location */}
+        <Routes location={backgroundLocation || location}>
+          {AppRouteDefinitions({ user, isAdminLike, isSupervisorLike, logout })}
+        </Routes>
+      </OverdueRouteGuard>
 
       {/* Modal overlay - only when backgroundLocation exists and we're on a work-orders/:id route */}
       {backgroundLocation && location.pathname.match(/^\/work-orders\/[a-f0-9]+$/i) && (
         <WorkOrderModal backgroundLocation={backgroundLocation} />
       )}
-    </main>
+    </>
   );
 };
 
@@ -294,13 +300,17 @@ const AppFrame = ({ user, isAdminLike, isSupervisorLike, logout }) => {
       </Suspense>
     );
   }
+  // Montaža: obaveštenja i potvrde u izgledu Security dela (Security deo ima svoje, pa se ne prikazuju dvaput)
+  const routes = (
+    <WorkOrderModalProvider>
+      <AppRoutes user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
+    </WorkOrderModalProvider>
+  );
   return (
-    <>
-      {user && <ShadcnSidebar />}
-      <WorkOrderModalProvider>
-        <AppRoutes user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
-      </WorkOrderModalProvider>
-    </>
+    <SxToastProvider>
+      {user ? <Shell>{routes}</Shell> : <div className="sx mx-bare">{routes}</div>}
+      <ConfirmHost />
+    </SxToastProvider>
   );
 };
 
@@ -362,7 +372,7 @@ function App() {
     checkPendingEquipment();
   }, [user]);
 
-  // Web push notifikacije — registruj pretplatu za admin naloge
+  // Web push notifikacije - registruj pretplatu za admin naloge
   // (bezbedno pri svakom učitavanju: upsert na backendu, dozvola se traži samo jednom)
   useEffect(() => {
     if (user) {
@@ -421,13 +431,12 @@ function App() {
   };
   
   if (loading) {
-    return <div className="loading">Učitavanje...</div>;
+    return <div className="sx mx-boot" aria-busy="true">Učitavanje...</div>;
   }
   
   return (
     <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       <OverdueWorkOrdersProvider>
-        <ToastProvider>
           <Router>
             <div className={`app ${showEquipmentConfirmation ? 'blocked-by-confirmation' : ''}`}>
               <AppFrame user={user} isAdminLike={isAdminLike} isSupervisorLike={isSupervisorLike} logout={logout} />
@@ -438,7 +447,6 @@ function App() {
             )}
           </div>
         </Router>
-      </ToastProvider>
       </OverdueWorkOrdersProvider>
     </AuthContext.Provider>
   );

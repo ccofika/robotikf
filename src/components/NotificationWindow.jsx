@@ -1,27 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
-import { Badge } from './ui/badge'
-import { Button } from './ui/button'
-import { Card, CardContent, CardHeader } from './ui/card'
-import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
-import { Checkbox } from './ui/checkbox'
-import {
-  CheckIcon,
-  CloseIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  AlertIcon,
-  UserIcon,
-  UsersIcon,
-  ToolsIcon,
-  BoxIcon,
-  ClipboardIcon,
-  CarIcon,
-  BellIcon,
-  StarIcon
-} from './icons/SvgIcons'
+import { ClipboardList, TriangleAlert, Car, Users, Star, Bell, X, CheckCheck } from 'lucide-react'
+import { cx, Btn, Led } from '../security/sx/ui'
+import { Tabs } from '../security/sx/layout'
+import { Checkbox } from '../security/sx/forms'
+import { useLayer } from '../security/sx/layer'
+import { EASE_OUT } from '../security/sx/motion'
+
+// Panel obaveštenja Montaže u izgledu Security dela (iskačući panel uz šinu, na telefonu ispod gornje trake).
+// Logika (učitavanje, označavanje, navigacija po tipu) je ista kao ranije.
 
 // API functions
 const fetchNotifications = async () => {
@@ -113,7 +102,7 @@ const markSelectedAsRead = async (notificationIds) => {
   }
 }
 
-const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 256 }, onNotificationUpdate }) => {
+const NotificationWindow = ({ isOpen, onClose, onNotificationUpdate, mobile, left = 260 }) => {
   const [activeTab, setActiveTab] = useState('nove')
   const [selectedNotifications, setSelectedNotifications] = useState(new Set())
   const [notifications, setNotifications] = useState([])
@@ -146,13 +135,13 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
   const transformNotification = (apiNotification) => {
     const getNotificationIcon = (type) => {
       switch (type) {
-        case 'work_order_verification': return <ClipboardIcon size={20} />
-        case 'material_anomaly': return <BoxIcon size={20} />
-        case 'vehicle_registration_expiry': return <CarIcon size={20} />
-        case 'technician_employment_expiry': return <UsersIcon size={20} />
-        case 'low_review_rating': return <StarIcon size={20} />
-        case 'duplicate_address': return <AlertIcon size={20} />
-        default: return <BellIcon size={20} />
+        case 'work_order_verification': return <ClipboardList size={18} strokeWidth={1.8} />
+        case 'material_anomaly': return <TriangleAlert size={18} strokeWidth={1.8} />
+        case 'vehicle_registration_expiry': return <Car size={18} strokeWidth={1.8} />
+        case 'technician_employment_expiry': return <Users size={18} strokeWidth={1.8} />
+        case 'low_review_rating': return <Star size={18} strokeWidth={1.8} />
+        case 'duplicate_address': return <TriangleAlert size={18} strokeWidth={1.8} />
+        default: return <Bell size={18} strokeWidth={1.8} />
       }
     }
 
@@ -414,261 +403,77 @@ const NotificationWindow = ({ isOpen, onClose, position = { bottom: 20, left: 25
     }
   }
 
-  if (!isOpen) return null
+  const panelRef = useRef(null)
+  useLayer(isOpen, onClose)
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const on = (e) => { if (panelRef.current && !panelRef.current.contains(e.target) && !e.target.closest('[data-testid="bell"]')) onClose() }
+    document.addEventListener('mousedown', on)
+    return () => document.removeEventListener('mousedown', on)
+  }, [isOpen, onClose])
 
-  // Create specialized notification cards based on type
-  const NotificationCard = ({ notification }) => {
-    const handleNavigate = () => {
-      handleNavigateToNotification(notification)
-    }
+  const TONE = { work_order_verification: 'info', material_anomaly: 'warn', vehicle_registration_expiry: 'bad', technician_employment_expiry: 'warn', low_review_rating: 'warn', duplicate_address: 'warn' }
+  const allSelected = filteredNotifications.length > 0 && selectedNotifications.size === filteredNotifications.length
+  const emptyText = activeTab === 'nove' ? 'Nema novih notifikacija' : activeTab === 'procitane' ? 'Nema pročitanih notifikacija' : 'Nema notifikacija u ovoj kategoriji'
 
-    const renderNotificationIcon = () => {
-      const iconClass = "size-10 p-2 rounded-lg flex items-center justify-center"
-      
-      switch (notification.type) {
-        case 'work_order_verification':
-          return (
-            <div className={`${iconClass} bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400`}>
-              <ClipboardIcon size={20} />
-            </div>
-          )
-        case 'material_anomaly':
-          return (
-            <div className={`${iconClass} bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400`}>
-              <AlertIcon size={20} />
-            </div>
-          )
-        case 'vehicle_registration_expiry':
-          return (
-            <div className={`${iconClass} bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400`}>
-              <CarIcon size={20} />
-            </div>
-          )
-        case 'technician_employment_expiry':
-          return (
-            <div className={`${iconClass} bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400`}>
-              <UsersIcon size={20} />
-            </div>
-          )
-        case 'low_review_rating':
-          return (
-            <div className={`${iconClass} bg-purple-50 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400`}>
-              <StarIcon size={20} />
-            </div>
-          )
-        default:
-          return (
-            <div className={`${iconClass} bg-gray-50 text-gray-600 dark:bg-gray-950/30 dark:text-gray-400`}>
-              <BellIcon size={20} />
-            </div>
-          )
-      }
-    }
-
-    return (
-      <div 
-        className="w-full py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/30 rounded-lg px-2 transition-colors"
-        onClick={handleNavigate}
-      >
-        <div className="flex gap-3">
-          {/* Selection checkbox */}
-          <div className="flex items-start pt-1">
-            <Checkbox
-              checked={selectedNotifications.has(notification.id)}
-              onCheckedChange={(checked) => handleSelectNotification(notification.id, checked)}
-              onClick={(e) => e.stopPropagation()}
-              className="h-3 w-3"
-            />
-          </div>
-
-          {/* Notification icon instead of avatar */}
-          {renderNotificationIcon()}
-
-          <div className="flex flex-1 flex-col space-y-2">
-            <div className="w-full items-start">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm">
-                    <span className="font-medium">{notification.user.name}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      {notification.action}{" "}
-                    </span>
-                    {notification.target && (
-                      <span className="font-medium text-primary">{notification.target}</span>
-                    )}
-                  </div>
-                  {!notification.isRead && (
-                    <div className="size-1.5 rounded-full bg-emerald-500"></div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    {notification.timestamp}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {notification.timeAgo}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {notification.content && (
-              <div className="rounded-lg bg-muted p-2.5 text-sm tracking-[-0.006em]">
-                {notification.content}
-              </div>
-            )}
-
-            {notification.hasActions && (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Odbaci
-                </Button>
-                <Button size="sm" className="h-7 text-xs">
-                  Prihvati
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
+  return createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="fixed z-50"
-        style={{
-          top: position.top,
-          bottom: position.bottom,
-          left: position.left,
-          right: position.right,
-          width: position.right ? 'auto' : '520px',
-          maxHeight: '700px',
-        }}
-      >
-        <Card className="flex w-full max-w-[520px] flex-col gap-6 p-4 shadow-2xl md:p-8">
-          <CardHeader className="p-0">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base leading-none font-semibold tracking-[-0.006em]">
-                Vaše notifikacije
-              </h3>
-              <div className="flex items-center gap-2">
-                {/* Mark all as read button */}
+      {isOpen && (
+        <div className="sx-portal">
+          <motion.div ref={panelRef} className={cx('sx-pop sx-notifs mx-notifs', mobile && 'is-mobile')} style={mobile ? undefined : { left }} role="dialog" aria-label="Vaše notifikacije" data-testid="notifications"
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6, transition: { duration: 0.12, ease: 'linear' } }}
+            transition={{ opacity: { duration: 0.15, ease: 'linear' }, y: { duration: 0.28, ease: EASE_OUT } }}>
+            <div className="sx-notifs__head">
+              <span className="sx-eyebrow">Vaše notifikacije</span>
+              <div className="mx-notifs__acts">
+                {selectedNotifications.size > 0 && <Btn size="sm" onClick={handleMarkSelectedAsRead}>Označi ({selectedNotifications.size})</Btn>}
                 {(activeTab === 'nove' || activeTab === 'work-orders') && filteredNotifications.some(n => !n.isRead) && (
-                  <Button className="size-8" variant="ghost" size="icon" onClick={handleMarkAllAsRead}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="1em"
-                      height="1em"
-                      viewBox="0 0 24 24"
-                      className="size-4.5 text-muted-foreground"
-                    >
-                      <path
-                        fill="currentColor"
-                        fillRule="evenodd"
-                        d="M15.493 6.935a.75.75 0 0 1 .072 1.058l-7.857 9a.75.75 0 0 1-1.13 0l-3.143-3.6a.75.75 0 0 1 1.13-.986l2.578 2.953l7.292-8.353a.75.75 0 0 1 1.058-.072m5.025.085c.3.285.311.76.025 1.06l-8.571 9a.75.75 0 0 1-1.14-.063l-.429-.563a.75.75 0 0 1 1.076-1.032l7.978-8.377a.75.75 0 0 1 1.06-.026"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </Button>
+                  <Btn size="sm" variant="ghost" icon={CheckCheck} onClick={handleMarkAllAsRead} title="Označi sve kao pročitano" aria-label="Označi sve kao pročitano" />
                 )}
-                
-                {/* Selected actions button */}
-                {selectedNotifications.size > 0 && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleMarkSelectedAsRead}
-                    className="h-7 text-xs"
-                  >
-                    Označi ({selectedNotifications.size})
-                  </Button>
-                )}
-
-                {/* Close button */}
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-                  <CloseIcon size={16} />
-                </Button>
+                <button type="button" className="sx-dialog__close" onClick={onClose} aria-label="Zatvori"><X size={18} strokeWidth={1.8} /></button>
               </div>
             </div>
-
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full flex-col justify-start"
-            >
-              <div className="flex items-center justify-between">
-                <TabsList className="**:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 [&_button]:gap-1.5">
-                  <TabsTrigger value="nove">
-                    Nove
-                    <Badge variant="secondary">{unreadNonWO.length}</Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="procitane">
-                    Pročitane <Badge variant="secondary">{readNonWO.length}</Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="work-orders">
-                    Radni nalozi <Badge variant="secondary">{workOrderNotifications.length}</Badge>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              
-              {/* Selection controls */}
-              {filteredNotifications.length > 0 && (
-                <div className="flex items-center justify-between mt-4 p-2 bg-muted/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="select-all"
-                      checked={filteredNotifications.length > 0 && selectedNotifications.size === filteredNotifications.length}
-                      onCheckedChange={handleSelectAll}
-                      className="h-3 w-3"
-                    />
-                    <label htmlFor="select-all" className="text-xs text-muted-foreground">
-                      Izaberi sve ({filteredNotifications.length})
-                    </label>
-                  </div>
-                </div>
-              )}
-            </Tabs>
-          </CardHeader>
-
-          <CardContent className="h-full p-0 max-h-[500px] overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-0 divide-y divide-dashed divide-border">
-                {filteredNotifications.length > 0 ? (
-                  filteredNotifications.map((notification) => (
-                    <NotificationCard
-                      key={notification.id}
-                      notification={notification}
-                    />
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center space-y-2.5 py-12 text-center">
-                    <div className="rounded-full bg-muted p-4">
-                      <BellIcon size={24} className="text-muted-foreground" />
-                    </div>
-                    <p className="text-sm font-medium tracking-[-0.006em] text-muted-foreground">
-                      {activeTab === 'nove' ? 'Nema novih notifikacija' : 
-                       activeTab === 'procitane' ? 'Nema pročitanih notifikacija' :
-                       'Nema notifikacija u ovoj kategoriji'}
-                    </p>
-                  </div>
-                )}
+            <div className="mx-notifs__tabs">
+              <Tabs ariaLabel="Vrsta notifikacija" layoutId="mx-notifs-tab" value={activeTab} onChange={setActiveTab} items={[
+                { key: 'nove', label: 'Nove', count: unreadNonWO.length, tone: unreadNonWO.length ? 'bad' : undefined },
+                { key: 'procitane', label: 'Pročitane', count: readNonWO.length },
+                { key: 'work-orders', label: 'Radni nalozi', count: workOrderNotifications.length }
+              ]} />
+            </div>
+            {filteredNotifications.length > 0 && (
+              <div className="mx-notifs__select">
+                <Checkbox checked={allSelected} onChange={handleSelectAll}>Izaberi sve ({filteredNotifications.length})</Checkbox>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </motion.div>
-    </AnimatePresence>
+            <div className="sx-notifs__list">
+              {loading ? (
+                <div className="sx-empty"><b>Učitavanje...</b></div>
+              ) : filteredNotifications.length === 0 ? (
+                <div className="sx-empty"><b>{emptyText}</b></div>
+              ) : filteredNotifications.map((n) => (
+                <div key={n.id} role="button" tabIndex={0} className={cx('sx-notif mx-notif', !n.isRead && 'is-new')} onClick={() => handleNavigateToNotification(n)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleNavigateToNotification(n) }}>
+                  <span className="mx-notif__check" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox checked={selectedNotifications.has(n.id)} onChange={(v) => handleSelectNotification(n.id, v)} />
+                  </span>
+                  <span className={cx('sx-item__icon', TONE[n.type] === 'bad' && 'is-bad', TONE[n.type] === 'warn' && 'is-warn')}>{n.icon}</span>
+                  <span className="sx-notif__body">
+                    <b>{n.user.name} <span className="mx-notif__action">{n.action}</span>{n.target && <> <span className="mx-notif__target">{n.target}</span></>}</b>
+                    {n.content && <span>{n.content}</span>}
+                    <span className="mx-notif__meta">{n.timestamp}</span>
+                  </span>
+                  <span className="mx-notif__side">
+                    <time className="sx-notif__time">{n.timeAgo}</time>
+                    {!n.isRead && <Led tone="info" />}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   )
 }
 

@@ -1,49 +1,11 @@
-import { toast as sonnerToast, Toaster } from 'sonner'
-import { X } from 'lucide-react'
+// Obaveštenja Montaže idu kroz obaveštenja Security dela (security/sx/toast): jedno na ekranu,
+// ista poruka pravi brojač, greška ima prednost. Prikaz (ToastProvider) je u okviru Montaže u App.js.
+import { toast as sx } from '../../security/sx/toast'
 
 export const toast = {
-  success: (message: string) => sonnerToast.success(message),
-  error: (message: string) => sonnerToast.error(message),
-  info: (message: string) => sonnerToast.info(message),
-  warning: (message: string) => sonnerToast.warning(message),
-  loading: (message: string) => sonnerToast.loading(message),
-  promise: <T,>(
-    promise: Promise<T>,
-    options: {
-      loading: string
-      success: string
-      error: string
-    }
-  ) => sonnerToast.promise(promise, options),
+  success: (message: string) => sx.ok(message),
+  error: (message: string) => sx.bad(message),
+  info: (message: string) => sx.info(message),
+  warning: (message: string, _options?: unknown) => sx.warn(message),
+  warn: (message: string) => sx.warn(message),
 }
-
-interface ToastProviderProps {
-  children: React.ReactNode
-}
-
-export function ToastProvider({ children }: ToastProviderProps) {
-  return (
-    <>
-      {children}
-      <Toaster
-        position="top-right"
-        expand
-        richColors
-        closeButton
-        toastOptions={{
-          style: {
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            padding: '12px 16px',
-            fontSize: '14px',
-          },
-        }}
-        icons={{
-          close: <X size={16} />,
-        }}
-      />
-    </>
-  )
-}
-
-export { Toaster }

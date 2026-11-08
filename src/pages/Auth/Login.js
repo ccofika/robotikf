@@ -1,9 +1,11 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../utils/toast';
-import { UserIcon, LockIcon, LogoutIcon, AlertIcon, EyeIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import { cn } from '../../utils/cn';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import BrandMark from '../../security/sx/BrandMark';
+import { Btn } from '../../security/sx/ui';
+import { Note } from '../../security/sx/layout';
+import { Field, Input } from '../../security/sx/forms';
 import axios from 'axios';
 
 const Login = () => {
@@ -53,8 +55,7 @@ const Login = () => {
       
       // Ako je prijava uspešna, spremite korisnika i token
       if (response.data && response.data.user) {
-        login(response.data.user, response.data.token);
-        toast.success('Uspešno ste se prijavili!');
+        login(response.data.user, response.data.token); // poruku o uspešnoj prijavi prikazuje login() u App.js
       } else {
         setError('Neuspešna prijava. Proverite vaše podatke.');
       }
@@ -68,115 +69,48 @@ const Login = () => {
     }
   };
   
+  // Izgled Security dela: znak, natpis, naslov, polja i jedno glavno dugme
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-green-400/10 rounded-full blur-3xl"></div>
-      </div>
-      
-      {/* Login Card */}
-      <div className="relative w-full max-w-md">
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <LogoutIcon size={32} className="text-blue-600" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">TelCo Inventory</h1>
-            <p className="text-slate-600">Profesionalni sistem upravljanja inventarom</p>
-          </div>
-        
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} noValidate className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center space-x-2">
-                <AlertIcon size={16} />
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium text-slate-700">
-                Korisničko ime
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Unesite korisničko ime"
-                  disabled={loading}
-                  className="h-11 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  autoComplete="username"
-                  required
-                />
-                <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-slate-700">
-                Lozinka
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Unesite lozinku"
-                  disabled={loading}
-                  className="h-11 w-full pl-10 pr-10 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  autoComplete="current-password"
-                  required
-                />
-                <LockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-                <button 
-                  type="button"
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-slate-700 transition-colors disabled:opacity-50"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  tabIndex="-1"
-                >
-                  {showPassword ? (
-                    <EyeIcon size={16} />
-                  ) : (
-                    <EyeIcon size={16} className="opacity-60" />
-                  )}
-                </button>
-              </div>
-            </div>
-            
-            <Button 
-              type="primary" 
-              size="large"
-              className="w-full"
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  <span>Prijavljivanje...</span>
-                </div>
-              ) : (
-                <span>Prijavi se</span>
-              )}
-            </Button>
-          </form>
+    <div className="mx-login" data-testid="page-login">
+      <div className="mx-login__card sx-card">
+        <div className="mx-login__head">
+          <BrandMark size={40} />
+          <span className="sx-eyebrow">Robotik</span>
+          <h1 className="sx-title mx-login__title">TelCo Inventory</h1>
+          <p className="mx-login__lead">Profesionalni sistem upravljanja inventarom</p>
+        </div>
 
-          {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-200 text-center space-y-1">
-            <p className="text-xs text-slate-500">&copy; 2024 TelCo Inventory System</p>
-            <p className="text-xs text-slate-400">Verzija 1.0</p>
-          </div>
+        <form onSubmit={handleSubmit} noValidate className="mx-login__form">
+          {error && <Note tone="bad">{error}</Note>}
+
+          <Field label="Korisničko ime" htmlFor="name">
+            <span className="mx-login__in">
+              <User size={17} strokeWidth={1.8} aria-hidden="true" />
+              <Input type="text" id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Unesite korisničko ime"
+                disabled={loading} autoComplete="username" required />
+            </span>
+          </Field>
+
+          <Field label="Lozinka" htmlFor="password">
+            <span className="mx-login__in">
+              <Lock size={17} strokeWidth={1.8} aria-hidden="true" />
+              <Input type={showPassword ? 'text' : 'password'} id="password" name="password" value={formData.password} onChange={handleChange}
+                placeholder="Unesite lozinku" disabled={loading} autoComplete="current-password" required />
+              <button type="button" className="mx-login__eye" onClick={() => setShowPassword(!showPassword)} disabled={loading} tabIndex="-1"
+                aria-label={showPassword ? 'Sakrij lozinku' : 'Prikaži lozinku'}>
+                {showPassword ? <EyeOff size={16} strokeWidth={1.8} /> : <Eye size={16} strokeWidth={1.8} />}
+              </button>
+            </span>
+          </Field>
+
+          <Btn type="submit" variant="primary" size="lg" className="mx-login__submit" busy={loading} aria-label={loading ? 'Prijavljivanje...' : 'Prijavi se'}>
+            {loading ? 'Prijavljivanje...' : 'Prijavi se'}
+          </Btn>
+        </form>
+
+        <div className="mx-login__foot">
+          <span>&copy; 2024 TelCo Inventory System</span>
+          <span>Verzija 1.0</span>
         </div>
       </div>
     </div>
