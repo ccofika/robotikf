@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { PlusIcon, UploadIcon, SearchIcon, FilterIcon, ViewIcon, DeleteIcon, ClipboardIcon, RefreshIcon } from '../../components/icons/SvgIcons';
+import { useSearchParams, useLocation } from 'react-router-dom';
+import { Plus, Upload, RefreshCw, Eye, Trash2 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
 import { getTimRowStyle } from '../../utils/tim';
 import { useWorkOrderModal } from '../../context/WorkOrderModalContext';
-import './WorkOrdersModern.css';
+import { Btn, Sign } from '../../security/sx/ui';
+import { PageHead, Toolbar, Panel, Note, Stat } from '../../security/sx/layout';
+import { Select, SearchField } from '../../security/sx/forms';
+import { confirm } from '../../security/sx/confirm';
+import { LinkBtn, Pager, Loading } from '../../montaza/ui';
+import './WorkOrdersList.mx.css';
+
+// Ikonica koja se okreće dok traje učitavanje
+const Spin = (p) => <RefreshCw {...p} className="mx-spin" />;
 
 const WorkOrdersList = () => {
   const [searchParams] = useSearchParams();
@@ -91,7 +99,7 @@ const WorkOrdersList = () => {
   const fetchData = fetchWorkOrders;
   
   const handleDelete = async (id, address) => {
-    if (window.confirm(`Da li ste sigurni da želite da obrišete radni nalog za adresu "${address}"?`)) {
+    if (await confirm({ title: `Da li ste sigurni da želite da obrišete radni nalog za adresu "${address}"?`, tone: 'danger', confirmLabel: 'Obriši' })) {
       try {
         await workOrdersAPI.delete(id);
         toast.success('Radni nalog je uspešno obrisan!');
@@ -143,13 +151,14 @@ const WorkOrdersList = () => {
   
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   
-  // Stilizacija statusa
-  const getStatusClass = (status) => {
+  // Ton znaka statusa (završen ok, nezavršen warn, odložen info, otkazan bad)
+  const getStatusTone = (status) => {
     switch (status) {
-      case 'zavrsen': return 'status-completed';
-      case 'nezavrsen': return 'status-pending';
-      case 'odlozen': return 'status-postponed';
-      default: return '';
+      case 'zavrsen': return 'ok';
+      case 'nezavrsen': return 'warn';
+      case 'odlozen': return 'info';
+      case 'otkazan': return 'bad';
+      default: return 'idle';
     }
   };
   
@@ -162,251 +171,107 @@ const WorkOrdersList = () => {
     }
   };
   
+  const pct = (n) => (totalCount ? Math.round(n / totalCount * 100) : 0);
+
   return (
-    <div className="work-orders-list fade-in">
-      <div className="page-header">
-        <h1 className="page-title">
-          <ClipboardIcon />
-          Pregled radnih naloga
-        </h1>
-        <div className="Work-orders-header-actions">
-          <button
-            onClick={fetchData}
-            className="btn btn-secondary"
-            disabled={loading}
-            title="Osveži podatke"
-          >
-            <RefreshIcon /> {loading ? 'Osvežava...' : 'Osveži'}
-          </button>
-          <Link to="/work-orders/add" className="btn btn-primary">
-            <PlusIcon /> Novi nalog
-          </Link>
-          <Link to="/work-orders/upload" className="btn btn-success">
-            <UploadIcon /> Import
-          </Link>
-        </div>
+    <div className="sx-page" data-testid="page-work-orders-list">
+      <PageHead
+        eyebrow="Montaža · Radni nalozi"
+        title="Pregled radnih naloga"
+        actions={<>
+          <LinkBtn to="/work-orders/add" variant="primary" icon={Plus}>Novi nalog</LinkBtn>
+          <LinkBtn to="/work-orders/upload" icon={Upload}>Import</LinkBtn>
+        </>}
+      />
+
+      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+
+      <div className="sx-stats">
+        <Stat label="Ukupno" value={totalCount} />
+        <Stat label="Završeni" value={statusCounts.zavrsen} small={`${pct(statusCounts.zavrsen)}%`} />
+        <Stat label="Nezavršeni" value={statusCounts.nezavrsen} small={`${pct(statusCounts.nezavrsen)}%`} />
+        <Stat label="Odloženi" value={statusCounts.odlozen} small={`${pct(statusCounts.odlozen)}%`} />
       </div>
-      
-      {error && <div className="alert alert-danger">{error}</div>}
-      
-      <div className="card">
-        <div className="table-controls">
-          <div className="search-filter">
-            <div className="search-box">
-              <SearchIcon className="search-icon" />
-              <input
-                type="text"
-                placeholder="Pretraga po opštini, adresi, tipu..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-            </div>
-            
-            <div className="filter-box">
-              <FilterIcon className="filter-icon" />
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              >
-                <option value="">Svi statusi</option>
-                <option value="zavrsen">Završeni</option>
-                <option value="nezavrsen">Nezavršeni</option>
-                <option value="odlozen">Odloženi</option>
-              </select>
-            </div>
-            
-            <div className="filter-box">
-              <select
-                value={technicianFilter}
-                onChange={(e) => { setTechnicianFilter(e.target.value); setCurrentPage(1); }}
-              >
-                <option value="">Svi tehničari</option>
-                <option value="unassigned">Nedodeljeni</option>
-                {technicians.filter(tech => !tech.deletedAt).map(tech => (
-                  <option key={tech._id} value={tech._id}>
-                    {tech.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <button 
-              className="btn btn-sm"
-              onClick={fetchData}
-              disabled={loading}
-            >
-              <RefreshIcon className={loading ? 'spin' : ''} />
-              Osveži
-            </button>
-          </div>
+
+      <Toolbar>
+        <SearchField value={searchInput} onChange={setSearchInput} placeholder="Pretraga po opštini, adresi, tipu..." />
+        <Select size="sm" aria-label="Status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
+          <option value="">Svi statusi</option>
+          <option value="zavrsen">Završeni</option>
+          <option value="nezavrsen">Nezavršeni</option>
+          <option value="odlozen">Odloženi</option>
+        </Select>
+        <Select size="sm" aria-label="Tehničar" value={technicianFilter} onChange={(e) => { setTechnicianFilter(e.target.value); setCurrentPage(1); }}>
+          <option value="">Svi tehničari</option>
+          <option value="unassigned">Nedodeljeni</option>
+          {technicians.filter(tech => !tech.deletedAt).map(tech => (
+            <option key={tech._id} value={tech._id}>
+              {tech.name}
+            </option>
+          ))}
+        </Select>
+        <div className="sx-toolbar__end">
+          <Btn size="sm" icon={loading ? Spin : RefreshCw} onClick={fetchData} disabled={loading} title="Osveži podatke">Osveži</Btn>
         </div>
-        
+      </Toolbar>
+
+      <Panel pad={false}>
         {loading ? (
-          <div className="loading-text">Učitavanje radnih naloga...</div>
+          <Loading text="Učitavanje radnih naloga..." />
         ) : (
           <>
-            <div className="table-container">
-              <table className="work-orders-table">
-                <thead>
-                  <tr>
-                    <th>Datum</th>
-                    <th>Opština</th>
-                    <th>Adresa</th>
-                    <th>Tip</th>
-                    <th>Tehničar</th>
-                    <th>Status</th>
-                    <th>Akcije</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedWorkOrders.length === 0 ? (
+            {displayedWorkOrders.length === 0 ? (
+              <div className="sx-empty-block">
+                <b>Nema rezultata za prikazivanje</b>
+              </div>
+            ) : (
+              <div className="sx-tablewrap">
+                <table className="sx-table mx-wol__table" data-testid="work-orders-table">
+                  <thead>
                     <tr>
-                      <td colSpan="7" className="text-center">
-                        Nema rezultata za prikazivanje
-                      </td>
+                      <th>Datum</th>
+                      <th>Opština</th>
+                      <th>Adresa</th>
+                      <th>Tip</th>
+                      <th>Tehničar</th>
+                      <th>Status</th>
+                      <th className="is-end">Akcije</th>
                     </tr>
-                  ) : (
-                    displayedWorkOrders.map((order) => (
-                      <tr key={order._id} className="slide-in" style={getTimRowStyle(order.tim)}>
-                        <td>{new Date(order.date).toLocaleDateString('sr-RS')}</td>
-                        <td>{order.municipality}</td>
-                        <td>{order.address}</td>
-                        <td>{order.type}</td>
-                        <td>
-                          <span className={`technician-badge ${(!order.technicianId && !order.technician2Id) ? 'unassigned' : ''}`}>
-                            {getTechnicianNames(order)}
-                            {order.statusChangedBy && (
-                              <small className="status-changed-by">
-                                (Status: {getTechnicianName(order.statusChangedBy)})
-                              </small>
-                            )}
-                          </span>
+                  </thead>
+                  <tbody>
+                    {displayedWorkOrders.map((order, i) => (
+                      <tr key={order._id} style={{ '--i': i, ...getTimRowStyle(order.tim) }}>
+                        <td className="is-head"><span className="sx-mono mx-strong">{new Date(order.date).toLocaleDateString('sr-RS')}</span></td>
+                        <td data-label="Opština">{order.municipality}</td>
+                        <td data-label="Adresa" className="is-wide">{order.address}</td>
+                        <td data-label="Tip">{order.type}</td>
+                        <td data-label="Tehničar">
+                          <span className={(!order.technicianId && !order.technician2Id) ? 'sx-faint' : undefined}>{getTechnicianNames(order)}</span>
+                          {order.statusChangedBy && (
+                            <small className="mx-wol__by">
+                              (Status: {getTechnicianName(order.statusChangedBy)})
+                            </small>
+                          )}
                         </td>
-                        <td>
-                          <span className={`status-badge ${getStatusClass(order.status)}`}>
-                            {getStatusLabel(order.status)}
-                          </span>
+                        <td data-label="Status">
+                          <Sign tone={getStatusTone(order.status)}>{getStatusLabel(order.status)}</Sign>
                         </td>
-                        <td className="actions-column">
-                          <Link
-                            to={`/work-orders/${order._id}`}
-                            state={{ backgroundLocation: location }}
-                            className="btn btn-sm action-btn view-btn"
-                          >
-                            <ViewIcon /> Detalji
-                          </Link>
-                          <button 
-                            className="btn btn-sm action-btn delete-btn"
-                            onClick={() => handleDelete(order._id, order.address)}
-                            disabled={loading}
-                          >
-                            <DeleteIcon />
-                          </button>
+                        <td className="is-actions is-end">
+                          <div className="sx-rowacts">
+                            <LinkBtn size="sm" variant="ghost" icon={Eye} to={`/work-orders/${order._id}`} state={{ backgroundLocation: location }}>Detalji</LinkBtn>
+                            <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" aria-label="Obriši" onClick={() => handleDelete(order._id, order.address)} disabled={loading} />
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button 
-                  onClick={() => paginate(1)}
-                  disabled={currentPage === 1}
-                >
-                  &laquo;
-                </button>
-                
-                <button 
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  &lsaquo;
-                </button>
-                
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(number => {
-                    // Prikaži samo nekoliko stranica oko trenutno aktivne
-                    return (
-                                            number === 1 || 
-                      number === totalPages ||
-                      Math.abs(number - currentPage) <= 2
-                    );
-                  })
-                  .map(number => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={currentPage === number ? 'active' : ''}
-                    >
-                      {number}
-                    </button>
-                  ))}
-                
-                <button 
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  &rsaquo;
-                </button>
-                
-                <button 
-                  onClick={() => paginate(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  &raquo;
-                </button>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
+            {totalPages > 1 && <Pager page={currentPage} total={totalCount} perPage={itemsPerPage} onPage={paginate} />}
           </>
         )}
-        
-        <div className="work-orders-stats">
-          <div className="stat">
-            <div className="stat-icon-circle">
-              <ClipboardIcon />
-            </div>
-            <div>
-              <p>Ukupno</p>
-              <h3>{totalCount}</h3>
-            </div>
-          </div>
-
-          <div className="stat">
-            <div className="stat-icon-circle green">
-              <span>{statusCounts.zavrsen}</span>
-            </div>
-            <div>
-              <p>Završeni</p>
-              <h3>{totalCount ? Math.round(statusCounts.zavrsen / totalCount * 100) : 0}%</h3>
-            </div>
-          </div>
-
-          <div className="stat">
-            <div className="stat-icon-circle yellow">
-              <span>{statusCounts.nezavrsen}</span>
-            </div>
-            <div>
-              <p>Nezavršeni</p>
-              <h3>{totalCount ? Math.round(statusCounts.nezavrsen / totalCount * 100) : 0}%</h3>
-            </div>
-          </div>
-
-          <div className="stat">
-            <div className="stat-icon-circle blue">
-              <span>{statusCounts.odlozen}</span>
-            </div>
-            <div>
-              <p>Odloženi</p>
-              <h3>{totalCount ? Math.round(statusCounts.odlozen / totalCount * 100) : 0}%</h3>
-            </div>
-          </div>
-        </div>
-      </div>
+      </Panel>
     </div>
   );
 };
