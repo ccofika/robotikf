@@ -1,6 +1,6 @@
-// Detalj radnog naloga preko liste (ruta /work-orders/:id sa backgroundLocation): široka fioka sa desne
-// strane, na telefonu list preko celog ekrana. Lista ostaje ispod. Zatvara se dugmetom X, klikom van fioke
-// ili Escape-om (samo gornji sloj, sx layer koji zaključava i skrol stranice).
+// Detalj radnog naloga preko liste (ruta /work-orders/:id sa backgroundLocation): veliki modal na sredini
+// (na telefonu preko celog ekrana), lista ostaje ispod. Zatvara se dugmetom X, klikom van modala ili Escape-om.
+// Escape ide kroz sx sloj (useLayer): dok je iznad otvoren dijalog iz detalja, zatvara se samo on.
 import React, { useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
