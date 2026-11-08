@@ -98,7 +98,7 @@
 
 /* ---------- potvrda opreme (dijalog preko cele aplikacije): koja je stavka po redu, traka napretka, prethodna/sledeća ---------- */
 .sx-dialog .mx-econf { display: grid; gap: 14px; }
-.sx-dialog .mx-econf__progress { display: grid; gap: 8px; }
-.sx-dialog .mx-econf__bar { height: 4px; border-radius: 4px; background: var(--sx-surface-3); overflow: hidden; }
+.sx-dialog .mx-econf__progress { display: grid; gap: 8px; justify-items: center; }
+.sx-dialog .mx-econf__bar { justify-self: stretch; height: 4px; border-radius: 4px; background: var(--sx-surface-3); overflow: hidden; }
 .sx-dialog .mx-econf__bar > span { display: block; height: 100%; border-radius: inherit; background: var(--sx-btn-primary-bg); transition: width 300ms var(--ease-move); }
 .sx-dialog .mx-econf__nav { display: flex; justify-content: space-between; gap: 8px; }
