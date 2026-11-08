@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusIcon, SearchIcon, EditIcon, DeleteIcon, RefreshIcon, EyeIcon, FilterIcon, ToolsIcon, UserIcon, MinusIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { Plus, Minus, Pencil, Trash2, RefreshCw, Wrench, Users, ArrowLeftRight } from 'lucide-react';
 import { basicEquipmentAPI, techniciansAPI } from '../../services/api';
 import { toast } from '../../utils/toast';
-import { cn } from '../../utils/cn';
+import { Btn, Sign, Avatar } from '../../security/sx/ui';
+import { PageHead, Toolbar, Panel, Note, Stat, KV, Tabs } from '../../security/sx/layout';
+import { Field, Input, Select, Choice, SearchField } from '../../security/sx/forms';
+import Dialog from '../../security/sx/Dialog';
+import { confirm } from '../../security/sx/confirm';
+import { Pager, ColumnMenu, Loading } from '../../montaza/ui';
+import './BasicEquipmentManager.mx.css';
 
 const BasicEquipmentManager = () => {
   // State za osnovnu opremu
@@ -42,7 +47,6 @@ const BasicEquipmentManager = () => {
     price: true,
     actions: true
   });
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   // Paginacija
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,19 +57,6 @@ const BasicEquipmentManager = () => {
   useEffect(() => {
     fetchAllData();
   }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showColumnMenu && !event.target.closest('.relative')) {
-        setShowColumnMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showColumnMenu]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -124,7 +115,7 @@ const BasicEquipmentManager = () => {
   };
 
   const handleDelete = async (id, type) => {
-    if (window.confirm(`Da li ste sigurni da želite da obrišete osnovnu opremu "${type}"?`)) {
+    if (await confirm({ title: `Da li ste sigurni da želite da obrišete osnovnu opremu "${type}"?`, tone: 'danger', confirmLabel: 'Obriši' })) {
       setLoading(true);
 
       try {
@@ -243,7 +234,6 @@ const BasicEquipmentManager = () => {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredBasicEquipment.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredBasicEquipment.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -254,530 +244,194 @@ const BasicEquipmentManager = () => {
   const selectedTechnicianEquipment = selectedTechnician ?
     technicians.find(t => t._id === selectedTechnician)?.basicEquipment || [] : [];
 
+  const money = (n) => n.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const outOfStockCount = filteredBasicEquipment.filter(item => item.quantity === 0).length;
+  const lowStockCount = filteredBasicEquipment.filter(item => item.quantity > 0 && item.quantity < 5).length;
+  const pctOf = (n) => (filteredBasicEquipment.length ? Math.round(n / filteredBasicEquipment.length * 100) : 0);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Modern Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <ToolsIcon size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Osnovna oprema</h1>
-              <p className="text-slate-600 mt-1">Upravljanje osnovnom opremom i zaduženjima</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="sx-page" data-testid="page-basic-equipment">
+      <PageHead
+        eyebrow="Montaža · Inventar"
+        title="Osnovna oprema"
+        lead="Upravljanje osnovnom opremom i zaduženjima"
+      />
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
+      {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
-      {/* View Mode Tabs */}
-      <div className="mb-6">
-        <div className="flex flex-wrap justify-center gap-6 bg-slate-100 rounded-lg p-4">
-          <button
-            onClick={() => setViewMode('inventory')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              viewMode === 'inventory' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <ToolsIcon size={16} />
-            <span>Inventar</span>
-          </button>
-          <button
-            onClick={() => setViewMode('technicians')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              viewMode === 'technicians' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <UserIcon size={16} />
-            <span>Po tehničarima</span>
-          </button>
-          <button
-            onClick={() => setViewMode('assign')}
-            className={cn(
-              "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
-              "hover:bg-white hover:text-slate-900",
-              viewMode === 'assign' ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-            )}
-          >
-            <PlusIcon size={16} />
-            <span>Zaduženje/Razduženje</span>
-          </button>
-        </div>
-      </div>
+      <Tabs
+        ariaLabel="Prikaz"
+        layoutId="mx-be-tabs"
+        value={viewMode}
+        onChange={setViewMode}
+        items={[
+          { key: 'inventory', label: 'Inventar', icon: Wrench },
+          { key: 'technicians', label: 'Po tehničarima', icon: Users },
+          { key: 'assign', label: 'Zaduženje/Razduženje', icon: ArrowLeftRight }
+        ]}
+      />
 
-      {/* Inventory View */}
+      {/* Inventar */}
       {viewMode === 'inventory' && (
         <>
-          {/* Stats Cards */}
-          <div className="mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <ToolsIcon size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Ukupno stavki</p>
-                    <h3 className="text-lg font-bold text-slate-900">{filteredBasicEquipment.length}</h3>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-red-100 text-red-700 rounded-lg font-bold">
-                    {filteredBasicEquipment.filter(item => item.quantity === 0).length}
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Nema na stanju</p>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {filteredBasicEquipment.length ?
-                        Math.round(filteredBasicEquipment.filter(item => item.quantity === 0).length / filteredBasicEquipment.length * 100) : 0}%
-                    </h3>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 text-yellow-700 rounded-lg font-bold">
-                    {filteredBasicEquipment.filter(item => item.quantity > 0 && item.quantity < 5).length}
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Malo na stanju</p>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {filteredBasicEquipment.length ?
-                        Math.round(filteredBasicEquipment.filter(item => item.quantity > 0 && item.quantity < 5).length / filteredBasicEquipment.length * 100) : 0}%
-                    </h3>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-green-100 text-green-700 rounded-lg font-bold">
-                    {technicians.reduce((acc, tech) => acc + (tech.basicEquipment?.length || 0), 0)}
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Zaduženo</p>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {technicians.filter(tech => tech.basicEquipment && tech.basicEquipment.length > 0).length} tehničara
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="sx-stats">
+            <Stat label="Ukupno stavki" value={filteredBasicEquipment.length} />
+            <Stat label="Nema na stanju" value={outOfStockCount} small={`${pctOf(outOfStockCount)}%`} tone={outOfStockCount ? 'bad' : null} />
+            <Stat label="Malo na stanju" value={lowStockCount} small={`${pctOf(lowStockCount)}%`} tone={lowStockCount ? 'warn' : null} />
+            <Stat
+              label="Zaduženo"
+              value={technicians.reduce((acc, tech) => acc + (tech.basicEquipment?.length || 0), 0)}
+              sub={`${technicians.filter(tech => tech.basicEquipment && tech.basicEquipment.length > 0).length} tehničara`}
+            />
           </div>
 
-          {/* Add Form */}
-          {showAddForm && (
-            <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden mb-6">
-              <div className="p-6 border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    {editingItem ? 'Izmeni osnovnu opremu' : 'Dodaj novu osnovnu opremu'}
-                  </h3>
-                  <Button
-                    type="tertiary"
-                    size="small"
-                    onClick={resetForm}
-                  >
-                    ✕
-                  </Button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmit} className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="space-y-2">
-                    <label htmlFor="type" className="block text-sm font-medium text-slate-700">
-                      Vrsta osnovne opreme:
-                    </label>
-                    <input
-                      type="text"
-                      id="type"
-                      value={formData.type}
-                      onChange={(e) => setFormData({...formData, type: e.target.value})}
-                      placeholder="Unesite vrstu osnovne opreme"
-                      disabled={loading}
-                      autoFocus
-                      required
-                      className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="serialNumber" className="block text-sm font-medium text-slate-700">
-                      Serijski broj (S/N):
-                    </label>
-                    <input
-                      type="text"
-                      id="serialNumber"
-                      value={formData.serialNumber}
-                      onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
-                      placeholder="Unesite serijski broj"
-                      disabled={loading}
-                      className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="quantity" className="block text-sm font-medium text-slate-700">
-                      Količina:
-                    </label>
-                    <input
-                      type="number"
-                      id="quantity"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 0})}
-                      min="0"
-                      disabled={loading}
-                      required
-                      className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="price" className="block text-sm font-medium text-slate-700">
-                      Cena (RSD):
-                    </label>
-                    <input
-                      type="number"
-                      id="price"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
-                      min="0"
-                      step="0.01"
-                      disabled={loading}
-                      placeholder="0.00"
-                      className="h-11 w-full px-4 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
-                  <Button
-                    type="secondary"
-                    size="medium"
-                    onClick={resetForm}
-                  >
-                    Odustani
-                  </Button>
-                  <Button
-                    type="primary"
-                    size="medium"
-                    onClick={handleSubmit}
-                    loading={loading}
-                  >
-                    {loading ? 'Čuvanje...' : editingItem ? 'Ažuriraj' : 'Dodaj'}
-                  </Button>
-                </div>
-              </form>
+          <Toolbar>
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži po nazivu osnovne opreme..." />
+            <div className="sx-toolbar__end">
+              <Btn size="sm" variant="primary" icon={Plus} onClick={() => setShowAddForm(true)}>Dodaj</Btn>
+              <ColumnMenu
+                columns={{ type: 'Vrsta osnovne opreme', serialNumber: 'Serijski broj', quantity: 'Količina', price: 'Cena', actions: 'Akcije' }}
+                visible={visibleColumns}
+                onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
+              />
+              <Btn size="sm" icon={RefreshCw} onClick={fetchAllData} busy={loading}>Osveži</Btn>
             </div>
-          )}
+          </Toolbar>
 
-          {/* Main Table Card */}
-          <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-            {/* Table Controls */}
-            <div className="p-6 border-b border-slate-200">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center space-x-4 flex-1">
-                  {/* Search */}
-                  <div className="relative flex-1 max-w-md">
-                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Pretraži po nazivu osnovne opreme..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  {/* Add Button */}
-                  <Button
-                    type="primary"
-                    size="medium"
-                    prefix={<PlusIcon size={16} />}
-                    onClick={() => setShowAddForm(true)}
-                  >
-                    Dodaj
-                  </Button>
-
-                  {/* Column Visibility Toggle */}
-                  <div className="relative">
-                    <Button
-                      type="tertiary"
-                      size="medium"
-                      prefix={<EyeIcon size={16} />}
-                      onClick={() => setShowColumnMenu(!showColumnMenu)}
-                    >
-                      Kolone
-                    </Button>
-
-                    {showColumnMenu && (
-                      <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-md shadow-md z-50">
-                        <div className="p-1">
-                          <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Prikaži kolone</div>
-                          {Object.entries({
-                            type: 'Vrsta osnovne opreme',
-                            serialNumber: 'Serijski broj',
-                            quantity: 'Količina',
-                            price: 'Cena',
-                            actions: 'Akcije'
-                          }).map(([key, label]) => (
-                            <label key={key} className="flex items-center space-x-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={visibleColumns[key]}
-                                onChange={(e) => setVisibleColumns(prev => ({...prev, [key]: e.target.checked}))}
-                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                              />
-                              <span className="text-sm">{label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Refresh Button */}
-                  <Button
-                    type="secondary"
-                    size="medium"
-                    onClick={fetchAllData}
-                    loading={loading}
-                    prefix={<RefreshIcon size={16} />}
-                  >
-                    Osveži
-                  </Button>
-                </div>
-              </div>
-            </div>
-
+          <Panel pad={false}>
             {loading ? (
-              <div className="flex items-center justify-center p-12">
-                <div className="flex items-center space-x-3 text-slate-600">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  <span className="text-sm font-medium">Učitavanje osnovne opreme...</span>
-                </div>
-              </div>
+              <Loading text="Učitavanje osnovne opreme..." />
             ) : (
               <>
-                {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {visibleColumns.type && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Vrsta osnovne opreme
-                          </th>
-                        )}
-                        {visibleColumns.serialNumber && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Serijski broj
-                          </th>
-                        )}
-                        {visibleColumns.quantity && (
-                          <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Količina
-                          </th>
-                        )}
-                        {visibleColumns.price && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Cena (RSD)
-                          </th>
-                        )}
-                        {visibleColumns.actions && (
-                          <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                            Akcije
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {currentItems.length === 0 ? (
+                {currentItems.length === 0 ? (
+                  <div className="sx-empty-block">
+                    <b>Nema rezultata za prikazivanje</b>
+                    <span>Promenite filtere ili dodajte novu osnovnu opremu</span>
+                  </div>
+                ) : (
+                  <div className="sx-tablewrap">
+                    <table className="sx-table" data-testid="basic-equipment-table">
+                      <thead>
                         <tr>
-                          <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
-                            <div className="flex flex-col items-center space-y-2">
-                              <ToolsIcon size={48} className="text-slate-300" />
-                              <p className="text-sm font-medium">Nema rezultata za prikazivanje</p>
-                              <p className="text-xs">Promenite filtere ili dodajte novu osnovnu opremu</p>
-                            </div>
-                          </td>
+                          {visibleColumns.type && <th>Vrsta osnovne opreme</th>}
+                          {visibleColumns.serialNumber && <th>Serijski broj</th>}
+                          {visibleColumns.quantity && <th className="is-num">Količina</th>}
+                          {visibleColumns.price && <th className="is-num">Cena (RSD)</th>}
+                          {visibleColumns.actions && <th className="is-end">Akcije</th>}
                         </tr>
-                      ) : (
-                        currentItems.map((item, index) => (
-                          <tr key={item._id} className={`hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-25'}`}>
-                            {visibleColumns.type && (
-                              <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                                {item.type}
-                              </td>
-                            )}
-                            {visibleColumns.serialNumber && (
-                              <td className="px-6 py-4 text-sm text-slate-700">
-                                {item.serialNumber || '-'}
-                              </td>
-                            )}
+                      </thead>
+                      <tbody>
+                        {currentItems.map((item, index) => (
+                          <tr key={item._id} style={{ '--i': index }}>
+                            {visibleColumns.type && <td className="is-head"><b className="mx-strong">{item.type}</b></td>}
+                            {visibleColumns.serialNumber && <td data-label="Serijski broj">{item.serialNumber ? <span className="sx-mono">{item.serialNumber}</span> : '-'}</td>}
                             {visibleColumns.quantity && (
-                              <td className="px-6 py-4">
-                                <div className="flex justify-center">
-                                  <Button
-                                    type={item.quantity === 0 ? 'error' : item.quantity < 5 ? 'warning' : 'secondary'}
-                                    size="small"
-                                    className="text-xs min-w-[3rem]"
-                                  >
-                                    {item.quantity}
-                                  </Button>
-                                </div>
+                              <td data-label="Količina" className="is-num">
+                                {item.quantity === 0 ? <Sign tone="bad">{item.quantity}</Sign>
+                                  : item.quantity < 5 ? <Sign tone="warn">{item.quantity}</Sign>
+                                    : <span className="sx-mono">{item.quantity}</span>}
                               </td>
                             )}
-                            {visibleColumns.price && (
-                              <td className="px-6 py-4 text-right text-sm font-medium text-slate-900">
-                                {(item.price || 0).toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                            )}
+                            {visibleColumns.price && <td data-label="Cena (RSD)" className="is-num">{money(item.price || 0)}</td>}
                             {visibleColumns.actions && (
-                              <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end space-x-2">
-                                  <Button
-                                    type="tertiary"
-                                    size="small"
-                                    prefix={<EditIcon size={14} />}
-                                    onClick={() => startEdit(item)}
-                                  >
-                                    Izmeni
-                                  </Button>
-                                  <Button
-                                    type="error"
-                                    size="small"
-                                    prefix={<DeleteIcon size={14} />}
-                                    onClick={() => handleDelete(item._id, item.type)}
-                                    disabled={loading}
-                                  >
-                                    Obriši
-                                  </Button>
+                              <td className="is-actions is-end">
+                                <div className="sx-rowacts">
+                                  <Btn size="sm" variant="ghost" icon={Pencil} onClick={() => startEdit(item)}>Izmeni</Btn>
+                                  <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDelete(item._id, item.type)} disabled={loading}>Obriši</Btn>
                                 </div>
                               </td>
                             )}
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                {filteredBasicEquipment.length > itemsPerPage && (
-                  <div className="px-6 py-4 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-slate-600">
-                        Prikazano {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredBasicEquipment.length)} od {filteredBasicEquipment.length} rezultata
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          type="tertiary"
-                          size="small"
-                          onClick={() => paginate(1)}
-                          disabled={currentPage === 1}
-                        >
-                          &laquo;
-                        </Button>
-                        <Button
-                          type="tertiary"
-                          size="small"
-                          onClick={() => paginate(currentPage - 1)}
-                          disabled={currentPage === 1}
-                        >
-                          &lsaquo;
-                        </Button>
-
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
-                          .filter(number => {
-                            return (
-                              number === 1 ||
-                              number === totalPages ||
-                              Math.abs(number - currentPage) <= 1
-                            );
-                          })
-                          .map(number => (
-                            <Button
-                              key={number}
-                              type={currentPage === number ? "primary" : "tertiary"}
-                              size="small"
-                              onClick={() => paginate(number)}
-                            >
-                              {number}
-                            </Button>
-                          ))}
-
-                        <Button
-                          type="tertiary"
-                          size="small"
-                          onClick={() => paginate(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                        >
-                          &rsaquo;
-                        </Button>
-                        <Button
-                          type="tertiary"
-                          size="small"
-                          onClick={() => paginate(totalPages)}
-                          disabled={currentPage === totalPages}
-                        >
-                          &raquo;
-                        </Button>
-                      </div>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
+                <Pager page={currentPage} total={filteredBasicEquipment.length} perPage={itemsPerPage} onPage={paginate} />
               </>
             )}
-          </div>
+          </Panel>
+
+          {/* Dodavanje i izmena (ranije forma iznad tabele); dugmad su kao ranije "submit" dugmad forme (Odustani je prvo) */}
+          <Dialog
+            open={showAddForm}
+            onClose={resetForm}
+            eyebrow="Osnovna oprema"
+            title={editingItem ? 'Izmeni osnovnu opremu' : 'Dodaj novu osnovnu opremu'}
+            testId="basic-equipment-dialog"
+            footer={<>
+              <Btn type="submit" form="mx-be-form" variant="ghost" onClick={resetForm}>Odustani</Btn>
+              <Btn type="submit" form="mx-be-form" variant="primary" onClick={handleSubmit} busy={loading}>
+                {loading ? 'Čuvanje...' : editingItem ? 'Ažuriraj' : 'Dodaj'}
+              </Btn>
+            </>}
+          >
+            <form id="mx-be-form" onSubmit={handleSubmit} className="sx-form">
+              <Field label="Vrsta osnovne opreme:" htmlFor="type">
+                <Input
+                  type="text"
+                  id="type"
+                  value={formData.type}
+                  onChange={(e) => setFormData({...formData, type: e.target.value})}
+                  placeholder="Unesite vrstu osnovne opreme"
+                  disabled={loading}
+                  autoFocus
+                  required
+                />
+              </Field>
+              <Field label="Serijski broj (S/N):" htmlFor="serialNumber">
+                <Input
+                  type="text"
+                  id="serialNumber"
+                  value={formData.serialNumber}
+                  onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+                  placeholder="Unesite serijski broj"
+                  disabled={loading}
+                  mono
+                />
+              </Field>
+              <Field label="Količina:" htmlFor="quantity">
+                <Input
+                  type="number"
+                  id="quantity"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 0})}
+                  min="0"
+                  disabled={loading}
+                  required
+                />
+              </Field>
+              <Field label="Cena (RSD):" htmlFor="price">
+                <Input
+                  type="number"
+                  id="price"
+                  value={formData.price}
+                  onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                  min="0"
+                  step="0.01"
+                  disabled={loading}
+                  placeholder="0.00"
+                />
+              </Field>
+            </form>
+          </Dialog>
         </>
       )}
 
-      {/* Technicians View */}
+      {/* Po tehničarima */}
       {viewMode === 'technicians' && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-200">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="text-lg font-semibold text-slate-900">Osnovna oprema po tehničarima</h3>
-              <div className="relative max-w-md">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-                <input
-                  type="text"
-                  placeholder="Pretraži tehničare..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9 w-full pl-10 pr-4 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
-                />
-              </div>
-            </div>
-          </div>
+        <>
+          <Toolbar>
+            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Pretraži tehničare..." />
+          </Toolbar>
 
-          <div className="p-6">
+          <Panel title="Osnovna oprema po tehničarima">
             {filteredTechnicians.length === 0 ? (
-              <div className="text-center py-12">
-                <UserIcon size={48} className="text-slate-300 mx-auto mb-4" />
-                <p className="text-sm font-medium text-slate-500">Nema tehničara sa zaduženom osnovnom opremom</p>
+              <div className="sx-empty-block mx-be-empty">
+                <b>Nema tehničara sa zaduženom osnovnom opremom</b>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="mx-be-techs">
                 {filteredTechnicians.map(technician => {
                   // Calculate total price for this technician
                   const totalPrice = (technician.basicEquipment || []).reduce((sum, equipment) => {
@@ -788,54 +442,34 @@ const BasicEquipmentManager = () => {
                   }, 0);
 
                   return (
-                    <div key={technician._id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-blue-50 rounded-lg">
-                            <UserIcon size={20} className="text-blue-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-slate-900">{technician.name}</h4>
-                            <p className="text-xs text-slate-600">{technician.deletedAt ? 'Obrisan tehničar' : 'Tehničar'}</p>
-                          </div>
+                    <div key={technician._id} className="mx-be-tech">
+                      <div className="mx-be-tech__head">
+                        <div className="sx-cell sx-cell--who">
+                          <Avatar name={technician.name} />
+                          <b>{technician.name}</b>
+                          <span>{technician.deletedAt ? 'Obrisan tehničar' : 'Tehničar'}</span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupna cena</p>
-                          <p className="text-lg font-bold text-green-600">
-                            {totalPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD
-                          </p>
+                        <div className="mx-be-tech__total">
+                          <span className="sx-label">Ukupna cena</span>
+                          <b className="sx-num">{money(totalPrice)} RSD</b>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="sx-list">
                         {(technician.basicEquipment || []).map(equipment => {
                           const inventoryItem = basicEquipment.find(item => item._id === equipment.basicEquipmentId || item._id === equipment.id || item._id === equipment._id);
                           const itemPrice = inventoryItem?.price || equipment.price || 0;
                           const itemTotalPrice = itemPrice * (equipment.quantity || 0);
 
                           return (
-                            <div key={equipment._id} className="flex items-center justify-between bg-white rounded-md p-3 border border-slate-200">
-                              <div className="flex-1">
-                                <span className="text-sm font-medium text-slate-900">{equipment.type}</span>
-                                {itemPrice > 0 && (
-                                  <p className="text-xs text-slate-500">
-                                    {itemPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD/kom
-                                  </p>
-                                )}
+                            <div key={equipment._id} className="sx-item mx-be-item">
+                              <div className="sx-item__main">
+                                <b>{equipment.type}</b>
+                                {itemPrice > 0 && <span>{money(itemPrice)} RSD/kom</span>}
                               </div>
-                              <div className="flex items-center space-x-3">
-                                {itemTotalPrice > 0 && (
-                                  <span className="text-sm font-medium text-green-600">
-                                    {itemTotalPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RSD
-                                  </span>
-                                )}
-                                <Button
-                                  type="secondary"
-                                  size="small"
-                                  className="text-xs"
-                                >
-                                  {equipment.quantity}
-                                </Button>
+                              <div className="sx-item__side">
+                                {itemTotalPrice > 0 && <span className="mx-be-sum">{money(itemTotalPrice)} RSD</span>}
+                                <span className="sx-tag sx-mono">{equipment.quantity}</span>
                               </div>
                             </div>
                           );
@@ -846,34 +480,40 @@ const BasicEquipmentManager = () => {
                 })}
               </div>
             )}
-          </div>
-        </div>
+          </Panel>
+        </>
       )}
 
-      {/* Assignment View */}
+      {/* Zaduženje / razduženje; oba dugmeta su kao ranije "submit" dugmad forme (Poništi je prvo) */}
       {viewMode === 'assign' && (
-        <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-200">
-            <div className="flex items-center space-x-3">
-              <ToolsIcon size={20} className="text-blue-600" />
-              <h3 className="text-lg font-semibold text-slate-900">Zaduženje / Razduženje osnovne opreme</h3>
-            </div>
-          </div>
-
-          <form onSubmit={handleAssignSubmit} className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column */}
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Tehničar:</label>
-                  <select
+        <form onSubmit={handleAssignSubmit}>
+          <Panel
+            title="Zaduženje / Razduženje osnovne opreme"
+            footer={<>
+              <Btn type="submit" variant="ghost" onClick={resetAssignForm}>Poništi</Btn>
+              <Btn
+                type="submit"
+                variant="primary"
+                icon={assignData.isReturn ? Minus : Plus}
+                onClick={handleAssignSubmit}
+                busy={loading}
+                disabled={!assignData.technicianId || !assignData.basicEquipmentId || assignData.quantity <= 0 || loading}
+              >
+                {loading ? 'Obrađuje se...' : assignData.isReturn ? 'Razduži' : 'Zaduži'}
+              </Btn>
+            </>}
+          >
+            <div className="sx-cols sx-cols--2">
+              <div>
+                <Field label="Tehničar:" htmlFor="mx-be-tech">
+                  <Select
+                    id="mx-be-tech"
                     value={assignData.technicianId}
                     onChange={(e) => {
                       setAssignData({...assignData, technicianId: e.target.value});
                       setSelectedTechnician(e.target.value);
                     }}
                     disabled={loading}
-                    className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
                     required
                   >
                     <option value="">Izaberite tehničara</option>
@@ -882,42 +522,30 @@ const BasicEquipmentManager = () => {
                         {tech.name}
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
 
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-4">
-                    <label className="text-sm font-medium text-slate-700">Tip operacije:</label>
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          checked={!assignData.isReturn}
-                          onChange={() => setAssignData({...assignData, isReturn: false, basicEquipmentId: ''})}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm">Zaduženje</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          checked={assignData.isReturn}
-                          onChange={() => setAssignData({...assignData, isReturn: true, basicEquipmentId: ''})}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm">Razduženje</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
+                <Field label="Tip operacije:">
+                  <Choice
+                    size="sm"
+                    label="Tip operacije"
+                    layoutId="mx-be-op"
+                    value={assignData.isReturn ? 'return' : 'assign'}
+                    onChange={(v) => {
+                      // kao radio dugme: reaguje samo na promenu izbora
+                      const isReturn = v === 'return';
+                      if (isReturn !== assignData.isReturn) setAssignData({...assignData, isReturn, basicEquipmentId: ''});
+                    }}
+                    options={[{ value: 'assign', label: 'Zaduženje' }, { value: 'return', label: 'Razduženje' }]}
+                  />
+                </Field>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Osnovna oprema:</label>
-                  <select
+                <Field label="Osnovna oprema:" htmlFor="mx-be-item">
+                  <Select
+                    id="mx-be-item"
                     value={assignData.basicEquipmentId}
                     onChange={(e) => setAssignData({...assignData, basicEquipmentId: e.target.value})}
                     disabled={loading || (!assignData.isReturn && availableBasicEquipment.length === 0) || (assignData.isReturn && selectedTechnicianEquipment.length === 0)}
-                    className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
                     required
                   >
                     <option value="">Izaberite osnovnu opremu</option>
@@ -934,72 +562,44 @@ const BasicEquipmentManager = () => {
                         </option>
                       ))
                     )}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Količina:</label>
-                  <input
+                <Field label="Količina:" htmlFor="mx-be-qty">
+                  <Input
                     type="number"
+                    id="mx-be-qty"
                     min="1"
                     value={assignData.quantity}
                     onChange={(e) => setAssignData({...assignData, quantity: parseInt(e.target.value) || 1})}
                     disabled={loading || !assignData.basicEquipmentId}
-                    className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all hover:bg-accent"
                     required
                   />
-                </div>
+                </Field>
               </div>
 
-              {/* Right Column - Preview */}
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <h4 className="font-semibold text-slate-900 mb-4">Pregled stanja</h4>
-
+              <div className="mx-be-preview">
+                <h4 className="sx-fieldset__title">Pregled stanja</h4>
                 {selectedTechnician && (
-                  <div className="space-y-3">
-                    <div className="text-sm">
-                      <span className="font-medium">Tehničar:</span> {technicians.find(t => t._id === selectedTechnician)?.name}
-                    </div>
-
+                  <>
+                    <KV items={[{ k: 'Tehničar', v: technicians.find(t => t._id === selectedTechnician)?.name }]} />
                     {selectedTechnicianEquipment.length > 0 && (
-                      <div>
-                        <div className="text-sm font-medium text-slate-700 mb-2">Trenutno zadužena oprema:</div>
-                        <div className="space-y-1">
-                          {selectedTechnicianEquipment.map(equipment => (
-                            <div key={equipment._id} className="flex justify-between text-xs bg-white rounded p-2">
-                              <span>{equipment.type}</span>
-                              <span className="font-medium">{equipment.quantity}</span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="mx-be-current">
+                        <span className="sx-label">Trenutno zadužena oprema:</span>
+                        {selectedTechnicianEquipment.map(equipment => (
+                          <div key={equipment._id} className="mx-be-prow">
+                            <span>{equipment.type}</span>
+                            <b className="sx-mono">{equipment.quantity}</b>
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-6 border-t border-slate-200 mt-6">
-              <Button
-                type="secondary"
-                size="medium"
-                onClick={resetAssignForm}
-              >
-                Poništi
-              </Button>
-              <Button
-                type="primary"
-                size="medium"
-                onClick={handleAssignSubmit}
-                loading={loading}
-                disabled={!assignData.technicianId || !assignData.basicEquipmentId || assignData.quantity <= 0}
-                prefix={assignData.isReturn ? <MinusIcon size={16} /> : <PlusIcon size={16} />}
-              >
-                {loading ? 'Obrađuje se...' : assignData.isReturn ? 'Razduži' : 'Zaduži'}
-              </Button>
-            </div>
-          </form>
-        </div>
+          </Panel>
+        </form>
       )}
     </div>
   );

@@ -1,0 +1,15 @@
+/* Osnovna oprema: kartice tehničara sa zaduženjem i pregled stanja pri zaduženju */
+.mx-be-techs { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); }
+.mx-be-tech { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px 16px 6px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-be-tech__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-bottom: 10px; border-bottom: 1px solid var(--sx-line); }
+.mx-be-tech__head .sx-cell--who { flex: 1 1 200px; }
+.mx-be-tech__total { display: grid; justify-items: end; gap: 3px; margin-left: auto; }
+.mx-be-tech__total b { font-size: 17px; font-weight: 650; color: var(--sx-text); white-space: nowrap; }
+.sx-item.mx-be-item { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; }
+.mx-be-item .sx-item__side { grid-column: auto; flex-wrap: nowrap; }
+.mx-be-sum { font-family: var(--sx-font-mono); font-size: 12.5px; color: var(--sx-text-2); white-space: nowrap; }
+.sx-empty-block.mx-be-empty { padding: 6px 0 8px; }
+.mx-be-preview { display: grid; align-content: start; gap: 14px; padding: 16px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-be-current { display: grid; gap: 6px; }
+.mx-be-prow { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--sx-surface); font-size: 13px; color: var(--sx-text-2); }
+.mx-be-prow b { color: var(--sx-text); }
