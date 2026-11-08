@@ -1,25 +1,24 @@
-// Detalj tehničara: zaglavlje (nazad, snimci poziva, obračun), podaci, pozivi podršci i tabovi
-// Oprema, Materijali, Dokumentacija, Ocene. Tab je u URL-u (?tab=); obaveštenje o oceni šalje state { tab: 'reviews' }.
+// Detalj tehničara: isti raspored kao ranije (zaglavlje, podaci sa dugmadima desno, pozivi podršci, oprema,
+// materijali, dokumentacija, ocene), u izgledu Security dela. Obaveštenje o oceni (state { tab: 'reviews' })
+// otvara ovu stranicu kao i ranije; ocene su na njoj.
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
-  Package, Cable, FileText, FileSpreadsheet, FileImage, File as FileIcon, Star, Mic, CalendarDays, Pencil, Phone, Lock, Check,
-  Upload, Eye, Download, Trash2, Play, Pause, ExternalLink, ChevronLeft, ChevronRight
+  ArrowLeft, UserRound, Package, Cable, FileText, FileSpreadsheet, FileImage, File as FileIcon, Star, Mic, CalendarDays, Pencil,
+  Phone, Lock, Check, MessageSquare, Upload, Eye, Download, Trash2, Play, Pause, ExternalLink, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { techniciansAPI, reviewsAPI, supportCallsAPI } from '../../services/api';
 import { describeAssignment } from '../../utils/equipmentAssignment';
 import { SUPPORT_TYPES, supportTypeLabel } from '../../utils/supportCalls';
 import { localYmd } from '../../utils/localDate';
-import { cx, Btn, Sign, State, Avatar, Skeleton } from '../../security/sx/ui';
-import { PageHead, Panel, Note, KV, Tabs, Stat } from '../../security/sx/layout';
+import { cx, Btn, Sign, State, Skeleton } from '../../security/sx/ui';
+import { PageHead, Panel, Note, KV, Stat } from '../../security/sx/layout';
 import { Field, Input, Switch } from '../../security/sx/forms';
 import Dialog from '../../security/sx/Dialog';
 import { confirm } from '../../security/sx/confirm';
 import { Pager, Loading, LinkBtn } from '../../montaza/ui';
 import './TechnicianDetail.mx.css';
-
-const TABS = ['equipment', 'materials', 'documents', 'reviews'];
 
 // Status opreme: tekst kao ranije, ton po značenju (magacin, kod tehničara, instalirana, neispravna, čeka potvrdu)
 const STATUS_TONE = { available: 'idle', assigned: 'info', installed: 'ok', defective: 'bad', pending_confirmation: 'warn' };
@@ -40,11 +39,6 @@ const TechnicianDetail = () => {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const { id } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [params, setParams] = useSearchParams();
-  const tab = [params.get('tab'), location.state?.tab].find((t) => TABS.includes(t)) || 'equipment';
-  const setTab = (t) => { const next = new URLSearchParams(params); next.set('tab', t); setParams(next, { replace: true }); };
 
   // Call Recordings Modal State
   const [showRecordingsModal, setShowRecordingsModal] = useState(false);
@@ -585,13 +579,12 @@ const TechnicianDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includeWorkOrders]);
 
-  const head = (actions) => (
+  const head = (
     <PageHead
-      back={{ label: 'Povratak na listu', onClick: () => navigate('/technicians') }}
       eyebrow="Montaža · Tehničari"
       title="Detalji tehničara"
       lead="Pregled podataka tehničara"
-      actions={actions}
+      actions={<LinkBtn to="/technicians" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
     />
   );
 
@@ -610,7 +603,7 @@ const TechnicianDetail = () => {
   if (error) {
     return (
       <div className="sx-page mx-tdet" data-testid="page-technician-detail">
-        {head()}
+        {head}
         <Note tone="bad">{error}</Note>
       </div>
     );
@@ -622,52 +615,49 @@ const TechnicianDetail = () => {
   const currentMaterialItems = materialItems.slice((materialsPage - 1) * materialsPerPage, materialsPage * materialsPerPage);
   const employedDays = technician.employedUntil ? Math.ceil((new Date(technician.employedUntil) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
   const reviewPages = Math.ceil(reviewsTotal / 5);
-  const tabs = [
-    { key: 'equipment', label: 'Oprema', icon: Package, count: equipmentItems.length, testId: 'tab-equipment' },
-    { key: 'materials', label: 'Materijali', icon: Cable, count: materialItems.length, testId: 'tab-materials' },
-    { key: 'documents', label: 'Dokumentacija', icon: FileText, count: documents.length, testId: 'tab-documents' },
-    { key: 'reviews', label: 'Ocene', icon: Star, count: reviewStats?.totalReviews, testId: 'tab-reviews' }
-  ];
 
   return (
     <div className="sx-page mx-tdet" data-testid="page-technician-detail">
-      {head(<>
-        <Btn variant="primary" icon={Mic} onClick={handleOpenRecordingsModal}>Snimci poziva</Btn>
-        {canViewStatement && <LinkBtn to={`/technicians/${id}/obracun`} icon={CalendarDays}>Mesečni obračun</LinkBtn>}
-      </>)}
+      {head}
 
       <div className="sx-stack">
-        <Panel
-          title={technician.name}
-          sub={(
-            <State tone={technician.isActive === false ? 'bad' : 'ok'}>
-              {technician.deletedAt ? 'Obrisan' : technician.isActive === false ? 'Neaktivan' : 'Aktivan'}
-            </State>
-          )}
-          actions={<>
-            <Btn size="sm" icon={Pencil} onClick={() => { setNewGmail(technician.gmail || ''); setShowGmailModal(true); }}>Uredi Gmail</Btn>
-            <Btn size="sm" icon={Phone} onClick={() => { setNewPhoneNumber(technician.phoneNumber || ''); setShowPhoneModal(true); }}>Uredi telefon</Btn>
-            <Btn size="sm" icon={Lock} onClick={() => setShowPasswordModal(true)}>Promeni lozinku</Btn>
-          </>}
-          testId="technician-profile"
-        >
-          <KV cols={2} items={[
-            { k: 'ID', v: technician.id, mono: true },
-            { k: 'Gmail', v: technician.gmail || 'Nije uneto' },
-            { k: 'Broj telefona', v: technician.phoneNumber || 'Nije uneto' },
-            { k: 'Dodat', v: new Date(technician.createdAt).toLocaleDateString('sr-RS') },
-            technician.employedUntil && {
-              k: 'Zaposlen do',
-              v: `${new Date(technician.employedUntil).toLocaleDateString('sr-RS')}${employedDays < 0 ? ' (ISTEKAO)' : employedDays <= 30 ? ` (${employedDays} dana)` : ''}`,
-              tone: employedDays < 0 ? 'bad' : employedDays <= 30 ? 'warn' : undefined
-            }
-          ]} />
+        {/* Podaci tehničara, dugmad desno */}
+        <Panel testId="technician-profile">
+          <div className="mx-tdet-profile">
+            <span className="mx-tdet-profile__icon"><UserRound size={28} strokeWidth={1.8} aria-hidden="true" /></span>
+            <div className="mx-tdet-profile__main">
+              <div className="mx-tdet-profile__name">
+                <h2 className="sx-card__title">{technician.name}</h2>
+                <State tone={technician.isActive === false ? 'bad' : 'ok'}>
+                  {technician.deletedAt ? 'Obrisan' : technician.isActive === false ? 'Neaktivan' : 'Aktivan'}
+                </State>
+              </div>
+              <KV items={[
+                { k: 'ID', v: technician.id, mono: true },
+                { k: 'Gmail', v: technician.gmail || 'Nije uneto' },
+                { k: 'Broj telefona', v: technician.phoneNumber || 'Nije uneto' },
+                { k: 'Dodat', v: new Date(technician.createdAt).toLocaleDateString('sr-RS') },
+                technician.employedUntil && {
+                  k: 'Zaposlen do',
+                  v: `${new Date(technician.employedUntil).toLocaleDateString('sr-RS')}${employedDays < 0 ? ' (ISTEKAO)' : employedDays <= 30 ? ` (${employedDays} dana)` : ''}`,
+                  tone: employedDays < 0 ? 'bad' : employedDays <= 30 ? 'warn' : undefined
+                }
+              ]} />
+            </div>
+            <div className="mx-tdet-profile__acts">
+              <Btn variant="ghost" icon={Pencil} onClick={() => { setNewGmail(technician.gmail || ''); setShowGmailModal(true); }}>Uredi Gmail</Btn>
+              <Btn variant="ghost" icon={Phone} onClick={() => { setNewPhoneNumber(technician.phoneNumber || ''); setShowPhoneModal(true); }}>Uredi telefon</Btn>
+              <Btn variant="ghost" icon={Lock} onClick={() => setShowPasswordModal(true)}>Promeni lozinku</Btn>
+              <Btn variant="primary" icon={Mic} onClick={handleOpenRecordingsModal}>Snimci poziva</Btn>
+              {canViewStatement && <LinkBtn to={`/technicians/${id}/obracun`} icon={CalendarDays}>Mesečni obračun</LinkBtn>}
+            </div>
+          </div>
         </Panel>
 
         {/* Pozivi podršci: zbirni pregled */}
         {supportCallSummary && supportCallSummary.total > 0 && (
-          <Panel title="Pozivi podršci" pad={false} testId="technician-support-calls">
-            <div className="sx-stats mx-tdet-flat">
+          <Panel title="Pozivi podršci" testId="technician-support-calls">
+            <div className="sx-stats mx-tdet-stats mx-tdet-stats--3">
               <Stat label="Ukupno poziva" value={supportCallSummary.total} />
               {SUPPORT_TYPES.map((type) => (
                 <Stat key={type} label={supportTypeLabel(type)} value={supportCallSummary[type] || 0} />
@@ -686,231 +676,236 @@ const TechnicianDetail = () => {
           </Panel>
         )}
 
-        <div>
-          <Tabs items={tabs} value={tab} onChange={setTab} ariaLabel="Delovi tehničara" layoutId="mx-tdet-tabs" />
+        {/* Zadužena oprema */}
+        <Panel
+          title="Zadužena oprema"
+          pad={false}
+          actions={<LinkBtn to={`/technicians/${id}/assign-equipment`} variant="primary" size="sm" icon={Package}>Zaduži/razduži opremu</LinkBtn>}
+          testId="technician-equipment"
+        >
+          {equipmentItems.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema zadužene opreme</b>
+              <span>Dodajte opremu koristeći dugme iznad</span>
+            </div>
+          ) : (
+            <>
+              <div className="sx-tablewrap">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Kategorija</th>
+                      <th>Opis</th>
+                      <th>Serijski broj</th>
+                      <th>Zaduženo</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentEquipmentItems.map((item, index) => {
+                      const assignment = describeAssignment(item, { assumeAssigned: true });
+                      return (
+                        <tr key={item.serialNumber} style={{ '--i': index }}>
+                          <td className="is-head"><b className="mx-strong">{item.category}</b></td>
+                          <td data-label="Opis" className="is-wide">{item.description}</td>
+                          <td data-label="Serijski broj"><span className="sx-mono">{item.serialNumber}</span></td>
+                          <td data-label="Zaduženo">
+                            {assignment.variant === 'stamped'
+                              ? <span className="sx-mono sx-nowrap">{assignment.text}</span>
+                              : <span className="mx-tdet-legacy">{assignment.text}</span>}
+                          </td>
+                          <td data-label="Status"><Sign tone={STATUS_TONE[item.status] || 'idle'}>{statusText(item.status)}</Sign></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <Pager page={equipmentPage} total={equipmentItems.length} perPage={equipmentPerPage} onPage={setEquipmentPage} label="stavki" />
+            </>
+          )}
+        </Panel>
 
-          <div className="mx-tdet-body" key={tab}>
-            {/* Oprema */}
-            {tab === 'equipment' && (
-              <Panel
-                title="Zadužena oprema"
-                pad={false}
-                actions={<LinkBtn to={`/technicians/${id}/assign-equipment`} variant="primary" size="sm" icon={Package}>Zaduži/razduži opremu</LinkBtn>}
-                testId="technician-equipment"
-              >
-                {equipmentItems.length === 0 ? (
-                  <div className="sx-empty-block">
-                    <b>Nema zadužene opreme</b>
-                    <span>Dodajte opremu koristeći dugme iznad</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="sx-tablewrap">
-                      <table className="sx-table">
-                        <thead>
-                          <tr>
-                            <th>Kategorija</th>
-                            <th>Opis</th>
-                            <th>Serijski broj</th>
-                            <th>Zaduženo</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentEquipmentItems.map((item, index) => {
-                            const assignment = describeAssignment(item, { assumeAssigned: true });
-                            return (
-                              <tr key={item.serialNumber} style={{ '--i': index }}>
-                                <td className="is-head"><b className="mx-strong">{item.category}</b></td>
-                                <td data-label="Opis" className="is-wide">{item.description}</td>
-                                <td data-label="Serijski broj"><span className="sx-mono">{item.serialNumber}</span></td>
-                                <td data-label="Zaduženo">
-                                  {assignment.variant === 'stamped'
-                                    ? <span className="sx-mono sx-nowrap">{assignment.text}</span>
-                                    : <span className="mx-tdet-legacy">{assignment.text}</span>}
-                                </td>
-                                <td data-label="Status"><Sign tone={STATUS_TONE[item.status] || 'idle'}>{statusText(item.status)}</Sign></td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <Pager page={equipmentPage} total={equipmentItems.length} perPage={equipmentPerPage} onPage={setEquipmentPage} label="stavki" />
-                  </>
-                )}
-              </Panel>
-            )}
+        {/* Zaduženi materijali */}
+        <Panel
+          title="Zaduženi materijali"
+          pad={false}
+          actions={<LinkBtn to={`/technicians/${id}/assign-material`} variant="primary" size="sm" icon={Cable}>Zaduži/razduži materijal</LinkBtn>}
+          testId="technician-materials"
+        >
+          {materialItems.length === 0 ? (
+            <div className="sx-empty-block">
+              <b>Nema zaduženih materijala</b>
+              <span>Dodajte materijale koristeći dugme iznad</span>
+            </div>
+          ) : (
+            <>
+              <div className="sx-tablewrap">
+                <table className="sx-table">
+                  <thead>
+                    <tr>
+                      <th>Vrsta</th>
+                      <th className="is-num">Količina</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentMaterialItems.map((item, index) => (
+                      <tr key={index} style={{ '--i': index }}>
+                        <td className="is-head"><b className="mx-strong">{item.type}</b></td>
+                        <td data-label="Količina" className="is-num">
+                          {item.quantity === 0 ? <Sign tone="bad">{item.quantity}</Sign> : item.quantity}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pager page={materialsPage} total={materialItems.length} perPage={materialsPerPage} onPage={setMaterialsPage} label="stavki" />
+            </>
+          )}
+        </Panel>
 
-            {/* Materijali */}
-            {tab === 'materials' && (
-              <Panel
-                title="Zaduženi materijali"
-                pad={false}
-                actions={<LinkBtn to={`/technicians/${id}/assign-material`} variant="primary" size="sm" icon={Cable}>Zaduži/razduži materijal</LinkBtn>}
-                testId="technician-materials"
-              >
-                {materialItems.length === 0 ? (
-                  <div className="sx-empty-block">
-                    <b>Nema zaduženih materijala</b>
-                    <span>Dodajte materijale koristeći dugme iznad</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="sx-tablewrap">
-                      <table className="sx-table">
-                        <thead>
-                          <tr>
-                            <th>Vrsta</th>
-                            <th className="is-num">Količina</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentMaterialItems.map((item, index) => (
-                            <tr key={index} style={{ '--i': index }}>
-                              <td className="is-head"><b className="mx-strong">{item.type}</b></td>
-                              <td data-label="Količina" className="is-num">
-                                {item.quantity === 0 ? <Sign tone="bad">{item.quantity}</Sign> : item.quantity}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+        {/* Dokumentacija: dugme ili prevlačenje fajlova na panel */}
+        <Panel
+          title={<span className="sx-panel__title-row">Dokumentacija <span className="sx-count">{documents.length}</span></span>}
+          pad={false}
+          actions={<>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => handleDocumentUpload(Array.from(e.target.files))}
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+              hidden
+            />
+            <Btn variant="primary" size="sm" icon={Upload} busy={uploadingDocument} onClick={() => fileInputRef.current?.click()}>Otpremi dokument</Btn>
+          </>}
+          testId="technician-documents"
+        >
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={cx('mx-tdet-drop', dragOver && 'is-over')}
+          >
+            {documentsLoading ? (
+              <Loading rows={3} text="Učitavanje dokumenata..." />
+            ) : documents.length === 0 ? (
+              <div className="sx-empty-block mx-tdet-pick" onClick={() => fileInputRef.current?.click()}>
+                <b>Nema dokumenata</b>
+                <span>Kliknite ili prevucite fajlove za otpremanje<br />(PDF, Word, Excel, slike)</span>
+              </div>
+            ) : (
+              <div className="sx-list mx-tdet-docs">
+                {documents.map((doc) => {
+                  const DocIcon = getFileIcon(doc.fileType);
+                  const open = () => (isPreviewable(doc) ? openPreview(doc) : handleDownloadDocument(doc));
+                  return (
+                    <div
+                      key={doc._id}
+                      className="sx-item is-click"
+                      tabIndex={0}
+                      onClick={open}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
+                    >
+                      <span className="sx-item__icon"><DocIcon size={17} strokeWidth={1.9} aria-hidden="true" /></span>
+                      <div className="sx-item__main">
+                        <b>{doc.name}</b>
+                        <span>
+                          {formatFileSize(doc.fileSize)} | {new Date(doc.uploadedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="sx-item__side" onClick={(e) => e.stopPropagation()}>
+                        {isPreviewable(doc) && (
+                          <Btn size="sm" variant="ghost" icon={Eye} onClick={() => openPreview(doc)} title="Pregledaj" aria-label="Pregledaj" />
+                        )}
+                        <Btn size="sm" variant="ghost" icon={Download} onClick={() => handleDownloadDocument(doc)} title="Preuzmi" aria-label="Preuzmi" />
+                        <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteDocument(doc._id, doc.name)} title="Obriši dokument" aria-label="Obriši dokument" />
+                      </div>
                     </div>
-                    <Pager page={materialsPage} total={materialItems.length} perPage={materialsPerPage} onPage={setMaterialsPage} label="stavki" />
-                  </>
-                )}
-              </Panel>
-            )}
-
-            {/* Dokumentacija: dugme ili prevlačenje fajlova na panel */}
-            {tab === 'documents' && (
-              <Panel
-                title="Dokumentacija"
-                pad={false}
-                actions={<>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={(e) => handleDocumentUpload(Array.from(e.target.files))}
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
-                    hidden
-                  />
-                  <Btn variant="primary" size="sm" icon={Upload} busy={uploadingDocument} onClick={() => fileInputRef.current?.click()}>Otpremi dokument</Btn>
-                </>}
-                testId="technician-documents"
-              >
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  className={cx('mx-tdet-drop', dragOver && 'is-over')}
-                >
-                  {documentsLoading ? (
-                    <Loading rows={3} text="Učitavanje dokumenata..." />
-                  ) : documents.length === 0 ? (
-                    <div className="sx-empty-block mx-tdet-pick" onClick={() => fileInputRef.current?.click()}>
-                      <b>Nema dokumenata</b>
-                      <span>Kliknite ili prevucite fajlove za otpremanje<br />(PDF, Word, Excel, slike)</span>
-                    </div>
-                  ) : (
-                    <div className="sx-list mx-tdet-docs">
-                      {documents.map((doc) => {
-                        const DocIcon = getFileIcon(doc.fileType);
-                        const open = () => (isPreviewable(doc) ? openPreview(doc) : handleDownloadDocument(doc));
-                        return (
-                          <div
-                            key={doc._id}
-                            className="sx-item is-click"
-                            tabIndex={0}
-                            onClick={open}
-                            onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
-                          >
-                            <span className="sx-item__icon"><DocIcon size={17} strokeWidth={1.9} aria-hidden="true" /></span>
-                            <div className="sx-item__main">
-                              <b>{doc.name}</b>
-                              <span>
-                                {formatFileSize(doc.fileSize)} | {new Date(doc.uploadedAt).toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            <div className="sx-item__side" onClick={(e) => e.stopPropagation()}>
-                              {isPreviewable(doc) && (
-                                <Btn size="sm" variant="ghost" icon={Eye} onClick={() => openPreview(doc)} title="Pregledaj" aria-label="Pregledaj" />
-                              )}
-                              <Btn size="sm" variant="ghost" icon={Download} onClick={() => handleDownloadDocument(doc)} title="Preuzmi" aria-label="Preuzmi" />
-                              <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteDocument(doc._id, doc.name)} title="Obriši dokument" aria-label="Obriši dokument" />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </Panel>
-            )}
-
-            {/* Ocene korisnika */}
-            {tab === 'reviews' && (
-              <Panel title="Ocene korisnika" pad={false} testId="technician-reviews">
-                {reviewStats && reviewStats.totalReviews > 0 ? (
-                  <>
-                    <div className="sx-stats mx-tdet-flat">
-                      <Stat label="Profesionalnost" value={reviewStats.avgProfessionalism} sub={renderStars(Math.round(reviewStats.avgProfessionalism))} />
-                      <Stat label="Kvalitet servisa" value={reviewStats.avgServiceQuality} sub={renderStars(Math.round(reviewStats.avgServiceQuality))} />
-                      <Stat label="NPS Score (0-10)" value={reviewStats.avgNps} />
-                      <Stat label="Tačnost dolaska" value={reviewStats.onTimePercent} small="%" />
-                      <Stat label="Uredna instalacija" value={reviewStats.cleanInstallationPercent} small="%" />
-                      <Stat label="Jasno objašnjenje" value={reviewStats.fullExplanationPercent} small="%" />
-                    </div>
-
-                    <div className="mx-tdet-reviews">
-                      <h3 className="sx-label">Pojedinačne ocene</h3>
-                      {reviewsLoading ? (
-                        <Loading rows={3} text="Učitavanje..." />
-                      ) : (
-                        <div className="sx-list">
-                          {reviews.map((review) => (
-                            <div key={review._id} className="sx-item mx-tdet-review">
-                              <Avatar name={review.customerName || 'Anonimni korisnik'} />
-                              <div className="sx-item__main">
-                                <b>{review.customerName || 'Anonimni korisnik'}</b>
-                                <span>{new Date(review.createdAt).toLocaleDateString('sr-RS')}</span>
-                                <span className="mx-tdet-review__stars">{renderStars(review.professionalism)} Profesionalnost</span>
-                                <div className="sx-chips">
-                                  <span className="sx-tag">Termin: {review.onTime}</span>
-                                  <span className="sx-tag">Urednost: {review.cleanInstallation}</span>
-                                  <span className="sx-tag">Servis: {review.serviceQuality}/5</span>
-                                  <Sign tone={review.npsScore >= 9 ? 'ok' : review.npsScore >= 7 ? 'warn' : 'bad'}>NPS: {review.npsScore}/10</Sign>
-                                </div>
-                                {review.comment && <p className="mx-tdet-quote">"{review.comment}"</p>}
-                              </div>
-                              <div className="sx-item__side">
-                                <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteReview(review._id)} title="Obriši ocenu" aria-label="Obriši ocenu" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {reviewsTotal > 5 && (
-                      <nav className="mx-pager mx-tdet-revpager" aria-label="Stranice ocena">
-                        <Btn size="sm" variant="ghost" icon={ChevronLeft} onClick={() => fetchReviews(reviewsPage - 1)} disabled={reviewsPage <= 1}>Prethodna</Btn>
-                        <span className="mx-pager__text">{reviewsPage} / {reviewPages}</span>
-                        <Btn size="sm" variant="ghost" iconRight={ChevronRight} onClick={() => fetchReviews(reviewsPage + 1)} disabled={reviewsPage >= reviewPages}>Sledeća</Btn>
-                      </nav>
-                    )}
-                  </>
-                ) : (
-                  <div className="sx-empty-block">
-                    <b>Nema ocena za ovog tehničara</b>
-                  </div>
-                )}
-              </Panel>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </div>
+        </Panel>
+
+        {/* Ocene korisnika: brojke, dodatne brojke, pojedinačne ocene, strane */}
+        <Panel
+          title={(
+            <span className="sx-panel__title-row">
+              Ocene korisnika
+              {reviewStats && reviewStats.totalReviews > 0 && <span className="sx-count">{reviewStats.totalReviews}</span>}
+            </span>
+          )}
+          testId="technician-reviews"
+        >
+          {reviewStats && reviewStats.totalReviews > 0 ? (
+            <>
+              <div className="sx-stats mx-tdet-stats mx-tdet-stats--4">
+                <Stat label="Profesionalnost" value={reviewStats.avgProfessionalism} sub={renderStars(Math.round(reviewStats.avgProfessionalism))} />
+                <Stat label="Kvalitet servisa" value={reviewStats.avgServiceQuality} sub={renderStars(Math.round(reviewStats.avgServiceQuality))} />
+                <Stat label="NPS Score (0-10)" value={reviewStats.avgNps} />
+                <Stat label="Tačnost dolaska" value={reviewStats.onTimePercent} small="%" />
+              </div>
+
+              <div className="mx-tdet-extra">
+                <div className="mx-tdet-extra__item">
+                  <span className="sx-item__icon"><Check size={16} strokeWidth={2} aria-hidden="true" /></span>
+                  <div><b>{reviewStats.cleanInstallationPercent}%</b><span>Uredna instalacija</span></div>
+                </div>
+                <div className="mx-tdet-extra__item">
+                  <span className="sx-item__icon"><MessageSquare size={16} strokeWidth={1.9} aria-hidden="true" /></span>
+                  <div><b>{reviewStats.fullExplanationPercent}%</b><span>Jasno objašnjenje</span></div>
+                </div>
+              </div>
+
+              <h3 className="mx-tdet-subhead">Pojedinačne ocene</h3>
+              {reviewsLoading ? (
+                <Loading rows={3} h={96} text="Učitavanje..." />
+              ) : (
+                <div className="mx-tdet-reviews">
+                  {reviews.map((review) => (
+                    <div key={review._id} className="mx-tdet-review">
+                      <div className="mx-tdet-review__head">
+                        <div className="mx-tdet-review__who">
+                          <div className="mx-tdet-review__name">
+                            <b>{review.customerName || 'Anonimni korisnik'}</b>
+                            <span>{new Date(review.createdAt).toLocaleDateString('sr-RS')}</span>
+                          </div>
+                          <span className="mx-tdet-review__stars">{renderStars(review.professionalism)} Profesionalnost</span>
+                        </div>
+                        <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" onClick={() => handleDeleteReview(review._id)} title="Obriši ocenu" aria-label="Obriši ocenu" />
+                      </div>
+                      <div className="mx-tdet-review__grid">
+                        <span><span className="sx-muted">Termin:</span> <b>{review.onTime}</b></span>
+                        <span><span className="sx-muted">Urednost:</span> <b>{review.cleanInstallation}</b></span>
+                        <span><span className="sx-muted">Servis:</span> <b>{review.serviceQuality}/5</b></span>
+                      </div>
+                      {review.comment && <p className="mx-tdet-quote">"{review.comment}"</p>}
+                      <div className="mx-tdet-review__nps">
+                        <span className="sx-muted">NPS:</span>
+                        <Sign tone={review.npsScore >= 9 ? 'ok' : review.npsScore >= 7 ? 'warn' : 'bad'}>{review.npsScore}/10</Sign>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {reviewsTotal > 5 && (
+                <nav className="mx-tdet-revpager" aria-label="Stranice ocena">
+                  <Btn size="sm" variant="ghost" icon={ChevronLeft} onClick={() => fetchReviews(reviewsPage - 1)} disabled={reviewsPage <= 1}>Prethodna</Btn>
+                  <span className="mx-pager__text">{reviewsPage} / {reviewPages}</span>
+                  <Btn size="sm" variant="ghost" iconRight={ChevronRight} onClick={() => fetchReviews(reviewsPage + 1)} disabled={reviewsPage >= reviewPages}>Sledeća</Btn>
+                </nav>
+              )}
+            </>
+          ) : (
+            <div className="sx-empty-block mx-tdet-noreviews">
+              <b>Nema ocena za ovog tehničara</b>
+            </div>
+          )}
+        </Panel>
       </div>
 
       {/* Pregled dokumenta */}
