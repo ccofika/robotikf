@@ -1741,7 +1741,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
             </span>
           )}
 
-          <Btn size="sm" icon={ArrowLeft} onClick={goBack} data-testid="wod-back">
+          <Btn size="sm" icon={ArrowLeft} onClick={goBack} title="Nazad" aria-label="Nazad" data-testid="wod-back">
             <span className="mx-wod-lbl-sm">Nazad</span>
           </Btn>
 
