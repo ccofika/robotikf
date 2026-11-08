@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileSpreadsheet, Tag, Box, Hash } from 'lucide-react';
+import { ArrowLeft, Upload, FileSpreadsheet } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { equipmentAPI } from '../../services/api';
 import { cx, Btn, Led } from '../../security/sx/ui';
@@ -136,29 +136,21 @@ const EquipmentUpload = () => {
         actions={<LinkBtn to="/equipment" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
       />
 
-      <div className="sx-stack">
-        <Panel
-          title="Uputstvo za upload"
-          sub="Excel fajl mora sadržati sledeće kolone:"
-          actions={<Btn variant="ghost" icon={FileSpreadsheet} onClick={downloadTemplate}>Preuzmi šablon</Btn>}
-        >
-          <div className="sx-list">
-            <div className="sx-item">
-              <span className="sx-item__icon"><Tag size={17} strokeWidth={1.8} aria-hidden="true" /></span>
-              <div className="sx-item__main"><b>Kategorija</b><span>kategorija opreme (npr. "CAM", "modem", "STB", itd.)</span></div>
-            </div>
-            <div className="sx-item">
-              <span className="sx-item__icon"><Box size={17} strokeWidth={1.8} aria-hidden="true" /></span>
-              <div className="sx-item__main"><b>MODEL</b><span>naziv modela opreme</span></div>
-            </div>
-            <div className="sx-item">
-              <span className="sx-item__icon"><Hash size={17} strokeWidth={1.8} aria-hidden="true" /></span>
-              <div className="sx-item__main"><b>SN</b><span>jedinstveni serijski broj opreme</span></div>
-            </div>
+      {/* Jedna kartica kao ranije: uputstvo, pa (ispod crte) forma za fajl i rezultat obrade */}
+      <Panel title="Uputstvo za upload" pad={false} className="mx-up-card">
+        <div className="mx-up-sec">
+          <p className="mx-up-p">Excel fajl mora sadržati sledeće kolone:</p>
+          <ul className="mx-up-cols">
+            <li><Led tone="info" /><span><b>Kategorija</b> - kategorija opreme (npr. "CAM", "modem", "STB", itd.)</span></li>
+            <li><Led tone="info" /><span><b>MODEL</b> - naziv modela opreme</span></li>
+            <li><Led tone="info" /><span><b>SN</b> - jedinstveni serijski broj opreme</span></li>
+          </ul>
+          <div>
+            <Btn variant="ghost" icon={FileSpreadsheet} onClick={downloadTemplate}>Preuzmi šablon</Btn>
           </div>
-        </Panel>
+        </div>
 
-        <Panel>
+        <div className="mx-up-sec is-form">
           {/* dugme je kao ranije "submit" dugme forme sa onClick (handleSubmit sprečava dupli poziv) */}
           <form onSubmit={handleSubmit} className="mx-up-form">
             {error && <Note tone="bad">{error}</Note>}
@@ -249,85 +241,86 @@ const EquipmentUpload = () => {
               </Btn>
             </div>
           </form>
-        </Panel>
 
-        {parseResults && (
-          <Panel title="Rezultat obrade">
-            <div className="sx-stats mx-up-stats">
-              <Stat label="Ukupno redova u fajlu" value={parseResults.totalProcessed} />
-              <Stat label="Uspešno dodato" value={parseResults.equipmentAdded} tone={parseResults.equipmentAdded > 0 ? 'ok' : null} />
-              <Stat label="Preskočeni duplikati" value={parseResults.duplicates.length} tone={parseResults.duplicates.length > 0 ? 'warn' : null} />
-              {parseResults.errors.length > 0 && <Stat label="Greške" value={parseResults.errors.length} tone="bad" />}
-            </div>
+          {parseResults && (
+            <div className="mx-up-results">
+              <h3 className="mx-up-title">Rezultat obrade</h3>
+              <div className="sx-stats mx-up-stats">
+                <Stat label="Ukupno redova u fajlu" value={parseResults.totalProcessed} />
+                <Stat label="Uspešno dodato" value={parseResults.equipmentAdded} tone={parseResults.equipmentAdded > 0 ? 'ok' : null} />
+                <Stat label="Preskočeni duplikati" value={parseResults.duplicates.length} tone={parseResults.duplicates.length > 0 ? 'warn' : null} />
+                {parseResults.errors.length > 0 && <Stat label="Greške" value={parseResults.errors.length} tone="bad" />}
+              </div>
 
-            {parseResults.errors.length > 0 && (
-              <div className="mx-up-box is-bad">
-                <h4 className="mx-up-h"><Led tone="bad" />Greške prilikom obrade ({parseResults.errors.length}):</h4>
-                <p className="mx-up-p">
-                  Sledeći redovi iz Excel fajla nisu mogli biti dodati. Proverite da li svaki red ima popunjene kolone <strong>Kategorija</strong>, <strong>MODEL</strong> i <strong>SN</strong>.
-                </p>
-                <div className="mx-up-scroll">
-                  <div className="sx-tablewrap">
-                    <table className="sx-table">
-                      <thead>
-                        <tr>
-                          <th>Red u Excel-u</th>
-                          <th>Kategorija</th>
-                          <th>Model</th>
-                          <th>Serijski broj</th>
-                          <th>Problem</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parseResults.errors.map((err, index) => {
-                          const isStructured = typeof err === 'object' && err !== null;
-                          return (
-                            <tr key={index} style={{ '--i': index }}>
-                              <td className="is-head"><span className="sx-mono">{isStructured && err.row ? err.row : '-'}</span></td>
-                              <td data-label="Kategorija">{isStructured && err.rawData ? err.rawData.kategorija : '-'}</td>
-                              <td data-label="Model">{isStructured && err.rawData ? err.rawData.model : '-'}</td>
-                              <td data-label="Serijski broj"><span className="sx-mono">{isStructured && err.rawData ? err.rawData.sn : '-'}</span></td>
-                              <td data-label="Problem" className="is-wide mx-up-problem">{isStructured ? err.message : String(err)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+              {parseResults.errors.length > 0 && (
+                <div className="mx-up-box is-bad">
+                  <h4 className="mx-up-h"><Led tone="bad" />Greške prilikom obrade ({parseResults.errors.length}):</h4>
+                  <p className="mx-up-p">
+                    Sledeći redovi iz Excel fajla nisu mogli biti dodati. Proverite da li svaki red ima popunjene kolone <strong>Kategorija</strong>, <strong>MODEL</strong> i <strong>SN</strong>.
+                  </p>
+                  <div className="mx-up-scroll">
+                    <div className="sx-tablewrap">
+                      <table className="sx-table">
+                        <thead>
+                          <tr>
+                            <th>Red u Excel-u</th>
+                            <th>Kategorija</th>
+                            <th>Model</th>
+                            <th>Serijski broj</th>
+                            <th>Problem</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parseResults.errors.map((err, index) => {
+                            const isStructured = typeof err === 'object' && err !== null;
+                            return (
+                              <tr key={index} style={{ '--i': index }}>
+                                <td className="is-head"><span className="sx-mono">{isStructured && err.row ? err.row : '-'}</span></td>
+                                <td data-label="Kategorija">{isStructured && err.rawData ? err.rawData.kategorija : '-'}</td>
+                                <td data-label="Model">{isStructured && err.rawData ? err.rawData.model : '-'}</td>
+                                <td data-label="Serijski broj"><span className="sx-mono">{isStructured && err.rawData ? err.rawData.sn : '-'}</span></td>
+                                <td data-label="Problem" className="is-wide mx-up-problem">{isStructured ? err.message : String(err)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <p className="sx-field__hint">
+                    Ispravite Excel fajl i ponovo ga upload-ujte da biste dodali ove stavke.
+                  </p>
+                </div>
+              )}
+
+              {parseResults.duplicates.length > 0 && (
+                <div className="mx-up-box is-warn">
+                  <h4 className="mx-up-h"><Led tone="warn" />Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
+                  <p className="mx-up-p">Sledeća oprema već postoji u sistemu i nije dodana:</p>
+                  <div className="mx-up-dups">
+                    {parseResults.duplicates.map((duplicate, index) => (
+                      <div key={index} className="sx-cred">
+                        <KV
+                          cols={2}
+                          items={[
+                            { k: 'Kategorija', v: duplicate.category || 'N/A' },
+                            { k: 'Model', v: duplicate.model || 'N/A' },
+                            { k: 'Serijski broj', v: duplicate.serialNumber || 'N/A', mono: true },
+                            { k: 'Status', v: duplicate.status || 'N/A' },
+                            { k: 'Lokacija', v: duplicate.location || 'N/A' },
+                            (duplicate.assignedTo || duplicate.assignedToUser) && { k: 'Dodeljena', v: duplicate.assignedToUser || duplicate.assignedTo || 'N/A' }
+                          ]}
+                        />
+                        {duplicate.reason && <p className="mx-up-reason">{duplicate.reason}</p>}
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <p className="sx-field__hint">
-                  Ispravite Excel fajl i ponovo ga upload-ujte da biste dodali ove stavke.
-                </p>
-              </div>
-            )}
-
-            {parseResults.duplicates.length > 0 && (
-              <div className="mx-up-box is-warn">
-                <h4 className="mx-up-h"><Led tone="warn" />Duplikati pronađeni ({parseResults.duplicates.length}):</h4>
-                <p className="mx-up-p">Sledeća oprema već postoji u sistemu i nije dodana:</p>
-                <div className="mx-up-dups">
-                  {parseResults.duplicates.map((duplicate, index) => (
-                    <div key={index} className="sx-cred">
-                      <KV
-                        cols={2}
-                        items={[
-                          { k: 'Kategorija', v: duplicate.category || 'N/A' },
-                          { k: 'Model', v: duplicate.model || 'N/A' },
-                          { k: 'Serijski broj', v: duplicate.serialNumber || 'N/A', mono: true },
-                          { k: 'Status', v: duplicate.status || 'N/A' },
-                          { k: 'Lokacija', v: duplicate.location || 'N/A' },
-                          (duplicate.assignedTo || duplicate.assignedToUser) && { k: 'Dodeljena', v: duplicate.assignedToUser || duplicate.assignedTo || 'N/A' }
-                        ]}
-                      />
-                      {duplicate.reason && <p className="mx-up-reason">{duplicate.reason}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Panel>
-        )}
-      </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Panel>
     </div>
   );
 };

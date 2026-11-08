@@ -1,4 +1,15 @@
-/* Upload opreme iz Excel-a: polje za fajl, okviri sa greškama i duplikatima, rezultat obrade */
+/* Upload opreme iz Excel-a: jedna kartica kao ranije (uputstvo, crta, forma i rezultat obrade) */
+.mx-up-sec { display: grid; gap: 14px; padding: 4px 20px 20px; }
+.mx-up-sec.is-form { padding-top: 20px; border-top: 1px solid var(--sx-line); }
+ul.mx-up-cols { display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; background: var(--sx-surface-2); border: 1px solid var(--sx-line); }
+ul.mx-up-cols li { display: flex; align-items: baseline; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--sx-text-2); }
+ul.mx-up-cols li .sx-led { flex-shrink: 0; transform: translateY(-1px); }
+ul.mx-up-cols b { font-weight: 650; color: var(--sx-text); }
+.mx-up-results { display: grid; gap: 14px; margin-top: 12px; padding: 18px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-up-title { font-family: var(--sx-font-display); font-size: 16px; font-weight: 660; font-stretch: 112%; color: var(--sx-text); }
+@media (max-width: 639px) { .mx-up-sec { padding-left: 16px; padding-right: 16px; } .mx-up-results { padding: 14px; } }
+
+/* polje za fajl, okviri sa greškama i duplikatima */
 .mx-up-form { display: grid; gap: 16px; }
 .mx-up-actions { display: flex; justify-content: flex-end; }
 .mx-up-drop {
@@ -27,7 +38,6 @@
 .mx-up-box { display: grid; gap: 12px; padding: 16px; border-radius: 14px; border: 1px solid var(--sx-line); }
 .mx-up-box.is-bad { border-color: color-mix(in oklab, var(--sx-bad) 30%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-bad) 4%, var(--sx-surface)); }
 .mx-up-box.is-warn { border-color: color-mix(in oklab, var(--sx-warn) 38%, var(--sx-surface)); background: color-mix(in oklab, var(--sx-warn) 5%, var(--sx-surface)); }
-.mx-up-box + .mx-up-box, .mx-up-stats + .mx-up-box { margin-top: 16px; }
 .mx-up-h { display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 650; color: var(--sx-text); }
 .mx-up-p { font-size: 13.5px; line-height: 1.5; color: var(--sx-text-2); }
 .mx-up-p.has-led { display: flex; align-items: center; gap: 8px; }
