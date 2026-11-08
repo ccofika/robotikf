@@ -454,7 +454,7 @@ const BackendLogs = () => {
 
       {/* Filters Card */}
       <Panel title="Filteri" className="mx-bl-filters" actions={<Btn size="sm" icon={X} onClick={resetFilters}>Resetuj</Btn>}>
-        <div className="sx-form mx-bl-form">
+        <div className="sx-form mx-bl-filterform">
           <DateTimePicker
             label="Od:"
             value={dateFrom}
@@ -821,7 +821,7 @@ const BackendLogs = () => {
             </Btn>
           </>}
         >
-          <div className="sx-form mx-bl-form">
+          <div className="sx-form mx-bl-filterform">
             {/* Date Range */}
             <DateTimePicker
               label="Datum od:"

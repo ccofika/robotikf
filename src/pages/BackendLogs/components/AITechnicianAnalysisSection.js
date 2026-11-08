@@ -5,7 +5,6 @@ import { toast } from '../../../components/ui/toast';
 import { Btn, cx } from '../../../security/sx/ui';
 import { Panel, Note, Stat } from '../../../security/sx/layout';
 import { Field } from '../../../security/sx/forms';
-import { Loading } from '../../../montaza/ui';
 import { DateTimeInput } from '../../../components/ui/DateTimePicker';
 import { AISekcija } from './AIAnalysisSection';
 
@@ -148,38 +147,41 @@ const AITechnicianAnalysisSection = () => {
 
   if (loading) {
     return (
-      <Panel pad={false}>
-        <Loading text="Pokretanje AI analize tehničara..." />
+      <Panel>
+        <div className="mx-bl-busy" role="status">
+          <span className="mx-bl-spin" aria-hidden="true" />
+          <span>Pokretanje AI analize tehničara...</span>
+        </div>
       </Panel>
     );
   }
 
   return (
     <div className="sx-stack">
-      {/* Manual Analysis Card + History Button */}
-      <Panel
-        title="Manuelna AI Analiza Tehničara"
-        sub="Pokrenite AI analizu rada tehničara za željeni period"
-        actions={
-          <Btn size="sm" icon={Clock} onClick={handleShowHistory}>
-            {showHistory ? 'Sakrij Istoriju' : 'Prikaži Istoriju'}
-          </Btn>
-        }
-        footer={
-          <Btn variant="primary" icon={HardHat} onClick={triggerManualAnalysis} disabled={loading || !customPeriodStart || !customPeriodEnd}>
+      {/* Controls Section */}
+      <div className="mx-bl-controls">
+        {/* Manual Analysis Card */}
+        <Panel title="Manuelna AI Analiza Tehničara" sub="Pokrenite AI analizu rada tehničara za željeni period" className="mx-bl-controls__main">
+          <div className="sx-form mx-bl-aiform">
+            <Field label="Od datuma:" htmlFor="mx-bl-tai-start">
+              <DateTimeInput id="mx-bl-tai-start" value={customPeriodStart} onChange={setCustomPeriodStart} />
+            </Field>
+            <Field label="Do datuma:" htmlFor="mx-bl-tai-end">
+              <DateTimeInput id="mx-bl-tai-end" value={customPeriodEnd} onChange={setCustomPeriodEnd} />
+            </Field>
+          </div>
+          <Btn variant="primary" onClick={triggerManualAnalysis} disabled={loading || !customPeriodStart || !customPeriodEnd} className="mx-bl-runbtn">
             {loading ? 'Analiza u toku...' : 'Pokreni Analizu'}
           </Btn>
-        }
-      >
-        <div className="sx-form">
-          <Field label="Od datuma:" htmlFor="mx-bl-tai-start">
-            <DateTimeInput id="mx-bl-tai-start" value={customPeriodStart} onChange={setCustomPeriodStart} />
-          </Field>
-          <Field label="Do datuma:" htmlFor="mx-bl-tai-end">
-            <DateTimeInput id="mx-bl-tai-end" value={customPeriodEnd} onChange={setCustomPeriodEnd} />
-          </Field>
+        </Panel>
+
+        {/* History Button */}
+        <div className="mx-bl-controls__side">
+          <Btn icon={Clock} onClick={handleShowHistory}>
+            {showHistory ? 'Sakrij Istoriju' : 'Prikaži Istoriju'}
+          </Btn>
         </div>
-      </Panel>
+      </div>
 
       {/* History List */}
       {showHistory && (

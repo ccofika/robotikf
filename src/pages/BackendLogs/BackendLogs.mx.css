@@ -1,7 +1,10 @@
 /* Backend Logs: filteri, detalji aktivnosti u tabeli, bulk dijalog i AI analize. Boje samo iz tokena. */
 .mx-bl-filters { margin-bottom: 20px; }
-/* polje datum + vreme + brzi izbor treba bar ~320 px, pa kolone prelaze u novi red ranije nego u sx-form */
-.sx-form.mx-bl-form { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+/* filteri: tri kolone kao ranije (i kad kategorija nije prikazana treća ostaje prazna); polje datum + vreme treba
+   bar ~290 px, pa su tri u redu od 1280 px, a na užem se slažu jedno ispod drugog */
+.sx-form.mx-bl-filterform { grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); }
+/* AI: dva polja u dve kolone, na uskom jedno ispod drugog */
+.sx-form.mx-bl-aiform { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
 
 /* ---------- tabele ---------- */
 .mx-bl-code { overflow-wrap: break-word; }
@@ -29,8 +32,21 @@ ul.mx-bl-changes { list-style: disc; padding-left: 16px; }
 .mx-bl-statname { font-size: 18px; font-weight: 650; line-height: 1.25; color: var(--sx-text); overflow-wrap: anywhere; }
 
 /* ---------- AI analize ---------- */
-.mx-bl-runrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
-.mx-bl-runrow > .mx-dtp__in { flex: 0 1 340px; }
+/* kartica za pokretanje (polja, ispod dugme preko cele širine) i desno uska kartica sa dugmetom za istoriju */
+.mx-bl-controls { display: flex; flex-direction: column; gap: 16px; }
+.mx-bl-controls__main { flex: 1 1 auto; min-width: 0; }
+@container page (min-width: 700px) {
+  .mx-bl-controls { flex-direction: row; }
+  .mx-bl-controls__side { flex: 0 0 192px; }
+}
+.mx-bl-runrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 10px 12px; }
+.sx-btn.mx-bl-runbtn { width: 100%; margin-top: 14px; }
+.mx-bl-controls__side > .sx-btn { width: 100%; height: 100%; min-height: 44px; border-radius: 14px; }
+.mx-bl-controls__side .mx-bl-histbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; min-height: 88px; padding: 16px; border-radius: inherit; font-size: 14px; font-weight: 600; color: var(--sx-text); transition: background-color var(--hover-out) var(--ease-move); }
+.mx-bl-controls__side .mx-bl-histbtn svg { color: var(--sx-text-2); }
+@media (hover: hover) and (pointer: fine) { .mx-bl-controls__side .mx-bl-histbtn:hover { background: var(--sx-surface-2); transition-duration: var(--hover-in); } }
+.mx-bl-busy { display: grid; justify-items: center; gap: 12px; padding: 36px 0; font-size: 13.5px; color: var(--sx-muted); }
+.mx-bl-spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--sx-line-2); border-top-color: var(--sx-text); animation: sx-spin 0.8s linear infinite; }
 .sx-stats.mx-bl-aistats { box-shadow: none; margin-bottom: 16px; }
 .sx-note.mx-bl-summary { margin-bottom: 16px; }
 .mx-bl-summary__title { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
