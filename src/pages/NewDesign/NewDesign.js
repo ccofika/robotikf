@@ -14,23 +14,24 @@ import ReturnWorkOrderModal from '../../components/ReturnWorkOrderModal';
 import FancyDataTable from '../../components/fancy-table/FancyDataTable';
 import { localYmd } from '../../utils/localDate';
 import { cx, Btn, Led, Sign, State } from '../../security/sx/ui';
-import { PageHead, Toolbar, Panel, Note, Tabs, Stat } from '../../security/sx/layout';
+import { PageHead, Panel, Note, Tabs, Stat } from '../../security/sx/layout';
 import { Select, Choice, SearchField, DateField } from '../../security/sx/forms';
 import Dialog from '../../security/sx/Dialog';
 import { confirm } from '../../security/sx/confirm';
-import { LinkBtn, Pager, Loading } from '../../montaza/ui';
+import { LinkBtn, Loading } from '../../montaza/ui';
 import './NewDesign.mx.css';
 
 // Ton stanja radnog naloga (znak + tekst, kao u ostatku Montaže)
 const STATUS_TONE = { zavrsen: 'ok', nezavrsen: 'warn', odlozen: 'info', otkazan: 'bad' };
 
-// Brojka koja vodi na stranicu: cela kartica je link, kao ranije
+// Brojka koja vodi na stranicu: cela kartica je link; redosled kao ranije (ikonica i oznaka, natpis, broj, trend)
 const LinkStat = ({ to, icon: Icon, tag, label, value, sub }) => (
   <Link to={to} className="sx-stat is-button mx-nd-lstat">
     <span className="mx-nd-lstat__top">
-      <span className="mx-nd-lstat__label"><Icon size={15} strokeWidth={1.9} aria-hidden="true" /><span className="sx-label">{label}</span></span>
+      <Icon size={17} strokeWidth={1.9} aria-hidden="true" />
       <span className="sx-tag">{tag}</span>
     </span>
+    <span className="sx-label">{label}</span>
     <span className="sx-stat__num sx-num">{value}</span>
     <span className="sx-stat__sub">{sub}</span>
   </Link>
@@ -256,17 +257,33 @@ const NewDesign = () => {
           </div>
         </Panel>
 
-        <div className="sx-stats mx-nd-quick">
-          <Stat
-            label="Završeni"
-            value={stats.workOrders.completed}
-            sub={<Meter label="Success rate" value={`${completionRate}%`} width={`${completionRate}%`} tone="accent" />}
-          />
-          <Stat
-            label="U toku"
-            value={stats.workOrders.pending}
-            sub={<span className="mx-nd-meter__top"><span>Avg. time</span><b>{stats.workOrders.avgCompletionTime || 2.5}d</b></span>}
-          />
+        {/* Brze brojke: dve kartice jedna ispod druge, kao ranije */}
+        <div className="mx-nd-quick">
+          <section className="sx-card mx-nd-qcard">
+            <div className="mx-nd-qcard__top">
+              <div>
+                <p className="sx-label">Završeni</p>
+                <p className="sx-num mx-nd-qcard__n">{stats.workOrders.completed}</p>
+              </div>
+              <span className="sx-item__icon"><CheckCircle2 size={20} strokeWidth={1.8} /></span>
+            </div>
+            <div className="mx-nd-qcard__foot">
+              <Meter label="Success rate" value={`${completionRate}%`} width={`${completionRate}%`} tone="accent" />
+            </div>
+          </section>
+
+          <section className="sx-card mx-nd-qcard">
+            <div className="mx-nd-qcard__top">
+              <div>
+                <p className="sx-label">U toku</p>
+                <p className="sx-num mx-nd-qcard__n">{stats.workOrders.pending}</p>
+              </div>
+              <span className="sx-item__icon"><Clock size={20} strokeWidth={1.8} /></span>
+            </div>
+            <div className="mx-nd-qcard__foot">
+              <span className="mx-nd-meter__top"><span>Avg. time</span><b>{stats.workOrders.avgCompletionTime || 2.5}d</b></span>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -300,10 +317,19 @@ const NewDesign = () => {
           {/* Resursi */}
           <div className="mx-nd-res">
             <p className="sx-label">Resources</p>
-            <div className="mx-nd-mini">
-              <Stat label="Oprema" value={stats.equipment} />
-              <Stat label="Materijali" value={stats.materials} />
-              <Stat label="Tehničari" value={stats.technicians} />
+            <div className="mx-nd-res__grid">
+              <div>
+                <p className="mx-nd-res__k">Oprema</p>
+                <p className="sx-num mx-nd-res__v">{stats.equipment}</p>
+              </div>
+              <div>
+                <p className="mx-nd-res__k">Materijali</p>
+                <p className="sx-num mx-nd-res__v">{stats.materials}</p>
+              </div>
+              <div>
+                <p className="mx-nd-res__k">Tehničari</p>
+                <p className="sx-num mx-nd-res__v">{stats.technicians}</p>
+              </div>
             </div>
           </div>
         </Panel>
@@ -462,20 +488,30 @@ const TechnicianWorkOrdersPreview = () => {
   };
 
   return (
-    <Panel
-      pad={false}
-      className="mx-nd-wrap"
-      title="Radni nalozi po tehničarima"
-      sub={<>{Object.keys(techData).length} tehničara · {Object.values(techData).reduce((s, t) => s + t.stats.total, 0)} naloga</>}
-      actions={(
-        <>
+    <section className="sx-card mx-nd-twp">
+
+      {/* Traka zaglavlja */}
+      <div className="mx-nd-bar">
+        <div className="mx-nd-bar__info">
+          <span className="mx-nd-bar__title">
+            <Users size={16} strokeWidth={1.9} aria-hidden="true" />
+            <span>Radni nalozi po tehničarima</span>
+          </span>
+          <span className="mx-nd-bar__sep" />
+          <span className="sx-mono">{Object.keys(techData).length} tehničara</span>
+          <span className="mx-nd-bar__sep" />
+          <span className="sx-mono">
+            {Object.values(techData).reduce((s, t) => s + t.stats.total, 0)} naloga
+          </span>
+        </div>
+        <div className="mx-nd-bar__actions">
           <Btn size="sm" icon={Plus}>Novi nalog</Btn>
           <Btn size="sm" icon={Download}>Export</Btn>
           <Btn size="sm" icon={RefreshCw} />
-        </>
-      )}
-    >
-      {/* Pretraga i filteri (samo izgled, kao ranije) */}
+        </div>
+      </div>
+
+      {/* Traka pretrage */}
       <div className="mx-nd-twp__bar">
         <div className="sx-search">
           <Search size={16} strokeWidth={1.9} aria-hidden="true" className="sx-search__icon" />
@@ -495,9 +531,9 @@ const TechnicianWorkOrdersPreview = () => {
         </Select>
       </div>
 
+      {/* Levo spisak tehničara, desno nalozi */}
       <div className="mx-nd-split">
         <div className="mx-nd-split__in">
-          {/* Spisak tehničara */}
           <div className="mx-nd-split__side">
             <div className="mx-nd-techlist">
               {Object.entries(techData).map(([id, t]) => {
@@ -546,39 +582,40 @@ const TechnicianWorkOrdersPreview = () => {
             </div>
           </div>
 
-          {/* Nalozi izabranog tehničara */}
           <div className="mx-nd-split__main">
+            {/* Tehničar i brzi filteri */}
             <div className="mx-nd-twp__head">
-              <div className="mx-nd-who">
-                <span className="sx-avatar mx-nd-ink">{tech.initials}</span>
-                <div className="mx-nd-who__text">
-                  <h3>{tech.name}</h3>
-                  <span>{tech.phone}</span>
+              <div className="mx-nd-twp__row">
+                <div className="mx-nd-who">
+                  <span className="sx-avatar mx-nd-ink">{tech.initials}</span>
+                  <div className="mx-nd-who__text">
+                    <h3>{tech.name}</h3>
+                    <span>{tech.phone}</span>
+                  </div>
+                </div>
+                <div className="mx-nd-twp__count">
+                  <span>{filteredOrders.length} od {tech.orders.length} naloga</span>
+                  <Btn size="sm" variant="ghost" icon={Download} />
                 </div>
               </div>
-              <div className="mx-nd-twp__count">
-                <span>{filteredOrders.length} od {tech.orders.length} naloga</span>
-                <Btn size="sm" variant="ghost" icon={Download} />
-              </div>
-            </div>
 
-            <div className="mx-nd-twp__chips">
               <Choice
                 size="sm"
                 value={activeFilter}
                 onChange={setActiveFilter}
                 layoutId="mx-nd-twp-filter"
                 options={[
-                  { value: '', label: 'Svi', count: tech.stats.total },
-                  { value: 'zavrsen', label: 'Završeni', count: tech.stats.completed },
-                  { value: 'nezavrsen', label: 'Nezavršeni', count: tech.stats.pending },
-                  { value: 'odlozen', label: 'Odloženi', count: tech.stats.postponed }
+                  { value: '', label: `Svi (${tech.stats.total})` },
+                  { value: 'zavrsen', label: `Završeni (${tech.stats.completed})` },
+                  { value: 'nezavrsen', label: `Nezavršeni (${tech.stats.pending})` },
+                  { value: 'odlozen', label: `Odloženi (${tech.stats.postponed})` }
                 ]}
               />
             </div>
 
-            {filteredOrders.length > 0 ? (
-              <div className="sx-tablewrap">
+            {/* Tabela (vodoravni skrol unutar panela, kao ranije) */}
+            <div className="mx-nd-hscroll mx-nd-twp__table">
+              {filteredOrders.length > 0 ? (
                 <table className="sx-table">
                   <thead>
                     <tr>
@@ -597,18 +634,18 @@ const TechnicianWorkOrdersPreview = () => {
                       const st = statusCfg[order.status];
                       return (
                         <tr key={order.id} className="is-click" style={{ '--i': idx }}>
-                          <td className="is-head"><b className="mx-strong">{order.date}</b></td>
-                          <td data-label="Vreme"><span className="sx-mono">{order.time}</span></td>
-                          <td data-label="Opština">{order.municipality}</td>
-                          <td data-label="Adresa" className="is-wide">
+                          <td><b className="mx-strong">{order.date}</b></td>
+                          <td><span className="sx-mono">{order.time}</span></td>
+                          <td>{order.municipality}</td>
+                          <td>
                             <div className="sx-cell mx-nd-addr">
                               <b>{order.address}</b>
                               <span className="sx-mono">TIS {order.tisId}</span>
                             </div>
                           </td>
-                          <td data-label="Korisnik">{order.userName}</td>
-                          <td data-label="Tip">{order.type}</td>
-                          <td data-label="Status">
+                          <td>{order.userName}</td>
+                          <td>{order.type}</td>
+                          <td>
                             <span className="mx-nd-st">
                               <Sign tone={st.tone}>{st.label}</Sign>
                               {order.verified && (
@@ -616,7 +653,7 @@ const TechnicianWorkOrdersPreview = () => {
                               )}
                             </span>
                           </td>
-                          <td className="is-actions is-end">
+                          <td className="is-end">
                             <div className="sx-rowacts">
                               <Btn size="sm" variant="ghost" icon={Eye} />
                               <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" />
@@ -627,13 +664,14 @@ const TechnicianWorkOrdersPreview = () => {
                     })}
                   </tbody>
                 </table>
-              </div>
-            ) : (
-              <div className="sx-empty-block">
-                <b>Nema radnih naloga</b>
-                <span>Izaberite drugog tehničara ili promenite filter</span>
-              </div>
-            )}
+              ) : (
+                <div className="sx-empty-block mx-nd-center">
+                  <span className="sx-item__icon"><ClipboardList size={18} strokeWidth={1.8} /></span>
+                  <b>Nema radnih naloga</b>
+                  <span>Izaberite drugog tehničara ili promenite filter</span>
+                </div>
+              )}
+            </div>
 
             {/* Podnožje: strane */}
             {filteredOrders.length > 0 && (
@@ -651,31 +689,30 @@ const TechnicianWorkOrdersPreview = () => {
           </div>
         </div>
       </div>
-    </Panel>
+    </section>
   );
 };
 
 // Pregled dizajna: detalji radnog naloga (statički podaci)
 const WorkOrderDetailPreview = () => {
   return (
-    <Panel
-      pad={false}
-      className="mx-nd-wrap"
-      title="WO-2024-08847"
-      sub={(
-        <span className="mx-inline">
+    <section className="sx-card mx-nd-wod">
+
+      {/* Traka sa stanjem, brojem naloga i radnjama */}
+      <div className="mx-nd-bar">
+        <div className="mx-nd-bar__info">
           <State tone="ok">Završen</State>
+          <span className="sx-mono mx-nd-bar__id">WO-2024-08847</span>
+          <span className="mx-nd-bar__dot">·</span>
           <span className="sx-mono">15.02.2024 · 09:30</span>
-        </span>
-      )}
-      actions={(
-        <>
+        </div>
+        <div className="mx-nd-bar__actions">
           <Btn size="sm" icon={Download}>PDF</Btn>
           <Btn size="sm" icon={Check}>Verifikuj</Btn>
           <Btn size="sm" icon={CircleAlert}>Vrati</Btn>
-        </>
-      )}
-    >
+        </div>
+      </div>
+
       <div className="mx-nd-wod__in">
         {/* Osnovni podaci */}
         <div className="mx-nd-facts">
@@ -729,19 +766,19 @@ const WorkOrderDetailPreview = () => {
               </div>
             </div>
 
-            <div className="mx-nd-wsec is-flush">
+            <div className="mx-nd-wsec">
               <div className="mx-nd-wsec__head">
                 <p className="sx-label mx-nd-sl"><Box size={13} strokeWidth={1.9} aria-hidden="true" />Oprema korisnika</p>
                 <span className="sx-tag is-ink">3</span>
               </div>
-              <div className="sx-tablewrap">
-                <table className="sx-table">
+              <div className="mx-nd-hscroll">
+                <table className="sx-table mx-nd-eqtable">
                   <thead>
                     <tr>
                       <th>Tip</th>
                       <th>Opis</th>
                       <th>Serijski br.</th>
-                      <th className="is-num">Datum</th>
+                      <th className="is-end">Datum</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -751,10 +788,10 @@ const WorkOrderDetailPreview = () => {
                       { type: 'RTR', desc: 'TP-Link Archer C6', serial: 'TPL-28374650198', date: '15.02.24' },
                     ].map((eq, i) => (
                       <tr key={i} style={{ '--i': i }}>
-                        <td data-label="Tip"><span className="sx-tag is-ink">{eq.type}</span></td>
-                        <td data-label="Opis"><b className="mx-strong">{eq.desc}</b></td>
-                        <td data-label="Serijski br."><span className="sx-mono">{eq.serial}</span></td>
-                        <td data-label="Datum" className="is-num"><span className="sx-faint">{eq.date}</span></td>
+                        <td><span className="sx-tag is-ink">{eq.type}</span></td>
+                        <td><b className="mx-strong">{eq.desc}</b></td>
+                        <td><span className="sx-mono">{eq.serial}</span></td>
+                        <td className="is-end"><span className="sx-faint">{eq.date}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -801,14 +838,17 @@ const WorkOrderDetailPreview = () => {
           <div className="mx-nd-wod__right">
             <div className="mx-nd-wsec">
               <p className="sx-label">Pregled</p>
-              <div className="mx-nd-mini is-4">
+              <div className="mx-nd-cnts">
                 {[
                   { label: 'Oprema', value: '3' },
                   { label: 'Materijali', value: '5' },
                   { label: 'Slike', value: '4' },
                   { label: 'Trajanje', value: '~2h' },
                 ].map((s, i) => (
-                  <Stat key={i} label={s.label} value={s.value} />
+                  <div key={i} className="mx-nd-cnt">
+                    <p className="sx-num">{s.value}</p>
+                    <p className="sx-label">{s.label}</p>
+                  </div>
                 ))}
               </div>
             </div>
@@ -865,7 +905,7 @@ const WorkOrderDetailPreview = () => {
           </div>
         </div>
       </div>
-    </Panel>
+    </section>
   );
 };
 
@@ -1632,6 +1672,86 @@ const WorkOrdersSection = () => {
     }
   };
 
+  // Pagination Component
+  const PaginationComponent = ({ currentPage, totalPages, onPageChange }) => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="mx-nd-pages">
+        <Btn
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(1, e);
+          }}
+          disabled={currentPage === 1}
+        >
+          &laquo;
+        </Btn>
+
+        <Btn
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(currentPage - 1, e);
+          }}
+          disabled={currentPage === 1}
+        >
+          &lsaquo;
+        </Btn>
+
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(number => {
+            return (
+              number === 1 ||
+              number === totalPages ||
+              Math.abs(number - currentPage) <= 1
+            );
+          })
+          .map(number => (
+            <Btn
+              key={number}
+              size="sm"
+              variant={currentPage === number ? 'primary' : 'ghost'}
+              className="mx-pager__num"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPageChange(number, e);
+              }}
+            >
+              {number}
+            </Btn>
+          ))}
+
+        <Btn
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(currentPage + 1, e);
+          }}
+          disabled={currentPage === totalPages}
+        >
+          &rsaquo;
+        </Btn>
+
+        <Btn
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPageChange(totalPages, e);
+          }}
+          disabled={currentPage === totalPages}
+        >
+          &raquo;
+        </Btn>
+      </div>
+    );
+  };
+
   const navigateToOrderDetails = (orderId, event) => {
     if (event.target.closest('.delete-btn') || event.target.closest('.verify-btn')) {
       return;
@@ -1673,17 +1793,19 @@ const WorkOrdersSection = () => {
         onChange={handleTabChange}
         layoutId="mx-nd-wos-tabs"
         items={[
-          { key: 'technicians', label: 'Tehničari', icon: User, count: Object.keys(technicianWorkOrders).length },
-          { key: 'unassigned', label: 'Nedodeljeni', icon: UserX, count: getAllUnassignedOrders().length },
-          { key: 'verification', label: 'Za verifikaciju', icon: CheckCircle2, count: verificationOrders.length },
-          { key: 'all', label: 'Svi radni nalozi', icon: ClipboardList, count: getAllWorkOrders().length },
-          { key: 'pregled', label: 'Pregled', icon: Table, count: fancyTablePagination?.totalCount || 0 }
+          // broj kao tekst: Tabs ne prikazuje 0, a ranije se i 0 videla
+          { key: 'technicians', label: 'Tehničari', icon: User, count: String(Object.keys(technicianWorkOrders).length) },
+          { key: 'unassigned', label: 'Nedodeljeni', icon: UserX, count: String(getAllUnassignedOrders().length) },
+          { key: 'verification', label: 'Za verifikaciju', icon: CheckCircle2, count: String(verificationOrders.length) },
+          { key: 'all', label: 'Svi radni nalozi', icon: ClipboardList, count: String(getAllWorkOrders().length) },
+          { key: 'pregled', label: 'Pregled', icon: Table, count: String(fancyTablePagination?.totalCount || 0) }
         ]}
       />
 
       {/* Pretraga i filteri */}
       {activeTab !== 'pregled' && (
-        <Toolbar sticky={false}>
+        <Panel>
+          <div className="mx-nd-filters">
           <SearchField
             value={searchTerm}
             placeholder="Pretraga po adresi, korisniku, serijskom broju..."
@@ -1763,8 +1885,7 @@ const WorkOrdersSection = () => {
             </>
           )}
 
-          <div className="sx-toolbar__end">
-            <Btn size="sm" icon={RotateCcw} onClick={resetFilters}>Resetuj</Btn>
+          <Btn size="sm" icon={RotateCcw} onClick={resetFilters}>Resetuj</Btn>
             <Btn
               size="sm"
               icon={RefreshCw}
@@ -1775,7 +1896,7 @@ const WorkOrdersSection = () => {
               Osveži
             </Btn>
           </div>
-        </Toolbar>
+        </Panel>
       )}
 
       {/* Učitavanje */}
@@ -1955,10 +2076,10 @@ const WorkOrdersSection = () => {
                         onChange={setStatusFilter}
                         layoutId="mx-nd-wos-status"
                         options={[
-                          { value: '', label: 'Svi', count: technicianWorkOrders[selectedTechnicianId]?.workOrders.length || 0 },
-                          { value: 'zavrsen', label: 'Završeni', count: technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'zavrsen').length || 0 },
-                          { value: 'nezavrsen', label: 'Nezavršeni', count: technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'nezavrsen').length || 0 },
-                          { value: 'odlozen', label: 'Odloženi', count: technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'odlozen').length || 0 }
+                          { value: '', label: `Svi (${technicianWorkOrders[selectedTechnicianId]?.workOrders.length || 0})` },
+                          { value: 'zavrsen', label: `Završeni (${technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'zavrsen').length || 0})` },
+                          { value: 'nezavrsen', label: `Nezavršeni (${technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'nezavrsen').length || 0})` },
+                          { value: 'odlozen', label: `Odloženi (${technicianWorkOrders[selectedTechnicianId]?.workOrders.filter(o => o.status === 'odlozen').length || 0})` }
                         ]}
                       />
                     </div>
@@ -1971,10 +2092,12 @@ const WorkOrdersSection = () => {
                         const indexOfLastTech = currentPageTech * itemsPerPage;
                         const indexOfFirstTech = indexOfLastTech - itemsPerPage;
                         const currentTechItems = filteredTechOrders.slice(indexOfFirstTech, indexOfLastTech);
+                        const totalPagesTech = Math.ceil(filteredTechOrders.length / itemsPerPage);
 
                         if (filteredTechOrders.length === 0) {
                           return (
-                            <div className="sx-empty-block">
+                            <div className="sx-empty-block mx-nd-center">
+                              <span className="sx-item__icon"><ClipboardList size={18} strokeWidth={1.8} /></span>
                               <b>Nema radnih naloga</b>
                               <span>
                                 {statusFilter ? 'Pokušajte sa drugim filterom' : 'Ovaj tehničar trenutno nema dodeljenih naloga'}
@@ -2052,8 +2175,8 @@ const WorkOrdersSection = () => {
                               </div>
                             </div>
 
-                            <div className="sx-tablewrap">
-                              <table className="sx-table mx-nd-sorttable">
+                            <div className="mx-nd-hscroll">
+                              <table className="sx-table">
                                 <thead>
                                   <tr>
                                     {sortTh('date', 'Datum')}
@@ -2074,14 +2197,14 @@ const WorkOrdersSection = () => {
                                       className="is-click"
                                       style={{ '--i': i, ...getTimRowStyle(order.tim) }}
                                     >
-                                      <td className="is-head"><b className="mx-strong">{formatDate(order.date)}</b></td>
-                                      <td data-label="Opština">{order.municipality}</td>
-                                      <td data-label="Adresa" className="is-wide">{order.address}</td>
-                                      <td data-label="Tip">{order.type}</td>
-                                      <td data-label="Status">
+                                      <td><b className="mx-strong">{formatDate(order.date)}</b></td>
+                                      <td>{order.municipality}</td>
+                                      <td>{order.address}</td>
+                                      <td>{order.type}</td>
+                                      <td>
                                         <Sign tone={STATUS_TONE[order.status] || 'idle'}>{getStatusLabel(order.status)}</Sign>
                                       </td>
-                                      <td className="is-actions is-end">
+                                      <td className="is-end">
                                         <div className="sx-rowacts">
                                           <LinkBtn to={`/work-orders/${order._id}`} target="_blank" size="sm" variant="ghost" icon={Eye} />
                                           <Btn
@@ -2102,11 +2225,10 @@ const WorkOrdersSection = () => {
                               </table>
                             </div>
 
-                            <Pager
-                              page={currentPageTech}
-                              total={filteredTechOrders.length}
-                              perPage={itemsPerPage}
-                              onPage={(page) => paginateTechnician(selectedTechnicianId, page)}
+                            <PaginationComponent
+                              currentPage={currentPageTech}
+                              totalPages={totalPagesTech}
+                              onPageChange={(page) => paginateTechnician(selectedTechnicianId, page)}
                             />
                           </>
                         );
