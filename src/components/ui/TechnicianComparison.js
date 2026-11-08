@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Users, Award, RefreshCw, Download } from 'lucide-react';
 import { cx, Btn, State } from '../../security/sx/ui';
-import { Panel, Note, Stat } from '../../security/sx/layout';
+import { Stat } from '../../security/sx/layout';
 import { Select, Choice } from '../../security/sx/forms';
 import { Loading } from '../../montaza/ui';
 
@@ -335,193 +335,208 @@ const TechnicianComparison = ({
   };
 
   if (loading) {
-    return <Loading rows={5} h={88} />;
+    return (
+      <div className={cx('mx-logdash-comp', className)}>
+        <Loading rows={5} h={88} />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <Note tone="bad" icon={Users} actions={onRefresh && (
-        <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
-      )}>
-        <h4 className="mx-logdash-note__title">Greška pri učitavanju poređenja tehničara</h4>
-        <p>{error}</p>
-      </Note>
+      <div className={cx('mx-logdash-comp', className)}>
+        <div className="mx-logdash-empty is-bad">
+          <span className="sx-item__icon"><Users size={22} strokeWidth={1.8} aria-hidden="true" /></span>
+          <h4>Greška pri učitavanju poređenja tehničara</h4>
+          <p>{error}</p>
+          {onRefresh && (
+            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className={cx('mx-logdash-sec', className)}>
-      {/* Zaglavlje */}
-      <div className="mx-logdash-sec__head">
-        <div className="mx-logdash-sec__titles">
-          <h3 className="mx-logdash-sec__title">Poređenje tehničara</h3>
-          <p className="mx-logdash-sec__lead">Rangiranje prema performansama, brzini i zadovoljstvu korisnika</p>
-        </div>
+    <div className={cx('mx-logdash-comp', className)}>
+      {/* Header */}
+      <div className="mx-logdash-comp__head">
+        <div className="mx-logdash-comp__row">
+          <div className="mx-logdash-comp__id">
+            <span className="sx-item__icon"><Users size={18} strokeWidth={1.9} aria-hidden="true" /></span>
+            <div className="mx-logdash-comp__titles">
+              <h3 className="mx-logdash-comp__title">Poređenje tehničara</h3>
+              <p className="mx-logdash-comp__lead">Rangiranje prema performansama, brzini i zadovoljstvu korisnika</p>
+            </div>
+          </div>
 
-        <div className="mx-logdash-sec__tools">
-          {onTimeRangeChange && (
-            <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
-              <option value="7d">Poslednja 7 dana</option>
-              <option value="30d">Poslednja 30 dana</option>
-              <option value="90d">Poslednja 3 meseca</option>
-              <option value="180d">Poslednja 6 meseci</option>
-              <option value="365d">Poslednja godina</option>
+          <div className="mx-logdash-comp__tools">
+            {onTimeRangeChange && (
+              <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
+                <option value="7d">Poslednja 7 dana</option>
+                <option value="30d">Poslednja 30 dana</option>
+                <option value="90d">Poslednja 3 meseca</option>
+                <option value="180d">Poslednja 6 meseci</option>
+                <option value="365d">Poslednja godina</option>
+              </Select>
+            )}
+
+            <Select size="sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sortiranje">
+              <option value="performance">Ukupna ocena</option>
+              <option value="successRate">Stopa uspešnosti</option>
+              <option value="speed">Brzina rada</option>
+              <option value="profit">Profit</option>
             </Select>
-          )}
 
-          <Select size="sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sortiranje">
-            <option value="performance">Ukupna ocena</option>
-            <option value="successRate">Stopa uspešnosti</option>
-            <option value="speed">Brzina rada</option>
-            <option value="profit">Profit</option>
-          </Select>
+            {onExport && (
+              <Btn size="sm" icon={Download} onClick={() => onExport(technicianMetrics)}>Export</Btn>
+            )}
 
-          {onExport && (
-            <Btn size="sm" icon={Download} onClick={() => onExport(technicianMetrics)}>Export</Btn>
-          )}
-
-          {onRefresh && (
-            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
-          )}
+            {onRefresh && (
+              <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
+            )}
+          </div>
         </div>
+
+        {/* Filter Buttons */}
+        <Choice
+          size="sm"
+          scroll
+          label="Metrike"
+          layoutId="mx-logdash-tech-metric"
+          value={selectedMetric}
+          onChange={setSelectedMetric}
+          options={[
+            { value: 'all', label: 'Sve metrike' },
+            { value: 'performance', label: 'Performanse' },
+            { value: 'financial', label: 'Finansije' }
+          ]}
+        />
       </div>
 
-      {/* Filter Buttons */}
-      <Choice
-        size="sm"
-        label="Metrike"
-        layoutId="mx-logdash-tech-metric"
-        value={selectedMetric}
-        onChange={setSelectedMetric}
-        options={[
-          { value: 'all', label: 'Sve metrike' },
-          { value: 'performance', label: 'Performanse' },
-          { value: 'financial', label: 'Finansije' }
-        ]}
-      />
-
       {/* Content */}
-      {technicianMetrics.length === 0 ? (
-        <Panel>
-          <div className="sx-empty-block">
+      <div className="mx-logdash-comp__body">
+        {technicianMetrics.length === 0 ? (
+          <div className="mx-logdash-empty">
+            <span className="sx-item__icon"><Users size={22} strokeWidth={1.8} aria-hidden="true" /></span>
             <h4>Nema podataka o tehničarima</h4>
-            <span>Podaci će biti prikazani kada budu dostupni radni nalozi sa informacijama o tehničarima.</span>
+            <p>Podaci će biti prikazani kada budu dostupni radni nalozi sa informacijama o tehničarima.</p>
           </div>
-        </Panel>
-      ) : (
-        <>
-          {/* Summary Stats */}
-          <div className="sx-stats">
-            <Stat label="Ukupno tehničara" value={technicianMetrics.length} />
-            <Stat
-              label="Prosečna uspešnost"
-              value={`${technicianMetrics.length > 0
-                ? (technicianMetrics.reduce((sum, t) => sum + (t.successRate || 0), 0) / technicianMetrics.length).toFixed(1)
-                : '0.0'
-              }%`}
-            />
-            <Stat
-              label="Prosečno naloga/dan"
-              value={technicianMetrics.length > 0
-                ? (technicianMetrics.reduce((sum, t) => sum + (t.avgOrdersPerDay || t.ordersPerDay || 0), 0) / technicianMetrics.length).toFixed(1)
-                : '0.0'
-              }
-            />
-            <Stat label="Ukupni troškovi radnika" value={formatCurrency(technicianMetrics.reduce((sum, t) => sum + t.totalProfit, 0))} />
-          </div>
+        ) : (
+          <div className="mx-logdash-sub">
+            {/* Summary Stats */}
+            <div className="sx-stats">
+              <Stat label="Ukupno tehničara" value={technicianMetrics.length} />
+              <Stat
+                label="Prosečna uspešnost"
+                value={`${technicianMetrics.length > 0
+                  ? (technicianMetrics.reduce((sum, t) => sum + (t.successRate || 0), 0) / technicianMetrics.length).toFixed(1)
+                  : '0.0'
+                }%`}
+              />
+              <Stat
+                label="Prosečno naloga/dan"
+                value={technicianMetrics.length > 0
+                  ? (technicianMetrics.reduce((sum, t) => sum + (t.avgOrdersPerDay || t.ordersPerDay || 0), 0) / technicianMetrics.length).toFixed(1)
+                  : '0.0'
+                }
+              />
+              <Stat label="Ukupni troškovi radnika" value={formatCurrency(technicianMetrics.reduce((sum, t) => sum + t.totalProfit, 0))} />
+            </div>
 
-          {/* Technician Rankings */}
-          <Panel>
-            {technicianMetrics.map((technician, index) => {
-              const rank = index + 1;
-              const badge = getPerformanceBadge(technician.performanceScore);
+            {/* Technician Rankings */}
+            <div className="mx-logdash-techs mx-mt">
+              {technicianMetrics.map((technician, index) => {
+                const rank = index + 1;
+                const badge = getPerformanceBadge(technician.performanceScore);
 
-              return (
-                <div key={technician.id} className="mx-logdash-tech" style={{ '--i': index }}>
-                  <div className="mx-logdash-tech__head">
-                    <span className={cx('mx-logdash-tech__rank', rank === 1 && 'is-top')}>{getRankIcon(rank)}</span>
-                    <div className="mx-logdash-tech__who">
-                      <h4>{technician.name}</h4>
-                      <div className="mx-logdash-tech__meta">
-                        <State tone={badge.tone}>{badge.label}</State>
-                        <span>{technician.totalOrders} naloga • {technician.experienceDays} dana rada</span>
+                return (
+                  <div key={technician.id} className="mx-logdash-tech">
+                    <div className="mx-logdash-tech__head">
+                      <span className={cx('mx-logdash-tech__rank', rank === 1 && 'is-top')}>{getRankIcon(rank)}</span>
+                      <div className="mx-logdash-tech__who">
+                        <h4>{technician.name}</h4>
+                        <div className="mx-logdash-tech__meta">
+                          <State tone={badge.tone}>{badge.label}</State>
+                          <span>{technician.totalOrders} naloga • {technician.experienceDays} dana rada</span>
+                        </div>
+                      </div>
+                      <div className="mx-logdash-tech__score">
+                        <b className="sx-num">{(technician.performanceScore || technician.overallScore || 0).toFixed(1)}</b>
+                        <span className="sx-label">Ukupna ocena</span>
                       </div>
                     </div>
-                    <div className="mx-logdash-tech__score">
-                      <b className="sx-num">{(technician.performanceScore || technician.overallScore || 0).toFixed(1)}</b>
-                      <span className="sx-label">Ukupna ocena</span>
-                    </div>
-                  </div>
 
-                  {/* Metrics Grid */}
-                  <div className="mx-logdash-metrics">
-                    {(selectedMetric === 'all' || selectedMetric === 'performance') && (
-                      <>
-                        <div className="mx-logdash-metric">
-                          <span className="sx-label">Uspešnost</span>
-                          <b>{(technician.successRate || technician.completionRate || 0).toFixed(1)}%</b>
-                          <small>{technician.completedOrders}/{technician.totalOrders} završeno</small>
-                        </div>
+                    {/* Metrics Grid */}
+                    <div className="mx-logdash-metrics">
+                      {(selectedMetric === 'all' || selectedMetric === 'performance') && (
+                        <>
+                          <div className="mx-logdash-metric">
+                            <span className="sx-label">Uspešnost</span>
+                            <b>{(technician.successRate || technician.completionRate || 0).toFixed(1)}%</b>
+                            <small>{technician.completedOrders}/{technician.totalOrders} završeno</small>
+                          </div>
 
-                        <div className="mx-logdash-metric">
-                          <span className="sx-label">Brzina</span>
-                          <b>{(technician.speedScore || 50).toFixed(1)}</b>
-                          <small>{(technician.avgResponseTime || technician.totalWorkTime || 0).toFixed(0)}min odgovor</small>
-                        </div>
-                      </>
-                    )}
+                          <div className="mx-logdash-metric">
+                            <span className="sx-label">Brzina</span>
+                            <b>{(technician.speedScore || 50).toFixed(1)}</b>
+                            <small>{(technician.avgResponseTime || technician.totalWorkTime || 0).toFixed(0)}min odgovor</small>
+                          </div>
+                        </>
+                      )}
 
-                    {(selectedMetric === 'all' || selectedMetric === 'performance') && (
-                      <>
-                        <div className="mx-logdash-metric">
-                          <span className="sx-label">Otkazivanja</span>
-                          <b>{(technician.cancelRate || 0).toFixed(1)}%</b>
-                          <small>{technician.cancelledOrders} otkazano</small>
-                        </div>
+                      {(selectedMetric === 'all' || selectedMetric === 'performance') && (
+                        <>
+                          <div className="mx-logdash-metric">
+                            <span className="sx-label">Otkazivanja</span>
+                            <b>{(technician.cancelRate || 0).toFixed(1)}%</b>
+                            <small>{technician.cancelledOrders} otkazano</small>
+                          </div>
 
-                        <div className="mx-logdash-metric">
-                          <span className="sx-label">Ukupno aktivnosti</span>
-                          <b>{technician.totalActivities || technician.totalOrders || 0}</b>
-                          <small>{(technician.avgOrdersPerDay || technician.ordersPerDay || 0).toFixed(1)}/dan</small>
-                        </div>
-                      </>
-                    )}
+                          <div className="mx-logdash-metric">
+                            <span className="sx-label">Ukupno aktivnosti</span>
+                            <b>{technician.totalActivities || technician.totalOrders || 0}</b>
+                            <small>{(technician.avgOrdersPerDay || technician.ordersPerDay || 0).toFixed(1)}/dan</small>
+                          </div>
+                        </>
+                      )}
 
-                    {(selectedMetric === 'all' || selectedMetric === 'financial') && (
-                      <>
-                        <div className="mx-logdash-metric">
-                          <span className="sx-label">Deo profita kompanije</span>
-                          <b>{formatCurrency(technician.totalProfit)}</b>
-                          <small>{formatCurrency(technician.profitPerOrder)}/nalog</small>
-                        </div>
+                      {(selectedMetric === 'all' || selectedMetric === 'financial') && (
+                        <>
+                          <div className="mx-logdash-metric">
+                            <span className="sx-label">Deo profita kompanije</span>
+                            <b>{formatCurrency(technician.totalProfit)}</b>
+                            <small>{formatCurrency(technician.profitPerOrder)}/nalog</small>
+                          </div>
 
-                        <div className="mx-logdash-metric">
-                          <span className="sx-label">Efikasnost</span>
-                          <b>{formatCurrency(technician.efficiency)}/h</b>
-                          <small>{(technician.avgWorkTime || technician.avgResponseTime || 0).toFixed(0)} min/nalog</small>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Territories */}
-                  <div className="mx-logdash-tags">
-                    <span className="sx-label">Teritorije</span>
-                    <div>
-                      {(technician.territories || []).slice(0, 5).map((territory, idx) => (
-                        <span key={idx} className="sx-tag">{territory}</span>
-                      ))}
-                      {(technician.territories || []).length > 5 && (
-                        <span className="sx-tag is-info">+{(technician.territories || []).length - 5} više</span>
+                          <div className="mx-logdash-metric">
+                            <span className="sx-label">Efikasnost</span>
+                            <b>{formatCurrency(technician.efficiency)}/h</b>
+                            <small>{(technician.avgWorkTime || technician.avgResponseTime || 0).toFixed(0)} min/nalog</small>
+                          </div>
+                        </>
                       )}
                     </div>
+
+                    {/* Territories */}
+                    <div className="mx-logdash-tags">
+                      <span className="sx-label">Teritorije</span>
+                      <div>
+                        {(technician.territories || []).slice(0, 5).map((territory, idx) => (
+                          <span key={idx} className="sx-tag is-ok">{territory}</span>
+                        ))}
+                        {(technician.territories || []).length > 5 && (
+                          <span className="sx-tag">+{(technician.territories || []).length - 5} više</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </Panel>
-        </>
-      )}
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

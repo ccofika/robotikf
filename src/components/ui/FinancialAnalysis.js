@@ -1,18 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
-import { DollarSign, ChartColumn, ChartPie, Users, Map, RefreshCw, Download } from 'lucide-react';
+import { DollarSign, ChartColumn, ChartPie, Users, Map, RefreshCw, Download, Info } from 'lucide-react';
 import { cx, Btn } from '../../security/sx/ui';
-import { Panel, Note, Stat, Tabs } from '../../security/sx/layout';
-import { Select } from '../../security/sx/forms';
+import { Note, Stat } from '../../security/sx/layout';
+import { Select, Choice } from '../../security/sx/forms';
 import { Loading } from '../../montaza/ui';
-
-// Serije trenda: prihod (tuš), profit (plava), troškovi (siva); u tamnom oblačiću tuš postaje svetao
-const SERIES = [
-  { key: 'revenue', label: 'Prihod', color: 'var(--sx-text)', tip: 'var(--sx-tip-text)' },
-  { key: 'profit', label: 'Profit', color: 'var(--sx-accent)' },
-  { key: 'cost', label: 'Troškovi', color: 'var(--sx-faint)' }
-];
-const axisNum = (v) => new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 0 }).format(v);
 
 const FinancialAnalysis = ({
   data = [],
@@ -288,40 +279,30 @@ const FinancialAnalysis = ({
   }, [data]);
 
   if (loading) {
-    return <Loading rows={5} h={64} />;
+    return (
+      <div className={cx('mx-logdash-comp', className)}>
+        <Loading rows={5} h={64} />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <Note tone="bad" icon={DollarSign} actions={onRefresh && (
-        <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
-      )}>
-        <h4 className="mx-logdash-note__title">Greška pri učitavanju finansijske analize</h4>
-        <p>{error}</p>
-      </Note>
+      <div className={cx('mx-logdash-comp', className)}>
+        <div className="mx-logdash-empty is-bad">
+          <span className="sx-item__icon"><DollarSign size={22} strokeWidth={1.8} aria-hidden="true" /></span>
+          <h4>Greška pri učitavanju finansijske analize</h4>
+          <p>{error}</p>
+          {onRefresh && (
+            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
+          )}
+        </div>
+      </div>
     );
   }
 
-  // Oblačić dana: datum, prihod, profit, troškovi, nalozi (kao ranije)
-  const DayTip = ({ active, payload }) => {
-    if (!active || !payload || !payload.length) return null;
-    const day = payload[0].payload;
-    return (
-      <div className="mx-logdash-tip">
-        <span className="mx-logdash-tip__title">{new Date(day.date).toLocaleDateString('sr-RS')}</span>
-        {SERIES.map((s) => (
-          <div key={s.key} className="mx-logdash-tip__row">
-            <span className="mx-logdash-tip__key" style={{ '--c': s.tip || s.color }}>{s.label}:</span>
-            <b>{formatCurrency(day[s.key])}</b>
-          </div>
-        ))}
-        <div className="mx-logdash-tip__row"><span className="mx-logdash-tip__key">Nalozi:</span><b>{day.orders}</b></div>
-      </div>
-    );
-  };
-
   const renderOverview = () => (
-    <div className="mx-logdash-sec">
+    <div className="mx-logdash-sub">
       {/* Key Metrics */}
       <div className="sx-stats">
         <Stat
@@ -350,251 +331,316 @@ const FinancialAnalysis = ({
 
       {/* Enhanced Financial Trend Chart */}
       {(financialAnalysis.trends.length > 0 || true) && (
-        <Panel
-          title="Finansijski trend"
-          actions={(
+        <div className="mx-logdash-sub mx-mt">
+          <div className="mx-logdash-headrow">
+            <h4 className="mx-logdash-h">Finansijski trend</h4>
             <Select size="sm" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} aria-label="Period trenda">
               <option value="daily">Dnevno</option>
               <option value="weekly">Nedeljno</option>
               <option value="monthly">Mesečno</option>
             </Select>
-          )}
-        >
-          {/* Chart Header with Stats */}
-          {(() => {
-            const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
-              Array.from({length: 15}, (_, i) => ({
-                date: new Date(Date.now() - (14-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                revenue: Math.random() * 50000 + 20000,
-                profit: Math.random() * 20000 + 8000,
-                cost: Math.random() * 30000 + 12000,
-                orders: Math.floor(Math.random() * 15) + 5
-              }));
-
-            return (
-              <div className="mx-logdash-mini">
-                <div>
-                  <b>{formatCurrency(Math.max(...trendsData.map(d => d.revenue)))}</b>
-                  <span>Najveći dnevni prihod</span>
-                </div>
-                <div>
-                  <b>{formatCurrency(Math.max(...trendsData.map(d => d.profit)))}</b>
-                  <span>Najveći dnevni profit</span>
-                </div>
-                <div>
-                  <b>{formatCurrency(trendsData.reduce((sum, d) => sum + d.revenue, 0) / trendsData.length)}</b>
-                  <span>Prosečno dnevno</span>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Chart Area */}
-          {(() => {
-            const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
-              Array.from({length: 12}, (_, i) => ({
-                date: new Date(Date.now() - (11-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                revenue: Math.random() * 50000 + 20000,
-                profit: Math.random() * 20000 + 8000,
-                cost: Math.random() * 30000 + 12000,
-                orders: Math.floor(Math.random() * 15) + 5
-              }));
-
-            const displayData = trendsData.slice(-12);
-
-            return (
-              <div className="mx-logdash-chart mx-logdash-chart--tall">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={displayData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="18%">
-                    <CartesianGrid vertical={false} stroke="var(--sx-line)" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(d) => new Date(d).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
-                      tickLine={false}
-                      axisLine={{ stroke: 'var(--sx-line-2)' }}
-                      tick={{ fill: 'var(--sx-muted)' }}
-                      interval="equidistantPreserveStart"
-                      minTickGap={12}
-                    />
-                    <YAxis width={56} tickFormatter={axisNum} tickLine={false} axisLine={false} tick={{ fill: 'var(--sx-muted)' }} />
-                    <ReferenceLine y={0} stroke="var(--sx-line-2)" />
-                    <Tooltip content={<DayTip />} cursor={{ fill: 'var(--sx-surface-2)' }} isAnimationActive={false} />
-                    {SERIES.map((s) => (
-                      <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={16} isAnimationActive={false} />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            );
-          })()}
-
-          {/* Legend */}
-          <div className="mx-logdash-legend mx-mt">
-            {SERIES.map((s) => (
-              <span key={s.key} className="mx-logdash-legend__item" style={{ '--c': s.color }}>{s.label}</span>
-            ))}
           </div>
-        </Panel>
+
+          <div className="mx-logdash-box mx-logdash-box--flush">
+            {/* Chart Header with Stats */}
+            <div className="mx-logdash-box__head">
+              {(() => {
+                const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
+                  Array.from({length: 15}, (_, i) => ({
+                    date: new Date(Date.now() - (14-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    revenue: Math.random() * 50000 + 20000,
+                    profit: Math.random() * 20000 + 8000,
+                    cost: Math.random() * 30000 + 12000,
+                    orders: Math.floor(Math.random() * 15) + 5
+                  }));
+
+                return (
+                  <div className="mx-logdash-mini is-center is-plain">
+                    <div>
+                      <span className="sx-label">Najveći dnevni prihod</span>
+                      <b>{formatCurrency(Math.max(...trendsData.map(d => d.revenue)))}</b>
+                    </div>
+                    <div>
+                      <span className="sx-label">Najveći dnevni profit</span>
+                      <b>{formatCurrency(Math.max(...trendsData.map(d => d.profit)))}</b>
+                    </div>
+                    <div>
+                      <span className="sx-label">Prosečno dnevno</span>
+                      <b>{formatCurrency(trendsData.reduce((sum, d) => sum + d.revenue, 0) / trendsData.length)}</b>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Chart Area */}
+            <div className="mx-logdash-box__body">
+              {(() => {
+                const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
+                  Array.from({length: 12}, (_, i) => ({
+                    date: new Date(Date.now() - (11-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    revenue: Math.random() * 50000 + 20000,
+                    profit: Math.random() * 20000 + 8000,
+                    cost: Math.random() * 30000 + 12000,
+                    orders: Math.floor(Math.random() * 15) + 5
+                  }));
+
+                const displayData = trendsData.slice(-12);
+                const allValues = displayData.flatMap(d => [d.revenue, d.profit, d.cost]);
+                const maxValue = Math.max(...allValues, 1);
+
+                return (
+                  <div className="mx-logdash-fchart">
+                    {/* Y-axis labels */}
+                    <div className="mx-logdash-fchart__y" aria-hidden="true">
+                      <span className="mx-logdash-fchart__ysize">{formatCurrency(maxValue)}</span>
+                      {[1, 0.75, 0.5, 0.25].map((f, i) => (
+                        <span key={f} style={{ top: `${i * 25}%` }}>{formatCurrency(maxValue * f)}</span>
+                      ))}
+                      <span style={{ top: '100%' }}>0</span>
+                    </div>
+
+                    {/* Chart bars container */}
+                    <div className="mx-logdash-fchart__plot">
+                      {/* Grid lines */}
+                      {[0, 70, 140, 210, 280].map((pixels) => (
+                        <div key={pixels} className="mx-logdash-fchart__grid" style={{ bottom: `${pixels}px` }} />
+                      ))}
+
+                      {/* Bars */}
+                      <div className="mx-logdash-fchart__bars">
+                        {displayData.map((day, index) => {
+                          // Calculate heights in pixels relative to 280px chart height
+                          const chartHeight = 280;
+                          const revenueHeight = Math.round((day.revenue / maxValue) * chartHeight);
+                          const profitHeight = Math.round((day.profit / maxValue) * chartHeight);
+                          const costHeight = Math.round((day.cost / maxValue) * chartHeight);
+
+                          return (
+                            <div key={index} className={cx('mx-logdash-fchart__day', index < 2 && 'is-start', index > displayData.length - 3 && 'is-end')}>
+                              {/* Tooltip */}
+                              <div className="mx-logdash-tip">
+                                <span className="mx-logdash-tip__title">{new Date(day.date).toLocaleDateString('sr-RS')}</span>
+                                <div className="mx-logdash-tip__row"><span className="mx-logdash-tip__key has-key mx-logdash-c--revenue">Prihod:</span><b>{formatCurrency(day.revenue)}</b></div>
+                                <div className="mx-logdash-tip__row"><span className="mx-logdash-tip__key has-key mx-logdash-c--profit">Profit:</span><b>{formatCurrency(day.profit)}</b></div>
+                                <div className="mx-logdash-tip__row"><span className="mx-logdash-tip__key has-key mx-logdash-c--cost">Troškovi:</span><b>{formatCurrency(day.cost)}</b></div>
+                                <div className="mx-logdash-tip__row"><span className="mx-logdash-tip__key">Nalozi:</span><b>{day.orders}</b></div>
+                              </div>
+
+                              {/* Revenue Bar */}
+                              <div className="mx-logdash-fchart__bar mx-logdash-c--revenue" style={{ height: `${revenueHeight}px` }} />
+
+                              {/* Profit Bar */}
+                              <div className="mx-logdash-fchart__bar mx-logdash-c--profit" style={{ height: `${profitHeight}px` }} />
+
+                              {/* Cost Bar */}
+                              <div className="mx-logdash-fchart__bar mx-logdash-c--cost" style={{ height: `${costHeight}px` }} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* X-axis labels */}
+                    <div className="mx-logdash-fchart__x" aria-hidden="true">
+                      {displayData.map((day, index) => (
+                        <span key={index}>
+                          <span>{new Date(day.date).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Legend */}
+            <div className="mx-logdash-box__body mx-logdash-fchart__legend">
+              <div className="mx-logdash-legend is-center">
+                <span className="mx-logdash-legend__item mx-logdash-c--revenue">Prihod</span>
+                <span className="mx-logdash-legend__item mx-logdash-c--profit">Profit</span>
+                <span className="mx-logdash-legend__item mx-logdash-c--cost">Troškovi</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 
   const renderTechnicianAnalysis = () => (
-    <Panel pad={false} title="Analiza po tehničarima">
-      <div className="sx-tablewrap">
-        <table className="sx-table">
-          <thead>
-            <tr><th><span className="sx-sr">Tehničar</span></th><th>Prihod</th><th>Profit</th><th>Margina</th><th>Efikasnost</th></tr>
-          </thead>
-          <tbody>
-            {financialAnalysis.byTechnician.map((technician, index) => (
-              <tr key={index} style={{ '--i': index }}>
-                <td className="is-head"><div className="sx-cell"><b>{technician.name}</b><span>{technician.orderCount} naloga</span></div></td>
-                <td data-label="Prihod"><div className="sx-cell"><b>{formatCurrency(technician.totalRevenue)}</b><span>{formatCurrency(technician.avgRevenuePerOrder)}/nalog</span></div></td>
-                <td data-label="Profit"><div className="sx-cell"><b>{formatCurrency(technician.totalProfit)}</b><span>{formatCurrency(technician.avgProfitPerOrder)}/nalog</span></div></td>
-                <td data-label="Margina"><div className="sx-cell"><b>{technician.profitMargin.toFixed(1)}%</b><span>{technician.completionRate.toFixed(1)}% završeno</span></div></td>
-                <td data-label="Efikasnost"><div className="sx-cell"><b>{formatCurrency(technician.efficiency)}/h</b><span>{technician.averageTime.toFixed(0)} min/nalog</span></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="mx-logdash-sub">
+      <h4 className="mx-logdash-h">Analiza po tehničarima</h4>
+      <div className="mx-logdash-fin__list">
+        {financialAnalysis.byTechnician.map((technician, index) => (
+          <div key={index} className="mx-logdash-fin__tech">
+            <div className="mx-logdash-metric">
+              <h5 className="mx-logdash-fin__name">{technician.name}</h5>
+              <small>{technician.orderCount} naloga</small>
+            </div>
+
+            <div className="mx-logdash-metric">
+              <span className="sx-label">Prihod</span>
+              <b>{formatCurrency(technician.totalRevenue)}</b>
+              <small>{formatCurrency(technician.avgRevenuePerOrder)}/nalog</small>
+            </div>
+
+            <div className="mx-logdash-metric">
+              <span className="sx-label">Profit</span>
+              <b>{formatCurrency(technician.totalProfit)}</b>
+              <small>{formatCurrency(technician.avgProfitPerOrder)}/nalog</small>
+            </div>
+
+            <div className="mx-logdash-metric">
+              <span className="sx-label">Margina</span>
+              <b>{technician.profitMargin.toFixed(1)}%</b>
+              <small>{technician.completionRate.toFixed(1)}% završeno</small>
+            </div>
+
+            <div className="mx-logdash-metric">
+              <span className="sx-label">Efikasnost</span>
+              <b>{formatCurrency(technician.efficiency)}/h</b>
+              <small>{technician.averageTime.toFixed(0)} min/nalog</small>
+            </div>
+          </div>
+        ))}
       </div>
-    </Panel>
+    </div>
   );
 
   const renderMunicipalityAnalysis = () => (
-    <Panel pad={false} title="Analiza po opštinama">
-      <div className="sx-tablewrap">
-        <table className="sx-table">
-          <thead>
-            <tr>
-              <th><span className="sx-sr">Opština</span></th>
-              <th className="is-num">Ukupan prihod</th>
-              <th className="is-num">Ukupan profit</th>
-              <th className="is-num">Broj naloga</th>
-              <th className="is-num">Tehničari</th>
-              <th className="is-num">Prosečan prihod/nalog</th>
-              <th className="is-num">Profit margina</th>
-            </tr>
-          </thead>
-          <tbody>
-            {financialAnalysis.byMunicipality.map((municipality, index) => (
-              <tr key={index} style={{ '--i': index }}>
-                <td className="is-head"><div className="sx-cell"><b>{municipality.name}</b></div></td>
-                <td data-label="Ukupan prihod" className="is-num">{formatCurrency(municipality.totalRevenue)}</td>
-                <td data-label="Ukupan profit" className="is-num">{formatCurrency(municipality.totalProfit)}</td>
-                <td data-label="Broj naloga" className="is-num">{municipality.orderCount}</td>
-                <td data-label="Tehničari" className="is-num">{municipality.technicianCount}</td>
-                <td data-label="Prosečan prihod/nalog" className="is-num">{formatCurrency(municipality.avgRevenuePerOrder)}</td>
-                <td data-label="Profit margina" className="is-num">{municipality.profitMargin.toFixed(1)}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="mx-logdash-sub">
+      <h4 className="mx-logdash-h">Analiza po opštinama</h4>
+      <div className="mx-logdash-fin__grid2">
+        {financialAnalysis.byMunicipality.map((municipality, index) => (
+          <div key={index} className="mx-logdash-fin__card">
+            <div className="mx-logdash-fin__cardhead">
+              <h5 className="mx-logdash-fin__name">{municipality.name}</h5>
+              <span className="sx-item__icon"><Map size={16} strokeWidth={1.9} aria-hidden="true" /></span>
+            </div>
+
+            <div className="mx-logdash-rows">
+              <div><span>Ukupan prihod:</span><b>{formatCurrency(municipality.totalRevenue)}</b></div>
+              <div><span>Ukupan profit:</span><b>{formatCurrency(municipality.totalProfit)}</b></div>
+              <div><span>Broj naloga:</span><b>{municipality.orderCount}</b></div>
+              <div><span>Tehničari:</span><b>{municipality.technicianCount}</b></div>
+              <div><span>Prosečan prihod/nalog:</span><b>{formatCurrency(municipality.avgRevenuePerOrder)}</b></div>
+              <div><span>Profit margina:</span><b>{municipality.profitMargin.toFixed(1)}%</b></div>
+            </div>
+          </div>
+        ))}
       </div>
-    </Panel>
+    </div>
   );
 
   const renderServiceTypeAnalysis = () => (
-    <Panel pad={false} title="Analiza po vrsti usluge">
-      <div className="sx-tablewrap">
-        <table className="sx-table">
-          <thead>
-            <tr>
-              <th><span className="sx-sr">Usluga</span></th>
-              <th className="is-num">Ukupan prihod</th>
-              <th className="is-num">Ukupan profit</th>
-              <th className="is-num">Broj naloga</th>
-              <th className="is-num">Prosek/nalog</th>
-              <th className="is-num">Profit margina</th>
-            </tr>
-          </thead>
-          <tbody>
-            {financialAnalysis.byServiceType.map((service, index) => (
-              <tr key={index} style={{ '--i': index }}>
-                <td className="is-head"><div className="sx-cell"><b>{service.name}</b><span>{service.marketShare.toFixed(1)}% tržišnog udela</span></div></td>
-                <td data-label="Ukupan prihod" className="is-num">{formatCurrency(service.totalRevenue)}</td>
-                <td data-label="Ukupan profit" className="is-num">{formatCurrency(service.totalProfit)}</td>
-                <td data-label="Broj naloga" className="is-num">{service.orderCount}</td>
-                <td data-label="Prosek/nalog" className="is-num">{formatCurrency(service.avgRevenuePerOrder)}</td>
-                <td data-label="Profit margina" className="is-num">{service.profitMargin.toFixed(1)}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="mx-logdash-sub">
+      <h4 className="mx-logdash-h">Analiza po vrsti usluge</h4>
+      <div className="mx-logdash-fin__grid3">
+        {financialAnalysis.byServiceType.map((service, index) => (
+          <div key={index} className="mx-logdash-fin__card">
+            <div className="mx-logdash-fin__center">
+              <h5 className="mx-logdash-fin__name">{service.name}</h5>
+              <p>{service.marketShare.toFixed(1)}% tržišnog udela</p>
+            </div>
+
+            <div className="mx-logdash-fin__big">
+              <span className="sx-label">Ukupan prihod</span>
+              <b className="sx-num">{formatCurrency(service.totalRevenue)}</b>
+            </div>
+
+            <div className="mx-logdash-fin__big">
+              <span className="sx-label">Ukupan profit</span>
+              <b className="sx-num is-sm">{formatCurrency(service.totalProfit)}</b>
+            </div>
+
+            <div className="mx-logdash-rows">
+              <div><span>Broj naloga:</span><b>{service.orderCount}</b></div>
+              <div><span>Prosek/nalog:</span><b>{formatCurrency(service.avgRevenuePerOrder)}</b></div>
+              <div><span>Profit margina:</span><b>{service.profitMargin.toFixed(1)}%</b></div>
+            </div>
+          </div>
+        ))}
       </div>
-    </Panel>
+    </div>
   );
 
   return (
-    <div className={cx('mx-logdash-sec', className)}>
-      {/* Zaglavlje */}
-      <div className="mx-logdash-sec__head">
-        <div className="mx-logdash-sec__titles">
-          <h3 className="mx-logdash-sec__title">Finansijska analiza</h3>
-          <p className="mx-logdash-sec__lead">Prihodi, profiti i troškovi po tehničarima i opštinama</p>
+    <div className={cx('mx-logdash-comp', className)}>
+      {/* Header */}
+      <div className="mx-logdash-comp__head">
+        <div className="mx-logdash-comp__row">
+          <div className="mx-logdash-comp__id">
+            <span className="sx-item__icon"><DollarSign size={18} strokeWidth={1.9} aria-hidden="true" /></span>
+            <div className="mx-logdash-comp__titles">
+              <h3 className="mx-logdash-comp__title">Finansijska analiza</h3>
+              <p className="mx-logdash-comp__lead">Prihodi, profiti i troškovi po tehničarima i opštinama</p>
+            </div>
+          </div>
+
+          <div className="mx-logdash-comp__tools">
+            {onTimeRangeChange && (
+              <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
+                <option value="7d">Poslednja 7 dana</option>
+                <option value="30d">Poslednja 30 dana</option>
+                <option value="90d">Poslednja 3 meseca</option>
+                <option value="180d">Poslednja 6 meseci</option>
+              </Select>
+            )}
+
+            {onExport && (
+              <Btn size="sm" icon={Download} onClick={() => onExport(financialAnalysis)}>Export</Btn>
+            )}
+
+            {onRefresh && (
+              <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
+            )}
+          </div>
         </div>
 
-        <div className="mx-logdash-sec__tools">
-          {onTimeRangeChange && (
-            <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
-              <option value="7d">Poslednja 7 dana</option>
-              <option value="30d">Poslednja 30 dana</option>
-              <option value="90d">Poslednja 3 meseca</option>
-              <option value="180d">Poslednja 6 meseci</option>
-            </Select>
-          )}
-
-          {onExport && (
-            <Btn size="sm" icon={Download} onClick={() => onExport(financialAnalysis)}>Export</Btn>
-          )}
-
-          {onRefresh && (
-            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
-          )}
-        </div>
+        {/* View Selection */}
+        <Choice
+          size="sm"
+          scroll
+          label="Prikaz"
+          layoutId="mx-logdash-fin-view"
+          value={selectedView}
+          onChange={setSelectedView}
+          options={[
+            { value: 'overview', label: 'Pregled', icon: ChartColumn },
+            { value: 'technicians', label: 'Tehničari', icon: Users },
+            { value: 'municipalities', label: 'Opštine', icon: Map },
+            { value: 'services', label: 'Usluge', icon: ChartPie }
+          ]}
+        />
       </div>
 
-      {/* View Selection */}
-      <Tabs
-        className="mx-logdash-fin__tabs"
-        ariaLabel="Prikaz"
-        layoutId="mx-logdash-fin-tabs"
-        value={selectedView}
-        onChange={setSelectedView}
-        items={[
-          { key: 'overview', label: 'Pregled', icon: ChartColumn },
-          { key: 'technicians', label: 'Tehničari', icon: Users },
-          { key: 'municipalities', label: 'Opštine', icon: Map },
-          { key: 'services', label: 'Usluge', icon: ChartPie }
-        ]}
-      />
-
       {/* Content */}
-      {data.length === 0 ? (
-        <Panel>
-          <div className="sx-empty-block">
+      <div className="mx-logdash-comp__body">
+        {data.length === 0 ? (
+          <div className="mx-logdash-empty">
+            <span className="sx-item__icon"><DollarSign size={22} strokeWidth={1.8} aria-hidden="true" /></span>
             <h4>Nema finansijskih podataka</h4>
-            <span>Podaci o prihodima i profitima će biti prikazani kada budu dostupni.</span>
+            <p>Podaci o prihodima i profitima će biti prikazani kada budu dostupni.</p>
           </div>
-        </Panel>
-      ) : (
-        <>
-          {selectedView === 'overview' && renderOverview()}
-          {selectedView === 'technicians' && renderTechnicianAnalysis()}
-          {selectedView === 'municipalities' && renderMunicipalityAnalysis()}
-          {selectedView === 'services' && renderServiceTypeAnalysis()}
+        ) : (
+          <div className="mx-logdash-sub">
+            {selectedView === 'overview' && renderOverview()}
+            {selectedView === 'technicians' && renderTechnicianAnalysis()}
+            {selectedView === 'municipalities' && renderMunicipalityAnalysis()}
+            {selectedView === 'services' && renderServiceTypeAnalysis()}
 
-          {/* Info Note */}
-          <Note tone="info">
-            <h5 className="mx-logdash-note__title">Napomena o podacima</h5>
-            <p>
-              Finansijski podaci su kalkulisani na osnovu tipova usluga i procenjenih troškova materijala i rada.
-              Za preciznije analize, potrebno je integrisati podatke iz fakturnig sistema.
-            </p>
-          </Note>
-        </>
-      )}
+            {/* Info Note */}
+            <Note tone="info" icon={Info} className="mx-mt">
+              <h5 className="mx-logdash-note__title">Napomena o podacima</h5>
+              <p>
+                Finansijski podaci su kalkulisani na osnovu tipova usluga i procenjenih troškova materijala i rada.
+                Za preciznije analize, potrebno je integrisati podatke iz fakturnig sistema.
+              </p>
+            </Note>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

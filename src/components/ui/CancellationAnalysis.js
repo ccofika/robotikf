@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, TriangleAlert, User, Clock, MapPin, RefreshCw, Download } from 'lucide-react';
+import { X, ChartColumn, TrendingUp, TrendingDown, TriangleAlert, User, Clock, MapPin, RefreshCw, Download } from 'lucide-react';
 import { cx, Btn } from '../../security/sx/ui';
-import { Panel, Note, Stat } from '../../security/sx/layout';
 import { Select } from '../../security/sx/forms';
 import { Loading } from '../../montaza/ui';
 
@@ -145,74 +144,90 @@ const CancellationAnalysis = ({
   };
 
   if (loading) {
-    return <Loading rows={5} h={56} />;
+    return (
+      <div className={cx('mx-logdash-comp', className)}>
+        <Loading rows={5} h={56} />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <Note tone="bad" icon={TriangleAlert} actions={onRefresh && (
-        <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
-      )}>
-        <h4 className="mx-logdash-note__title">Greška pri učitavanju</h4>
-        <p>{error}</p>
-      </Note>
+      <div className={cx('mx-logdash-comp', className)}>
+        <div className="mx-logdash-empty is-bad">
+          <span className="sx-item__icon"><TriangleAlert size={22} strokeWidth={1.8} aria-hidden="true" /></span>
+          <h4>Greška pri učitavanju</h4>
+          <p>{error}</p>
+          {onRefresh && (
+            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className={cx('mx-logdash-sec', className)}>
-      {/* Zaglavlje */}
-      <div className="mx-logdash-sec__head">
-        <div className="mx-logdash-sec__titles">
-          <h3 className="mx-logdash-sec__title">Analiza uzroka otkazivanja</h3>
-          <p className="mx-logdash-sec__lead">Najčešći razlozi otkazivanja radnih naloga</p>
-        </div>
+    <div className={cx('mx-logdash-comp', className)}>
+      {/* Header */}
+      <div className="mx-logdash-comp__head">
+        <div className="mx-logdash-comp__row">
+          <div className="mx-logdash-comp__id">
+            <span className="sx-item__icon"><X size={18} strokeWidth={1.9} aria-hidden="true" /></span>
+            <div className="mx-logdash-comp__titles">
+              <h3 className="mx-logdash-comp__title">Analiza uzroka otkazivanja</h3>
+              <p className="mx-logdash-comp__lead">Najčešći razlozi otkazivanja radnih naloga</p>
+            </div>
+          </div>
 
-        <div className="mx-logdash-sec__tools">
-          {onTimeRangeChange && (
-            <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
-              <option value="7d">Poslednja 7 dana</option>
-              <option value="30d">Poslednja 30 dana</option>
-              <option value="90d">Poslednja 3 meseca</option>
-              <option value="180d">Poslednja 6 meseci</option>
-              <option value="365d">Poslednja godina</option>
+          <div className="mx-logdash-comp__tools">
+            {onTimeRangeChange && (
+              <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
+                <option value="7d">Poslednja 7 dana</option>
+                <option value="30d">Poslednja 30 dana</option>
+                <option value="90d">Poslednja 3 meseca</option>
+                <option value="180d">Poslednja 6 meseci</option>
+                <option value="365d">Poslednja godina</option>
+              </Select>
+            )}
+
+            <Select size="sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sortiranje">
+              <option value="count">Po broju slučajeva</option>
+              <option value="percentage">Po procentu</option>
+              <option value="trend">Po trendu</option>
+              <option value="avgResponseTime">Po vremenu odgovora</option>
             </Select>
-          )}
 
-          <Select size="sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sortiranje">
-            <option value="count">Po broju slučajeva</option>
-            <option value="percentage">Po procentu</option>
-            <option value="trend">Po trendu</option>
-            <option value="avgResponseTime">Po vremenu odgovora</option>
-          </Select>
+            {onExport && (
+              <Btn size="sm" icon={Download} onClick={() => onExport(analysisData)}>Export</Btn>
+            )}
 
-          {onExport && (
-            <Btn size="sm" icon={Download} onClick={() => onExport(analysisData)}>Export</Btn>
-          )}
-
-          {onRefresh && (
-            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
-          )}
+            {onRefresh && (
+              <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Statistics Overview */}
-      <div className="sx-stats">
-        <Stat label="Ukupno otkazanih" value={analysisData.statistics.totalCancellations} />
-        <Stat label="Najčešći razlog" value={<span className="mx-logdash-stat-text">{analysisData.statistics.mostCommonReason}</span>} />
-        <Stat label="Prosečno vreme" value={formatTime(analysisData.statistics.avgResponseTime)} />
-        <Stat label="Pogođene opštine" value={analysisData.statistics.affectedMunicipalities} />
+      <div className="mx-logdash-comp__band">
+        <div className="mx-logdash-mini is-center is-plain">
+          <div><b>{analysisData.statistics.totalCancellations}</b><span>Ukupno otkazanih</span></div>
+          <div><b className="mx-logdash-stat-text">{analysisData.statistics.mostCommonReason}</b><span>Najčešći razlog</span></div>
+          <div><b>{formatTime(analysisData.statistics.avgResponseTime)}</b><span>Prosečno vreme</span></div>
+          <div><b>{analysisData.statistics.affectedMunicipalities}</b><span>Pogođene opštine</span></div>
+        </div>
       </div>
 
       {/* Reasons List */}
-      <Panel>
+      <div className="mx-logdash-comp__body">
         {analysisData.reasons.length === 0 ? (
-          <div className="sx-empty-block">
+          <div className="mx-logdash-empty">
+            <span className="sx-item__icon"><ChartColumn size={22} strokeWidth={1.8} aria-hidden="true" /></span>
             <h4>Nema podataka</h4>
-            <span>Nema otkazanih naloga za izabrani period.</span>
+            <p>Nema otkazanih naloga za izabrani period.</p>
           </div>
         ) : (
-          <div>
+          <div className="mx-logdash-reasons">
             {analysisData.reasons.map((reason) => (
               <div key={reason.reason} className="mx-logdash-reason">
                 <div className="mx-logdash-reason__head">
@@ -244,22 +259,25 @@ const CancellationAnalysis = ({
 
                 {/* Recent incidents count */}
                 {reason.recentIncidents.length > 0 && (
-                  <span className="mx-logdash-reason__recent">
+                  <div className="mx-logdash-reason__recent">
                     {reason.recentIncidents.length} slučajeva u poslednjih 7 dana
-                  </span>
+                  </div>
                 )}
               </div>
             ))}
           </div>
         )}
-      </Panel>
+      </div>
 
       {/* Peak Hours Info */}
       {analysisData.statistics.peakHours && (
-        <Note tone="idle" icon={Clock}>
-          <h4 className="mx-logdash-note__title">Kritična vremena za otkazivanja</h4>
+        <div className="mx-logdash-comp__foot">
+          <h4 className="mx-logdash-foot__title">
+            <Clock size={16} strokeWidth={1.9} aria-hidden="true" />
+            Kritična vremena za otkazivanja
+          </h4>
           <p>Najveći broj otkazivanja se dešava u: {analysisData.statistics.peakHours}</p>
-        </Note>
+        </div>
       )}
     </div>
   );
