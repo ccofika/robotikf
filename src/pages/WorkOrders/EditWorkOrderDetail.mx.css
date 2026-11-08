@@ -1,0 +1,10 @@
+/* Edituj radni nalog (/edit-work-orders/:id): podaci naloga i paneli tehničara (oprema, materijali) */
+.mx-woed__h2 { font-size: 19px; }
+.mx-woed__techs { gap: 14px; }
+.sx-panel .mx-woed__empty { padding: 10px 0 4px; font-size: 13.5px; color: var(--sx-muted); }
+.mx-woed__error { color: var(--sx-bad-text); }
+/* dugme Ukloni ostaje u istom redu i na telefonu (sx stavka ga inače spušta u novi red) */
+@container page (max-width: 520px) {
+  .mx-woed__list > .sx-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .mx-woed__list > .sx-item > .sx-item__side { grid-column: auto; }
+}

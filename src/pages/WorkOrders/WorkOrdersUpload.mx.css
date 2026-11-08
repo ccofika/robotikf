@@ -1,0 +1,35 @@
+/* Import radnih naloga (/work-orders/upload): uputstvo, polje za fajl, rezultat obrade.
+   Liste imaju dve klase: osnovni sx stil za ul (margin 0) ima istu težinu i učitava se posle. */
+.mx-woup__lead { font-size: 14px; color: var(--sx-text-2); }
+.mx-woup__lead b { color: var(--sx-text); font-weight: 650; }
+.sx-panel .mx-woup__cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 10px 24px; margin: 14px 0 18px; }
+.mx-woup__cols li { display: grid; align-content: start; gap: 1px; padding-left: 14px; position: relative; }
+.mx-woup__cols li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--sx-idle); }
+.mx-woup__cols b { font-size: 13.5px; font-weight: 650; color: var(--sx-text); }
+.mx-woup__cols span { font-size: 13px; color: var(--sx-muted); }
+.mx-woup__tim.is-robotik { color: var(--sx-info-text); }
+.mx-woup__tim.is-mtel { color: var(--sx-bad-text); }
+
+.mx-woup__form { display: grid; gap: 16px; }
+.mx-woup__drop { display: grid; justify-items: center; gap: 6px; padding: 28px 16px; border: 1.5px dashed var(--sx-line-3); border-radius: 16px; background: var(--sx-surface-2); color: var(--sx-faint); text-align: center; cursor: pointer; transition-property: background-color, border-color; transition-duration: var(--hover-out); transition-timing-function: var(--ease-move); }
+@media (hover: hover) and (pointer: fine) {
+  .mx-woup__drop:hover { background: var(--sx-surface-3); border-color: var(--sx-muted); transition-duration: var(--hover-in); }
+}
+.mx-woup__drop b { font-size: 14px; font-weight: 600; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.mx-woup__drop span { font-size: 12.5px; color: var(--sx-muted); }
+.mx-woup__drop.has-file { border-style: solid; border-color: var(--sx-accent); background: var(--sx-accent-soft); }
+.mx-woup__drop.has-file b { color: var(--sx-accent-text); }
+.mx-woup__drop.is-disabled { cursor: not-allowed; opacity: 0.6; }
+:is(.sx, .sx-portal) input.sx-sr:focus-visible + .mx-woup__drop { outline: 2px solid var(--sx-accent); outline-offset: 2px; }
+.mx-woup__submit { display: flex; justify-content: center; padding-top: 4px; }
+
+.mx-woup__stats { box-shadow: none; }
+.mx-woup__stats + .mx-woup__stats { margin-top: 12px; }
+.mx-woup__stats + .mx-gap { margin-top: 16px; }
+.sx-note .mx-woup__title { margin-bottom: 4px; font-size: 14px; font-weight: 650; color: var(--sx-text); }
+.mx-woup__items { display: grid; gap: 10px; margin-top: 12px; }
+.mx-woup__item { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface); }
+.mx-woup__reason { display: block; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--sx-line); font-size: 12px; color: var(--sx-muted); }
+.sx-note .mx-woup__errors { display: grid; gap: 4px; margin-top: 6px; }
+.mx-woup__errors li { position: relative; padding-left: 12px; font-size: 13px; }
+.mx-woup__errors li::before { content: ''; position: absolute; left: 0; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--sx-bad); }

@@ -1,6 +1,12 @@
-import React, { useEffect, useCallback } from 'react';
+// Detalj radnog naloga preko liste (ruta /work-orders/:id sa backgroundLocation): široka fioka sa desne
+// strane, na telefonu list preko celog ekrana. Lista ostaje ispod. Zatvara se dugmetom X, klikom van fioke
+// ili Escape-om (samo gornji sloj, sx layer koji zaključava i skrol stranice).
+import React, { useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { X } from 'lucide-react';
+import { useLayer } from '../security/sx/layer';
 import WorkOrderDetail from '../pages/WorkOrders/WorkOrderDetail';
+import './WorkOrderModal.mx.css';
 
 const WorkOrderModal = ({ backgroundLocation }) => {
   const navigate = useNavigate();
@@ -21,31 +27,20 @@ const WorkOrderModal = ({ backgroundLocation }) => {
     });
   }, [navigate, backgroundLocation]);
 
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
-
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        closeModal();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [closeModal]);
+  useLayer(true, closeModal);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-white">
-      {/* Full-screen content with scroll */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <WorkOrderDetail isModal={true} onCloseModal={closeModal} modalWorkOrderId={workOrderId} />
+    <div className="mx-wom" onMouseDown={(e) => { if (e.target === e.currentTarget) closeModal(); }} data-testid="work-order-modal">
+      <div className="mx-wom__panel" role="dialog" aria-modal="true" aria-label="Radni nalog">
+        <div className="mx-wom__head">
+          <span className="sx-eyebrow">Radni nalog</span>
+          <button type="button" className="sx-dialog__close mx-wom__close" onClick={closeModal} aria-label="Zatvori" data-testid="work-order-modal-close">
+            <X size={18} strokeWidth={1.8} />
+          </button>
+        </div>
+        <div className="mx-wom__body">
+          <WorkOrderDetail isModal={true} onCloseModal={closeModal} modalWorkOrderId={workOrderId} />
+        </div>
       </div>
     </div>
   );

@@ -5,23 +5,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { workOrdersAPI, techniciansAPI, userEquipmentAPI } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from '../../utils/toast';
-import {
-  BackIcon,
-  UserIcon,
-  MapPinIcon,
-  CalendarIcon,
-  ClockIcon,
-  BoxIcon,
-  ToolsIcon,
-  PlusIcon,
-  DeleteIcon
-} from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../../components/ui/card';
-import { cn } from '../../utils/cn';
-import { getTimLabel, getTimBadgeClasses } from '../../utils/tim';
+import { ArrowLeft, Plus, Trash2, Package, Cable } from 'lucide-react';
+import { getTimLabel } from '../../utils/tim';
+import { cx, Btn, Sign, Avatar } from '../../security/sx/ui';
+import { PageHead, Panel, KV } from '../../security/sx/layout';
+import { SheetSection } from '../../security/sx/Sheet';
+import { Loading } from '../../montaza/ui';
+import './EditWorkOrderDetail.mx.css';
 import EquipmentSelectionModal from './components/EquipmentSelectionModal';
 import MaterialsModal from './components/MaterialsModal';
+
+// Ton znaka statusa (završen ok, nezavršen warn, odložen info, otkazan bad); natpis ostaje sirov status kao ranije
+const STATUS_TONE = { zavrsen: 'ok', nezavrsen: 'warn', odlozen: 'info', otkazan: 'bad' };
 
 const EditWorkOrderDetail = () => {
   const { id } = useParams();
@@ -278,46 +273,23 @@ const EditWorkOrderDetail = () => {
     });
   };
 
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'zavrsen':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'nezavrsen':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'otkazan':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'odlozen':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Učitavanje...</p>
-        </div>
+      <div className="sx-page" data-testid="page-edit-work-order-detail">
+        <Loading text="Učitavanje..." rows={6} />
       </div>
     );
   }
 
   if (error || !workOrder) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-lg font-medium text-destructive mb-4">
-              {error || 'Radni nalog nije pronađen'}
-            </p>
-            <Button onClick={() => navigate('/edit-work-orders')} variant="outline">
-              <BackIcon size={20} />
-              Nazad
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="sx-page" data-testid="page-edit-work-order-detail">
+        <Panel>
+          <div className="sx-empty-block">
+            <b className="mx-woed__error">{error || 'Radni nalog nije pronađen'}</b>
+            <Btn icon={ArrowLeft} onClick={() => navigate('/edit-work-orders')}>Nazad</Btn>
+          </div>
+        </Panel>
       </div>
     );
   }
@@ -349,299 +321,96 @@ const EditWorkOrderDetail = () => {
     return matTechId && matTechId.toString() === technician2?._id?.toString();
   });
 
+  // Panel jednog tehničara: oprema i materijali (isti handleri za oba tehničara, kao ranije)
+  const renderTechnician = (technician, label, equipmentList, materialsList) => (
+    <Panel
+      title={<span className="sx-panel__title-row"><Avatar name={technician.name || label} />{technician.name || label}</span>}
+      sub={label}
+      testId="edit-wo-technician"
+    >
+      <SheetSection
+        title="Oprema"
+        aside={<Btn size="sm" icon={Plus} onClick={() => { setSelectedTechnicianForAction(technician._id); setShowEquipmentModal(true); }}>Dodaj opremu</Btn>}
+      >
+        {equipmentList.length > 0 ? (
+          <div className="sx-list mx-woed__list">
+            {equipmentList.map((equipment) => (
+              <div key={equipment._id} className="sx-item">
+                <span className="sx-item__icon"><Package size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+                <div className="sx-item__main">
+                  <b>{equipment.category} - {equipment.description}</b>
+                  <span className="sx-mono">S/N: {equipment.serialNumber}</span>
+                </div>
+                <div className="sx-item__side">
+                  <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" aria-label="Ukloni"
+                    onClick={() => handleRemoveEquipment(equipment.id, equipment.technicianId)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mx-woed__empty">Nema instalirane opreme</p>
+        )}
+      </SheetSection>
+
+      <SheetSection
+        title="Materijali"
+        aside={<Btn size="sm" icon={Plus} onClick={() => { setSelectedTechnicianForAction(technician._id); setShowMaterialsModal(true); }}>Dodaj materijal</Btn>}
+      >
+        {materialsList.length > 0 ? (
+          <div className="sx-list mx-woed__list">
+            {materialsList.map((item, index) => (
+              <div key={index} className="sx-item">
+                <span className="sx-item__icon"><Cable size={18} strokeWidth={1.8} aria-hidden="true" /></span>
+                <div className="sx-item__main">
+                  <b>{item.material?.type || item.material}</b>
+                  <span>Količina: <span className="sx-mono">{item.quantity}</span></span>
+                </div>
+                <div className="sx-item__side">
+                  <Btn size="sm" variant="ghost" icon={Trash2} className="mx-danger" aria-label="Ukloni"
+                    onClick={() => handleRemoveMaterial(item.material?._id || item.material, item.technicianId?._id || item.technicianId || technician._id)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mx-woed__empty">Nema dodanih materijala</p>
+        )}
+      </SheetSection>
+    </Panel>
+  );
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/edit-work-orders')}
+    <div className="sx-page" data-testid="page-edit-work-order-detail">
+      <PageHead
+        back={{ label: 'Nazad', onClick: () => navigate('/edit-work-orders') }}
+        eyebrow="Montaža · Edit"
+        title="Edituj radni nalog"
+        lead="Dodaj ili ukloni opremu i materijal za dodeljene tehničare"
+      />
+
+      <div className="sx-stack">
+        {/* Work Order Info */}
+        <Panel
+          title={workOrder.tisId || 'N/A'}
+          sub={workOrder.userName || 'N/A'}
+          actions={<Sign tone={STATUS_TONE[workOrder.status] || 'idle'}>{workOrder.status}</Sign>}
+          testId="edit-wo-info"
         >
-          <BackIcon size={20} />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">Edituj radni nalog</h1>
-          <p className="text-muted-foreground">
-            Dodaj ili ukloni opremu i materijal za dodeljene tehničare
-          </p>
-        </div>
-      </div>
+          <KV cols={2} items={[
+            { k: 'Adresa', v: `${workOrder.address}, ${workOrder.municipality}` },
+            { k: 'Datum i vreme', v: <span className="sx-mono">{formatDate(workOrder.date)} {workOrder.time}</span> },
+            workOrder.type && { k: 'Tip', v: workOrder.type },
+            { k: 'Tim', v: <span className={cx('sx-tag', workOrder.tim === 'robotik' && 'is-info', workOrder.tim === 'mtel' && 'is-bad')}>{getTimLabel(workOrder.tim)}</span> }
+          ]} />
+        </Panel>
 
-      {/* Work Order Info Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-2xl">{workOrder.tisId || 'N/A'}</CardTitle>
-              <CardDescription className="text-base mt-1">
-                {workOrder.userName || 'N/A'}
-              </CardDescription>
-            </div>
-            <span className={cn(
-              "px-3 py-1.5 rounded-full text-sm font-medium",
-              getStatusBadgeClass(workOrder.status)
-            )}>
-              {workOrder.status}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex items-start gap-3">
-              <MapPinIcon size={20} className="text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Adresa</p>
-                <p className="font-medium">{workOrder.address}, {workOrder.municipality}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <CalendarIcon size={20} className="text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Datum i vreme</p>
-                <p className="font-medium">{formatDate(workOrder.date)} {workOrder.time}</p>
-              </div>
-            </div>
-
-            {workOrder.type && (
-              <div className="flex items-start gap-3">
-                <ClockIcon size={20} className="text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Tip</p>
-                  <p className="font-medium">{workOrder.type}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-start gap-3">
-              <UserIcon size={20} className="text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Tim</p>
-                <span className={cn("inline-block text-sm font-semibold px-2 py-0.5 rounded mt-0.5", getTimBadgeClasses(workOrder.tim))}>
-                  {getTimLabel(workOrder.tim)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Technicians Section */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Dodeljeni tehničari</h2>
-
-        {/* Technician 1 */}
-        {technician1 && (
-          <Card>
-            <CardHeader className="bg-secondary/20">
-              <CardTitle className="flex items-center gap-2">
-                <UserIcon size={24} />
-                {technician1.name || 'Tehničar 1'}
-              </CardTitle>
-              <CardDescription>Tehničar 1</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              {/* Equipment Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <BoxIcon size={20} />
-                    Oprema
-                  </h3>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTechnicianForAction(technician1._id);
-                      setShowEquipmentModal(true);
-                    }}
-                  >
-                    <PlusIcon size={16} />
-                    Dodaj opremu
-                  </Button>
-                </div>
-
-                {/* Equipment List */}
-                {tech1Equipment.length > 0 ? (
-                  <div className="space-y-2">
-                    {tech1Equipment.map((equipment) => (
-                      <div key={equipment._id} className="flex items-center justify-between p-3 bg-secondary/10 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium">{equipment.category} - {equipment.description}</div>
-                          <div className="text-sm text-muted-foreground mt-1">S/N: {equipment.serialNumber}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveEquipment(equipment.id, equipment.technicianId)}
-                        >
-                          <DeleteIcon size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <p>Nema instalirane opreme</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t" />
-
-              {/* Materials Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <ToolsIcon size={20} />
-                    Materijali
-                  </h3>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTechnicianForAction(technician1._id);
-                      setShowMaterialsModal(true);
-                    }}
-                  >
-                    <PlusIcon size={16} />
-                    Dodaj materijal
-                  </Button>
-                </div>
-
-                {/* Materials List */}
-                {tech1Materials.length > 0 ? (
-                  <div className="space-y-2">
-                    {tech1Materials.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-secondary/10 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium">{item.material?.type || item.material}</div>
-                          <div className="text-sm text-muted-foreground mt-1">Količina: {item.quantity}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveMaterial(item.material?._id || item.material, item.technicianId?._id || item.technicianId || technician1._id)}
-                        >
-                          <DeleteIcon size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <p>Nema dodanih materijala</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Technician 2 - Only show if exists */}
-        {technician2 && (
-          <Card>
-            <CardHeader className="bg-secondary/20">
-              <CardTitle className="flex items-center gap-2">
-                <UserIcon size={24} />
-                {technician2.name || 'Tehničar 2'}
-              </CardTitle>
-              <CardDescription>Tehničar 2</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              {/* Equipment Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <BoxIcon size={20} />
-                    Oprema
-                  </h3>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTechnicianForAction(technician2._id);
-                      setShowEquipmentModal(true);
-                    }}
-                  >
-                    <PlusIcon size={16} />
-                    Dodaj opremu
-                  </Button>
-                </div>
-
-                {/* Equipment List */}
-                {tech2Equipment.length > 0 ? (
-                  <div className="space-y-2">
-                    {tech2Equipment.map((equipment) => (
-                      <div key={equipment._id} className="flex items-center justify-between p-3 bg-secondary/10 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium">{equipment.category} - {equipment.description}</div>
-                          <div className="text-sm text-muted-foreground mt-1">S/N: {equipment.serialNumber}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveEquipment(equipment.id, equipment.technicianId)}
-                        >
-                          <DeleteIcon size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <p>Nema instalirane opreme</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t" />
-
-              {/* Materials Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <ToolsIcon size={20} />
-                    Materijali
-                  </h3>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTechnicianForAction(technician2._id);
-                      setShowMaterialsModal(true);
-                    }}
-                  >
-                    <PlusIcon size={16} />
-                    Dodaj materijal
-                  </Button>
-                </div>
-
-                {/* Materials List */}
-                {tech2Materials.length > 0 ? (
-                  <div className="space-y-2">
-                    {tech2Materials.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-secondary/10 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium">{item.material?.type || item.material}</div>
-                          <div className="text-sm text-muted-foreground mt-1">Količina: {item.quantity}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveMaterial(item.material?._id || item.material, item.technicianId?._id || item.technicianId || technician2._id)}
-                        >
-                          <DeleteIcon size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <p>Nema dodanih materijala</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Technicians Section */}
+        <section className="sx-stack mx-woed__techs">
+          <h2 className="sx-card__title mx-woed__h2">Dodeljeni tehničari</h2>
+          {technician1 && renderTechnician(technician1, 'Tehničar 1', tech1Equipment, tech1Materials)}
+          {technician2 && renderTechnician(technician2, 'Tehničar 2', tech2Equipment, tech2Materials)}
+        </section>
       </div>
 
       {/* Equipment Selection Modal */}

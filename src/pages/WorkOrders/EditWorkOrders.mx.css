@@ -1,0 +1,15 @@
+/* Edit radnih naloga (/edit-work-orders): spisak naloga u panelu; stavka nosi boju tima (utils/tim.js, inline) */
+.mx-woe__list { padding: 8px 20px 12px; }
+.mx-woe__list > .mx-woe__item { margin: 0 -12px; padding: 14px 12px; border-radius: 12px; animation: sx-fade 160ms linear calc(min(var(--i, 0), 14) * 18ms) backwards, sx-row-in 300ms var(--ease-enter) calc(min(var(--i, 0), 14) * 18ms) backwards; }
+.mx-woe__list > .mx-woe__item + .mx-woe__item { margin-top: 2px; border-top-color: transparent; }
+@media (hover: hover) and (pointer: fine) {
+  .mx-woe__list > .mx-woe__item:hover { background-image: linear-gradient(color-mix(in oklab, var(--sx-text) 4%, transparent), color-mix(in oklab, var(--sx-text) 4%, transparent)); }
+}
+.mx-woe__item:focus-visible { outline-offset: -2px; }
+.mx-woe__meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: var(--sx-text-2); }
+.mx-woe__meta > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.mx-woe__meta svg { width: 14px; height: 14px; color: var(--sx-faint); }
+.mx-woe__techs { font-weight: 600; color: var(--sx-text); }
+.mx-woe__item .sx-item__side { max-width: 320px; }
+.mx-woe__item .sx-tag { white-space: normal; height: auto; min-height: 22px; padding-block: 2px; }
+@media (max-width: 639px) { .mx-woe__list { padding: 6px 16px 10px; } }

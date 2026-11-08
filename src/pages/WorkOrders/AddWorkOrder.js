@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BackIcon, SaveIcon, ClipboardIcon } from '../../components/icons/SvgIcons';
-import { Button } from '../../components/ui/button-1';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { workOrdersAPI, techniciansAPI } from '../../services/api';
-import { cn } from '../../utils/cn';
 import { localYmd } from '../../utils/localDate';
+import { Btn } from '../../security/sx/ui';
+import { PageHead, Panel, Note } from '../../security/sx/layout';
+import { Field, Input, Select, Textarea, DateField, TimeField } from '../../security/sx/forms';
+import { LinkBtn } from '../../montaza/ui';
 
 const AddWorkOrder = () => {
   const [formData, setFormData] = useState({
@@ -84,320 +86,122 @@ const AddWorkOrder = () => {
     }
   };
   
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      {/* Header */}
-      <div className="p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-green-50 rounded-xl">
-              <ClipboardIcon size={24} className="text-green-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Dodaj novi radni nalog</h1>
-              <p className="text-slate-600 mt-1">Kreiranje novog radnog naloga za tehničare</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Link to="/work-orders">
-              <Button type="secondary" size="medium" prefix={<BackIcon size={16} />}>
-                Povratak na listu
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      {/* Content Card */}
-      <div className="bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg overflow-hidden">
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-            
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="date" className="block text-sm font-medium text-slate-700">Datum</label>
-                <input
-                  type="date"
-                  id="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  disabled={loading}
-                  required
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="time" className="block text-sm font-medium text-slate-700">Vreme</label>
-                <input
-                  type="time"
-                  id="time"
-                  name="time"
-                  value={formData.time}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-            
-            {/* Municipality */}
-            <div className="space-y-2">
-              <label htmlFor="municipality" className="block text-sm font-medium text-slate-700">Opština</label>
-              <input
-                type="text"
-                id="municipality"
-                name="municipality"
-                value={formData.municipality}
-                onChange={handleChange}
-                placeholder="Unesite opštinu"
-                disabled={loading}
-                required
-                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-              />
-            </div>
-            
-            {/* Address */}
-            <div className="space-y-2">
-              <label htmlFor="address" className="block text-sm font-medium text-slate-700">Adresa</label>
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="Unesite adresu"
-                disabled={loading}
-                required
-                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-              />
-            </div>
-            
-            {/* Installation Type */}
-            <div className="space-y-2">
-              <label htmlFor="type" className="block text-sm font-medium text-slate-700">Tip instalacije</label>
-              <input
-                type="text"
-                id="type"
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                placeholder="Internet, IPTV, Telefon..."
-                disabled={loading}
-                required
-                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-              />
-            </div>
-            
-            {/* Technology and Team */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="technology" className="block text-sm font-medium text-slate-700">Tehnologija</label>
-                <select
-                  id="technology"
-                  name="technology"
-                  value={formData.technology}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
-                >
-                  <option value="">-- Izaberite tehnologiju --</option>
-                  <option value="HFC">HFC</option>
-                  <option value="GPON">GPON</option>
-                  <option value="VDSL">VDSL</option>
-                  <option value="ADSL">ADSL</option>
-                </select>
-              </div>
+  // Polja koja ne šalju događaj (datum, vreme) idu kroz isti handleChange
+  const setField = (name) => (value) => handleChange({ target: { name, value } });
 
-              <div className="space-y-2">
-                <label htmlFor="tim" className="block text-sm font-medium text-slate-700">Tim</label>
-                <select
-                  id="tim"
-                  name="tim"
-                  value={formData.tim}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
-                >
-                  <option value="robotik">Robotik</option>
-                  <option value="mtel">mtel</option>
-                </select>
-              </div>
-            </div>
-            
-            {/* Technicians */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="technicianId" className="block text-sm font-medium text-slate-700">Prvi tehničar</label>
-                <select
-                  id="technicianId"
-                  name="technicianId"
-                  value={formData.technicianId}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
-                >
-                  <option value="">-- Izaberite prvog tehničara --</option>
-                  {technicians.map(tech => (
+  return (
+    <div className="sx-page" data-testid="page-work-orders-add">
+      <PageHead
+        eyebrow="Montaža · Radni nalozi"
+        title="Dodaj novi radni nalog"
+        lead="Kreiranje novog radnog naloga za tehničare"
+        actions={<LinkBtn to="/work-orders" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
+      />
+
+      {/* Dugme Sačuvaj ostaje sa onClick kao ranije; noValidate: poruka o obaveznim poljima je naša, ne iz pregledača */}
+      <form onSubmit={handleSubmit} noValidate>
+        <Panel
+          footer={<>
+            <LinkBtn to="/work-orders" variant="ghost">Odustani</LinkBtn>
+            <Btn type="submit" variant="primary" icon={Save} disabled={loading} onClick={handleSubmit} data-testid="work-order-save">
+              {loading ? 'Čuvanje...' : 'Sačuvaj'}
+            </Btn>
+          </>}
+        >
+          {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+
+          {/* Date and Time */}
+          <div className="sx-form">
+            <Field label="Datum" htmlFor="date">
+              <DateField id="date" value={formData.date} onChange={setField('date')} disabled={loading} />
+            </Field>
+            <Field label="Vreme" htmlFor="time">
+              <TimeField id="time" value={formData.time} onChange={setField('time')} disabled={loading} />
+            </Field>
+          </div>
+
+          {/* Technicians (prvi <select> na stranici) */}
+          <div className="sx-form">
+            <Field label="Prvi tehničar" htmlFor="technicianId">
+              <Select id="technicianId" name="technicianId" value={formData.technicianId} onChange={handleChange} disabled={loading}>
+                <option value="">-- Izaberite prvog tehničara --</option>
+                {technicians.map(tech => (
+                  <option key={tech._id} value={tech._id}>{tech.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Drugi tehničar (opciono)" htmlFor="technician2Id">
+              <Select id="technician2Id" name="technician2Id" value={formData.technician2Id} onChange={handleChange} disabled={loading}>
+                <option value="">-- Izaberite drugog tehničara --</option>
+                {technicians
+                  .filter(tech => tech._id !== formData.technicianId)
+                  .map(tech => (
                     <option key={tech._id} value={tech._id}>{tech.name}</option>
                   ))}
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="technician2Id" className="block text-sm font-medium text-slate-700">Drugi tehničar (opciono)</label>
-                <select
-                  id="technician2Id"
-                  name="technician2Id"
-                  value={formData.technician2Id}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all appearance-none"
-                >
-                  <option value="">-- Izaberite drugog tehničara --</option>
-                  {technicians
-                    .filter(tech => tech._id !== formData.technicianId)
-                    .map(tech => (
-                      <option key={tech._id} value={tech._id}>{tech.name}</option>
-                    ))}
-                </select>
-              </div>
-            </div>
-            
-            {/* TIS IDs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="tisId" className="block text-sm font-medium text-slate-700">TIS ID korisnika</label>
-                <input
-                  type="text"
-                  id="tisId"
-                  name="tisId"
-                  value={formData.tisId}
-                  onChange={handleChange}
-                  placeholder="ID korisnika u TIS sistemu"
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="tisJobId" className="block text-sm font-medium text-slate-700">TIS ID posla</label>
-                <input
-                  type="text"
-                  id="tisJobId"
-                  name="tisJobId"
-                  value={formData.tisJobId}
-                  onChange={handleChange}
-                  placeholder="ID posla u TIS sistemu"
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-            
-            {/* User Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label htmlFor="userName" className="block text-sm font-medium text-slate-700">Ime korisnika</label>
-                <input
-                  type="text"
-                  id="userName"
-                  name="userName"
-                  value={formData.userName}
-                  onChange={handleChange}
-                  placeholder="Ime i prezime korisnika"
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="userPhone" className="block text-sm font-medium text-slate-700">Telefon korisnika</label>
-                <input
-                  type="text"
-                  id="userPhone"
-                  name="userPhone"
-                  value={formData.userPhone}
-                  onChange={handleChange}
-                  placeholder="Broj telefona korisnika"
-                  disabled={loading}
-                  className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-            
-            {/* Additional Jobs */}
-            <div className="space-y-2">
-              <label htmlFor="additionalJobs" className="block text-sm font-medium text-slate-700">Dodatni poslovi</label>
-              <input
-                type="text"
-                id="additionalJobs"
-                name="additionalJobs"
-                value={formData.additionalJobs}
-                onChange={handleChange}
-                placeholder="Format: ID,Opis/ID,Opis;..."
-                disabled={loading}
-                className="h-9 w-full px-3 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-              />
-            </div>
-            
-            {/* Details */}
-            <div className="space-y-2">
-              <label htmlFor="details" className="block text-sm font-medium text-slate-700">Detalji</label>
-              <textarea
-                id="details"
-                name="details"
-                value={formData.details}
-                onChange={handleChange}
-                placeholder="Detalji za tehničara"
-                disabled={loading}
-                rows={3}
-                className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all resize-none"
-              />
-            </div>
-            
-            {/* Comment */}
-            <div className="space-y-2">
-              <label htmlFor="comment" className="block text-sm font-medium text-slate-700">Komentar</label>
-              <textarea
-                id="comment"
-                name="comment"
-                value={formData.comment}
-                onChange={handleChange}
-                placeholder="Dodatne napomene"
-                disabled={loading}
-                rows={3}
-                className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all resize-none"
-              />
-            </div>
-            
-            {/* Form Buttons */}
-            <div className="flex items-center justify-end space-x-3 pt-6">
-              <Link to="/work-orders">
-                <Button type="secondary" size="medium">
-                  Odustani
-                </Button>
-              </Link>
-              <Button 
-                type="primary" 
-                size="medium"
-                prefix={<SaveIcon size={16} />}
-                disabled={loading}
-                onClick={handleSubmit}
-              >
-                {loading ? 'Čuvanje...' : 'Sačuvaj'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
+              </Select>
+            </Field>
+          </div>
+
+          <Field label="Opština" htmlFor="municipality">
+            <Input id="municipality" name="municipality" value={formData.municipality} onChange={handleChange} placeholder="Unesite opštinu" disabled={loading} required />
+          </Field>
+          <Field label="Adresa" htmlFor="address">
+            <Input id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Unesite adresu" disabled={loading} required />
+          </Field>
+          <Field label="Tip instalacije" htmlFor="type">
+            <Input id="type" name="type" value={formData.type} onChange={handleChange} placeholder="Internet, IPTV, Telefon..." disabled={loading} required />
+          </Field>
+
+          {/* Technology and Team */}
+          <div className="sx-form">
+            <Field label="Tehnologija" htmlFor="technology">
+              <Select id="technology" name="technology" value={formData.technology} onChange={handleChange} disabled={loading}>
+                <option value="">-- Izaberite tehnologiju --</option>
+                <option value="HFC">HFC</option>
+                <option value="GPON">GPON</option>
+                <option value="VDSL">VDSL</option>
+                <option value="ADSL">ADSL</option>
+              </Select>
+            </Field>
+            <Field label="Tim" htmlFor="tim">
+              <Select id="tim" name="tim" value={formData.tim} onChange={handleChange} disabled={loading}>
+                <option value="robotik">Robotik</option>
+                <option value="mtel">mtel</option>
+              </Select>
+            </Field>
+          </div>
+
+          {/* TIS IDs */}
+          <div className="sx-form">
+            <Field label="TIS ID korisnika" htmlFor="tisId">
+              <Input id="tisId" name="tisId" value={formData.tisId} onChange={handleChange} placeholder="ID korisnika u TIS sistemu" disabled={loading} />
+            </Field>
+            <Field label="TIS ID posla" htmlFor="tisJobId">
+              <Input id="tisJobId" name="tisJobId" value={formData.tisJobId} onChange={handleChange} placeholder="ID posla u TIS sistemu" disabled={loading} />
+            </Field>
+          </div>
+
+          {/* User Info */}
+          <div className="sx-form">
+            <Field label="Ime korisnika" htmlFor="userName">
+              <Input id="userName" name="userName" value={formData.userName} onChange={handleChange} placeholder="Ime i prezime korisnika" disabled={loading} />
+            </Field>
+            <Field label="Telefon korisnika" htmlFor="userPhone">
+              <Input id="userPhone" name="userPhone" value={formData.userPhone} onChange={handleChange} placeholder="Broj telefona korisnika" disabled={loading} />
+            </Field>
+          </div>
+
+          <Field label="Dodatni poslovi" htmlFor="additionalJobs">
+            <Input id="additionalJobs" name="additionalJobs" value={formData.additionalJobs} onChange={handleChange} placeholder="Format: ID,Opis/ID,Opis;..." disabled={loading} />
+          </Field>
+          <Field label="Detalji" htmlFor="details">
+            <Textarea id="details" name="details" value={formData.details} onChange={handleChange} placeholder="Detalji za tehničara" disabled={loading} rows={3} />
+          </Field>
+          <Field label="Komentar" htmlFor="comment">
+            <Textarea id="comment" name="comment" value={formData.comment} onChange={handleChange} placeholder="Dodatne napomene" disabled={loading} rows={3} />
+          </Field>
+        </Panel>
+      </form>
     </div>
   );
 };
