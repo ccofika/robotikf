@@ -1,0 +1,12 @@
+/* Izveštaj o opremi korisnika: dodaci uz sx (traka pretrage u panelu, filteri). Boje samo iz tokena. */
+.mx-ueq > * + * { margin-top: 20px; }
+.mx-ueq-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.mx-ueq-bar .sx-search { flex: 1 1 280px; max-width: 420px; }
+.mx-ueq-count { margin-left: auto; font-size: 13px; color: var(--sx-muted); }
+.mx-ueq-filters { display: grid; gap: 14px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--sx-line); }
+.mx-ueq-filters__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
+.mx-ueq-filters__grid .sx-field + .sx-field { margin-top: 0; }
+.mx-ueq-filters__actions { display: flex; justify-content: flex-end; }
+.mx-ueq .sx-head__actions .sx-btn { flex: 0 0 auto; }
+/* uzak prostor: dugme za izvoz ide ispod naslova panela */
+@container page (max-width: 560px) { .mx-ueq-list > .sx-panel__head { flex-wrap: wrap; } }

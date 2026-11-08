@@ -1,18 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import {
-  DollarSignIcon,
-  TrendingUpIcon,
-  BarChartIcon,
-  PieChartIcon,
-  UsersIcon,
-  MapIcon,
-  RefreshIcon,
-  DownloadIcon,
-  FilterIcon,
-  InfoIcon
-} from '../icons/SvgIcons';
-import { Button } from './button-1';
-import { cn } from '../../utils/cn';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
+import { DollarSign, ChartColumn, ChartPie, Users, Map, RefreshCw, Download } from 'lucide-react';
+import { cx, Btn } from '../../security/sx/ui';
+import { Panel, Note, Stat, Tabs } from '../../security/sx/layout';
+import { Select } from '../../security/sx/forms';
+import { Loading } from '../../montaza/ui';
+
+// Serije trenda: prihod (tuš), profit (plava), troškovi (siva); u tamnom oblačiću tuš postaje svetao
+const SERIES = [
+  { key: 'revenue', label: 'Prihod', color: 'var(--sx-text)', tip: 'var(--sx-tip-text)' },
+  { key: 'profit', label: 'Profit', color: 'var(--sx-accent)' },
+  { key: 'cost', label: 'Troškovi', color: 'var(--sx-faint)' }
+];
+const axisNum = (v) => new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 0 }).format(v);
 
 const FinancialAnalysis = ({
   data = [],
@@ -288,580 +288,313 @@ const FinancialAnalysis = ({
   }, [data]);
 
   if (loading) {
-    return (
-      <div className={cn("bg-white rounded-xl border border-slate-200 p-6", className)}>
-        <div className="animate-pulse">
-          <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-24 bg-slate-200 rounded"></div>
-            ))}
-          </div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-slate-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <Loading rows={5} h={64} />;
   }
 
   if (error) {
     return (
-      <div className={cn("bg-white rounded-xl border border-red-200 p-6", className)}>
-        <div className="text-center">
-          <DollarSignIcon size={48} className="text-red-400 mb-4 mx-auto" />
-          <h4 className="text-lg font-semibold text-slate-900 mb-2">Greška pri učitavanju finansijske analize</h4>
-          <p className="text-slate-600 mb-4">{error}</p>
-          {onRefresh && (
-            <Button type="secondary" size="small" onClick={onRefresh} prefix={<RefreshIcon size={16} />}>
-              Pokušaj ponovo
-            </Button>
-          )}
-        </div>
-      </div>
+      <Note tone="bad" icon={DollarSign} actions={onRefresh && (
+        <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
+      )}>
+        <h4 className="mx-logdash-note__title">Greška pri učitavanju finansijske analize</h4>
+        <p>{error}</p>
+      </Note>
     );
   }
 
+  // Oblačić dana: datum, prihod, profit, troškovi, nalozi (kao ranije)
+  const DayTip = ({ active, payload }) => {
+    if (!active || !payload || !payload.length) return null;
+    const day = payload[0].payload;
+    return (
+      <div className="mx-logdash-tip">
+        <span className="mx-logdash-tip__title">{new Date(day.date).toLocaleDateString('sr-RS')}</span>
+        {SERIES.map((s) => (
+          <div key={s.key} className="mx-logdash-tip__row">
+            <span className="mx-logdash-tip__key" style={{ '--c': s.tip || s.color }}>{s.label}:</span>
+            <b>{formatCurrency(day[s.key])}</b>
+          </div>
+        ))}
+        <div className="mx-logdash-tip__row"><span className="mx-logdash-tip__key">Nalozi:</span><b>{day.orders}</b></div>
+      </div>
+    );
+  };
+
   const renderOverview = () => (
-    <div>
+    <div className="mx-logdash-sec">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Ukupan prihod</p>
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums">
-                {formatCurrency(financialAnalysis.overview.totalRevenue)}
-              </h3>
-              <p className="text-xs text-green-700">
-                {formatCurrency(financialAnalysis.overview.avgRevenuePerOrder)} po nalogu
-              </p>
-            </div>
-            <div className="p-2 bg-green-200 rounded-lg">
-              <DollarSignIcon size={20} className="text-green-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Ukupan profit</p>
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums">
-                {formatCurrency(financialAnalysis.overview.totalProfit)}
-              </h3>
-              <p className="text-xs text-blue-700">
-                {formatCurrency(financialAnalysis.overview.avgProfitPerOrder)} po nalogu
-              </p>
-            </div>
-            <div className="p-2 bg-blue-200 rounded-lg">
-              <TrendingUpIcon size={20} className="text-blue-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Profit margina</p>
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums">
-                {financialAnalysis.overview.profitMargin.toFixed(1)}%
-              </h3>
-              <p className="text-xs text-purple-700">
-                {financialAnalysis.overview.profitMargin > 20 ? 'Odličan' :
-                 financialAnalysis.overview.profitMargin > 10 ? 'Dobar' : 'Treba poboljšati'}
-              </p>
-            </div>
-            <div className="p-2 bg-purple-200 rounded-lg">
-              <PieChartIcon size={20} className="text-purple-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4 border border-orange-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-orange-600 uppercase tracking-wider">Ukupni troškovi</p>
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums">
-                {formatCurrency(financialAnalysis.overview.totalCost)}
-              </h3>
-              <p className="text-xs text-orange-700">
-                {((financialAnalysis.overview.totalCost / financialAnalysis.overview.totalRevenue) * 100).toFixed(1)}% od prihoda
-              </p>
-            </div>
-            <div className="p-2 bg-orange-200 rounded-lg">
-              <BarChartIcon size={20} className="text-orange-700" />
-            </div>
-          </div>
-        </div>
+      <div className="sx-stats">
+        <Stat
+          label="Ukupan prihod"
+          value={formatCurrency(financialAnalysis.overview.totalRevenue)}
+          sub={`${formatCurrency(financialAnalysis.overview.avgRevenuePerOrder)} po nalogu`}
+        />
+        <Stat
+          label="Ukupan profit"
+          value={formatCurrency(financialAnalysis.overview.totalProfit)}
+          sub={`${formatCurrency(financialAnalysis.overview.avgProfitPerOrder)} po nalogu`}
+        />
+        <Stat
+          label="Profit margina"
+          tone={financialAnalysis.overview.profitMargin > 20 ? 'ok' : financialAnalysis.overview.profitMargin > 10 ? undefined : 'warn'}
+          value={`${financialAnalysis.overview.profitMargin.toFixed(1)}%`}
+          sub={financialAnalysis.overview.profitMargin > 20 ? 'Odličan' :
+               financialAnalysis.overview.profitMargin > 10 ? 'Dobar' : 'Treba poboljšati'}
+        />
+        <Stat
+          label="Ukupni troškovi"
+          value={formatCurrency(financialAnalysis.overview.totalCost)}
+          sub={`${((financialAnalysis.overview.totalCost / financialAnalysis.overview.totalRevenue) * 100).toFixed(1)}% od prihoda`}
+        />
       </div>
 
       {/* Enhanced Financial Trend Chart */}
       {(financialAnalysis.trends.length > 0 || true) && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-semibold text-slate-900">Finansijski trend</h4>
-            <div className="flex items-center space-x-2">
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="h-8 px-3 pr-8 bg-white border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-              >
-                <option value="daily">Dnevno</option>
-                <option value="weekly">Nedeljno</option>
-                <option value="monthly">Mesečno</option>
-              </select>
-            </div>
-          </div>
+        <Panel
+          title="Finansijski trend"
+          actions={(
+            <Select size="sm" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} aria-label="Period trenda">
+              <option value="daily">Dnevno</option>
+              <option value="weekly">Nedeljno</option>
+              <option value="monthly">Mesečno</option>
+            </Select>
+          )}
+        >
+          {/* Chart Header with Stats */}
+          {(() => {
+            const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
+              Array.from({length: 15}, (_, i) => ({
+                date: new Date(Date.now() - (14-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                revenue: Math.random() * 50000 + 20000,
+                profit: Math.random() * 20000 + 8000,
+                cost: Math.random() * 30000 + 12000,
+                orders: Math.floor(Math.random() * 15) + 5
+              }));
 
-          <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-slate-200 overflow-hidden">
-            {/* Chart Header with Stats */}
-            <div className="p-4 border-b border-slate-200 bg-white">
-              <div className="grid grid-cols-3 gap-4">
-                {(() => {
-                  const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
-                    Array.from({length: 15}, (_, i) => ({
-                      date: new Date(Date.now() - (14-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                      revenue: Math.random() * 50000 + 20000,
-                      profit: Math.random() * 20000 + 8000,
-                      cost: Math.random() * 30000 + 12000,
-                      orders: Math.floor(Math.random() * 15) + 5
-                    }));
-
-                  return (
-                    <>
-                      <div className="text-center">
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Najveći dnevni prihod</p>
-                        <p className="text-lg font-bold text-green-600">
-                          {formatCurrency(Math.max(...trendsData.map(d => d.revenue)))}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Najveći dnevni profit</p>
-                        <p className="text-lg font-bold text-blue-600">
-                          {formatCurrency(Math.max(...trendsData.map(d => d.profit)))}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Prosečno dnevno</p>
-                        <p className="text-lg font-bold text-purple-600">
-                          {formatCurrency(trendsData.reduce((sum, d) => sum + d.revenue, 0) / trendsData.length)}
-                        </p>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Chart Area - Simplified CSS Grid Approach */}
-            <div className="p-6">
-              {(() => {
-                const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
-                  Array.from({length: 12}, (_, i) => ({
-                    date: new Date(Date.now() - (11-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                    revenue: Math.random() * 50000 + 20000,
-                    profit: Math.random() * 20000 + 8000,
-                    cost: Math.random() * 30000 + 12000,
-                    orders: Math.floor(Math.random() * 15) + 5
-                  }));
-
-                const displayData = trendsData.slice(-12);
-                const allValues = displayData.flatMap(d => [d.revenue, d.profit, d.cost]);
-                const maxValue = Math.max(...allValues, 1);
-
-                return (
-                  <div className="bg-white rounded-lg border border-slate-200" style={{ height: '400px' }}>
-                    {/* Chart Grid Container */}
-                    <div className="relative p-4" style={{ height: '400px' }}>
-                      {/* Y-axis labels */}
-                      <div className="absolute left-0 top-4 w-16 text-xs text-slate-500" style={{ height: '280px' }}>
-                        <div className="relative h-full flex flex-col justify-between">
-                          <span>{formatCurrency(maxValue)}</span>
-                          <span>{formatCurrency(maxValue * 0.75)}</span>
-                          <span>{formatCurrency(maxValue * 0.5)}</span>
-                          <span>{formatCurrency(maxValue * 0.25)}</span>
-                          <span>0</span>
-                        </div>
-                      </div>
-
-                      {/* Chart bars container */}
-                      <div className="ml-20 mr-4 relative" style={{ height: '280px' }}>
-                        {/* Grid lines */}
-                        <div className="absolute inset-0">
-                          {[0, 70, 140, 210, 280].map((pixels, index) => (
-                            <div
-                              key={pixels}
-                              className="absolute left-0 right-0 border-t border-slate-100"
-                              style={{ bottom: `${pixels}px` }}
-                            />
-                          ))}
-                        </div>
-
-                        {/* Bars */}
-                        <div className="absolute inset-0 flex items-end justify-between" style={{ height: '280px' }}>
-                          {displayData.map((day, index) => {
-                            // Calculate heights in pixels relative to 280px chart height
-                            const chartHeight = 280;
-                            const revenueHeight = Math.round((day.revenue / maxValue) * chartHeight);
-                            const profitHeight = Math.round((day.profit / maxValue) * chartHeight);
-                            const costHeight = Math.round((day.cost / maxValue) * chartHeight);
-
-                            return (
-                              <div key={index} className="flex items-end space-x-1 group cursor-pointer relative">
-                                {/* Tooltip */}
-                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-20 whitespace-nowrap shadow-lg">
-                                  <div className="font-semibold">{new Date(day.date).toLocaleDateString('sr-RS')}</div>
-                                  <div className="text-green-300">Prihod: {formatCurrency(day.revenue)}</div>
-                                  <div className="text-blue-300">Profit: {formatCurrency(day.profit)}</div>
-                                  <div className="text-red-300">Troškovi: {formatCurrency(day.cost)}</div>
-                                  <div className="text-slate-300">Nalozi: {day.orders}</div>
-                                </div>
-
-                                {/* Revenue Bar */}
-                                <div
-                                  className="w-4 bg-gradient-to-t from-green-600 to-green-400 rounded-t hover:from-green-700 hover:to-green-500 transition-colors duration-200"
-                                  style={{
-                                    height: `${revenueHeight}px`
-                                  }}
-                                />
-
-                                {/* Profit Bar */}
-                                <div
-                                  className="w-4 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t hover:from-blue-700 hover:to-blue-500 transition-colors duration-200"
-                                  style={{
-                                    height: `${profitHeight}px`
-                                  }}
-                                />
-
-                                {/* Cost Bar */}
-                                <div
-                                  className="w-4 bg-gradient-to-t from-red-600 to-red-400 rounded-t hover:from-red-700 hover:to-red-500 transition-colors duration-200"
-                                  style={{
-                                    height: `${costHeight}px`
-                                  }}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* X-axis labels */}
-                        <div className="absolute bottom-0 left-0 right-0 -mb-8 flex justify-between text-xs text-slate-500">
-                          {displayData.map((day, index) => (
-                            <span key={index} className="transform -rotate-45 origin-bottom-left w-12">
-                              {new Date(day.date).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Legend */}
-            <div className="px-6 pb-4">
-              <div className="flex justify-center space-x-8">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gradient-to-t from-green-600 to-green-400 rounded shadow-sm"></div>
-                  <span className="text-sm font-medium text-slate-700">Prihod</span>
+            return (
+              <div className="mx-logdash-mini">
+                <div>
+                  <b>{formatCurrency(Math.max(...trendsData.map(d => d.revenue)))}</b>
+                  <span>Najveći dnevni prihod</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gradient-to-t from-blue-600 to-blue-400 rounded shadow-sm"></div>
-                  <span className="text-sm font-medium text-slate-700">Profit</span>
+                <div>
+                  <b>{formatCurrency(Math.max(...trendsData.map(d => d.profit)))}</b>
+                  <span>Najveći dnevni profit</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gradient-to-t from-red-600 to-red-400 rounded shadow-sm"></div>
-                  <span className="text-sm font-medium text-slate-700">Troškovi</span>
+                <div>
+                  <b>{formatCurrency(trendsData.reduce((sum, d) => sum + d.revenue, 0) / trendsData.length)}</b>
+                  <span>Prosečno dnevno</span>
                 </div>
               </div>
-            </div>
+            );
+          })()}
+
+          {/* Chart Area */}
+          {(() => {
+            const trendsData = financialAnalysis.trends.length > 0 ? financialAnalysis.trends :
+              Array.from({length: 12}, (_, i) => ({
+                date: new Date(Date.now() - (11-i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                revenue: Math.random() * 50000 + 20000,
+                profit: Math.random() * 20000 + 8000,
+                cost: Math.random() * 30000 + 12000,
+                orders: Math.floor(Math.random() * 15) + 5
+              }));
+
+            const displayData = trendsData.slice(-12);
+
+            return (
+              <div className="mx-logdash-chart mx-logdash-chart--tall">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={displayData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="18%">
+                    <CartesianGrid vertical={false} stroke="var(--sx-line)" />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(d) => new Date(d).toLocaleDateString('sr-RS', { day: 'numeric', month: 'short' })}
+                      tickLine={false}
+                      axisLine={{ stroke: 'var(--sx-line-2)' }}
+                      tick={{ fill: 'var(--sx-muted)' }}
+                      interval="equidistantPreserveStart"
+                      minTickGap={12}
+                    />
+                    <YAxis width={56} tickFormatter={axisNum} tickLine={false} axisLine={false} tick={{ fill: 'var(--sx-muted)' }} />
+                    <ReferenceLine y={0} stroke="var(--sx-line-2)" />
+                    <Tooltip content={<DayTip />} cursor={{ fill: 'var(--sx-surface-2)' }} isAnimationActive={false} />
+                    {SERIES.map((s) => (
+                      <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[4, 4, 0, 0]} maxBarSize={16} isAnimationActive={false} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
+
+          {/* Legend */}
+          <div className="mx-logdash-legend mx-mt">
+            {SERIES.map((s) => (
+              <span key={s.key} className="mx-logdash-legend__item" style={{ '--c': s.color }}>{s.label}</span>
+            ))}
           </div>
-        </div>
+        </Panel>
       )}
     </div>
   );
 
   const renderTechnicianAnalysis = () => (
-    <div>
-      <h4 className="text-lg font-semibold text-slate-900 mb-4">Analiza po tehničarima</h4>
-      <div className="space-y-4">
-        {financialAnalysis.byTechnician.map((technician, index) => (
-          <div key={index} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <div className="md:col-span-2">
-                <h5 className="font-semibold text-slate-900">{technician.name}</h5>
-                <p className="text-sm text-slate-600">{technician.orderCount} naloga</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-500 uppercase">Prihod</p>
-                <p className="font-semibold text-green-600">
-                  {formatCurrency(technician.totalRevenue)}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {formatCurrency(technician.avgRevenuePerOrder)}/nalog
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-500 uppercase">Profit</p>
-                <p className="font-semibold text-blue-600">
-                  {formatCurrency(technician.totalProfit)}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {formatCurrency(technician.avgProfitPerOrder)}/nalog
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-500 uppercase">Margina</p>
-                <p className="font-semibold text-purple-600">
-                  {technician.profitMargin.toFixed(1)}%
-                </p>
-                <p className="text-xs text-slate-500">
-                  {technician.completionRate.toFixed(1)}% završeno
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-500 uppercase">Efikasnost</p>
-                <p className="font-semibold text-orange-600">
-                  {formatCurrency(technician.efficiency)}/h
-                </p>
-                <p className="text-xs text-slate-500">
-                  {technician.averageTime.toFixed(0)} min/nalog
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
+    <Panel pad={false} title="Analiza po tehničarima">
+      <div className="sx-tablewrap">
+        <table className="sx-table">
+          <thead>
+            <tr><th><span className="sx-sr">Tehničar</span></th><th>Prihod</th><th>Profit</th><th>Margina</th><th>Efikasnost</th></tr>
+          </thead>
+          <tbody>
+            {financialAnalysis.byTechnician.map((technician, index) => (
+              <tr key={index} style={{ '--i': index }}>
+                <td className="is-head"><div className="sx-cell"><b>{technician.name}</b><span>{technician.orderCount} naloga</span></div></td>
+                <td data-label="Prihod"><div className="sx-cell"><b>{formatCurrency(technician.totalRevenue)}</b><span>{formatCurrency(technician.avgRevenuePerOrder)}/nalog</span></div></td>
+                <td data-label="Profit"><div className="sx-cell"><b>{formatCurrency(technician.totalProfit)}</b><span>{formatCurrency(technician.avgProfitPerOrder)}/nalog</span></div></td>
+                <td data-label="Margina"><div className="sx-cell"><b>{technician.profitMargin.toFixed(1)}%</b><span>{technician.completionRate.toFixed(1)}% završeno</span></div></td>
+                <td data-label="Efikasnost"><div className="sx-cell"><b>{formatCurrency(technician.efficiency)}/h</b><span>{technician.averageTime.toFixed(0)} min/nalog</span></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
+    </Panel>
   );
 
   const renderMunicipalityAnalysis = () => (
-    <div>
-      <h4 className="text-lg font-semibold text-slate-900 mb-4">Analiza po opštinama</h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {financialAnalysis.byMunicipality.map((municipality, index) => (
-          <div key={index} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div className="flex items-center justify-between mb-3">
-              <h5 className="font-semibold text-slate-900">{municipality.name}</h5>
-              <div className="p-2 bg-slate-200 rounded-lg">
-                <MapIcon size={16} className="text-slate-600" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Ukupan prihod:</span>
-                <span className="font-semibold text-green-600">
-                  {formatCurrency(municipality.totalRevenue)}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Ukupan profit:</span>
-                <span className="font-semibold text-blue-600">
-                  {formatCurrency(municipality.totalProfit)}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Broj naloga:</span>
-                <span className="font-semibold">{municipality.orderCount}</span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Tehničari:</span>
-                <span className="font-semibold">{municipality.technicianCount}</span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Prosečan prihod/nalog:</span>
-                <span className="font-semibold">
-                  {formatCurrency(municipality.avgRevenuePerOrder)}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Profit margina:</span>
-                <span className="font-semibold text-purple-600">
-                  {municipality.profitMargin.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
+    <Panel pad={false} title="Analiza po opštinama">
+      <div className="sx-tablewrap">
+        <table className="sx-table">
+          <thead>
+            <tr>
+              <th><span className="sx-sr">Opština</span></th>
+              <th className="is-num">Ukupan prihod</th>
+              <th className="is-num">Ukupan profit</th>
+              <th className="is-num">Broj naloga</th>
+              <th className="is-num">Tehničari</th>
+              <th className="is-num">Prosečan prihod/nalog</th>
+              <th className="is-num">Profit margina</th>
+            </tr>
+          </thead>
+          <tbody>
+            {financialAnalysis.byMunicipality.map((municipality, index) => (
+              <tr key={index} style={{ '--i': index }}>
+                <td className="is-head"><div className="sx-cell"><b>{municipality.name}</b></div></td>
+                <td data-label="Ukupan prihod" className="is-num">{formatCurrency(municipality.totalRevenue)}</td>
+                <td data-label="Ukupan profit" className="is-num">{formatCurrency(municipality.totalProfit)}</td>
+                <td data-label="Broj naloga" className="is-num">{municipality.orderCount}</td>
+                <td data-label="Tehničari" className="is-num">{municipality.technicianCount}</td>
+                <td data-label="Prosečan prihod/nalog" className="is-num">{formatCurrency(municipality.avgRevenuePerOrder)}</td>
+                <td data-label="Profit margina" className="is-num">{municipality.profitMargin.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
+    </Panel>
   );
 
   const renderServiceTypeAnalysis = () => (
-    <div>
-      <h4 className="text-lg font-semibold text-slate-900 mb-4">Analiza po vrsti usluge</h4>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {financialAnalysis.byServiceType.map((service, index) => (
-          <div key={index} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div className="text-center mb-4">
-              <h5 className="font-semibold text-slate-900 text-lg">{service.name}</h5>
-              <p className="text-sm text-slate-600">{service.marketShare.toFixed(1)}% tržišnog udela</p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-center">
-                <p className="text-xs text-slate-500 uppercase">Ukupan prihod</p>
-                <p className="text-xl font-bold text-green-600">
-                  {formatCurrency(service.totalRevenue)}
-                </p>
-              </div>
-
-              <div className="text-center">
-                <p className="text-xs text-slate-500 uppercase">Ukupan profit</p>
-                <p className="text-lg font-semibold text-blue-600">
-                  {formatCurrency(service.totalProfit)}
-                </p>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Broj naloga:</span>
-                <span className="font-semibold">{service.orderCount}</span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Prosek/nalog:</span>
-                <span className="font-semibold">
-                  {formatCurrency(service.avgRevenuePerOrder)}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Profit margina:</span>
-                <span className="font-semibold text-purple-600">
-                  {service.profitMargin.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
+    <Panel pad={false} title="Analiza po vrsti usluge">
+      <div className="sx-tablewrap">
+        <table className="sx-table">
+          <thead>
+            <tr>
+              <th><span className="sx-sr">Usluga</span></th>
+              <th className="is-num">Ukupan prihod</th>
+              <th className="is-num">Ukupan profit</th>
+              <th className="is-num">Broj naloga</th>
+              <th className="is-num">Prosek/nalog</th>
+              <th className="is-num">Profit margina</th>
+            </tr>
+          </thead>
+          <tbody>
+            {financialAnalysis.byServiceType.map((service, index) => (
+              <tr key={index} style={{ '--i': index }}>
+                <td className="is-head"><div className="sx-cell"><b>{service.name}</b><span>{service.marketShare.toFixed(1)}% tržišnog udela</span></div></td>
+                <td data-label="Ukupan prihod" className="is-num">{formatCurrency(service.totalRevenue)}</td>
+                <td data-label="Ukupan profit" className="is-num">{formatCurrency(service.totalProfit)}</td>
+                <td data-label="Broj naloga" className="is-num">{service.orderCount}</td>
+                <td data-label="Prosek/nalog" className="is-num">{formatCurrency(service.avgRevenuePerOrder)}</td>
+                <td data-label="Profit margina" className="is-num">{service.profitMargin.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
+    </Panel>
   );
 
   return (
-    <div className={cn("bg-white rounded-xl border border-slate-200 shadow-sm", className)}>
-      {/* Header */}
-      <div className="p-6 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <DollarSignIcon size={20} className="text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Finansijska analiza</h3>
-              <p className="text-slate-600 mt-1">Prihodi, profiti i troškovi po tehničarima i opštinama</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {onTimeRangeChange && (
-              <select
-                value={timeRange}
-                onChange={(e) => onTimeRangeChange(e.target.value)}
-                className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-              >
-                <option value="7d">Poslednja 7 dana</option>
-                <option value="30d">Poslednja 30 dana</option>
-                <option value="90d">Poslednja 3 meseca</option>
-                <option value="180d">Poslednja 6 meseci</option>
-              </select>
-            )}
-
-            {onExport && (
-              <Button
-                type="secondary"
-                size="small"
-                onClick={() => onExport(financialAnalysis)}
-                prefix={<DownloadIcon size={16} />}
-              >
-                Export
-              </Button>
-            )}
-
-            {onRefresh && (
-              <Button
-                type="secondary"
-                size="small"
-                onClick={onRefresh}
-                prefix={<RefreshIcon size={16} />}
-              >
-                Osvježi
-              </Button>
-            )}
-          </div>
+    <div className={cx('mx-logdash-sec', className)}>
+      {/* Zaglavlje */}
+      <div className="mx-logdash-sec__head">
+        <div className="mx-logdash-sec__titles">
+          <h3 className="mx-logdash-sec__title">Finansijska analiza</h3>
+          <p className="mx-logdash-sec__lead">Prihodi, profiti i troškovi po tehničarima i opštinama</p>
         </div>
 
-        {/* View Selection */}
-        <div className="flex items-center space-x-2 mt-4">
-          {[
-            { id: 'overview', label: 'Pregled', icon: BarChartIcon },
-            { id: 'technicians', label: 'Tehničari', icon: UsersIcon },
-            { id: 'municipalities', label: 'Opštine', icon: MapIcon },
-            { id: 'services', label: 'Usluge', icon: PieChartIcon }
-          ].map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setSelectedView(id)}
-              className={cn(
-                "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                selectedView === id
-                  ? "bg-green-100 text-green-700 border border-green-200"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              )}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
+        <div className="mx-logdash-sec__tools">
+          {onTimeRangeChange && (
+            <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
+              <option value="7d">Poslednja 7 dana</option>
+              <option value="30d">Poslednja 30 dana</option>
+              <option value="90d">Poslednja 3 meseca</option>
+              <option value="180d">Poslednja 6 meseci</option>
+            </Select>
+          )}
+
+          {onExport && (
+            <Btn size="sm" icon={Download} onClick={() => onExport(financialAnalysis)}>Export</Btn>
+          )}
+
+          {onRefresh && (
+            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
+          )}
         </div>
       </div>
+
+      {/* View Selection */}
+      <Tabs
+        className="mx-logdash-fin__tabs"
+        ariaLabel="Prikaz"
+        layoutId="mx-logdash-fin-tabs"
+        value={selectedView}
+        onChange={setSelectedView}
+        items={[
+          { key: 'overview', label: 'Pregled', icon: ChartColumn },
+          { key: 'technicians', label: 'Tehničari', icon: Users },
+          { key: 'municipalities', label: 'Opštine', icon: Map },
+          { key: 'services', label: 'Usluge', icon: ChartPie }
+        ]}
+      />
 
       {/* Content */}
-      <div className="p-6">
-        {data.length === 0 ? (
-          <div className="text-center py-8">
-            <DollarSignIcon size={48} className="text-slate-400 mb-4 mx-auto" />
-            <h4 className="text-lg font-semibold text-slate-900 mb-2">Nema finansijskih podataka</h4>
-            <p className="text-slate-600">Podaci o prihodima i profitima će biti prikazani kada budu dostupni.</p>
+      {data.length === 0 ? (
+        <Panel>
+          <div className="sx-empty-block">
+            <h4>Nema finansijskih podataka</h4>
+            <span>Podaci o prihodima i profitima će biti prikazani kada budu dostupni.</span>
           </div>
-        ) : (
-          <div>
-            {selectedView === 'overview' && renderOverview()}
-            {selectedView === 'technicians' && renderTechnicianAnalysis()}
-            {selectedView === 'municipalities' && renderMunicipalityAnalysis()}
-            {selectedView === 'services' && renderServiceTypeAnalysis()}
+        </Panel>
+      ) : (
+        <>
+          {selectedView === 'overview' && renderOverview()}
+          {selectedView === 'technicians' && renderTechnicianAnalysis()}
+          {selectedView === 'municipalities' && renderMunicipalityAnalysis()}
+          {selectedView === 'services' && renderServiceTypeAnalysis()}
 
-            {/* Info Note */}
-            <div className="mt-8 bg-blue-50 rounded-xl p-4 border border-blue-200">
-              <div className="flex items-start space-x-3">
-                <InfoIcon size={20} className="text-blue-600 mt-0.5" />
-                <div>
-                  <h5 className="font-semibold text-blue-900 mb-1">Napomena o podacima</h5>
-                  <p className="text-sm text-blue-800">
-                    Finansijski podaci su kalkulisani na osnovu tipova usluga i procenjenih troškova materijala i rada.
-                    Za preciznije analize, potrebno je integrisati podatke iz fakturnig sistema.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+          {/* Info Note */}
+          <Note tone="info">
+            <h5 className="mx-logdash-note__title">Napomena o podacima</h5>
+            <p>
+              Finansijski podaci su kalkulisani na osnovu tipova usluga i procenjenih troškova materijala i rada.
+              Za preciznije analize, potrebno je integrisati podatke iz fakturnig sistema.
+            </p>
+          </Note>
+        </>
+      )}
     </div>
   );
 };

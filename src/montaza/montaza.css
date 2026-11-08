@@ -124,3 +124,19 @@
 .mx-daterange__sep { font-size: 13px; color: var(--sx-muted); }
 /* brojke: neparan broj na uskom prostoru, poslednja zauzima ceo red (bez sive rupe) */
 @container page (max-width: 560px) { .mx-app .sx-stats > .sx-stat:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+/* tabela kao kartice (telefon): dugi nizovi bez razmaka (adrese, serijski brojevi) se lome, ne prelivaju ekran */
+@container tbl (max-width: 760px) { .mx-app .sx-table td { overflow-wrap: anywhere; } }
+/* pilule izbora na dodir: najmanje 40 px (Security ima 32 px za male pilule) */
+@media (hover: none) { .mx-app .sx-choice--sm .sx-choice__opt { height: 40px; } }
+
+/* ---------- kalendar i lista vremena (DateField, TimeField): važi i za Security ----------
+   dugmad nasleđuju text-align: left iz osnove, pa su brojevi bili uz levu ivicu, a izabrani dan elipsa */
+.sx-cal__day { display: grid; place-items: center; width: 36px; max-width: 100%; height: 36px; margin: 0 auto; padding: 0; text-align: center; }
+.sx-time { text-align: center; }
+/* period (DateRangePicker): malo šire polje da datum, X i kalendar ne budu zbijeni */
+.mx-daterange .sx-dt { width: 182px; }
+/* traka sa pretragom i dugmadima u vrhu kartice sa tabelom (raspored starih stranica) */
+.mx-panelbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-panelbar .sx-search { flex: 0 1 380px; }
+.mx-panelbar__end { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+@media (max-width: 639px) { .mx-panelbar { padding: 12px 16px; } .mx-panelbar .sx-search { flex: 1 1 100%; } .mx-panelbar__end { margin-left: 0; } }

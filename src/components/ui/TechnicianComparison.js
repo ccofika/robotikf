@@ -1,20 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import {
-  UsersIcon,
-  TrendingUpIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  StarIcon,
-  AwardIcon,
-  BarChartIcon,
-  RefreshIcon,
-  DownloadIcon,
-  FilterIcon,
-  ArrowUpIcon,
-  ArrowDownIcon
-} from '../icons/SvgIcons';
-import { Button } from './button-1';
-import { cn } from '../../utils/cn';
+import { Users, Award, RefreshCw, Download } from 'lucide-react';
+import { cx, Btn, State } from '../../security/sx/ui';
+import { Panel, Note, Stat } from '../../security/sx/layout';
+import { Select, Choice } from '../../security/sx/forms';
+import { Loading } from '../../montaza/ui';
 
 const TechnicianComparison = ({
   data = [],
@@ -212,25 +201,16 @@ const TechnicianComparison = ({
     }).format(amount);
   };
 
-  const getPerformanceColor = (score) => {
-    if (score >= 85) return 'text-green-600 bg-green-50';
-    if (score >= 70) return 'text-blue-600 bg-blue-50';
-    if (score >= 55) return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
-  };
-
   const getPerformanceBadge = (score) => {
-    if (score >= 85) return { label: 'Odličan', color: 'bg-green-500' };
-    if (score >= 70) return { label: 'Dobar', color: 'bg-blue-500' };
-    if (score >= 55) return { label: 'Prosečan', color: 'bg-yellow-500' };
-    return { label: 'Treba poboljšanje', color: 'bg-red-500' };
+    if (score >= 85) return { label: 'Odličan', tone: 'ok' };
+    if (score >= 70) return { label: 'Dobar', tone: 'info' };
+    if (score >= 55) return { label: 'Prosečan', tone: 'warn' };
+    return { label: 'Treba poboljšanje', tone: 'bad' };
   };
 
   const getRankIcon = (rank) => {
-    if (rank === 1) return <AwardIcon size={20} className="text-yellow-500" />;
-    if (rank === 2) return <AwardIcon size={20} className="text-gray-400" />;
-    if (rank === 3) return <AwardIcon size={20} className="text-orange-600" />;
-    return <span className="text-lg font-bold text-slate-400">#{rank}</span>;
+    if (rank <= 3) return <Award size={18} strokeWidth={1.9} aria-label={`#${rank}`} />;
+    return <span>#{rank}</span>;
   };
 
   // Process technician metrics
@@ -355,325 +335,193 @@ const TechnicianComparison = ({
   };
 
   if (loading) {
-    return (
-      <div className={cn("bg-white rounded-xl border border-slate-200 p-6", className)}>
-        <div className="animate-pulse">
-          <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-24 bg-slate-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <Loading rows={5} h={88} />;
   }
 
   if (error) {
     return (
-      <div className={cn("bg-white rounded-xl border border-red-200 p-6", className)}>
-        <div className="text-center">
-          <UsersIcon size={48} className="text-red-400 mb-4 mx-auto" />
-          <h4 className="text-lg font-semibold text-slate-900 mb-2">Greška pri učitavanju poređenja tehničara</h4>
-          <p className="text-slate-600 mb-4">{error}</p>
-          {onRefresh && (
-            <Button type="secondary" size="small" onClick={onRefresh} prefix={<RefreshIcon size={16} />}>
-              Pokušaj ponovo
-            </Button>
-          )}
-        </div>
-      </div>
+      <Note tone="bad" icon={Users} actions={onRefresh && (
+        <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Pokušaj ponovo</Btn>
+      )}>
+        <h4 className="mx-logdash-note__title">Greška pri učitavanju poređenja tehničara</h4>
+        <p>{error}</p>
+      </Note>
     );
   }
 
   return (
-    <div className={cn("bg-white rounded-xl border border-slate-200 shadow-sm", className)}>
-      {/* Header */}
-      <div className="p-6 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <UsersIcon size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Poređenje tehničara</h3>
-              <p className="text-slate-600 mt-1">Rangiranje prema performansama, brzini i zadovoljstvu korisnika</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {onTimeRangeChange && (
-              <select
-                value={timeRange}
-                onChange={(e) => onTimeRangeChange(e.target.value)}
-                className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-              >
-                <option value="7d">Poslednja 7 dana</option>
-                <option value="30d">Poslednja 30 dana</option>
-                <option value="90d">Poslednja 3 meseca</option>
-                <option value="180d">Poslednja 6 meseci</option>
-                <option value="365d">Poslednja godina</option>
-              </select>
-            )}
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-9 px-3 pr-8 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value="performance">Ukupna ocena</option>
-              <option value="successRate">Stopa uspešnosti</option>
-              <option value="speed">Brzina rada</option>
-              <option value="profit">Profit</option>
-            </select>
-
-            {onExport && (
-              <Button
-                type="secondary"
-                size="small"
-                onClick={() => onExport(technicianMetrics)}
-                prefix={<DownloadIcon size={16} />}
-              >
-                Export
-              </Button>
-            )}
-
-            {onRefresh && (
-              <Button
-                type="secondary"
-                size="small"
-                onClick={onRefresh}
-                prefix={<RefreshIcon size={16} />}
-              >
-                Osvježi
-              </Button>
-            )}
-          </div>
+    <div className={cx('mx-logdash-sec', className)}>
+      {/* Zaglavlje */}
+      <div className="mx-logdash-sec__head">
+        <div className="mx-logdash-sec__titles">
+          <h3 className="mx-logdash-sec__title">Poređenje tehničara</h3>
+          <p className="mx-logdash-sec__lead">Rangiranje prema performansama, brzini i zadovoljstvu korisnika</p>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="flex items-center space-x-2 mt-4">
-          {[
-            { id: 'all', label: 'Sve metrike' },
-            { id: 'performance', label: 'Performanse' },
-            { id: 'financial', label: 'Finansije' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setSelectedMetric(id)}
-              className={cn(
-                "px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                selectedMetric === id
-                  ? "bg-blue-100 text-blue-700 border border-blue-200"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mx-logdash-sec__tools">
+          {onTimeRangeChange && (
+            <Select size="sm" value={timeRange} onChange={(e) => onTimeRangeChange(e.target.value)} aria-label="Period">
+              <option value="7d">Poslednja 7 dana</option>
+              <option value="30d">Poslednja 30 dana</option>
+              <option value="90d">Poslednja 3 meseca</option>
+              <option value="180d">Poslednja 6 meseci</option>
+              <option value="365d">Poslednja godina</option>
+            </Select>
+          )}
+
+          <Select size="sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sortiranje">
+            <option value="performance">Ukupna ocena</option>
+            <option value="successRate">Stopa uspešnosti</option>
+            <option value="speed">Brzina rada</option>
+            <option value="profit">Profit</option>
+          </Select>
+
+          {onExport && (
+            <Btn size="sm" icon={Download} onClick={() => onExport(technicianMetrics)}>Export</Btn>
+          )}
+
+          {onRefresh && (
+            <Btn size="sm" icon={RefreshCw} onClick={onRefresh}>Osvježi</Btn>
+          )}
         </div>
       </div>
 
+      {/* Filter Buttons */}
+      <Choice
+        size="sm"
+        label="Metrike"
+        layoutId="mx-logdash-tech-metric"
+        value={selectedMetric}
+        onChange={setSelectedMetric}
+        options={[
+          { value: 'all', label: 'Sve metrike' },
+          { value: 'performance', label: 'Performanse' },
+          { value: 'financial', label: 'Finansije' }
+        ]}
+      />
+
       {/* Content */}
-      <div className="p-6">
-        {technicianMetrics.length === 0 ? (
-          <div className="text-center py-8">
-            <UsersIcon size={48} className="text-slate-400 mb-4 mx-auto" />
-            <h4 className="text-lg font-semibold text-slate-900 mb-2">Nema podataka o tehničarima</h4>
-            <p className="text-slate-600">Podaci će biti prikazani kada budu dostupni radni nalozi sa informacijama o tehničarima.</p>
+      {technicianMetrics.length === 0 ? (
+        <Panel>
+          <div className="sx-empty-block">
+            <h4>Nema podataka o tehničarima</h4>
+            <span>Podaci će biti prikazani kada budu dostupni radni nalozi sa informacijama o tehničarima.</span>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Ukupno tehničara</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{technicianMetrics.length}</h3>
-                  </div>
-                  <UsersIcon size={20} className="text-blue-600" />
-                </div>
-              </div>
+        </Panel>
+      ) : (
+        <>
+          {/* Summary Stats */}
+          <div className="sx-stats">
+            <Stat label="Ukupno tehničara" value={technicianMetrics.length} />
+            <Stat
+              label="Prosečna uspešnost"
+              value={`${technicianMetrics.length > 0
+                ? (technicianMetrics.reduce((sum, t) => sum + (t.successRate || 0), 0) / technicianMetrics.length).toFixed(1)
+                : '0.0'
+              }%`}
+            />
+            <Stat
+              label="Prosečno naloga/dan"
+              value={technicianMetrics.length > 0
+                ? (technicianMetrics.reduce((sum, t) => sum + (t.avgOrdersPerDay || t.ordersPerDay || 0), 0) / technicianMetrics.length).toFixed(1)
+                : '0.0'
+              }
+            />
+            <Stat label="Ukupni troškovi radnika" value={formatCurrency(technicianMetrics.reduce((sum, t) => sum + t.totalProfit, 0))} />
+          </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Prosečna uspešnost</p>
-                    <h3 className="text-2xl font-bold text-slate-900">
-                      {technicianMetrics.length > 0
-                        ? (technicianMetrics.reduce((sum, t) => sum + (t.successRate || 0), 0) / technicianMetrics.length).toFixed(1)
-                        : '0.0'
-                      }%
-                    </h3>
-                  </div>
-                  <CheckCircleIcon size={20} className="text-green-600" />
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4 border border-orange-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-orange-600 uppercase tracking-wider">Prosečno naloga/dan</p>
-                    <h3 className="text-2xl font-bold text-slate-900">
-                      {technicianMetrics.length > 0
-                        ? (technicianMetrics.reduce((sum, t) => sum + (t.avgOrdersPerDay || t.ordersPerDay || 0), 0) / technicianMetrics.length).toFixed(1)
-                        : '0.0'
-                      }
-                    </h3>
-                  </div>
-                  <BarChartIcon size={20} className="text-orange-600" />
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Ukupni troškovi radnika</p>
-                    <h3 className="text-2xl font-bold text-slate-900">
-                      {formatCurrency(technicianMetrics.reduce((sum, t) => sum + t.totalProfit, 0))}
-                    </h3>
-                  </div>
-                  <TrendingUpIcon size={20} className="text-purple-600" />
-                </div>
-              </div>
-            </div>
-
-            {/* Technician Rankings */}
+          {/* Technician Rankings */}
+          <Panel>
             {technicianMetrics.map((technician, index) => {
               const rank = index + 1;
               const badge = getPerformanceBadge(technician.performanceScore);
 
               return (
-                <div
-                  key={technician.id}
-                  className="bg-slate-50 rounded-xl p-6 border border-slate-200 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center justify-center w-12 h-12 bg-white rounded-xl border-2 border-slate-200">
-                        {getRankIcon(rank)}
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-slate-900">{technician.name}</h4>
-                        <div className="flex items-center space-x-3 mt-1">
-                          <div className={cn("px-2 py-1 rounded-full text-xs font-medium text-white", badge.color)}>
-                            {badge.label}
-                          </div>
-                          <span className="text-sm text-slate-500">
-                            {technician.totalOrders} naloga • {technician.experienceDays} dana rada
-                          </span>
-                        </div>
+                <div key={technician.id} className="mx-logdash-tech" style={{ '--i': index }}>
+                  <div className="mx-logdash-tech__head">
+                    <span className={cx('mx-logdash-tech__rank', rank === 1 && 'is-top')}>{getRankIcon(rank)}</span>
+                    <div className="mx-logdash-tech__who">
+                      <h4>{technician.name}</h4>
+                      <div className="mx-logdash-tech__meta">
+                        <State tone={badge.tone}>{badge.label}</State>
+                        <span>{technician.totalOrders} naloga • {technician.experienceDays} dana rada</span>
                       </div>
                     </div>
-
-                    <div className="text-right">
-                      <div className={cn("text-3xl font-bold", getPerformanceColor(technician.performanceScore || technician.overallScore || 0))}>
-                        {(technician.performanceScore || technician.overallScore || 0).toFixed(1)}
-                      </div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupna ocena</p>
+                    <div className="mx-logdash-tech__score">
+                      <b className="sx-num">{(technician.performanceScore || technician.overallScore || 0).toFixed(1)}</b>
+                      <span className="sx-label">Ukupna ocena</span>
                     </div>
                   </div>
 
                   {/* Metrics Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="mx-logdash-metrics">
                     {(selectedMetric === 'all' || selectedMetric === 'performance') && (
                       <>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Uspešnost</p>
-                          <p className="text-lg font-semibold text-green-600">
-                            {(technician.successRate || technician.completionRate || 0).toFixed(1)}%
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {technician.completedOrders}/{technician.totalOrders} završeno
-                          </p>
+                        <div className="mx-logdash-metric">
+                          <span className="sx-label">Uspešnost</span>
+                          <b>{(technician.successRate || technician.completionRate || 0).toFixed(1)}%</b>
+                          <small>{technician.completedOrders}/{technician.totalOrders} završeno</small>
                         </div>
 
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Brzina</p>
-                          <p className="text-lg font-semibold text-blue-600">
-                            {(technician.speedScore || 50).toFixed(1)}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {(technician.avgResponseTime || technician.totalWorkTime || 0).toFixed(0)}min odgovor
-                          </p>
+                        <div className="mx-logdash-metric">
+                          <span className="sx-label">Brzina</span>
+                          <b>{(technician.speedScore || 50).toFixed(1)}</b>
+                          <small>{(technician.avgResponseTime || technician.totalWorkTime || 0).toFixed(0)}min odgovor</small>
                         </div>
                       </>
                     )}
 
                     {(selectedMetric === 'all' || selectedMetric === 'performance') && (
                       <>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Otkazivanja</p>
-                          <p className="text-lg font-semibold text-red-600">
-                            {(technician.cancelRate || 0).toFixed(1)}%
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {technician.cancelledOrders} otkazano
-                          </p>
+                        <div className="mx-logdash-metric">
+                          <span className="sx-label">Otkazivanja</span>
+                          <b>{(technician.cancelRate || 0).toFixed(1)}%</b>
+                          <small>{technician.cancelledOrders} otkazano</small>
                         </div>
 
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Ukupno aktivnosti</p>
-                          <p className="text-lg font-semibold text-blue-600">
-                            {technician.totalActivities || technician.totalOrders || 0}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {(technician.avgOrdersPerDay || technician.ordersPerDay || 0).toFixed(1)}/dan
-                          </p>
+                        <div className="mx-logdash-metric">
+                          <span className="sx-label">Ukupno aktivnosti</span>
+                          <b>{technician.totalActivities || technician.totalOrders || 0}</b>
+                          <small>{(technician.avgOrdersPerDay || technician.ordersPerDay || 0).toFixed(1)}/dan</small>
                         </div>
                       </>
                     )}
 
                     {(selectedMetric === 'all' || selectedMetric === 'financial') && (
                       <>
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Deo profita kompanije</p>
-                          <p className="text-lg font-semibold text-purple-600">
-                            {formatCurrency(technician.totalProfit)}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {formatCurrency(technician.profitPerOrder)}/nalog
-                          </p>
+                        <div className="mx-logdash-metric">
+                          <span className="sx-label">Deo profita kompanije</span>
+                          <b>{formatCurrency(technician.totalProfit)}</b>
+                          <small>{formatCurrency(technician.profitPerOrder)}/nalog</small>
                         </div>
 
-                        <div>
-                          <p className="text-xs text-slate-500 uppercase tracking-wider">Efikasnost</p>
-                          <p className="text-lg font-semibold text-orange-600">
-                            {formatCurrency(technician.efficiency)}/h
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {(technician.avgWorkTime || technician.avgResponseTime || 0).toFixed(0)} min/nalog
-                          </p>
+                        <div className="mx-logdash-metric">
+                          <span className="sx-label">Efikasnost</span>
+                          <b>{formatCurrency(technician.efficiency)}/h</b>
+                          <small>{(technician.avgWorkTime || technician.avgResponseTime || 0).toFixed(0)} min/nalog</small>
                         </div>
                       </>
                     )}
                   </div>
 
                   {/* Territories */}
-                  <div className="mt-4 pt-4 border-t border-slate-200">
+                  <div className="mx-logdash-tags">
+                    <span className="sx-label">Teritorije</span>
                     <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Teritorije</p>
-                      <div className="flex flex-wrap gap-1">
-                        {(technician.territories || []).slice(0, 5).map((territory, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                            {territory}
-                          </span>
-                        ))}
-                        {(technician.territories || []).length > 5 && (
-                          <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
-                            +{(technician.territories || []).length - 5} više
-                          </span>
-                        )}
-                      </div>
+                      {(technician.territories || []).slice(0, 5).map((territory, idx) => (
+                        <span key={idx} className="sx-tag">{territory}</span>
+                      ))}
+                      {(technician.territories || []).length > 5 && (
+                        <span className="sx-tag is-info">+{(technician.territories || []).length - 5} više</span>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
-        )}
-      </div>
+          </Panel>
+        </>
+      )}
     </div>
   );
 };

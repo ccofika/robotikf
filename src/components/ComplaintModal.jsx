@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { XIcon, AlertIcon } from './icons/SvgIcons';
 import { workOrdersAPI } from '../services/api';
 import { toast } from '../utils/toast';
 import { formatRsd } from '../utils/rejectionPenalty';
+import Dialog from '../security/sx/Dialog';
+import { cx, Btn } from '../security/sx/ui';
+import { Note } from '../security/sx/layout';
+import { Field, Select, Textarea, Checkbox, DateField, TimeField } from '../security/sx/forms';
+import './WorkOrderDialogs.mx.css';
 
 const ADMIN_ROLES = ['admin', 'superadmin', 'supervisor'];
 
@@ -105,178 +109,124 @@ const ComplaintModal = ({ isOpen, workOrder, technicians = [], onClose, onFiled 
   const previewByTech = new Map((preview?.technicians || []).map(t => [t.technicianId, t]));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10050] p-4" onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full flex flex-col" style={{ maxHeight: '90vh' }} role="dialog" aria-modal="true" aria-labelledby="complaint-modal-title">
-        <div className="p-6 border-b border-slate-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <h3 id="complaint-modal-title" className="text-lg font-semibold text-slate-900">Reklamacija</h3>
-            <button onClick={onClose} disabled={submitting} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-              <XIcon size={20} className="text-slate-400" />
-            </button>
-          </div>
-          <p className="text-sm text-slate-600 mt-2">
-            Radovi kod korisnika su loše izvedeni — izaberite koga sklanjate sa naloga i kome dodeljujete ispravku.
-          </p>
-        </div>
-
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
-          {/* Koga sklanjamo */}
-          <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
-              {currentTechs.length > 1 ? 'Koga sklanjate sa naloga (jednog ili oba)' : 'Tehničar koji se sklanja sa naloga'}
-            </p>
-            <div className="space-y-2">
-              {currentTechs.map(tech => {
-                const checked = removeIds.includes(tech.id);
-                const techPreview = previewByTech.get(tech.id);
-                return (
-                  <label
-                    key={tech.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                      checked ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'
-                    } ${currentTechs.length === 1 ? 'cursor-default' : 'cursor-pointer'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={currentTechs.length === 1}
-                      onChange={() => toggleRemove(tech.id)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span className="text-sm flex-1">
-                      <span className="font-semibold text-slate-900">{tech.name}</span>
-                      {techPreview && !checked && (
-                        <span className="block text-xs text-slate-500 mt-1">
-                          {techPreview.paidAmount > 0 ? `Plaćen za nalog: ${formatRsd(techPreview.paidAmount)}.` : 'Nalog još nije plaćen.'}
+    <Dialog
+      onClose={onClose}
+      busy={submitting}
+      size="lg"
+      title="Reklamacija"
+      description="Radovi kod korisnika su loše izvedeni - izaberite koga sklanjate sa naloga i kome dodeljujete ispravku."
+      testId="complaint-dialog"
+      footer={<>
+        <Btn variant="ghost" onClick={onClose} disabled={submitting}>Odustani</Btn>
+        <Btn variant="danger" onClick={handleSubmit} disabled={!canSubmit} data-testid="complaint-submit">
+          {submitting ? 'Čuvanje...' : 'Evidentiraj reklamaciju'}
+        </Btn>
+      </>}
+    >
+      <div className="mx-wodlg-stack">
+        {/* Koga sklanjamo */}
+        <Field label={currentTechs.length > 1 ? 'Koga sklanjate sa naloga (jednog ili oba)' : 'Tehničar koji se sklanja sa naloga'}>
+          <div className="mx-wodlg-list">
+            {currentTechs.map(tech => {
+              const checked = removeIds.includes(tech.id);
+              const techPreview = previewByTech.get(tech.id);
+              return (
+                <div key={tech.id} className={cx('mx-wodlg-choice', checked && 'is-on')}>
+                  <Checkbox checked={checked} disabled={currentTechs.length === 1} onChange={() => toggleRemove(tech.id)} tone="danger">
+                    <span className="mx-wodlg-choice__title">{tech.name}</span>
+                    {techPreview && !checked && (
+                      <span className="mx-wodlg-hint">
+                        {techPreview.paidAmount > 0 ? `Plaćen za nalog: ${formatRsd(techPreview.paidAmount)}.` : 'Nalog još nije plaćen.'}
+                      </span>
+                    )}
+                    {techPreview && checked && (
+                      <span className="mx-wodlg-hint mx-wodlg-lines">
+                        <span>
+                          {techPreview.paidAmount > 0
+                            ? <>Ovaj nalog se ne plaća: <b className="mx-wodlg-bad">-{formatRsd(techPreview.orderDeductionAmount)}</b> (bio plaćen {formatRsd(techPreview.paidAmount)})</>
+                            : 'Ovaj nalog još nije plaćen - tehničar ga neće dobiti.'}
                         </span>
-                      )}
-                      {techPreview && checked && (
-                        <span className="block text-xs text-slate-600 mt-1 space-y-0.5">
-                          <span className="block">
-                            {techPreview.paidAmount > 0
-                              ? <>Ovaj nalog se ne plaća: <span className="text-red-700 font-semibold">-{formatRsd(techPreview.orderDeductionAmount)}</span> (bio plaćen {formatRsd(techPreview.paidAmount)})</>
-                              : 'Ovaj nalog još nije plaćen — tehničar ga neće dobiti.'}
-                          </span>
-                          <span className="block">
-                            {techPreview.extraDeduction?.kind === 'complaint_extra' ? (
-                              <>
-                                Skida se i poslednji nalog iste kategorije:{' '}
-                                <span className="font-semibold text-slate-800">
-                                  {techPreview.extraDeduction.tisJobId || techPreview.extraDeduction.tisId}
-                                </span>
-                                {techPreview.extraDeduction.address && ` · ${techPreview.extraDeduction.address}`}{' '}
-                                <span className="text-red-700 font-semibold">-{formatRsd(techPreview.extraDeduction.amount)}</span>
-                              </>
-                            ) : techPreview.extraDeduction?.amount > 0 ? (
-                              <>
-                                Nema drugog plaćenog naloga iste kategorije — skida se iznos jednog takvog naloga:{' '}
-                                <span className="text-red-700 font-semibold">-{formatRsd(techPreview.extraDeduction.amount)}</span>
-                              </>
-                            ) : (
-                              <span className="text-amber-700">{techPreview.note}</span>
-                            )}
-                          </span>
-                          {techPreview.potentialDeductionAmount > 0 && (
-                            <span className="block font-semibold text-red-700">
-                              Ukupan odbitak: -{formatRsd(techPreview.potentialDeductionAmount)}
-                            </span>
+                        <span>
+                          {techPreview.extraDeduction?.kind === 'complaint_extra' ? (
+                            <>
+                              Skida se i poslednji nalog iste kategorije:{' '}
+                              <b>{techPreview.extraDeduction.tisJobId || techPreview.extraDeduction.tisId}</b>
+                              {techPreview.extraDeduction.address && ` · ${techPreview.extraDeduction.address}`}{' '}
+                              <b className="mx-wodlg-bad">-{formatRsd(techPreview.extraDeduction.amount)}</b>
+                            </>
+                          ) : techPreview.extraDeduction?.amount > 0 ? (
+                            <>
+                              Nema drugog plaćenog naloga iste kategorije - skida se iznos jednog takvog naloga:{' '}
+                              <b className="mx-wodlg-bad">-{formatRsd(techPreview.extraDeduction.amount)}</b>
+                            </>
+                          ) : (
+                            <span className="mx-wodlg-warn">{techPreview.note}</span>
                           )}
                         </span>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+                        {techPreview.potentialDeductionAmount > 0 && (
+                          <b className="mx-wodlg-bad">
+                            Ukupan odbitak: -{formatRsd(techPreview.potentialDeductionAmount)}
+                          </b>
+                        )}
+                      </span>
+                    )}
+                  </Checkbox>
+                </div>
+              );
+            })}
           </div>
+        </Field>
 
-          {/* Novi tehničar */}
-          <div>
-            <p id="complaint-new-technician-label" className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Tehničar koji ispravlja nalog</p>
-            <select
-              aria-labelledby="complaint-new-technician-label"
-              value={newTechnicianId}
-              onChange={(e) => setNewTechnicianId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Izaberite tehničara</option>
-              {availableTechnicians.map(t => (
-                <option key={t._id} value={t._id}>{t.name}</option>
-              ))}
-            </select>
-            {preview?.newTechnician && (
-              <p className="text-xs text-slate-500 mt-1.5">
-                {preview.newTechnician.expectedPay
-                  ? `Za ispravku dobija ${formatRsd(preview.newTechnician.expectedPay)} kada nalog bude verifikovan.`
-                  : preview.newTechnician.paymentType === 'plata'
-                    ? 'Tehničar je na platu — ispravka se računa ka mesečnoj plati.'
-                    : 'Cena ovog tehničara za tip usluge nije postavljena na stranici Finansije.'}
-              </p>
-            )}
-          </div>
-
-          {/* Termin ispravke */}
-          <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Termin ispravke</p>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                aria-label="Datum ispravke"
-                value={fixDate}
-                onChange={(e) => setFixDate(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="time"
-                aria-label="Vreme ispravke"
-                value={fixTime}
-                onChange={(e) => setFixTime(e.target.value)}
-                className="w-32 px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Opis */}
-          <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Opis reklamacije (vidi ga tehničar koji ispravlja)</p>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Šta je loše urađeno kod korisnika..."
-              rows={3}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-            <AlertIcon size={14} className="mt-0.5 flex-shrink-0" />
-            <span>
-              Sklonjenim tehničarima se ovaj nalog ne plaća, a skida im se i poslednji plaćeni nalog iste kategorije
-              (obe stavke se vide u finansijama i mesečnom obračunu). Nalog se vraća u status „Nezavršen“ i plaća se
-              tehničaru koji ga ispravi, kada ispravka bude verifikovana.
-              {loadingPreview && ' Računam iznose...'}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-6 border-t border-slate-200 flex space-x-3 flex-shrink-0">
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
+        {/* Novi tehničar */}
+        <Field
+          label={<span id="complaint-new-technician-label">Tehničar koji ispravlja nalog</span>}
+          hint={preview?.newTechnician && (
+            preview.newTechnician.expectedPay
+              ? `Za ispravku dobija ${formatRsd(preview.newTechnician.expectedPay)} kada nalog bude verifikovan.`
+              : preview.newTechnician.paymentType === 'plata'
+                ? 'Tehničar je na platu - ispravka se računa ka mesečnoj plati.'
+                : 'Cena ovog tehničara za tip usluge nije postavljena na stranici Finansije.'
+          )}
+        >
+          <Select
+            aria-labelledby="complaint-new-technician-label"
+            value={newTechnicianId}
+            onChange={(e) => setNewTechnicianId(e.target.value)}
+            data-testid="complaint-new-technician"
           >
-            Odustani
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {submitting ? 'Čuvanje...' : 'Evidentiraj reklamaciju'}
-          </button>
-        </div>
+            <option value="">Izaberite tehničara</option>
+            {availableTechnicians.map(t => (
+              <option key={t._id} value={t._id}>{t.name}</option>
+            ))}
+          </Select>
+        </Field>
+
+        {/* Termin ispravke */}
+        <Field label="Termin ispravke">
+          <div className="mx-wodlg-when">
+            <DateField value={fixDate} onChange={setFixDate} aria-label="Datum ispravke" testId="complaint-fix-date" />
+            <TimeField value={fixTime} onChange={setFixTime} aria-label="Vreme ispravke" testId="complaint-fix-time" />
+          </div>
+        </Field>
+
+        {/* Opis */}
+        <Field label="Opis reklamacije (vidi ga tehničar koji ispravlja)">
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Šta je loše urađeno kod korisnika..."
+            rows={3}
+          />
+        </Field>
+
+        <Note tone="warn">
+          Sklonjenim tehničarima se ovaj nalog ne plaća, a skida im se i poslednji plaćeni nalog iste kategorije
+          (obe stavke se vide u finansijama i mesečnom obračunu). Nalog se vraća u status „Nezavršen“ i plaća se
+          tehničaru koji ga ispravi, kada ispravka bude verifikovana.
+          {loadingPreview && ' Računam iznose...'}
+        </Note>
       </div>
-    </div>
+    </Dialog>
   );
 };
 

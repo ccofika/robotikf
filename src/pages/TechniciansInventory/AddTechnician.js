@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BackIcon, SaveIcon, UserIcon } from '../../components/icons/SvgIcons';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { techniciansAPI } from '../../services/api';
-import './AddTechnician.css';
+import { Btn } from '../../security/sx/ui';
+import { PageHead, Panel, Note } from '../../security/sx/layout';
+import { Field, Input } from '../../security/sx/forms';
+import { LinkBtn } from '../../montaza/ui';
+import './AddTechnician.mx.css';
+
+// zvezdica obaveznog polja
+const Req = () => <span style={{ color: 'var(--sx-bad-text)' }}>*</span>;
 
 const AddTechnician = () => {
   const [formData, setFormData] = useState({
@@ -15,15 +22,15 @@ const AddTechnician = () => {
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   const navigate = useNavigate();
-  
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     setFormData({
       ...formData,
       [name]: value
     });
-    
+
     // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors(prev => ({
@@ -31,54 +38,54 @@ const AddTechnician = () => {
         [name]: ''
       }));
     }
-    
+
     // Clear general error
     if (error) {
       setError('');
     }
   };
-  
+
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.name.trim()) {
       errors.name = 'Ime je obavezno polje';
     } else if (formData.name.trim().length < 2) {
       errors.name = 'Ime mora imati najmanje 2 karaktera';
     }
-    
+
     if (!formData.password) {
       errors.password = 'Lozinka je obavezna';
     } else if (formData.password.length < 6) {
       errors.password = 'Lozinka mora imati najmanje 6 karaktera';
     }
-    
+
     if (!formData.confirmPassword) {
       errors.confirmPassword = 'Potvrda lozinke je obavezna';
     } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Lozinke se ne podudaraju';
     }
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const data = {
         name: formData.name.trim(),
         password: formData.password
       };
-      
+
       await techniciansAPI.create(data);
       toast.success(`Tehničar "${formData.name}" je uspešno dodat!`);
       navigate('/technicians');
@@ -91,28 +98,38 @@ const AddTechnician = () => {
       setLoading(false);
     }
   };
-  
+
   return (
-    <div className="add-technician fade-in">
-      <div className="page-header">
-        <h1 className="page-title">
-          <UserIcon />
-          Dodaj novog tehničara
-        </h1>
-        <Link to="/technicians" className="btn">
-          <BackIcon /> Povratak na listu
-        </Link>
-      </div>
-      
-      <div className="card">
-        {error && <div className="alert alert-danger">{error}</div>}
-        
-        <form onSubmit={handleSubmit} className="technician-form">
-          <div className="form-group">
-            <label htmlFor="name">
-              Ime tehničara <span style={{ color: 'var(--red-500)' }}>*</span>
-            </label>
-            <input
+    <div className="sx-page" data-testid="page-technicians-add">
+      <PageHead
+        eyebrow="Montaža · Tehničari"
+        title="Dodaj novog tehničara"
+        actions={<LinkBtn to="/technicians" icon={ArrowLeft}>Povratak na listu</LinkBtn>}
+      />
+
+      <Panel
+        footer={<>
+          <LinkBtn
+            to="/technicians"
+            variant="ghost"
+            onClick={(e) => {
+              if (loading) {
+                e.preventDefault();
+              }
+            }}
+          >
+            Odustani
+          </LinkBtn>
+          <Btn type="submit" form="add-technician-form" variant="primary" icon={Save} disabled={loading}>
+            {loading ? 'Čuvanje...' : 'Sačuvaj tehničara'}
+          </Btn>
+        </>}
+      >
+        {error && <Note tone="bad" className="mx-mb">{error}</Note>}
+
+        <form id="add-technician-form" onSubmit={handleSubmit} className="sx-form mx-addtech">
+          <Field label={<>Ime tehničara <Req /></>} htmlFor="name" error={validationErrors.name} wide>
+            <Input
               type="text"
               id="name"
               name="name"
@@ -122,18 +139,12 @@ const AddTechnician = () => {
               disabled={loading}
               autoFocus
               required
-              className={validationErrors.name ? 'error' : ''}
+              invalid={!!validationErrors.name}
             />
-            {validationErrors.name && (
-              <span className="validation-error">{validationErrors.name}</span>
-            )}
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">
-              Lozinka <span style={{ color: 'var(--red-500)' }}>*</span>
-            </label>
-            <input
+          </Field>
+
+          <Field label={<>Lozinka <Req /></>} htmlFor="password" error={validationErrors.password}>
+            <Input
               type="password"
               id="password"
               name="password"
@@ -142,18 +153,12 @@ const AddTechnician = () => {
               placeholder="Unesite lozinku (min. 6 karaktera)"
               disabled={loading}
               required
-              className={validationErrors.password ? 'error' : ''}
+              invalid={!!validationErrors.password}
             />
-            {validationErrors.password && (
-              <span className="validation-error">{validationErrors.password}</span>
-            )}
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="confirmPassword">
-              Potvrda lozinke <span style={{ color: 'var(--red-500)' }}>*</span>
-            </label>
-            <input
+          </Field>
+
+          <Field label={<>Potvrda lozinke <Req /></>} htmlFor="confirmPassword" error={validationErrors.confirmPassword}>
+            <Input
               type="password"
               id="confirmPassword"
               name="confirmPassword"
@@ -162,36 +167,11 @@ const AddTechnician = () => {
               placeholder="Potvrdite lozinku"
               disabled={loading}
               required
-              className={validationErrors.confirmPassword ? 'error' : ''}
+              invalid={!!validationErrors.confirmPassword}
             />
-            {validationErrors.confirmPassword && (
-              <span className="validation-error">{validationErrors.confirmPassword}</span>
-            )}
-          </div>
-          
-          <div className="form-buttons">
-            <button 
-              type="submit" 
-              className="btn btn-primary"
-              disabled={loading}
-            >
-              <SaveIcon /> 
-              {loading ? 'Čuvanje...' : 'Sačuvaj tehničara'}
-            </button>
-            <Link 
-              to="/technicians" 
-              className="btn btn-cancel"
-              onClick={(e) => {
-                if (loading) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              Odustani
-            </Link>
-          </div>
+          </Field>
         </form>
-      </div>
+      </Panel>
     </div>
   );
 };

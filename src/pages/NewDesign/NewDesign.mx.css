@@ -1,0 +1,226 @@
+/* =============================================================================
+   New Design (samo supervizor): dodaci uz sx- klase (security/sx) i mx- klase (montaza.css).
+   Sve je pod .mx-nd (koren stranice) ili .sx-portal (dijalog): ovaj fajl se učitava pre sx.css,
+   pa pravilo sa jednom klasom ne bi pobedilo osnovne stilove. Boje samo iz tokena (tokens.css).
+   ============================================================================= */
+
+/* ---------- okvir ---------- */
+.mx-nd > * + * { margin-top: 20px; }
+.mx-nd > .mx-nd-sec { margin-top: 48px; }
+.mx-nd .mx-nd-headsearch { flex: 1 1 220px; max-width: 300px; }
+.mx-nd .sx-head__actions .mx-nd-bell { flex: 0 0 auto; }
+.mx-nd .mx-nd-ink { background: var(--sx-btn-primary-bg); color: var(--sx-btn-primary-text); }
+.mx-nd .mx-nd-muted { font-size: 13px; color: var(--sx-muted); }
+.mx-nd .mx-nd-h3 { font-size: 15px; font-weight: 650; line-height: 1.3; color: var(--sx-text); }
+.mx-nd .mx-nd-spin > svg { animation: sx-spin 0.9s linear infinite; }
+/* panel sa širokim radnjama: na uskom prostoru radnje prelaze ispod naslova */
+.mx-nd .mx-nd-wrap > .sx-panel__head { flex-wrap: wrap; }
+.mx-nd .mx-nd-wrap > .sx-panel__head > .sx-panel__titles { flex: 1 1 220px; }
+@media (prefers-reduced-motion: reduce) { .mx-nd .mx-nd-spin > svg { animation: none; } }
+
+/* ---------- brojke koje su linkovi ---------- */
+.mx-nd .mx-nd-lstat { color: var(--sx-text); }
+.mx-nd .mx-nd-lstat__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.mx-nd .mx-nd-lstat__label { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--sx-muted); }
+.mx-nd .mx-nd-lstat__label .sx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-nd .mx-nd-up { font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-text-2); }
+.mx-nd .mx-nd-up.is-ok { color: var(--sx-ok-text); }
+@container page (max-width: 560px) { .mx-nd .mx-nd-lstat__label svg { display: none; } }
+
+/* ---------- stubići po mesecima ---------- */
+.mx-nd .mx-nd-bars { display: flex; align-items: flex-end; gap: clamp(6px, 1.4vw, 16px); padding-top: 6px; }
+.mx-nd .mx-nd-bars__col { flex: 1 1 0; min-width: 0; display: grid; gap: 10px; }
+.mx-nd .mx-nd-bars__track { display: flex; align-items: flex-end; height: 200px; }
+.mx-nd .mx-nd-bars__bar { width: 100%; border-radius: 8px 8px 4px 4px; background: var(--sx-surface-3); transition: background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) {
+  .mx-nd .mx-nd-bars__col:not(.is-on):hover .mx-nd-bars__bar { background: var(--sx-line-3); transition-duration: var(--hover-in); }
+}
+.mx-nd .mx-nd-bars__col.is-on .mx-nd-bars__bar { background: var(--sx-btn-primary-bg); }
+.mx-nd .mx-nd-bars__label { text-align: center; font-size: 12px; color: var(--sx-muted); }
+.mx-nd .mx-nd-bars__col.is-on .mx-nd-bars__label { font-weight: 650; color: var(--sx-text); }
+@container page (min-width: 980px) { .mx-nd .mx-nd-quick { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- traka napretka ---------- */
+.mx-nd .mx-nd-meters { display: grid; gap: 18px; }
+.mx-nd .mx-nd-meter { display: grid; gap: 7px; margin-top: 4px; }
+.mx-nd .mx-nd-meter__top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--sx-muted); }
+.mx-nd .mx-nd-meter__top b { font-family: var(--sx-font-mono); font-size: 12.5px; font-weight: 600; color: var(--sx-text); }
+.mx-nd .mx-nd-meter__track { display: block; flex: 1 1 auto; height: 6px; border-radius: 999px; background: var(--sx-surface-3); overflow: hidden; }
+.mx-nd .mx-nd-meter__fill { display: block; height: 100%; border-radius: inherit; background: var(--sx-btn-primary-bg); }
+.mx-nd .mx-nd-meter__fill.is-accent { background: var(--sx-accent); }
+.mx-nd .mx-nd-meter__fill.is-ok { background: var(--sx-ok); }
+
+/* ---------- tri panela: stanja, aktivnost, učinak ---------- */
+.mx-nd .mx-nd-grid3 { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@container page (min-width: 760px) { .mx-nd .mx-nd-grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 1100px) { .mx-nd .mx-nd-grid3 { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); } }
+.mx-nd .mx-nd-brk { display: grid; }
+.mx-nd .mx-nd-brk__row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 11px 0; border-top: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-brk__row:first-child { border-top: 0; padding-top: 2px; }
+.mx-nd .mx-nd-brk__label { display: inline-flex; align-items: center; gap: 10px; min-width: 0; font-size: 13.5px; color: var(--sx-text-2); }
+.mx-nd .mx-nd-brk__pct { font-family: var(--sx-font-mono); font-size: 12px; color: var(--sx-muted); }
+.mx-nd .mx-nd-brk__n { min-width: 44px; text-align: right; font-family: var(--sx-font-mono); font-size: 14px; font-weight: 650; color: var(--sx-text); }
+.mx-nd .mx-nd-res { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-nd .mx-nd-none { padding: 24px 0; text-align: center; font-size: 13.5px; color: var(--sx-muted); }
+.mx-nd .mx-nd-today { display: grid; justify-items: center; gap: 6px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-today__n { font-size: 34px; color: var(--sx-text); }
+.mx-nd .mx-nd-fin__go { place-items: center; align-content: center; }
+
+/* male brojke u nizu (resursi, pregled naloga) */
+.mx-nd .mx-nd-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--sx-line); border-radius: 14px; background: var(--sx-line); overflow: hidden; }
+.mx-nd .mx-nd-mini.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mx-nd .mx-nd-mini > .sx-stat { gap: 5px; padding: 11px 12px 10px; }
+.mx-nd .mx-nd-mini > .sx-stat::before { display: none; }
+.mx-nd .mx-nd-mini .sx-stat__num { font-size: 24px; }
+.mx-nd .mx-nd-mini .sx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* razdelnik "Pregled dizajna" */
+.mx-nd .mx-nd-divider { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; text-align: center; }
+.mx-nd .mx-nd-divider::before, .mx-nd .mx-nd-divider::after { content: ''; flex: 1 0 24px; height: 1px; background: var(--sx-line-2); }
+.mx-nd .mx-nd-divider .sx-label { flex: 0 1 auto; min-width: 0; color: var(--sx-faint); }
+
+/* ---------- tehničari: kartice u spisku (pregled dizajna i radni nalozi) ---------- */
+.mx-nd .mx-nd-techlist { display: grid; gap: 8px; align-content: start; }
+.mx-nd .mx-nd-tech { display: grid; gap: 10px; min-width: 0; padding: 12px; border-radius: 14px; border: 1px solid var(--sx-line); background: var(--sx-surface); cursor: pointer; transition: border-color var(--hover-out) var(--ease-move), box-shadow var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) {
+  .mx-nd .mx-nd-tech:not(.is-on):hover { border-color: var(--sx-line-3); transition-duration: var(--hover-in); }
+}
+.mx-nd .mx-nd-tech.is-on { border-color: var(--sx-line-3); box-shadow: inset 3px 0 0 var(--sx-btn-primary-bg), var(--sx-shadow-card); }
+.mx-nd .mx-nd-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mx-nd .mx-nd-who__text { display: grid; gap: 1px; min-width: 0; }
+.mx-nd .mx-nd-who__text > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; line-height: 1.35; color: var(--sx-text); }
+.mx-nd .mx-nd-who__text > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sx-font-mono); font-size: 11.5px; color: var(--sx-muted); }
+.mx-nd .mx-nd-tstats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.mx-nd .mx-nd-tstat { display: grid; justify-items: center; gap: 3px; padding: 7px 4px 6px; border-radius: 10px; background: var(--sx-surface-2); transition: background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) {
+  .mx-nd .mx-nd-tstat:hover { background: var(--sx-surface-3); transition-duration: var(--hover-in); }
+}
+.mx-nd .mx-nd-tstat b { font-family: var(--sx-font-display); font-stretch: 62%; font-size: 18px; font-weight: 650; line-height: 1; color: var(--sx-text); }
+.mx-nd .mx-nd-tstat small { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sx-faint); }
+.mx-nd .mx-nd-tstat.is-ok b { color: var(--sx-ok-text); }
+.mx-nd .mx-nd-tstat.is-warn b { color: var(--sx-warn-text); }
+.mx-nd .mx-nd-tstat.is-info b { color: var(--sx-accent-text); }
+.mx-nd .mx-nd-rate { display: flex; align-items: center; gap: 8px; }
+.mx-nd .mx-nd-rate .sx-mono { font-size: 11px; color: var(--sx-muted); }
+
+/* ---------- pregled dizajna: radni nalozi po tehničarima ---------- */
+.mx-nd .mx-nd-twp__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 20px 14px; }
+.mx-nd .mx-nd-twp__bar .sx-search { flex: 1 1 240px; max-width: 380px; }
+.mx-nd .mx-nd-twp__bar .sx-select { width: auto; min-width: 150px; }
+.mx-nd .mx-nd-split { container: ndsplit / inline-size; border-top: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-split__in { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mx-nd .mx-nd-split__side { min-width: 0; padding: 12px; border-bottom: 1px solid var(--sx-line); background: var(--sx-surface-2); }
+.mx-nd .mx-nd-split__main { display: flex; flex-direction: column; min-width: 0; }
+.mx-nd .mx-nd-split__main .mx-pager { margin-top: auto; }
+@container ndsplit (min-width: 860px) {
+  .mx-nd .mx-nd-split__in { grid-template-columns: 280px minmax(0, 1fr); min-height: 520px; }
+  .mx-nd .mx-nd-split__side { border-bottom: 0; border-right: 1px solid var(--sx-line); border-radius: 0 0 0 var(--sx-radius-card); }
+}
+@container ndsplit (max-width: 859px) {
+  .mx-nd .mx-nd-split .mx-nd-techlist { grid-auto-flow: column; grid-auto-columns: minmax(230px, 78%); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 4px; }
+  .mx-nd .mx-nd-split .mx-nd-tech { scroll-snap-align: start; }
+}
+.mx-nd .mx-nd-twp__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 14px 20px 10px; }
+.mx-nd .mx-nd-twp__count { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--sx-muted); }
+.mx-nd .mx-nd-twp__chips { padding: 0 20px 14px; border-bottom: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-verified { color: var(--sx-ok-text); }
+.mx-nd .mx-nd-st { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mx-nd .mx-nd-addr { min-width: 150px; }
+/* kartice na uskom prostoru: dugi nizovi bez razmaka (npr. adresa "GRAD,OPŠTINA,ULICA") se lome umesto da prelivaju */
+@container tbl (max-width: 760px) { .mx-nd .sx-table td { overflow-wrap: anywhere; } }
+
+/* ---------- pregled dizajna: detalji radnog naloga ---------- */
+.mx-nd .mx-nd-wod__in { container: ndwod / inline-size; border-top: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; background: var(--sx-line); border-bottom: 1px solid var(--sx-line); }
+@container ndwod (min-width: 520px) { .mx-nd .mx-nd-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container ndwod (min-width: 960px) { .mx-nd .mx-nd-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.mx-nd .mx-nd-fact { display: grid; align-content: start; gap: 3px; min-width: 0; padding: 14px 20px; background: var(--sx-surface-2); }
+.mx-nd .mx-nd-fact__k { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; color: var(--sx-faint); }
+.mx-nd .mx-nd-fact b { font-size: 14px; font-weight: 650; color: var(--sx-text); }
+.mx-nd .mx-nd-fact > span:last-child { font-size: 12.5px; color: var(--sx-muted); overflow-wrap: anywhere; }
+.mx-nd .mx-nd-ids { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding: 12px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-id { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; color: var(--sx-text-2); overflow-wrap: anywhere; }
+.mx-nd .mx-nd-wod__main { display: grid; grid-template-columns: minmax(0, 1fr); }
+@container ndwod (min-width: 960px) {
+  .mx-nd .mx-nd-wod__main { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .mx-nd .mx-nd-wod__left { border-right: 1px solid var(--sx-line); }
+}
+@container ndwod (max-width: 959px) { .mx-nd .mx-nd-wod__right { border-top: 1px solid var(--sx-line); } }
+@container ndwod (max-width: 420px) { .mx-nd .mx-nd-mini.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mx-nd .mx-nd-wsec { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 16px 20px; }
+.mx-nd .mx-nd-wsec + .mx-nd-wsec, .mx-nd .mx-nd-wsec + .mx-nd-two { border-top: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-wsec.is-flush { padding: 16px 0 4px; }
+.mx-nd .mx-nd-wsec.is-flush > .mx-nd-wsec__head { padding: 0 20px; }
+.mx-nd .mx-nd-wsec__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mx-nd .mx-nd-sl { display: inline-flex; align-items: center; gap: 6px; }
+.mx-nd .mx-nd-text { font-size: 13.5px; line-height: 1.55; color: var(--sx-text-2); }
+.mx-nd .mx-nd-quote { padding: 2px 0 2px 12px; border-left: 2px solid var(--sx-line-3); font-size: 13.5px; line-height: 1.55; color: var(--sx-text-2); }
+.mx-nd .mx-nd-two { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.mx-nd .mx-nd-two.is-split { gap: 0; }
+@container ndwod (min-width: 640px) {
+  .mx-nd .mx-nd-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mx-nd .mx-nd-two.is-split > .mx-nd-wsec + .mx-nd-wsec { border-top: 0; border-left: 1px solid var(--sx-line); }
+}
+.mx-nd .mx-nd-blk { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.mx-nd .mx-nd-mats { display: grid; }
+.mx-nd .mx-nd-mat { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13px; color: var(--sx-text-2); }
+.mx-nd .mx-nd-pics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.mx-nd .mx-nd-pic { display: grid; place-items: center; aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--sx-line); background: var(--sx-surface-2); color: var(--sx-faint); }
+.mx-nd .mx-nd-hist { display: grid; gap: 4px; }
+.mx-nd .mx-nd-hist__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.mx-nd .mx-nd-hist__top .sx-mono, .mx-nd .mx-nd-hist__move { font-size: 12px; color: var(--sx-muted); }
+.mx-nd .mx-nd-hist__move { display: flex; gap: 6px; }
+
+/* ---------- radni nalozi po tehničarima (pravi podaci) ---------- */
+.mx-nd .mx-nd-wos > * + * { margin-top: 16px; }
+.mx-nd .mx-nd-wos__title { font-size: clamp(24px, 1vw + 16px, 34px); }
+.mx-nd .mx-nd-wos .sx-toolbar .sx-search { flex: 1 1 300px; max-width: 440px; }
+.mx-nd .mx-nd-techs { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.mx-nd .mx-nd-techs > .sx-card { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.mx-nd .mx-nd-techs__sidehead { display: grid; gap: 4px; padding: 16px 16px 12px; border-bottom: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-techs__sidehead .sx-search { margin-top: 8px; }
+.mx-nd .mx-nd-techs__list { padding: 12px; }
+.mx-nd .mx-nd-techs__head { display: grid; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-techs__title { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.mx-nd .mx-nd-techs__title .sx-select { width: auto; min-width: 170px; }
+.mx-nd .mx-nd-active { align-items: center; }
+.mx-nd .mx-nd-techs__body { min-width: 0; }
+.mx-nd .mx-nd-tablebar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 12px 20px; border-bottom: 1px solid var(--sx-line); }
+.mx-nd .mx-nd-sortth { cursor: pointer; user-select: none; }
+.mx-nd .mx-nd-sortdir { margin-left: 4px; color: var(--sx-text); }
+/* tabela sa sortiranjem: u režimu kartica (uska) zaglavlja ostaju kao pilule iznad kartica, da sortiranje radi svuda */
+@container tbl (max-width: 760px) {
+  .mx-nd .mx-nd-sorttable thead { display: block; }
+  .mx-nd .mx-nd-sorttable thead tr { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 12px 0; }
+  .mx-nd .mx-nd-sorttable thead th, .mx-nd .mx-nd-sorttable thead th:first-child, .mx-nd .mx-nd-sorttable thead th:last-child { position: static; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--sx-line-2); border-radius: 999px; background: var(--sx-surface); }
+  .mx-nd .mx-nd-sorttable thead th[aria-sort] { border-color: var(--sx-btn-primary-bg); color: var(--sx-text); }
+  .mx-nd .mx-nd-sorttable thead th:not(.mx-nd-sortth) { display: none; }
+}
+@media (hover: none) { .mx-nd .mx-nd-sorttable thead th.mx-nd-sortth { min-height: 40px; } }
+.mx-nd .mx-nd-pick { justify-items: center; margin: auto; text-align: center; }
+@container page (min-width: 900px) {
+  .mx-nd .mx-nd-techs { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); height: calc(100vh - 450px); min-height: 600px; }
+  .mx-nd .mx-nd-techs__list, .mx-nd .mx-nd-techs__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+}
+@container page (max-width: 899px) {
+  .mx-nd .mx-nd-techs__list { grid-auto-flow: column; grid-auto-columns: minmax(230px, 78%); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; }
+  .mx-nd .mx-nd-techs__list > .mx-nd-tech { scroll-snap-align: start; }
+}
+
+/* ---------- dijalog: status korisnika (u portalu) ---------- */
+.sx-portal .mx-nd-statuses { display: grid; gap: 8px; }
+.sx-portal .mx-nd-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sx-line-2); background: var(--sx-surface); font-size: 13.5px; line-height: 1.45; color: var(--sx-text); text-align: left; transition: border-color var(--hover-out) var(--ease-move), background-color var(--hover-out) var(--ease-move); }
+@media (hover: hover) and (pointer: fine) {
+  .sx-portal .mx-nd-status:hover { border-color: var(--sx-line-3); background: var(--sx-surface-2); transition-duration: var(--hover-in); }
+}
+.sx-portal .mx-nd-status.is-on { border-color: var(--sx-accent); background: var(--sx-accent-soft); }
+.sx-portal .mx-nd-status.is-on svg { color: var(--sx-accent-text); }
+
+/* ---------- telefon ---------- */
+@media (max-width: 639px) {
+  .mx-nd .mx-nd-twp__bar, .mx-nd .mx-nd-twp__head, .mx-nd .mx-nd-twp__chips, .mx-nd .mx-nd-fact, .mx-nd .mx-nd-ids,
+  .mx-nd .mx-nd-wsec, .mx-nd .mx-nd-techs__head, .mx-nd .mx-nd-tablebar { padding-left: 16px; padding-right: 16px; }
+  .mx-nd .mx-nd-wsec.is-flush { padding-left: 0; padding-right: 0; }
+  .mx-nd .mx-nd-wsec.is-flush > .mx-nd-wsec__head { padding: 0 16px; }
+}

@@ -1,0 +1,10 @@
+/* Zaduženje opreme: izabrani red, kućica u kartici (telefon), broj izabranih */
+.sx-table tbody tr.mx-ae-on, .sx-table tbody tr.is-click.mx-ae-on:hover { background: var(--sx-accent-soft); }
+.mx-ae-pick { width: 88px; }
+.mx-ae-count { font-size: 13.5px; color: var(--sx-muted); white-space: nowrap; }
+.mx-ae-count b { font-weight: 650; color: var(--sx-text); }
+.mx-ae-count--foot { margin-right: auto; align-self: center; }
+@container tbl (max-width: 760px) {
+  .mx-ae-table td.mx-ae-pick { position: absolute; top: 10px; right: 10px; width: auto; }
+  .sx-table.mx-ae-table td.is-head { padding-right: 44px; }
+}

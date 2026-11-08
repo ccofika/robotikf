@@ -1,0 +1,46 @@
+/* Moja oprema, Moji materijali, Moja osnovna oprema (tehničar).
+   Pravila su pod .mx-tinv jer se ovaj fajl učitava pre sx osnove (ista težina bi izgubila). Boje samo iz tokena. */
+
+/* oznaka "povuci nadole za osvežavanje" (telefon): pilula na vrhu ekrana dok traje osvežavanje
+   (na telefonu ispod gornje trake ljuske od 58 px) */
+.mx-tinv .mx-tinv-ptr {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--sx-toast-bg);
+  color: var(--sx-toast-text);
+  box-shadow: var(--sx-shadow-toast);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -16px);
+  transition: opacity 200ms linear, transform 300ms var(--ease-enter);
+}
+.mx-tinv .mx-tinv-ptr.is-on { opacity: 1; transform: translate(-50%, 0); }
+.mx-tinv .mx-tinv-ptr.is-on svg { animation: sx-spin 0.9s linear infinite; }
+@media (max-width: 767px) { .mx-tinv .mx-tinv-ptr { top: 70px; } }
+
+/* tabela naziv + količina (materijali, osnovna oprema): na uskom prostoru jedan red, naziv levo i količina desno
+   (natpis "Količina" se ne prikazuje, jedinica "kom" je uz broj) */
+@container tbl (max-width: 760px) {
+  .mx-tinv .mx-tinv-qtable tbody tr { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .mx-tinv .mx-tinv-qtable td.is-head { grid-column: auto; }
+  .mx-tinv .mx-tinv-qtable td.is-num { text-align: right; }
+  .mx-tinv .mx-tinv-qtable td[data-label]::before { display: none; }
+}
+
+/* potvrda opreme (dijalog preko cele aplikacije): koja je stavka po redu, traka napretka, prethodna/sledeća */
+.sx-dialog .mx-econf { display: grid; gap: 14px; }
+.sx-dialog .mx-econf__progress { display: grid; gap: 8px; }
+.sx-dialog .mx-econf__bar { height: 4px; border-radius: 4px; background: var(--sx-surface-3); overflow: hidden; }
+.sx-dialog .mx-econf__bar > span { display: block; height: 100%; border-radius: inherit; background: var(--sx-btn-primary-bg); transition: width 300ms var(--ease-move); }
+.sx-dialog .mx-econf__nav { display: flex; justify-content: space-between; gap: 8px; }
