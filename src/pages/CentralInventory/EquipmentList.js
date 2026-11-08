@@ -459,6 +459,7 @@ const EquipmentList = () => {
   return (
     <div className="sx-page" data-testid="page-equipment">
       <PageHead
+        className="mx-eq-head"
         eyebrow="Montaža · Inventar"
         title="Pregled opreme"
         lead={`Server-side pagination - ${pagination.totalCount} komada opreme`}
@@ -472,57 +473,29 @@ const EquipmentList = () => {
 
       {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
-      <Choice
-        size="sm"
-        scroll
-        className="mx-eq-cats"
-        label="Kategorije"
-        layoutId="mx-eq-cat"
-        value={selectedCategory}
-        onChange={setSelectedCategory}
-        options={[
-          { value: 'all', label: 'Sve kategorije', count: getCategoryCount('all') },
-          ...categories
-            .filter(category => getCategoryCount(category) > 0)
-            .map(category => ({ value: category, label: formatCategoryName(category), count: getCategoryCount(category) }))
-        ]}
-      />
+      {/* Traka sa kategorijama (isto mesto kao ranije): pilule po sredini, na telefonu jedan red koji se pomera */}
+      <div className="mx-eq-catbar">
+        <Choice
+          size="sm"
+          scroll
+          label="Kategorije"
+          layoutId="mx-eq-cat"
+          value={selectedCategory}
+          onChange={setSelectedCategory}
+          options={[
+            { value: 'all', label: 'Sve kategorije', count: getCategoryCount('all') },
+            ...categories
+              .filter(category => getCategoryCount(category) > 0)
+              .map(category => ({ value: category, label: formatCategoryName(category), count: getCategoryCount(category) }))
+          ]}
+        />
+      </div>
 
       <div className="sx-stats">
         <Stat label={selectedCategory === 'all' ? 'Ukupno opreme' : `${formatCategoryName(selectedCategory)}`} value={statNum(dashboardStats.total)} />
         <Stat label="U magacinu" value={statNum(dashboardStats.inWarehouse)} small={dashboardLoading ? null : `${pctOf(dashboardStats.inWarehouse)}%`} />
         <Stat label="Zaduženo" value={statNum(dashboardStats.assigned)} small={dashboardLoading ? null : `${pctOf(dashboardStats.assigned)}%`} />
       </div>
-
-      <Toolbar>
-        <SearchField value={searchTerm} onChange={onSearch} placeholder="Pretraži po serijskom broju ili opisu..." />
-        <Select
-          size="sm"
-          aria-label="Lokacija"
-          value={locationFilter}
-          onChange={(e) => {
-            setLocationFilter(e.target.value);
-            setPagination(prev => ({ ...prev, currentPage: 1 }));
-          }}
-        >
-          {locationOptions.map((location, idx) => (
-            <option key={idx} value={location.value}>{location.label}</option>
-          ))}
-        </Select>
-        {locationFilter && (
-          <Btn size="sm" variant="primary" icon={Download} onClick={handleExportToExcel} disabled={isExporting}>
-            {isExporting ? 'Eksportujem...' : 'Eksportuj u Excel'}
-          </Btn>
-        )}
-        <div className="sx-toolbar__end">
-          {hasFilters && <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Obriši filtere</Btn>}
-          <ColumnMenu
-            columns={{ description: 'Opis', serialNumber: 'Serijski broj', location: 'Lokacija', assignedAt: 'Zaduženo', actions: 'Akcije' }}
-            visible={visibleColumns}
-            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
-          />
-        </div>
-      </Toolbar>
 
       {/* Oprema po tipu: kad je izabran tehničar ili magacin (dve stavke u redu) */}
       {showByType && (
@@ -558,6 +531,36 @@ const EquipmentList = () => {
           </div>
         </Panel>
       )}
+
+      <Toolbar>
+        <SearchField value={searchTerm} onChange={onSearch} placeholder="Pretraži po serijskom broju ili opisu..." />
+        <Select
+          size="sm"
+          aria-label="Lokacija"
+          value={locationFilter}
+          onChange={(e) => {
+            setLocationFilter(e.target.value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+          }}
+        >
+          {locationOptions.map((location, idx) => (
+            <option key={idx} value={location.value}>{location.label}</option>
+          ))}
+        </Select>
+        {locationFilter && (
+          <Btn size="sm" variant="primary" icon={Download} onClick={handleExportToExcel} disabled={isExporting}>
+            {isExporting ? 'Eksportujem...' : 'Eksportuj u Excel'}
+          </Btn>
+        )}
+        <div className="sx-toolbar__end">
+          {hasFilters && <Btn size="sm" variant="ghost" icon={X} onClick={clearAllFilters}>Obriši filtere</Btn>}
+          <ColumnMenu
+            columns={{ description: 'Opis', serialNumber: 'Serijski broj', location: 'Lokacija', assignedAt: 'Zaduženo', actions: 'Akcije' }}
+            visible={visibleColumns}
+            onChange={(key, v) => setVisibleColumns(prev => ({ ...prev, [key]: v }))}
+          />
+        </div>
+      </Toolbar>
 
       <Panel pad={false}>
         {loading ? (

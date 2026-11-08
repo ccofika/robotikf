@@ -1,4 +1,16 @@
-/* Pregled opreme: razmak ispod kategorija, lokacija i "zaduženo pre praćenja" */
-.sx-choice.mx-eq-cats { margin-bottom: 16px; }
+/* Pregled opreme i Virtuelni magacin: zaglavlje u jednom redu, traka sa kategorijama, lokacija, "zaduženo pre praćenja" */
+/* zaglavlje kao ranije: naslov levo, dugmad desno u istom redu (na uskom prostoru se slože ispod) */
+.sx-head.mx-eq-head { align-items: center; }
+.sx-head.mx-eq-head .sx-head__text { flex-basis: 260px; }
+
+/* traka sa kategorijama: kartica sa pilulama poravnatim po sredini */
+.mx-eq-catbar { margin-bottom: 20px; padding: 12px 14px; border-radius: var(--sx-radius-card); border: 1px solid var(--sx-line); background: var(--sx-surface); box-shadow: var(--sx-shadow-card); }
+.mx-eq-catbar > .sx-choice { justify-content: center; gap: 8px; }
+.sx-head + .mx-eq-catbar { margin-top: 26px; }
+@media (max-width: 767px) {
+  .mx-eq-catbar { padding: 8px 0; overflow: hidden; }
+  .mx-eq-catbar > .sx-choice.sx-choice--scroll { justify-content: flex-start; margin: 0; padding: 2px 14px; }
+}
+
 .sx-sign.mx-eq-loc { white-space: normal; }
 .mx-eq-legacy { font-size: 12px; font-style: italic; color: var(--sx-faint); }
