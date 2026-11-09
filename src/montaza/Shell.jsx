@@ -125,7 +125,7 @@ export default function Shell({ children }) {
         <header className="sx-topbar" data-testid="topbar">
           <BrandMark />
           <span className="sx-topbar__title" data-testid="page-title">{title}</span>
-          <button type="button" className="sx-topbar__btn" onClick={toggleBell} aria-label={`Obaveštenja, nepročitanih ${unread}`} data-testid="bell">
+          <button type="button" className="sx-topbar__btn" onClick={toggleBell} aria-label={`Notifikacije, nepročitanih ${unread}`} data-testid="bell">
             <Bell size={20} strokeWidth={1.8} />{unread > 0 && <span className="sx-badge" data-tone="bad">{unread > 99 ? '99+' : unread}</span>}
           </button>
           <button type="button" className="sx-topbar__btn sx-burger" onClick={() => setPanel(panel === 'menu' ? null : 'menu')} aria-label="Otvori meni" aria-expanded={panel === 'menu'} data-testid="menu-button">
