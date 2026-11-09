@@ -1,0 +1,28 @@
+/* Detaljni pregled (DrilldownModal) u sx dijalogu: isti delovi kao ranije, boje samo iz tokena.
+   Naslov odeljka (h3) ima dva nivoa jer se sx osnova za h1-h5 učitava posle ovog fajla. */
+.sx-dialog.mx-drill { max-width: 1152px; }
+
+/* primenjeni filteri */
+.mx-drill__filters { display: grid; gap: 10px; margin-bottom: 14px; padding: 14px 16px; border-radius: 14px; background: var(--sx-accent-soft); }
+.sx-dialog .mx-drill__h { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 650; color: var(--sx-accent-text); }
+.mx-drill__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mx-drill__chips .sx-tag.is-info { height: auto; min-height: 24px; padding-top: 3px; padding-bottom: 3px; background: var(--sx-surface); white-space: normal; overflow-wrap: anywhere; }
+
+/* pretraga, sortiranje, broj rezultata i Export */
+.mx-drill__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 14px; }
+.mx-drill__tools .sx-search { flex: 1 1 240px; max-width: 448px; }
+.mx-drill__tools .sx-select { width: auto; min-width: 180px; }
+.mx-drill__end { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.mx-drill__muted { font-size: 13px; color: var(--sx-muted); }
+
+/* strane (u podnožju dijaloga) */
+.mx-drill__pager { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.mx-drill__pagebtns { display: flex; align-items: center; gap: 8px; }
+.mx-drill__page { font-family: var(--sx-font-mono); font-size: 13px; font-weight: 600; color: var(--sx-text-2); white-space: nowrap; }
+
+@media (max-width: 479px) {
+  .mx-drill__tools .sx-search { flex-basis: 100%; max-width: none; }
+  .mx-drill__tools .sx-select { flex: 1 1 auto; min-width: 0; }
+  .mx-drill__end { margin-left: 0; }
+  .mx-drill__pagebtns { width: 100%; }
+}
