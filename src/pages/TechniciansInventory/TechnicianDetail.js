@@ -680,7 +680,7 @@ const TechnicianDetail = () => {
         <Panel
           title="Zadužena oprema"
           pad={false}
-          actions={<LinkBtn to={`/technicians/${id}/assign-equipment`} variant="primary" size="sm" icon={Package}>Zaduži/razduži opremu</LinkBtn>}
+          actions={<LinkBtn to={`/technicians/${id}/assign-equipment`} variant="primary" size="sm" icon={Package}>{technician.isActive === false ? 'Razduži opremu' : 'Zaduži/razduži opremu'}</LinkBtn>}
           testId="technician-equipment"
         >
           {equipmentItems.length === 0 ? (
@@ -730,7 +730,7 @@ const TechnicianDetail = () => {
         <Panel
           title="Zaduženi materijali"
           pad={false}
-          actions={<LinkBtn to={`/technicians/${id}/assign-material`} variant="primary" size="sm" icon={Cable}>Zaduži/razduži materijal</LinkBtn>}
+          actions={<LinkBtn to={`/technicians/${id}/assign-material`} variant="primary" size="sm" icon={Cable}>{technician.isActive === false ? 'Razduži materijal' : 'Zaduži/razduži materijal'}</LinkBtn>}
           testId="technician-materials"
         >
           {materialItems.length === 0 ? (

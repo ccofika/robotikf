@@ -1165,7 +1165,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                 type="select"
                 options={[
                   { value: '', label: 'Odaberite tehničara' },
-                  ...technicians.filter(t => !t.deletedAt || t._id === formData.technicianId).map(t => ({ value: t._id, label: t.deletedAt ? `${t.name} (obrisan)` : t.name }))
+                  ...technicians.filter(t => (!t.deletedAt && t.isActive !== false) || t._id === formData.technicianId).map(t => ({ value: t._id, label: t.deletedAt ? `${t.name} (obrisan)` : t.isActive === false ? `${t.name} (neaktivan)` : t.name }))
                 ]}
               />
             </div>
@@ -1182,7 +1182,7 @@ const WorkOrderDetail = ({ isModal = false, onCloseModal, modalWorkOrderId }) =>
                 type="select"
                 options={[
                   { value: '', label: 'Nema pomoćnog' },
-                  ...technicians.filter(t => t._id !== formData.technicianId && (!t.deletedAt || t._id === formData.technician2Id)).map(t => ({ value: t._id, label: t.deletedAt ? `${t.name} (obrisan)` : t.name }))
+                  ...technicians.filter(t => t._id !== formData.technicianId && ((!t.deletedAt && t.isActive !== false) || t._id === formData.technician2Id)).map(t => ({ value: t._id, label: t.deletedAt ? `${t.name} (obrisan)` : t.isActive === false ? `${t.name} (neaktivan)` : t.name }))
                 ]}
               />
             </div>

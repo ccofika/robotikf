@@ -293,9 +293,8 @@ const TechniciansList = () => {
       const searchMatch = searchTerm === '' ||
                          technician.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const statusMatch = statusFilter === 'all' ||
-                         (statusFilter === 'active' && technician.isActive !== false) ||
-                         (statusFilter === 'inactive' && technician.isActive === false);
+      // neaktivni (ne rade više) se ne broje u ukupne i vide se samo pod "Neaktivni"
+      const statusMatch = statusFilter === 'inactive' ? technician.isActive === false : technician.isActive !== false;
 
       return searchMatch && statusMatch;
     });
@@ -351,7 +350,7 @@ const TechniciansList = () => {
       {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
       <div className="sx-stats">
-        <Stat label="Ukupno tehničara" value={technicianUsers.length} onClick={() => setStatusFilter('all')} selected={statusFilter === 'all'} />
+        <Stat label="Ukupno tehničara" value={activeCount} onClick={() => setStatusFilter('all')} selected={statusFilter === 'all'} />
         <Stat label="Aktivni" value={activeCount} tone={activeCount ? 'ok' : null} onClick={() => setStatusFilter('active')} selected={statusFilter === 'active'} />
         <Stat label="Neaktivni" value={inactiveCount} tone={inactiveCount ? 'bad' : null} onClick={() => setStatusFilter('inactive')} selected={statusFilter === 'inactive'} />
         <Stat label="Administratori" value={visibleAdminUsers.length} />

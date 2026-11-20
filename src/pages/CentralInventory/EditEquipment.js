@@ -85,9 +85,10 @@ const EditEquipment = () => {
     return (
       <>
         <option value="magacin">Magacin</option>
-        {technicians.filter(tech => !tech.deletedAt || equipment.location === `tehnicar-${tech._id}`).map(tech => (
+        {/* obrisani i neaktivni se ne zadužuju; ostaju samo kao trenutna lokacija */}
+        {technicians.filter(tech => (!tech.deletedAt && tech.isActive !== false) || equipment.location === `tehnicar-${tech._id}`).map(tech => (
           <option key={tech._id} value={`tehnicar-${tech._id}`}>
-            Tehničar: {tech.name}{tech.deletedAt ? ' (obrisan)' : ''}
+            Tehničar: {tech.name}{tech.deletedAt ? ' (obrisan)' : tech.isActive === false ? ' (neaktivan)' : ''}
           </option>
         ))}
       </>

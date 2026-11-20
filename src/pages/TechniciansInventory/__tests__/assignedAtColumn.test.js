@@ -123,7 +123,7 @@ describe('/technicians/:id/assign-equipment — tab za razduženje', () => {
 
   it('tab za razduženje prikazuje pečat i legacy tekst', async () => {
     await renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Razduži opremu|Razduženje/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Razduži opremu/i }));
     const stampedRow = await screen.findByText('sn-stamped');
     assertColumnAligned(stampedRow.closest('tr'), '15.08.2026. 14:24');
     assertColumnAligned(rowFor('sn-legacy'), LEGACY_TEXT);
@@ -143,13 +143,26 @@ describe('/technicians/:id/assign-equipment — tab za razduženje', () => {
 
     await waitFor(() => expect(techniciansAPI.assignEquipment).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /Razduži opremu|Razduženje/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Razduži opremu/i }));
     const row = (await screen.findByText('sn-magacin')).closest('tr');
 
     const headers = headersOf(row);
     const cell = within(row).getAllByRole('cell')[headers.indexOf('Zaduženo')];
     expect(cell.textContent).not.toBe(LEGACY_TEXT);
     expect(cell.textContent).toMatch(/^\d{2}\.\d{2}\.\d{4}\. \d{2}:\d{2}$/);
+  });
+
+  // Neaktivan tehničar (ne radi više): zaduženo ostaje i može da se razduži, ali nema novog zaduženja.
+  it('neaktivan tehničar ima samo razduženje', async () => {
+    techniciansAPI.getOne.mockResolvedValue({ data: { _id: TECH_ID, name: 'Test Tehničar', isActive: false } });
+    techniciansAPI.getAll.mockResolvedValue({ data: [] });
+    equipmentAPI.getAll.mockResolvedValue({ data: [stampedItem, warehouseItem] });
+    render(<AssignEquipment />);
+
+    expect(await screen.findByText('sn-stamped')).toBeInTheDocument();
+    expect(screen.queryByText('sn-magacin')).not.toBeInTheDocument();
+    expect(screen.getByText(/Tehničar je neaktivan/)).toBeInTheDocument();
+    expect(screen.queryByText('Zaduži opremu')).not.toBeInTheDocument();
   });
 });
 

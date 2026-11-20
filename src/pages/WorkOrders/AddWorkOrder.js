@@ -39,7 +39,7 @@ const AddWorkOrder = () => {
     const fetchTechnicians = async () => {
       try {
         const response = await techniciansAPI.getAll();
-        setTechnicians(response.data.filter(t => !t.deletedAt));
+        setTechnicians(response.data.filter(t => !t.deletedAt && t.isActive !== false));
       } catch (err) {
         console.error('Greška pri učitavanju tehničara:', err);
         toast.error('Neuspešno učitavanje tehničara!');

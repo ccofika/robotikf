@@ -526,7 +526,7 @@ const BasicEquipmentManager = () => {
                     required
                   >
                     <option value="">Izaberite tehničara</option>
-                    {technicians.filter(tech => !tech.deletedAt).map(tech => (
+                    {technicians.filter(tech => !tech.deletedAt && tech.isActive !== false).map(tech => (
                       <option key={tech._id} value={tech._id}>
                         {tech.name}
                       </option>

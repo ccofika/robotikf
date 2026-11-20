@@ -46,6 +46,7 @@ const AssignEquipment = () => {
       ]);
 
       setTechnician(techResponse.data);
+      if (techResponse.data?.isActive === false) setActiveTab('return'); // neaktivan tehničar može samo da razduži
 
       // Razdvajanje opreme na onu koja je dostupna i onu koja je već zadužena kod tehničara
       const available = equipmentResponse.data.filter(item => item.location === 'magacin');
@@ -250,11 +251,12 @@ const AssignEquipment = () => {
       {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
       {technician && <Panel title={technician.name} sub="Tehničar" className="mx-mb" />}
+      {technician?.isActive === false && <Note tone="warn" className="mx-mb">Tehničar je neaktivan: oprema može samo da se razduži.</Note>}
 
       {/* tabovi na sredini, kao ranije */}
       <Tabs
         className="justify-center"
-        items={[{ key: 'assign', label: 'Zaduži opremu', icon: Plus }, { key: 'return', label: 'Razduži opremu', icon: Minus }]}
+        items={[technician?.isActive !== false && { key: 'assign', label: 'Zaduži opremu', icon: Plus }, { key: 'return', label: 'Razduži opremu', icon: Minus }].filter(Boolean)}
         value={activeTab}
         onChange={setActiveTab}
       />

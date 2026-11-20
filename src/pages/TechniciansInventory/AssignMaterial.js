@@ -36,11 +36,13 @@ const AssignMaterial = () => {
       setTechnician(techResponse.data);
       setMaterials(materialsResponse.data);
       setTechnicianMaterials(techResponse.data.materials || []);
+      const returnOnly = activeTab === 'return' || techResponse.data.isActive === false; // neaktivan tehničar može samo da razduži
+      if (returnOnly) setActiveTab('return');
 
       // Postavi prvi materijal kao selektovan
-      if (materialsResponse.data.length > 0 && activeTab === 'assign') {
+      if (materialsResponse.data.length > 0 && !returnOnly) {
         setSelectedMaterial(materialsResponse.data[0]._id);
-      } else if (techResponse.data.materials?.length > 0 && activeTab === 'return') {
+      } else if (techResponse.data.materials?.length > 0 && returnOnly) {
         setSelectedMaterial(techResponse.data.materials[0].id || techResponse.data.materials[0]._id);
       }
 
@@ -148,14 +150,15 @@ const AssignMaterial = () => {
       {error && <Note tone="bad" className="mx-mb">{error}</Note>}
 
       {technician && <Panel title={technician.name} sub="Tehničar" className="mx-mb" />}
+      {technician?.isActive === false && <Note tone="warn" className="mx-mb">Tehničar je neaktivan: materijal može samo da se razduži.</Note>}
 
       {/* tabovi na sredini, kao ranije */}
       <Tabs
         className="justify-center"
         items={[
-          { key: 'assign', label: 'Zaduži materijal', icon: Plus },
+          technician?.isActive !== false && { key: 'assign', label: 'Zaduži materijal', icon: Plus },
           { key: 'return', label: 'Razduži materijal', icon: Minus, disabled: technicianMaterials.length === 0 }
-        ]}
+        ].filter(Boolean)}
         value={activeTab}
         onChange={handleTabChange}
       />
